@@ -14,8 +14,12 @@ app.whenReady().then(async()=>{
   ipcMain.handle('doctor:folder',async event=>{permitted(event);const result=await dialog.showOpenDialog(window,{title:'Select addon folders or their common directory',properties:['openDirectory','multiSelections']});return result.canceled?null:result.filePaths;});
   ipcMain.handle('doctor:export',async(event,{name,text})=>{permitted(event);if(typeof text!=='string'||text.length>20e6)throw Error('Export exceeds size limit');const result=await dialog.showSaveDialog(window,{defaultPath:path.basename(name)});if(result.canceled)return false;await require('node:fs/promises').writeFile(result.filePath,text,'utf8');return true;});
   ipcMain.handle('doctor:backups',async event=>{permitted(event);await shell.openPath(service.patches.dir);});
+  ipcMain.handle('doctor:lab-input',async(event,kind)=>{permitted(event);if(!['folder','zip'].includes(kind))throw Error('Select an export folder or ZIP');const result=await dialog.showOpenDialog(window,{title:kind==='zip'?'Select a saved WCL Lab ZIP':'Select a saved WCL Lab export folder',properties:[kind==='zip'?'openFile':'openDirectory'],...(kind==='zip'?{filters:[{name:'Saved export ZIP',extensions:['zip']}]}:{})});return result.canceled?null:result.filePaths[0];});
+  ipcMain.handle('doctor:lab-output',async(event,id)=>{permitted(event);const error=await shell.openPath(service.lab.run(id).output);if(error)throw Error(error);return true;});
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   window.webContents.on('will-navigate',event=>event.preventDefault());
   window.loadFile(entry);
 }).catch(error=>{dialog.showErrorBox('Pztk x Glyalith could not start',error.message);app.quit();});
 app.on('window-all-closed',()=>app.quit());
+let quitting=false;
+app.on('before-quit',event=>{if(!quitting&&service?.lab.active()){event.preventDefault();quitting=true;service.lab.close().finally(()=>app.quit());}});

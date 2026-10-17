@@ -1,8 +1,9 @@
-Pztk x Glyalith 0.1.5 — Windows x64
+Pztk x Glyalith 0.1.6 — Windows x64
 
-- Fixed a false "Decoded pack exceeds limits" failure when exporting large reminder plans. Count/depth handling now matches per-profile NSR limits; Lua stack reservation handles valid deep tables. Export of 4,000 reminders and a 52,000-entry fixture passed the unchanged real addon decoder.
-- Added bounded previews for large packs and Save decoded JSON for the complete result. Invalid/edited input clears stale decoded previews. Entry, depth, decompression, expansion, processing and license checks remain enforced.
-- Added explicit OpenAI / ChatGPT GPT-model and Anthropic Claude integrations. OpenAI uses Responses API, Claude uses Messages API; other compatible/local endpoints keep Chat Completions. Models and session API keys are separate per provider. Provider/model/destination changes require preparing context again; incomplete output cannot become a partial replacement.
-- Full Russian CHANGELOG.md now records versions 0.1.0–0.1.5. Existing multi-folder, reviewed patch/backup, WCL V1/V2 and DPAPI credential features remain available.
+- Вкладка WCL: встроен присланный bgmt x warcraftlogs lab 0.13.0. Движок работает в фоне: несколько ссылок WCL, локальный повторный анализ raw-экспортов, топ-логи, обзор специализаций, самопроверка и синтетические примеры.
+- Добавлены история запусков, остановка, просмотр JSON/CSV/JSONL, открытие результатов и импорт записанных кастов в сравнение боёв и планы напоминаний.
+- Для сетевых команд движка нужны V2 Client ID / Client Secret; отдельное подключение к Lab сохраняет секрет через DPAPI и восстанавливает прежний профиль при отключении. Существующий V1-импорт сохранён.
+- Settings теперь загружает модели OpenAI, Claude и локального сервера в выпадающий список. Выберите модель и нажмите Save Settings; ручной ввод ID также доступен.
+- В Describe a feature добавлены отображение модели и переход Choose model in Settings без потери запроса.
 
-Extract the entire ZIP into a new folder and launch Pztk x Glyalith.exe. API keys for OpenAI/Claude are required separately from web subscriptions; cloud model keys remain session-only. WCL encrypted saved credentials stay in the Windows user-data directory. Code proposals still require review and in-game validation. Live provider calls with user credentials have not been verified here. Third-party EXE parser integration is not included: the user's file has not yet been supplied.
+Распакуйте весь ZIP в новую папку и запустите Pztk x Glyalith.exe. Настройки и бэкапы находятся в каталоге данных пользователя. Живые WCL/ИИ-запросы с пользовательскими ключами и поведение аддонов внутри игры здесь не проверены. Подробнее: CHANGELOG.md и VALIDATION.md.

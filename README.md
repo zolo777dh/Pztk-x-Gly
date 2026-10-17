@@ -2,7 +2,7 @@
 
 Standalone Windows desktop prototype for diagnosing **NaowhForever** (all discovered modules) and **Naowh Smart Reminders**, preparing source patches, encounter notes and reminder packs. It is not a WoW addon.
 
-**[Download Windows x64 ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.5/Pztk-x-Glyalith-0.1.5-Windows-x64.zip)** · [Release and checksum](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.5)
+**[Download Windows x64 ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.6/Pztk-x-Glyalith-0.1.6-Windows-x64.zip)** · [Release and checksum](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.6)
 
 [История всех изменений / Changelog](CHANGELOG.md)
 
@@ -22,6 +22,8 @@ Standalone Windows desktop prototype for diagnosing **NaowhForever** (all discov
 
 ## Hybrid AI
 
+In Settings use **Load available models**, choose from **Available models**, then **Save Settings**. OpenAI, Claude and local/compatible servers each have their own model list. Manual Model ID entry remains available if a server does not expose a list. In Describe a feature, **AI SOURCE** chooses Local/Cloud and **Choose model in Settings** opens configuration without losing the request.
+
 In Settings, configure an **OpenAI-compatible** endpoint/model. A local model is not bundled. For example, install Ollama on Windows, run `ollama pull qwen2.5-coder:7b`, keep its server running, and use `http://127.0.0.1:11434/v1` with model `qwen2.5-coder:7b`. Hardware requirements depend on the chosen model. For cloud assistance select OpenAI / GPT (ChatGPT model family), Anthropic / Claude, or another OpenAI-compatible API. Enter a model ID and that provider’s API key, then Save Settings. OpenAI uses Responses; Claude uses Messages; compatible/local servers use Chat Completions. Web ChatGPT/Claude subscriptions do not supply API access. Models and session keys are separate per provider; switching providers clears the key input. Live calls require your own API access and have not been validated with user credentials.
 
 **Analyze selected file** first shows a bounded source fragment (up to 24,000 source characters), build and trimmed issue details. Choose the focus line for large files. **Send fragment** sends only that displayed context. The actual provider/model is displayed and bound to the reviewed context; changing it requires a new preview. A complete enclosing function is preferred; clipped single-line generated data is analysis-only. Returned fragments are merged into the original source, preserving other lines. **Test local/cloud connection** checks the configured server and model list; no cloud key is sent to localhost. Desktop requests use Electron’s system network/proxy stack with TLS verification enabled. Returned source is never applied automatically; it still requires preview, validation and a backup. Keys are **memory-only for the current session**, cleared on exit/disconnect; endpoint and model settings persist. Automated note drafting and automatic dependency-wide repair are not implemented. No automatic Git commits or pushes are performed in connected addon repositories.
@@ -39,6 +41,22 @@ Right-click a connected addon for **Refresh / Delete folder**. Refresh reindexes
 The decoder counts table entries per profile, matching the supplied NSR validation limit (100,000 entries / 32 data-table levels), rather than counting keys and values twice. Export of a 4,000-reminder plan and a 52,000-entry fixture was accepted by the unchanged addon decoder. Input remains capped at 130,000 encoded characters and 4,000,000 decompressed bytes. Additional inspection limits are 1,000,000 total entries, 16,000,000 expanded JSON bytes, 64 outer table levels and bounded processing time. Limits and license checks are not disabled.
 
 Large previews are sampled to keep the interface usable. **Save decoded JSON** exports the complete decoded payload, not the sampled preview. Changing the input or a failed decode clears the old preview. Full-profile packs remain read-only; supported reminder-only packs retain the existing copy-to-plan workflow.
+
+## Integrated WCL Lab
+
+The **WCL** tab includes the supplied **bgmt x warcraftlogs lab 0.13.0** Windows x64 engine. Its original binary is bundled, checked by SHA256 and invoked in the background through its supported CLI. No separate parser window or installation is required.
+
+- Start with **Check engine installation** or **Generate sample export**. The latter creates synthetic data; it cannot become a real encounter sample.
+- **Analyze saved export** accepts the engine's raw-export folder or ZIP. Offline reanalysis does not call WCL. HTML/CSV reference documents still use Encounter Lab's existing importer.
+- **Export WCL links** accepts up to 30 links, one per line. Include fight/source parameters for the desired encounter and player.
+- **Find & analyze top logs** accepts zone IDs and encounter IDs prefixed with `e`, plus top count, starting rank and a per-run limit. **Survey specializations** accepts `Class:Spec[:dps|hps]` pairs and encounter IDs. These use the original engine's CLI defaults; not every option from its separate GUI is exposed.
+- Choose a specialization key such as `holypaladin`, `protpaladin`, `shadow` or `disc`. The engine owns its spell catalogs; the app's Retail/Forever selector does not rewrite them. Forever report availability and build-specific accuracy require real-data validation.
+
+Each run has an independent output folder, bounded log, status and previewable JSON/JSONL/CSV/text files. Stop cancels the process; closing the app stops an active engine too. Partial and interrupted results are retained but cannot be imported as complete timelines. A one-hour process limit prevents an abandoned operation running indefinitely. Use **Open result folder** for complete files.
+
+Live Lab commands require **V2 Client ID / Client Secret** saved in Settings, then **Connect saved V2 client to Lab** in WCL. A V1 key or standalone Access Token does not configure this engine. The secret is encrypted with Windows DPAPI, using stdin rather than command arguments or environment variables. The engine uses `%LOCALAPPDATA%\bgmt x warcraftlogs lab\credentials.dat`; an existing independent record is preserved and restored on disconnect. An outside change blocks automatic restoration. Forgetting the app's WCL key also disconnects a linked Lab client. Linking creates a persistent engine credential record even if the app's own Remember key option is off; disconnect Lab to remove that link.
+
+**Import casts** beside an exported `fight.json` adds recorded hostile/selected-player casts to cached timelines. **Compare pulls & draft reminders** opens the existing comparison workflow. It preserves report/fight identity and milliseconds-to-pull-time conversion, removes duplicate events and refuses synthetic identities. This is a partial cast stream, not every raid member's casts. Engine analytics include decision context, pairing, resource/HP snapshots, cooldowns, auras, deaths and data-quality reports when supported by the source data.
 
 ## Warcraft Logs setup and limits
 

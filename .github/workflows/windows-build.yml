@@ -22,6 +22,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Test core behavior
         run: npm test
+      - name: Verify bundled WCL Lab on Windows with synthetic data
+        run: node tests/lab-native.mjs
       # The real-addon DecodePack test is explicitly skipped here: it needs the
       # external Smart Reminders checkout and Lua 5.1. It passed in the cloud build.
       - name: Package Windows x64

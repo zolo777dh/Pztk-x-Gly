@@ -1,4 +1,4 @@
-Pztk x Glyalith 0.1.5 — Windows x64
+Pztk x Glyalith 0.1.6 — Windows x64
 
 1. Распакуйте ВЕСЬ архив в отдельную папку.
 2. Запустите «Pztk x Glyalith.exe». Не переносите EXE отдельно от ресурсов и DLL.
@@ -23,7 +23,7 @@ Remember Warcraft Logs key + Save Settings сохраняет ключ чере�
 Test WCL connection проверяет API; Check report access — вашу ссылку на отчёт.
 Forget saved key удаляет сохранённые данные. Без ключа работают импорт файлов и кэш.
 
-Это первая тестовая версия, без цифровой подписи. Работу EXE на Windows и аддонов внутри игры
+Это тестовая версия, без цифровой подписи. Работу EXE на Windows и аддонов внутри игры
 нужно проверить на вашей машине. Полного каталога WoW API и автоматической проверки поведения
 в игре пока нет. Подробности — README.md и VALIDATION.md рядом с EXE.
 
@@ -38,3 +38,22 @@ Describe a feature: опишите функцию → Prepare feature context �
 Подписка на ChatGPT/Claude не заменяет API-доступ. Ключи разных ИИ разделены и действуют до закрытия.
 Большие паки: предпросмотр сокращается; Save decoded JSON сохраняет полный результат.
 Исправлен ложный лимит Export Reminder Pack; проверен план из 4 000 напоминаний.
+
+Выбор ИИ: Settings → Load available models → выберите модель из Available models → Save Settings.
+Model ID также можно ввести вручную. В Describe a feature кнопка Choose model in Settings
+открывает настройки, сохраняя текст запроса; Local/Cloud теперь называется AI SOURCE.
+
+WCL: вкладка WCL содержит присланный движок bgmt x warcraftlogs lab 0.13.0.
+Начните с Check engine installation. Analyze saved export повторно анализирует его raw-папку
+или ZIP локально. Export WCL links принимает несколько ссылок с fight/source.
+Также доступны топ-логи, обзор специализаций, самопроверка и синтетический пример.
+Для сетевых команд сохраните V2 Client ID / Client Secret в Settings и нажмите
+Connect saved V2 client to Lab. Это отдельно сохраняет ключ движка через Windows DPAPI,
+даже если Remember key в Settings выключен. Disconnect Lab client убирает эту связь
+и восстанавливает предыдущий независимый профиль, если он был. V1-импорт остаётся
+в Encounter Notes; ключ V1 не заменяет OAuth-клиент для встроенного движка.
+
+Результаты: выберите запуск, просмотрите JSON/CSV или Open result folder.
+Import casts возле fight.json добавляет реальные касты в кэш таймлайнов.
+Compare pulls & draft reminders открывает сравнение боёв и подготовку плана NSR.
+Синтетические, прерванные и неуспешные результаты не считаются реальными завершёнными боями.
