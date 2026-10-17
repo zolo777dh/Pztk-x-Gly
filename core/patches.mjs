@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {zipSync,unzipSync} from 'fflate';
+import {unzipSync} from 'fflate';
+import {zipCompatible} from './archives.mjs';
 import {createTwoFilesPatch} from 'diff';
 import {inside,readSource,sha,uid,writeAtomic,writeMany,walk} from './files.mjs';
 import {parseLua} from './analyzer.mjs';
@@ -24,7 +25,7 @@ export class Patches {
     const id=uid();const manifest={format:1,id,projectId:project.id,projectName:project.name,createdAt:new Date().toISOString(),kind,files:[]};const contents={};
     let size=0;
     for(const entry of entries){const bytes=await fs.readFile(await inside(project.root,entry.path));size+=bytes.length;if(size>100e6)throw Error('Source backup exceeds 100 MB');if(entry.expectedHash&&sha(bytes)!==entry.expectedHash)throw Error('Source changed before backup: '+entry.path);contents['files/'+entry.path]=bytes;manifest.files.push({path:entry.path,beforeHash:sha(bytes),afterHash:entry.afterHash||null});}
-    contents['manifest.json']=Buffer.from(JSON.stringify(manifest,null,2));const zip=zipSync(contents,{level:6});const extracted=unzipSync(zip);
+    contents['manifest.json']=Buffer.from(JSON.stringify(manifest,null,2));const zip=zipCompatible(contents);const extracted=unzipSync(zip);
     for(const f of manifest.files)if(sha(extracted['files/'+f.path])!==f.beforeHash)throw Error('Backup verification failed');
     const filename=path.join(this.dir,id+'.zip');await writeAtomic(filename,zip);
     // Verify the durable archive before any source writes.

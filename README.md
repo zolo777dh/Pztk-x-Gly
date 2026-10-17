@@ -2,11 +2,11 @@
 
 Standalone Windows desktop prototype for diagnosing **NaowhForever** (all discovered modules) and **Naowh Smart Reminders**, preparing source patches, encounter notes and reminder packs. It is not a WoW addon.
 
-**[Download Windows x64 ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.0/Pztk-x-Glyalith-0.1.0-Windows-x64.zip)** · [Release and checksum](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.0)
+**[Download Windows x64 ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.1/Pztk-x-Glyalith-0.1.1-Windows-x64.zip)** · [Release and checksum](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.1)
 
 ## Try the Windows app
 
-1. Extract the entire `Pztk-x-Glyalith-0.1.0-Windows-x64.zip` archive to a writable folder.
+1. Extract the entire `Pztk-x-Glyalith-0.1.1-Windows-x64.zip` archive to a writable folder.
 2. Open `Pztk x Glyalith.exe` inside the extracted folder. Keep its DLLs, `resources` and other files alongside it. Node, Python and Lua are not required on the user's PC.
 3. Click **Open disposable demo** to try the interface without touching real addons.
 4. Click **+** beside Addons and choose a folder containing an addon `.toc`, for example `Interface\AddOns\NaowhSmartReminders`. Add the Forever root separately. Development checkout layout and individually installed module folders can both be connected.
@@ -34,7 +34,13 @@ The prototype is unsigned. Native execution on Windows still needs user verifica
 
 In Settings, configure an **OpenAI-compatible** endpoint/model. A local model is not bundled. For example, install Ollama on Windows, run `ollama pull qwen2.5-coder:7b`, keep its server running, and use `http://127.0.0.1:11434/v1` with model `qwen2.5-coder:7b`. Hardware requirements depend on the chosen model. For cloud assistance enter your provider's HTTPS API base, model ID and key.
 
-**Analyze selected file** sends that complete file and the selected issue to the chosen provider. Returned source is never applied automatically; it still requires preview, validation and a backup. Keys are **memory-only for the current session**, cleared on exit/disconnect; endpoint and model settings persist. Automated note generation by a model, full-project AI context retrieval and automatic dependency-wide repair are not implemented in v0.1.
+**Analyze selected file** first shows a bounded source fragment (up to 24,000 source characters), build and trimmed issue details. Choose the focus line for large files. **Send fragment** sends only that displayed context. A complete enclosing function is preferred; clipped single-line generated data is analysis-only. Returned fragments are merged into the original source, preserving other lines. **Test local/cloud connection** checks the configured server and model list; no cloud key is sent to localhost. Desktop requests use Electron’s system network/proxy stack with TLS verification enabled. Returned source is never applied automatically; it still requires preview, validation and a backup. Keys are **memory-only for the current session**, cleared on exit/disconnect; endpoint and model settings persist. Automated note drafting and automatic dependency-wide repair are not implemented. No automatic Git commits or pushes are performed in connected addon repositories.
+
+**Describe a feature** is available from Diagnostics, Patch Assistant and Project Tools. Describe the desired behavior in Russian or English, optionally choose an existing Lua file, then prepare and review the exact context. The app supplies a bounded file index, loader and up to four source fragments. **Generate code proposal** asks your configured local/cloud model for a single-file change with a unique exact source anchor. The result identifies the Lua file, insertion line and position, then opens a syntax-checked diff. Ambiguous anchors, unprovided paths, stale source and invalid Lua block the proposal. If the model needs new modules, several files or more context, it should explain that instead of proposing a write. Generated code still needs in-game review.
+
+**Suggest Fix** checks verified local rules without a model. The first rule covers the reported ConsumableBar `ns.ModuleOn` nil call when the complete connected addon includes the matching macro-settings implementation. It offers a compatibility fallback to loaded macro settings; this does not repair the core loader or establish why `ModuleOn` was absent. Check earlier errors and addon versions. Other errors can use the hybrid model workflow.
+
+Right-click a connected addon for **Refresh / Delete folder**. Refresh reindexes new/deleted files and subfolders, rescans, and invalidates old patch/feature plans. Reimport runtime logs afterward. Delete folder removes only its workspace registration; disk files and ZIP backups are kept. `NaowhForever_JourneysData` can be connected by its TOC folder or indexed under the full addon repository.
 
 ## Warcraft Logs setup and limits
 

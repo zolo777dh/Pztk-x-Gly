@@ -2,9 +2,14 @@ import {chromium} from 'playwright-core';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import http from 'node:http';
+const model=http.createServer(async(req,res)=>{for await(const chunk of req){}res.setHeader('Content-Type','application/json');res.end(JSON.stringify({choices:[{message:{content:JSON.stringify({explanation:'Fixture only: add a local greeting after the addon namespace binding.',file:'Core.lua',position:'after',anchor:'local addonName, ns = ...',code:'\nlocal function FeatureGreeting()\n    return "Hello"\nend'})}}]}));});
+await new Promise(resolve=>model.listen(0,'127.0.0.1',resolve));
 const browser=await chromium.launch({executablePath:process.env.DOCTOR_CHROMIUM||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
 const page=await browser.newPage({viewport:{width:1672,height:941}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await fs.mkdir('test-results',{recursive:true});
+async function api(method,args={}){const r=await page.request.post('http://127.0.0.1:4318/api/call',{headers:{origin:'http://127.0.0.1:5173','content-type':'application/json'},data:{method,args}});const result=await r.json();if(result.error)throw Error(result.error);return result.data;}
+const initialSettings=(await api('init')).settings;
 try{
  await page.goto('http://127.0.0.1:5173');await page.getByRole('button',{name:'Open disposable demo'}).click();await page.getByRole('button',{name:/Lua runtime error.*SetReminder/}).click();
  await page.getByRole('button',{name:'Patch Assistant',exact:true}).click();const editor=page.getByRole('textbox',{name:'Proposed source code'});await editor.waitFor();const original=await editor.inputValue();assert.ok(original.includes('SetReminder(reminderId, data)'));
@@ -20,5 +25,14 @@ try{
   await page.locator('.timeline-panel input[type=file]').setInputFiles({name:'synthetic-timeline-'+i+'.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))});await page.locator('.timeline-info h3').filter({hasText:fixture.name}).waitFor();
  }
  await page.getByRole('button',{name:'Encounter Lab',exact:true}).click();const pulls=page.locator('.pull-selection input[type=checkbox]');for(let i=0;i<await pulls.count();i++)await pulls.nth(i).check();await page.getByRole('textbox',{name:'Boss ability ID'}).fill('999');await page.getByRole('textbox',{name:'Defensive spell IDs'}).fill('498');await page.getByRole('button',{name:/Analyze \d+ pulls/}).click();await page.getByRole('cell',{name:'-3.00s',exact:true}).first().waitFor();await page.screenshot({path:'test-results/multi-log-analysis.png'});await page.getByRole('button',{name:'Close Encounter Lab',exact:true}).click();
- await page.getByRole('button',{name:'Diagnostics',exact:true}).click();await page.screenshot({path:'test-results/diagnostics.png'});assert.deepEqual(errors,[]);console.log('UI smoke passed: demo scan, patch backup/apply/restore, note save, NSRPACK2 export, uploaded HTML analysis, five-pull averages.');
-}finally{await browser.close();}
+ await page.getByRole('button',{name:'Diagnostics',exact:true}).click();await page.screenshot({path:'test-results/diagnostics.png'});
+ assert.equal(await page.getByText('WoW Lua Addon Doctor',{exact:true}).count(),0);
+ await api('settings',{settings:{localEndpoint:`http://127.0.0.1:${model.address().port}/v1`,localModel:'fixture-model'}});
+ await page.getByRole('button',{name:'Describe a feature',exact:true}).click();await page.getByRole('textbox',{name:'Feature description'}).fill('Добавить локальную функцию приветствия');await page.getByRole('combobox',{name:'Preferred feature file'}).selectOption('Core.lua');await page.getByRole('button',{name:'Prepare feature context',exact:true}).click();await page.getByRole('button',{name:'Generate code proposal',exact:true}).waitFor();await page.screenshot({path:'test-results/feature-request.png'});await page.getByRole('button',{name:'Generate code proposal',exact:true}).click();const featureDiff=page.getByRole('dialog',{name:'Review patch before applying'});await featureDiff.waitFor();assert.match(await featureDiff.innerText(),/Insertion point: Core.lua:2/);assert.match(await featureDiff.innerText(),/FeatureGreeting/);await page.screenshot({path:'test-results/feature-proposal.png'});await page.getByRole('button',{name:'Continue editing',exact:true}).click();await page.getByRole('button',{name:'Diagnostics',exact:true}).click();
+
+ await page.getByRole('button',{name:'Analyze selected file',exact:true}).click();await page.getByRole('dialog',{name:'Review AI context'}).waitFor();await page.getByRole('button',{name:'Cancel',exact:true}).click();
+ const demo=page.locator('.addon').filter({hasText:'Doctor Demo'});await demo.click({button:'right'});await page.getByRole('menu',{name:'Addon folder actions'}).waitFor();await page.screenshot({path:'test-results/folder-context-menu.png'});await page.getByRole('menuitem',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Folder refreshed'}).waitFor();assert.equal(await page.getByRole('textbox',{name:'Proposed source code'}).count(),0);
+ await demo.click({button:'right'});await page.keyboard.press('Escape');await page.getByRole('menu').waitFor({state:'hidden'});
+ await demo.click({button:'right'});await page.getByRole('menuitem',{name:/Delete folder/}).click();await page.getByRole('status').filter({hasText:'Folder removed from the list'}).waitFor();await demo.waitFor({state:'hidden'});await page.reload();await page.getByRole('button',{name:'Open disposable demo'}).waitFor();assert.equal(await page.locator('.addon').filter({hasText:'Doctor Demo'}).count(),0);
+ assert.deepEqual(errors,[]);console.log('UI smoke passed: demo scan, patch backup/apply/restore, note save, NSRPACK2 export, uploaded HTML analysis, five-pull averages, AI context preview, folder refresh/delete persistence, removed subtitle, feature request → exact file/anchor → syntax-checked diff.');
+}finally{await api('settings',{settings:initialSettings});await browser.close();model.close();}

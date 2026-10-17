@@ -43,3 +43,12 @@ export async function writeMany(root,entries) {
   for(const entry of entries){const file=await inside(root,entry.path); const data=await fs.readFile(file); if(sha(data)!==entry.expectedHash)throw Error('File changed since preview: '+entry.path); originals.push({file,data});}
   try {for(let i=0;i<entries.length;i++)await writeAtomic(originals[i].file,entries[i].bytes);}catch(error){for(const old of originals)await writeAtomic(old.file,old.data);throw error;}
 }
+// fs.cp uses opendir, which Electron does not support inside app.asar.
+export async function copyResources(source,destination){
+  await fs.mkdir(destination,{recursive:true});
+  for(const entry of await fs.readdir(source,{withFileTypes:true})){
+    const from=path.join(source,entry.name),to=path.join(destination,entry.name);
+    if(entry.isDirectory())await copyResources(from,to);
+    else if(entry.isFile())await fs.writeFile(to,await fs.readFile(from));
+  }
+}

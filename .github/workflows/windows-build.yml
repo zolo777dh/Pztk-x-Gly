@@ -26,18 +26,32 @@ jobs:
       # external Smart Reminders checkout and Lua 5.1. It passed in the cloud build.
       - name: Package Windows x64
         run: npm run package:win
+      - name: Launch packaged desktop and verify IPC, AI transport and pack codec
+        env:
+          DOCTOR_APP: ${{ github.workspace }}/release/Pztk x Glyalith-win32-x64/resources/app.asar
+          DOCTOR_PROFILE: windows-packaged
+        run: node tests/desktop.mjs
       - name: Record artifact checksum
         shell: pwsh
         run: |
-          $archive = 'release/Pztk-x-Glyalith-0.1.0-Windows-x64.zip'
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $archive = "release/Pztk-x-Glyalith-$version-Windows-x64.zip"
           $digest = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
-          "$digest  Pztk-x-Glyalith-0.1.0-Windows-x64.zip" | Set-Content release/SHA256SUMS.txt
+          "$digest  Pztk-x-Glyalith-$version-Windows-x64.zip" | Set-Content release/SHA256SUMS.txt
+      - name: Verify Windows ZIP extraction
+        shell: pwsh
+        run: |
+          $archive = Get-ChildItem release/Pztk-x-Glyalith-*-Windows-x64.zip | Select-Object -First 1
+          Expand-Archive -LiteralPath $archive.FullName -DestinationPath release/extraction-check
+          $asar = Get-ChildItem release/extraction-check -Recurse -Filter app.asar
+          if (-not $asar) { throw 'Packaged application archive is missing.' }
+          if (-not (Get-ChildItem release/extraction-check -Recurse -Filter 'Pztk x Glyalith.exe')) { throw 'Windows executable is missing.' }
       - name: Upload downloadable Windows bundle
         uses: actions/upload-artifact@v4
         with:
           name: Pztk-x-Glyalith-Windows-x64
           path: |
-            release/Pztk-x-Glyalith-0.1.0-Windows-x64.zip
+            release/Pztk-x-Glyalith-*-Windows-x64.zip
             release/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0

@@ -1,2 +1,2 @@
 const {contextBridge,ipcRenderer}=require('electron');
-contextBridge.exposeInMainWorld('doctor',{call:(method,args)=>ipcRenderer.invoke('doctor:call',method,args),pickFolder:()=>ipcRenderer.invoke('doctor:folder'),exportFile:(name,text)=>ipcRenderer.invoke('doctor:export',{name,text}),openBackups:()=>ipcRenderer.invoke('doctor:backups')});
+contextBridge.exposeInMainWorld('doctor',{call:async(method,args)=>{const result=await ipcRenderer.invoke('doctor:call',method,args);if(result.error)throw Error(result.error);return result.data;},pickFolder:()=>ipcRenderer.invoke('doctor:folder'),exportFile:(name,text)=>ipcRenderer.invoke('doctor:export',{name,text}),openBackups:()=>ipcRenderer.invoke('doctor:backups')});
