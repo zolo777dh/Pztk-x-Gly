@@ -6,18 +6,6 @@ Standalone Windows desktop prototype for diagnosing **NaowhForever** (all discov
 
 [История всех изменений / Changelog](CHANGELOG.md)
 
-## Try the Windows app
-
-1. Extract the entire `Pztk-x-Glyalith-0.1.4-Windows-x64.zip` archive to a writable folder.
-2. Open `Pztk x Glyalith.exe` inside the extracted folder. Keep its DLLs, `resources` and other files alongside it. Node, Python and Lua are not required on the user's PC.
-3. Click **Open disposable demo** to try the interface without touching real addons.
-4. Click **+** beside Addons and choose a folder containing an addon `.toc`, for example `Interface\AddOns\NaowhSmartReminders`. Add the Forever root separately. Development checkout layout and individually installed module folders can both be connected.
-5. Select the correct client profile and **Scan Project**. Import BugSack error text or a BugGrabber SavedVariables file. Existing logs are historical evidence; rescan alone does not prove a runtime error is fixed.
-6. Select a file, open **Patch Assistant**, edit the complete file or request AI assistance, then **Validate & preview**. **Create Backup & Apply** verifies a ZIP before writing. Test the result in game.
-7. Open **Project Tools → Backup & patch history → Restore** to undo a patch. Restoration creates another backup and refuses changed files.
-
-The prototype is unsigned. The packaged desktop has been launched in Windows CI and under Linux Electron. Its behavior on your own Windows installation and inside the game still needs user verification.
-
 ## Available features
 
 - Dark blue/yellow three-pane desktop UI based on the supplied visual reference, with separate build profiles for Retail `12.1.5.70448` and Forever `1.60.1.70425` (English game data).
