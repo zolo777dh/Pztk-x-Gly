@@ -1,5 +1,6 @@
-Pztk x Glyalith 0.1.1 — Windows x64
+Pztk x Glyalith 0.1.2 — Windows x64
 
+- Multi-folder connection in one action: Ctrl/Shift selection or a common parent folder. Addon folders appear as separate entries without duplicates; refresh discovers new modules while respecting folders removed from the list.
 - Removed the subtitle below the application name.
 - Right-click an addon for Refresh / Delete folder. Refresh indexes new subfolders and expires old plans; deletion removes only the registration, keeping local source and backups.
 - Bounded AI source context with a preview before sending and fragment merging, instead of sending oversized full files. Added model connection tests and actionable connection errors; desktop requests use the system network stack.

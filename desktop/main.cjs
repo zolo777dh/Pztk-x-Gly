@@ -9,7 +9,7 @@ app.whenReady().then(async()=>{
   const entry=path.join(app.getAppPath(),'dist','index.html');
   const permitted=event=>{if(event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw Error('Untrusted application frame');const url=new URL(event.senderFrame.url);if(url.protocol!=='file:'||decodeURIComponent(url.pathname).replace(/^\/(\w:)/,'$1')!==entry.replaceAll('\\','/'))throw Error('Untrusted application origin');};
   ipcMain.handle('doctor:call',async(event,method,args)=>{permitted(event);try{return {data:await service.handle(method,args)};}catch(error){return {error:error.message};}});
-  ipcMain.handle('doctor:folder',async event=>{permitted(event);const result=await dialog.showOpenDialog(window,{title:'Select addon folder',properties:['openDirectory']});return result.canceled?null:result.filePaths[0];});
+  ipcMain.handle('doctor:folder',async event=>{permitted(event);const result=await dialog.showOpenDialog(window,{title:'Select addon folders or their common directory',properties:['openDirectory','multiSelections']});return result.canceled?null:result.filePaths;});
   ipcMain.handle('doctor:export',async(event,{name,text})=>{permitted(event);if(typeof text!=='string'||text.length>20e6)throw Error('Export exceeds size limit');const result=await dialog.showSaveDialog(window,{defaultPath:path.basename(name)});if(result.canceled)return false;await require('node:fs/promises').writeFile(result.filePath,text,'utf8');return true;});
   ipcMain.handle('doctor:backups',async event=>{permitted(event);await shell.openPath(service.patches.dir);});
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));

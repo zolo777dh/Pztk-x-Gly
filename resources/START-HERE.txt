@@ -1,9 +1,10 @@
-Pztk x Glyalith 0.1.1 — Windows x64
+Pztk x Glyalith 0.1.2 — Windows x64
 
 1. Распакуйте ВЕСЬ архив в отдельную папку.
 2. Запустите «Pztk x Glyalith.exe». Не переносите EXE отдельно от ресурсов и DLL.
 3. Нажмите «Open disposable demo», чтобы проверить интерфейс на безопасном примере.
-4. Кнопка + возле Addons подключает папку аддона с файлом .toc.
+4. Кнопка + возле Addons позволяет выбрать сразу несколько папок через Ctrl/Shift.
+   Либо выберите общую папку: аддоны с .toc в ней и её подпапках появятся в списке.
 5. Выберите Retail или Forever, нажмите Scan Project.
 
 Патчи: Patch Assistant → Validate & preview → Create Backup & Apply.

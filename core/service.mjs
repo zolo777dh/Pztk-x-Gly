@@ -11,25 +11,29 @@ import {prepareContext} from './ai-context.mjs';
 import {testAIConnection} from './network.mjs';
 import {suggestFix} from './fixes.mjs';
 import {prepareFeature,generateFeature} from './features.mjs';
+import {discoverProjects} from './projects.mjs';
 const defaults={client:'retail',localEndpoint:'http://127.0.0.1:11434/v1',localModel:'qwen2.5-coder:7b',cloudEndpoint:'https://api.openai.com/v1',cloudModel:'',aiMode:'local'};
 export class DoctorService {
-  constructor(dataDir,resources,{fetcher}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],notes:[],settings:{...defaults}};this.scans=new Map();this.tokens={};this.features=new Map();this.patches=new Patches(dataDir);this.codec=new PackCodec(resources);}
-  async init(){await fs.mkdir(this.dataDir,{recursive:true});try{const s=JSON.parse(await fs.readFile(this.file,'utf8'));this.state={projects:s.projects||[],notes:s.notes||[],settings:{...defaults,...s.settings}};}catch(e){if(e.code!=='ENOENT')throw Error('Workspace data could not be read. Preserve workspace.json before recovering it.');}return this;}
+  constructor(dataDir,resources,{fetcher}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.tokens={};this.features=new Map();this.patches=new Patches(dataDir);this.codec=new PackCodec(resources);}
+  async init(){await fs.mkdir(this.dataDir,{recursive:true});try{const s=JSON.parse(await fs.readFile(this.file,'utf8'));this.state={projects:s.projects||[],notes:s.notes||[],hiddenRoots:s.hiddenRoots||[],settings:{...defaults,...s.settings}};}catch(e){if(e.code!=='ENOENT')throw Error('Workspace data could not be read. Preserve workspace.json before recovering it.');}return this;}
   async save(){await writeAtomic(this.file,JSON.stringify(this.state,null,2));}
   project(id){const p=this.state.projects.find(p=>p.id===id);if(!p)throw Error('Select an addon project');return p;}
+  rootKey(root){return process.platform==='win32'?root.toLowerCase():root;}
+  async addMany(args){const found=await discoverProjects(args.roots);const projects=[];let added=0;for(const candidate of found){const key=this.rootKey(candidate.root);if(args.refresh&&this.state.hiddenRoots.includes(key))continue;if(!args.refresh)this.state.hiddenRoots=this.state.hiddenRoots.filter(r=>r!==key);let project=this.state.projects.find(p=>this.rootKey(p.root)===key);if(!project){project={id:uid(),...candidate,client:args.client==='forever'?'forever':'retail'};this.state.projects.push(project);added++;}else project.discoveryRoots=[...new Set([...(project.discoveryRoots||[]),...candidate.discoveryRoots])];projects.push(project);}await this.save();return {projects,added,existing:projects.length-added};}
   invalidate(id){this.scans.delete(id);for(const [key,plan]of this.features)if(plan.projectId===id)this.features.delete(key);for(const [key,plan]of this.patches.plans)if(plan.projectId===id)this.patches.plans.delete(key);}
   async aiContext(args){const p=this.project(args.id);const source=await readSource(p.root,args.file);if(source.hash!==args.hash)throw Error('Source changed. Refresh and reopen it before requesting AI assistance.');return prepareContext({source:source.text,file:args.file,build:args.client==='forever'?'1.60.1.70425':'12.1.5.70448',issue:args.issue,focusLine:args.focusLine});}
   async handle(method,args={}){
     switch(method){
-      case 'init':return { ...this.state,version:'0.1.1',backups:await this.patches.list(),tokens:{cloud:Boolean(this.tokens.cloud),wcl:Boolean(this.tokens.wcl)}};
+      case 'init':return { ...this.state,version:'0.1.2',backups:await this.patches.list(),tokens:{cloud:Boolean(this.tokens.cloud),wcl:Boolean(this.tokens.wcl)}};
+      case 'project.addMany':return this.addMany(args);
       case 'project.add':{
         if(typeof args.root!=='string'||!args.root)throw Error('Select an addon directory');const root=await fs.realpath(args.root);const existing=this.state.projects.find(p=>p.root===root);if(existing)return existing;
-        const entries=await fs.readdir(root);const toc=entries.find(f=>f.toLowerCase().endsWith('.toc'));if(!toc)throw Error('Select the addon folder containing its .toc file, not the parent Interface/AddOns folder.');
+        this.state.hiddenRoots=this.state.hiddenRoots.filter(r=>r!==this.rootKey(root));const entries=await fs.readdir(root);const toc=entries.find(f=>f.toLowerCase().endsWith('.toc'));if(!toc)throw Error('Select the addon folder containing its .toc file, not the parent Interface/AddOns folder.');
         const project={id:uid(),name:path.basename(toc,'.toc'),root,client:args.client==='forever'?'forever':'retail'};this.state.projects.push(project);await this.save();return project;
       }
-      case 'project.remove':this.invalidate(args.id);this.state.projects=this.state.projects.filter(p=>p.id!==args.id);this.scans.delete(args.id);await this.save();return true;
+      case 'project.remove':{const p=this.project(args.id);this.state.hiddenRoots=[...new Set([...this.state.hiddenRoots,this.rootKey(p.root)])];this.invalidate(args.id);this.state.projects=this.state.projects.filter(p=>p.id!==args.id);this.scans.delete(args.id);await this.save();return true;}
       case 'demo':{const root=path.join(this.dataDir,'demo','NaowhDoctorDemo');await fs.mkdir(path.dirname(root),{recursive:true});try{await fs.access(path.join(root,'NaowhDoctorDemo.toc'));}catch{await copyResources(path.join(this.resources,'demo','NaowhDoctorDemo'),root);}const p=await this.handle('project.add',{root});return {project:p,errorText:await fs.readFile(path.join(this.resources,'demo','error.txt'),'utf8')};}
-      case 'project.refresh':{const p=this.project(args.id);this.invalidate(p.id);const scan=await analyze(p,args.client||p.client);this.scans.set(p.id,scan);return scan;}
+      case 'project.refresh':{const p=this.project(args.id);this.invalidate(p.id);const discovered=await this.addMany({roots:p.discoveryRoots||[p.root],client:p.client,refresh:true});const scan=await analyze(p,args.client||p.client);this.scans.set(p.id,scan);return {...scan,addedProjects:discovered.added};}
       case 'scan':{const p=this.project(args.id);const scan=await analyze(p,args.client||p.client);this.scans.set(p.id,scan);return scan;}
       case 'source':return readSource(this.project(args.id).root,args.file);
       case 'errors':{const p=this.project(args.id);const scan=this.scans.get(p.id);const files=scan?.files||await walk(p.root);let text=args.text;let summary=null;
