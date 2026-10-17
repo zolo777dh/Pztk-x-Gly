@@ -1,10 +1,12 @@
-const {app,BrowserWindow,ipcMain,dialog,shell,net}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,shell,net,safeStorage}=require('electron');
 const path=require('node:path');
 let window,service;
 app.setName('Pztk x Glyalith');
 app.whenReady().then(async()=>{
   const {DoctorService}=await import('../core/service.mjs');
-  service=await new DoctorService(path.join(app.getPath('userData'),'workspace'),path.join(app.getAppPath(),'resources'),{fetcher:(url,options)=>net.fetch(url,options)}).init();
+  const secureAvailable=safeStorage.isEncryptionAvailable()&&(process.platform!=='linux'||safeStorage.getSelectedStorageBackend()!=='basic_text');
+  const secureStore=secureAvailable?{seal:text=>safeStorage.encryptString(text).toString('base64'),open:encrypted=>safeStorage.decryptString(Buffer.from(encrypted,'base64'))}:undefined;
+  service=await new DoctorService(path.join(app.getPath('userData'),'workspace'),path.join(app.getAppPath(),'resources'),{fetcher:(url,options)=>net.fetch(url,options),secureStore}).init();
   window=new BrowserWindow({width:1560,height:980,minWidth:1100,minHeight:720,backgroundColor:'#07101a',title:'Pztk x Glyalith',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   const entry=path.join(app.getAppPath(),'dist','index.html');
   const permitted=event=>{if(event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw Error('Untrusted application frame');const url=new URL(event.senderFrame.url);if(url.protocol!=='file:'||decodeURIComponent(url.pathname).replace(/^\/(\w:)/,'$1')!==entry.replaceAll('\\','/'))throw Error('Untrusted application origin');};

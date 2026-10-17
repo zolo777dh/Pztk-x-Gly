@@ -5,26 +5,30 @@ import {analyze,parseErrors} from './analyzer.mjs';
 import {Patches} from './patches.mjs';
 import {PackCodec,noteToPack} from './packs.mjs';
 import {parseSavedVariables,savedSummary} from './saved.mjs';
-import {reportCode,wclQuery,reportQuery,fetchTimeline,validateTimeline,assist} from './integrations.mjs';
+import {reportCode,wclQuery,wclData,rateLimitQuery,reportQuery,fetchTimeline,validateTimeline,assist} from './integrations.mjs';
 import {parseReference,comparePulls,mapReferenceTable} from './encounters.mjs';
 import {prepareContext} from './ai-context.mjs';
 import {testAIConnection} from './network.mjs';
 import {suggestFix} from './fixes.mjs';
 import {prepareFeature,generateFeature} from './features.mjs';
 import {discoverProjects} from './projects.mjs';
-const defaults={client:'retail',localEndpoint:'http://127.0.0.1:11434/v1',localModel:'qwen2.5-coder:7b',cloudEndpoint:'https://api.openai.com/v1',cloudModel:'',aiMode:'local'};
+import {WclAuth,WCL_API,wclEndpoint} from './wcl-auth.mjs';
+import {v1Report,testV1,v1Timeline} from './wcl-v1.mjs';
+const defaults={wclEndpoint:WCL_API,client:'retail',localEndpoint:'http://127.0.0.1:11434/v1',localModel:'qwen2.5-coder:7b',cloudEndpoint:'https://api.openai.com/v1',cloudModel:'',aiMode:'local'};
 export class DoctorService {
-  constructor(dataDir,resources,{fetcher}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.tokens={};this.features=new Map();this.patches=new Patches(dataDir);this.codec=new PackCodec(resources);}
-  async init(){await fs.mkdir(this.dataDir,{recursive:true});try{const s=JSON.parse(await fs.readFile(this.file,'utf8'));this.state={projects:s.projects||[],notes:s.notes||[],hiddenRoots:s.hiddenRoots||[],settings:{...defaults,...s.settings}};}catch(e){if(e.code!=='ENOENT')throw Error('Workspace data could not be read. Preserve workspace.json before recovering it.');}return this;}
+  constructor(dataDir,resources,{fetcher,secureStore}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.tokens={};this.wcl=new WclAuth(dataDir,{fetcher,secureStore});this.features=new Map();this.patches=new Patches(dataDir);this.codec=new PackCodec(resources);}
+  async init(){await fs.mkdir(this.dataDir,{recursive:true});try{const s=JSON.parse(await fs.readFile(this.file,'utf8'));this.state={projects:s.projects||[],notes:s.notes||[],hiddenRoots:s.hiddenRoots||[],settings:{...defaults,...s.settings}};}catch(e){if(e.code!=='ENOENT')throw Error('Workspace data could not be read. Preserve workspace.json before recovering it.');}await this.wcl.init();return this;}
   async save(){await writeAtomic(this.file,JSON.stringify(this.state,null,2));}
   project(id){const p=this.state.projects.find(p=>p.id===id);if(!p)throw Error('Select an addon project');return p;}
   rootKey(root){return process.platform==='win32'?root.toLowerCase():root;}
   async addMany(args){const found=await discoverProjects(args.roots);const projects=[];let added=0;for(const candidate of found){const key=this.rootKey(candidate.root);if(args.refresh&&this.state.hiddenRoots.includes(key))continue;if(!args.refresh)this.state.hiddenRoots=this.state.hiddenRoots.filter(r=>r!==key);let project=this.state.projects.find(p=>this.rootKey(p.root)===key);if(!project){project={id:uid(),...candidate,client:args.client==='forever'?'forever':'retail'};this.state.projects.push(project);added++;}else project.discoveryRoots=[...new Set([...(project.discoveryRoots||[]),...candidate.discoveryRoots])];projects.push(project);}await this.save();return {projects,added,existing:projects.length-added};}
+  async wclReport(code){return this.wcl.status().mode==='v1'?v1Report(code,this.wcl.v1Key(),this.fetcher):wclQuery(reportQuery,{code},await this.wcl.accessToken(),this.fetcher,this.state.settings.wclEndpoint);}
+  async wclFight(code,fight){return this.wcl.status().mode==='v1'?v1Timeline(code,fight,this.wcl.v1Key(),path.join(this.dataDir,'timelines'),this.fetcher):fetchTimeline(code,fight,await this.wcl.accessToken(),path.join(this.dataDir,'timelines'),this.fetcher,this.state.settings.wclEndpoint);}
   invalidate(id){this.scans.delete(id);for(const [key,plan]of this.features)if(plan.projectId===id)this.features.delete(key);for(const [key,plan]of this.patches.plans)if(plan.projectId===id)this.patches.plans.delete(key);}
   async aiContext(args){const p=this.project(args.id);const source=await readSource(p.root,args.file);if(source.hash!==args.hash)throw Error('Source changed. Refresh and reopen it before requesting AI assistance.');return prepareContext({source:source.text,file:args.file,build:args.client==='forever'?'1.60.1.70425':'12.1.5.70448',issue:args.issue,focusLine:args.focusLine});}
   async handle(method,args={}){
     switch(method){
-      case 'init':return { ...this.state,version:'0.1.3',backups:await this.patches.list(),tokens:{cloud:Boolean(this.tokens.cloud),wcl:Boolean(this.tokens.wcl)}};
+      case 'init':return { ...this.state,version:'0.1.4',backups:await this.patches.list(),tokens:{cloud:Boolean(this.tokens.cloud),wcl:this.wcl.status().connected},wcl:this.wcl.status()};
       case 'project.addMany':return this.addMany(args);
       case 'project.add':{
         if(typeof args.root!=='string'||!args.root)throw Error('Select an addon directory');const root=await fs.realpath(args.root);const existing=this.state.projects.find(p=>p.root===root);if(existing)return existing;
@@ -48,8 +52,8 @@ export class DoctorService {
       case 'restore.preview':return this.patches.restorePreview(this.project(args.id),args.backup);
       case 'restore.apply':return this.patches.restore(this.project(args.id),args.plan);
       case 'settings':{
-        const incoming=args.settings||{};for(const k of Object.keys(defaults))if(typeof incoming[k]==='string')this.state.settings[k]=incoming[k].slice(0,2000);
-        if(typeof args.cloudToken==='string')this.tokens.cloud=args.cloudToken.trim();if(typeof args.wclToken==='string')this.tokens.wcl=args.wclToken.trim();await this.save();return {settings:this.state.settings,tokens:{cloud:Boolean(this.tokens.cloud),wcl:Boolean(this.tokens.wcl)}};
+        const incoming=args.settings||{};if(incoming.wclEndpoint!==undefined)wclEndpoint(incoming.wclEndpoint);for(const k of Object.keys(defaults))if(typeof incoming[k]==='string')this.state.settings[k]=incoming[k].slice(0,2000);
+        if(typeof args.cloudToken==='string')this.tokens.cloud=args.cloudToken.trim();if(args.wclCredentials)await this.wcl.configure(args.wclCredentials);else if(typeof args.wclToken==='string')await this.wcl.configure(args.wclToken?{token:args.wclToken,mode:'token',remember:false}:{forget:true});await this.save();return {settings:this.state.settings,tokens:{cloud:Boolean(this.tokens.cloud),wcl:this.wcl.status().connected},wcl:this.wcl.status()};
       }
       case 'ai.test':return testAIConnection({settings:{...this.state.settings,...args.settings},token:args.mode==='cloud'?(args.token||this.tokens.cloud):null,mode:args.mode,fetcher:this.fetcher});
       case 'ai.preview':{const prepared=await this.aiContext(args);return {scope:prepared.scope,context:prepared.context};}
@@ -65,10 +69,12 @@ export class DoctorService {
       case 'notes.delete':this.state.notes=this.state.notes.filter(n=>n.id!==args.id);await this.save();return true;
       case 'pack.encode':return {text:this.codec.encode(noteToPack(args.note)),payload:noteToPack(args.note)};
       case 'pack.decode':return this.codec.decode(args.text);
-      case 'wcl.report':{const code=reportCode(args.code);const report=await wclQuery(reportQuery,{code},this.tokens.wcl,this.fetcher);if(!report)throw Error('Report not accessible');return {code,...report};}
-      case 'wcl.fight':return fetchTimeline(args.code,args.fightId,this.tokens.wcl,path.join(this.dataDir,'timelines'),this.fetcher);
-      case 'wcl.batchReports':{const codes=[...new Set(String(args.links).split(/\s+/).filter(Boolean).map(reportCode))];if(!codes.length||codes.length>20)throw Error('Enter between 1 and 20 report links');const reports=[];for(const code of codes){const report=await wclQuery(reportQuery,{code},this.tokens.wcl,this.fetcher);if(!report)throw Error('Report unavailable: '+code);reports.push({code,...report});}return reports;}
-      case 'wcl.batchFights':{if(!Array.isArray(args.fights)||!args.fights.length||args.fights.length>30)throw Error('Select 1–30 fights');const timelines=[];for(const fight of args.fights)timelines.push(await fetchTimeline(fight.code,fight.id,this.tokens.wcl,path.join(this.dataDir,'timelines'),this.fetcher));return timelines;}
+      case 'wcl.test':{if(this.wcl.status().mode==='v1'){if(args.code){const report=await this.wclReport(reportCode(args.code));return {ok:true,message:`V1 report accessible: ${report.title} · ${report.fights.length} fights`};}return testV1(this.wcl.v1Key(),this.fetcher);}const token=await this.wcl.accessToken();const endpoint=this.state.settings.wclEndpoint;if(args.code){const code=reportCode(args.code);const report=await wclQuery(reportQuery,{code},token,this.fetcher,endpoint);if(!report)throw Error('The WCL API responded, but this report is unavailable to the configured token. Check report visibility; client-credentials tokens cannot access private user reports.');return {ok:true,message:`Report accessible: ${report.title} · ${report.fights?.length||0} fights`,code};}const data=await wclData(rateLimitQuery,{},token,this.fetcher,endpoint);if(!data.rateLimitData)throw Error('WCL returned no rate-limit data. Check the API endpoint.');return {ok:true,message:'Warcraft Logs API connection successful.',rateLimit:data.rateLimitData};}
+      case 'wcl.forget':return this.wcl.configure({forget:true});
+      case 'wcl.report':{const code=reportCode(args.code);const report=await this.wclReport(code);if(!report)throw Error('Report not accessible');return {code,...report};}
+      case 'wcl.fight':return this.wclFight(args.code,args.fightId);
+      case 'wcl.batchReports':{const codes=[...new Set(String(args.links).split(/\s+/).filter(Boolean).map(reportCode))];if(!codes.length||codes.length>20)throw Error('Enter between 1 and 20 report links');const reports=[];for(const code of codes){const report=await this.wclReport(code);if(!report)throw Error('Report unavailable: '+code);reports.push({code,...report});}return reports;}
+      case 'wcl.batchFights':{if(!Array.isArray(args.fights)||!args.fights.length||args.fights.length>30)throw Error('Select 1–30 fights');const timelines=[];for(const fight of args.fights)timelines.push(await this.wclFight(fight.code,fight.id));return timelines;}
       case 'encounters.compare':{const cached=await this.handle('timelines');const selected=cached.filter(t=>(args.ids||[]).includes(t.id));return comparePulls(selected,args.options);}
       case 'reference.import':{const ref=parseReference(args.text,args.filename);await writeAtomic(path.join(this.dataDir,'references',ref.id+'.json'),JSON.stringify(ref));return ref;}
       case 'reference.example':return this.handle('reference.import',{text:await fs.readFile(path.join(this.resources,'demo','holy_paladin_priority_presets_EN.html'),'utf8'),filename:'holy_paladin_priority_presets_EN.html'});

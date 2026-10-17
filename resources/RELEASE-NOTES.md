@@ -1,5 +1,8 @@
-Pztk x Glyalith 0.1.3 — Windows x64
+Pztk x Glyalith 0.1.4 — Windows x64
 
+- Added a dedicated V1 Client Key mode for Warcraft Logs. Legacy keys use V1 report/event GET endpoints, not V2 Bearer authorization. V2 Access Token and Client ID / Secret remain separate options; client-credentials tokens renew automatically.
+- Remember Warcraft Logs key saves credentials with Windows DPAPI. Keys are outside workspace exports and addon backups, restored after restart, and removable with Forget saved key. No plaintext fallback.
+- Added Test WCL connection and Check report access, plus specific HTTP/authentication diagnostics. Live access to the user's report still needs validation with their key; this cloud network blocks WCL.
 - Multi-folder connection in one action: Ctrl/Shift selection or a common parent folder. Addon folders appear as separate entries without duplicates; refresh discovers new modules while respecting folders removed from the list.
 - Removed the subtitle below the application name.
 - Right-click an addon for Refresh / Delete folder. Refresh indexes new subfolders and expires old plans; deletion removes only the registration, keeping local source and backups.

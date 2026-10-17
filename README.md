@@ -2,11 +2,11 @@
 
 Standalone Windows desktop prototype for diagnosing **NaowhForever** (all discovered modules) and **Naowh Smart Reminders**, preparing source patches, encounter notes and reminder packs. It is not a WoW addon.
 
-**[Download Windows x64 ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.3/Pztk-x-Glyalith-0.1.3-Windows-x64.zip)** · [Release and checksum](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.3)
+**[Download Windows x64 ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.4/Pztk-x-Glyalith-0.1.4-Windows-x64.zip)** · [Release and checksum](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.4)
 
 ## Try the Windows app
 
-1. Extract the entire `Pztk-x-Glyalith-0.1.3-Windows-x64.zip` archive to a writable folder.
+1. Extract the entire `Pztk-x-Glyalith-0.1.4-Windows-x64.zip` archive to a writable folder.
 2. Open `Pztk x Glyalith.exe` inside the extracted folder. Keep its DLLs, `resources` and other files alongside it. Node, Python and Lua are not required on the user's PC.
 3. Click **Open disposable demo** to try the interface without touching real addons.
 4. Click **+** beside Addons and choose a folder containing an addon `.toc`, for example `Interface\AddOns\NaowhSmartReminders`. Add the Forever root separately. Development checkout layout and individually installed module folders can both be connected.
@@ -46,7 +46,15 @@ Right-click a connected addon for **Refresh / Delete folder**. Refresh reindexes
 
 ## Warcraft Logs setup and limits
 
-Enter a valid WCL API bearer token in Settings, obtained using your own registered API client's supported authentication flow. Tokens are session-only and can expire. There is no bundled shared client secret or built-in OAuth login. The initial integration uses the client API endpoint; available reports depend on token permissions. Private-report/user OAuth support and Forever product coverage need validation with real reports. **Live WCL and AI requests have not been validated with user credentials**; WCL pagination/normalization is tested with controlled responses.
+In Settings choose the credential type you actually have:
+
+- **V1 Client Key** uses the legacy `/v1/report/fights` and `/v1/report/events` GET API with its `api_key` parameter. A V1 key is never sent as a V2 bearer token. V1 availability and access still depend on Warcraft Logs.
+- **V2 Access Token** uses the GraphQL API with Bearer authorization. A manually supplied token can expire.
+- **V2 Client ID / Client Secret** obtains an OAuth client-credentials token and renews it when needed. Private user reports may require a user-authorized V2 token and `/api/v2/user`; client-credentials access is not an account login.
+
+Enable **Remember Warcraft Logs key** and Save Settings to persist credentials using Electron safeStorage (Windows DPAPI, tied to your Windows account). The encrypted credential file is separate from workspace.json, exports and addon backups. No plaintext fallback is used; without system encryption only session storage is allowed. **Forget saved key** removes the encrypted file and clears credentials. Cloud AI keys remain session-only.
+
+**Test WCL connection** checks the selected API; **Check report access** checks a specific report URL. HTTP 401/403/404 and non-JSON responses now have separate diagnostics. The supplied report link with `?fight=57` is parsed correctly. Live access to the user's report is not verified in this cloud environment: outbound WCL connections are restricted and no private key was supplied. Pagination, authentication, token renewal and normalization are tested with controlled responses.
 
 Open Encounter Notes → Encounter Lab → Multiple WCL links. Load report metadata, select exact fights and import them. Then compare compatible cached pulls. Cast start/completion and actor IDs remain distinct. Event IDs in WCL are not automatically boss-mod trigger IDs. For M+ runs reported as a single fight, boss-only segmentation/encounter mapping must be confirmed; v0.1 does not infer a boss encounter ID from a whole-run ID.
 

@@ -1,9 +1,9 @@
-# Version 0.1.3 validation
+# Version 0.1.4 validation
 
 ## Passed in the current environment
 
 - Frozen-lockfile dependency restoration with `npm ci --ignore-scripts`, activation of the official Electron archive after published SHA256 verification, and Vite production build with a desktop Content Security Policy.
-- **29/29 core tests, no skips**, with `DOCTOR_ADDON_TEST_ROOT` and `DOCTOR_LUA51` set. They exercise real filesystem writes, exact-byte ZIP recovery, BOM/CRLF preservation, stale-source refusal, backup failure, path traversal/symlink refusal, literal-only SavedVariables parsing, Unicode, session-token non-persistence, note history, pack serialization, real-addon decoding, WCL pagination/cache normalization, generic HTML/JSON/CSV parsing and five-pull averaging.
+- **34/34 core tests, no skips**, with `DOCTOR_ADDON_TEST_ROOT` and `DOCTOR_LUA51` set. They exercise real filesystem writes, exact-byte ZIP recovery, BOM/CRLF preservation, stale-source refusal, backup failure, path traversal/symlink refusal, literal-only SavedVariables parsing, Unicode, session-token non-persistence, note history, pack serialization, real-addon decoding, WCL pagination/cache normalization, generic HTML/JSON/CSV parsing and five-pull averaging.
 - Generated NSRPACK2 data was accepted by the unchanged `NaowhSmartReminders/NaowhUI_SmartReminders_Packs.lua` **DecodePack**, using native Lua 5.1 and its actual codec libraries. This validates the wire format, not in-game triggering.
 - Browser UI smoke: disposable demo → source edit → validate/preview → verified backup/apply → rollback; note save/export; supplied reference HTML; a structurally different CSV mapped to columns; five cached synthetic pulls with mean defensive offset **−3.00 s**. The CSV produces **−2.50 s**. Browser screenshots are in `test-results/`.
 - Desktop Electron launch under Linux/Xvfb, production build load, secured preload IPC and demo scan. Tested at 1672×941 and browser layout at 1280×800 without horizontal overflow.
@@ -36,3 +36,7 @@ The provided HTML is an example of input structure, not a verified defensive log
 ## Published 0.1.3 bundle
 
 Windows CI [39057209745](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39057209745) packaged the application, launched it to verify secured IPC, local AI transport and the bundled codec, and extracted the ZIP with native Windows tools before publication. The downloaded release matched SHA256 `39868ad40f2124835032f4d1b6b9536f25f1fe0836f2602746d5293f8d2a98f8`, passed all ZIP CRC checks (78 entries), and included the correct Windows x64 PE and versioned ASAR. The downloaded ASAR passed the Linux Electron desktop smoke too. Game behavior remains a user check.
+
+## WCL authentication update
+
+Controlled tests cover V1 Client Key report/event GET requests, fight 57 URL parsing, complete paginated cast timelines and actor/spell provenance; V2 OAuth client-credentials token creation/cache/renewal; distinct V1/V2 credential modes; encrypted save/restart/forget; refusal of plaintext fallback and preservation of unreadable ciphertext; and separate HTTP 404, expired-token and non-JSON diagnostics. The UI smoke selects V1, saves a session key, and forgets it. Windows CI now exercises DPAPI save, desktop restart, decryption, masked UI fields and explicit credential deletion. Live WCL calls remain unverified because the cloud network blocks that destination and the user's key is not available here.
