@@ -125,7 +125,7 @@ export class WclLab {
     try{
       const scan=await this.scanFiles(run);run.files=scan.files;run.filesTruncated=scan.truncated;
       const report=reports[run.mode];const found=run.files.find(f=>f.path===report);
-      if(found&&found.size<=2e6){try{run.summary=JSON.parse(redactLab(await fs.readFile(await inside(run.output,found.path),'utf8')));}catch{}}
+      if(found&&found.size<=2e6){try{run.summary=JSON.parse(redactLab((await fs.readFile(await inside(run.output,found.path),'utf8')).replace(/^\uFEFF/,'')));}catch{}}
       const failed=Number(run.summary?.failed??run.summary?.Failed??run.summary?.CompletedWithErrors??run.summary?.completedWithErrors??run.summary?.Export?.Failed??0);
       const reportMissing=Boolean(report&&!run.summary);
       run.status=run.cancelled?'cancelled':run.timedOut?'timedOut':code===0&&!run.spawnError&&failed===0&&!reportMissing?'completed':'failed';
