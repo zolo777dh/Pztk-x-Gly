@@ -1,4 +1,4 @@
-Pztk x Glyalith 0.1.2 — Windows x64
+Pztk x Glyalith 0.1.3 — Windows x64
 
 1. Распакуйте ВЕСЬ архив в отдельную папку.
 2. Запустите «Pztk x Glyalith.exe». Не переносите EXE отдельно от ресурсов и DLL.
