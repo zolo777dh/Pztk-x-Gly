@@ -20,3 +20,6 @@ Version 0.1.6: [Windows CI run](https://github.com/zolo777dh/Pztk-x-Gly/actions/
 
 
 Version 0.1.7: [Windows run 39076463792](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39076463792) passed in 2m 22s. Checks included the bundled engine, native DPAPI restart/forget, packaged planner import → five-pull mean → NSR export over secured IPC, search shortcut, and Windows ZIP extraction. The downloaded release matched SHA256 `7f934e68dfc18f8bf2d7e16237fc96d95ee73ad4bcf01b9964bc098d4ebf64c6`, passed all 78 ZIP CRC checks and x64 PE verification, contained the 0.1.7 planner/search and original engine hash, and its ASAR passed the Linux Electron smoke and planner roundtrip.
+
+
+Version 0.1.8: [Windows run 39077009398](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39077009398) passed in 2m 29s, including the packaged derived-profile planner roundtrip with original source/author assertions, DPAPI, bundled WCL engine and native ZIP extraction. The downloaded release matched SHA256 `059bac20cde2177a857dc2082f268fbc1f237bfe15a619d0810125357ecc9e4f`, passed CRC checks for all 78 files and x64 PE checks. Its published 0.1.8 codec retains attribution and account-license checks; the downloaded ASAR passed the Linux Electron smoke and derived planner roundtrip.
