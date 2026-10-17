@@ -9,3 +9,5 @@ A push to `main`, or **Actions → Build Windows application → Run workflow**,
 For a local Windows source checkout, install Node.js 22+, open PowerShell in the project folder and run `./Build-Windows.ps1`. This also produces the complete Windows ZIP. The external real-addon codec test requires Lua and the addon checkout and is explicitly skipped without those prerequisites; it passed in the original cloud environment.
 
 Do not copy the generated EXE alone: it requires the DLLs and resources beside it. Do not upload the workspace's `.data`, backups, keys, node_modules or test-results directories.
+
+Version 0.1.3 delivery verification: [Windows CI run](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39057209745). The published ZIP was downloaded, matched its release SHA256 manifest, passed CRC checks for all 78 entries, and contained the Windows x64 executable and version 0.1.3 ASAR. The downloaded ASAR also passed the Electron startup/IPC/local-network/codec smoke test under Linux. SHA256: `39868ad40f2124835032f4d1b6b9536f25f1fe0836f2602746d5293f8d2a98f8`.

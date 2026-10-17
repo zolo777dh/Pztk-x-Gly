@@ -14,7 +14,7 @@ Standalone Windows desktop prototype for diagnosing **NaowhForever** (all discov
 6. Select a file, open **Patch Assistant**, edit the complete file or request AI assistance, then **Validate & preview**. **Create Backup & Apply** verifies a ZIP before writing. Test the result in game.
 7. Open **Project Tools → Backup & patch history → Restore** to undo a patch. Restoration creates another backup and refuses changed files.
 
-The prototype is unsigned. Native execution on Windows still needs user verification; the desktop shell has been tested under Linux Electron and the Windows x64 bundle has been produced and inspected.
+The prototype is unsigned. The packaged desktop has been launched in Windows CI and under Linux Electron. Its behavior on your own Windows installation and inside the game still needs user verification.
 
 ## Available features
 
