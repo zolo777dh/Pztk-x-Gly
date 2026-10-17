@@ -16,9 +16,10 @@ import {WclAuth,WCL_API,wclEndpoint} from './wcl-auth.mjs';
 import {v1Report,testV1,v1Timeline} from './wcl-v1.mjs';
 import {WclLab} from './wcl-lab.mjs';
 import {searchSources} from './source-search.mjs';
+import {DefensivePlanner,inspectDefenseTable} from './defensive-planner.mjs';
 const defaults={cloudProvider:'openai',anthropicModel:'',compatibleEndpoint:'https://api.openai.com/v1',compatibleModel:'',wclEndpoint:WCL_API,client:'retail',localEndpoint:'http://127.0.0.1:11434/v1',localModel:'qwen2.5-coder:7b',cloudEndpoint:'https://api.openai.com/v1',cloudModel:'',aiMode:'local'};
 export class DoctorService {
-  constructor(dataDir,resources,{fetcher,secureStore,labOptions}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.tokens={};this.wcl=new WclAuth(dataDir,{fetcher,secureStore});this.lab=new WclLab(dataDir,resources,labOptions);this.features=new Map();this.patches=new Patches(dataDir);this.codec=new PackCodec(resources);}
+  constructor(dataDir,resources,{fetcher,secureStore,labOptions}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.tokens={};this.wcl=new WclAuth(dataDir,{fetcher,secureStore});this.lab=new WclLab(dataDir,resources,labOptions);this.features=new Map();this.patches=new Patches(dataDir);this.codec=new PackCodec(resources);this.planner=new DefensivePlanner(dataDir,this.codec);}
   async init(){await fs.mkdir(this.dataDir,{recursive:true});try{const s=JSON.parse(await fs.readFile(this.file,'utf8'));this.state={projects:s.projects||[],notes:s.notes||[],hiddenRoots:s.hiddenRoots||[],settings:{...defaults,...s.settings}};if(!s.settings?.cloudProvider&&s.settings?.cloudEndpoint&&s.settings.cloudEndpoint!=='https://api.openai.com/v1'){this.state.settings.cloudProvider='compatible';this.state.settings.compatibleEndpoint=s.settings.cloudEndpoint;this.state.settings.compatibleModel=s.settings.cloudModel||'';}}catch(e){if(e.code!=='ENOENT')throw Error('Workspace data could not be read. Preserve workspace.json before recovering it.');}await this.wcl.init();await this.lab.init();return this;}
   cloudKey(provider=cloudProvider(this.state.settings)){return this.tokens[provider]||'';}
   tokenStatus(){return {cloud:Boolean(this.cloudKey()),cloudProviders:Object.fromEntries(['openai','anthropic','compatible'].map(p=>[p,Boolean(this.tokens[p])])),wcl:this.wcl.status().connected};}
@@ -47,6 +48,13 @@ export class DoctorService {
       case 'scan':{const p=this.project(args.id);const scan=await analyze(p,args.client||p.client);this.scans.set(p.id,scan);return scan;}
       case 'source':return readSource(this.project(args.id).root,args.file);
       case 'source.search':return searchSources(this.state.projects,args);
+      case 'planner.state':return this.planner.state();
+      case 'planner.importProfile':return this.planner.importProfile(args.text);
+      case 'planner.importTable':return this.planner.importTable(args);
+      case 'planner.inspectTable':return inspectDefenseTable(args.text,args.filename);
+      case 'planner.loadPlan':return this.planner.read('analyses',args.id);
+      case 'planner.analyze':return this.planner.analyze(args,await this.handle('timelines'));
+      case 'planner.preview':return this.planner.preview(args);
       case 'errors':{const p=this.project(args.id);const scan=this.scans.get(p.id);const files=scan?.files||await walk(p.root);let text=args.text;let summary=null;
         if(args.saved){const saved=parseSavedVariables(args.text);summary=savedSummary(saved);text=summary.filter(s=>s.type==='error').map(s=>s.text).join('\n');if(!text)return {issues:[],summary};}
         return {issues:parseErrors(text,files),summary};

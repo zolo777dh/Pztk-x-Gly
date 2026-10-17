@@ -1,0 +1,63 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {execFileSync} from 'node:child_process';
+import {PackCodec} from '../core/packs.mjs';
+import {parseDefenseTable,inspectDefenseTable,analyzeDefenses,buildDefensePack,DefensivePlanner} from '../core/defensive-planner.mjs';
+const resources=path.resolve('resources'),codec=new PackCodec(resources);
+const target={dungeon:'Dungeon A',encounter:'Boss A',kind:'boss',bossSpellId:123,encounterId:456,timerSpellId:123};
+const pack=()=>({format:1,name:'Original',data:{presets:{'65':{personal:{name:'Personal',list:[498,642]}}},activePreset:{'65':'personal'},bindingsBySpec:true,abilityBindings:{'65':{'456':{'123':{enabled:false,preset:'personal',mode:'defensive',leadTime:8}}}},settings:{enabled:true},raidReminders:{'456':{keep:{name:'Keep',trigger:{type:'pull',delay:10},display:{type:'text',text:'Keep',dur:5}}}}}});
+const fixture=()=>{const p=pack();return {id:'abcdef0123456789',hash:'original-hash',...codec.decode(codec.encode(p,{numericKeys:[['data','abilityBindings','65','456','123']]}),{withKeys:true})};};
+const row=(i,more={})=>({...target,sample:'report:'+i,player:'Paladin',specId:65,defensiveSpellId:498,defensiveName:'Divine Protection',bossTime:100,defensiveTime:100-i,...more});
+const table=rows=>parseDefenseTable(JSON.stringify({format:'pztk-defense-observations-v1',observations:rows}),'observations.json',{recorded:true});
+const config=(more={})=>({profileKey:'',mechanics:[target],windowBefore:10,windowAfter:5,...more});
+
+test('five independent presses produce arithmetic means; dungeons and specializations stay separate',()=>{
+ const source=table([1,2,3,4,5].map(i=>row(i)).concat(row(1,{specId:66,defensiveSpellId:86659,defensiveTime:99}),row(1,{dungeon:'Dungeon B',defensiveTime:96})));
+ const plan=analyzeDefenses(fixture(),[source],config({mechanics:[target,{...target,dungeon:'Dungeon B',encounterId:457}]}));
+ const holy=plan.results.find(r=>r.specId===65&&r.dungeon==='Dungeon A');assert.equal(holy.offsets.mean,-3);assert.equal(holy.meanPressTime,97);assert.equal(holy.leadTime,3);assert.equal(holy.pulls,5);assert.equal(holy.offsets.stddev,Math.sqrt(2));assert.deepEqual(holy.priority,[498,642]);
+ assert.equal(plan.results.length,3);assert.equal(plan.results.find(r=>r.specId===66).priority.includes(642),false);assert.equal(plan.results.find(r=>r.dungeon==='Dungeon B').offsets.mean,-4);
+});
+test('recorded CSV requires confirmation, maps columns, and supports m:ss; references never become presses',async()=>{
+ const csv='dungeon,encounter,bossSpellId,specId,defensiveSpellId,bossTime,defensiveTime,sample,player\nA,B,123,65,498,1:40,1:37,log1:p1,P';
+ assert.equal(inspectDefenseTable(csv,'record.csv').tables[0].columns.defensiveTime,6);assert.throws(()=>parseDefenseTable(csv,'record.csv'),/Confirm/);assert.equal(parseDefenseTable(csv,'record.csv',{recorded:true}).observations[0].offset,-3);
+ const reference=parseDefenseTable(await fs.readFile('resources/demo/holy_paladin_priority_presets_EN.html','utf8'),'reference.html',{recorded:true,defaults:{specId:65}});assert.ok(reference.mechanics.length>0);assert.equal(reference.observations.length,0);assert.equal(reference.kind,'priority-reference');assert.ok(reference.presets.every(p=>p.specId===65));
+ const plan=analyzeDefenses(fixture(),[reference],config({mechanics:[{...reference.mechanics[0],encounterId:456}]}));assert.equal(plan.results.length,0);assert.equal(plan.uncovered.length,1);
+});
+test('deduplication rejects conflicts and one press is not evidence for two mechanics',()=>{
+ const original=table([row(1),row(2)]);const plan=analyzeDefenses(fixture(),[original,original],config());assert.equal(plan.results[0].offsets.count,2);assert.match(plan.warnings.join(' '),/2 duplicate/);
+ assert.throws(()=>analyzeDefenses(fixture(),[original,table([row(1,{defensiveTime:98})])],config()),/Conflicting duplicate/);
+ const other={...target,bossSpellId:124,timerSpellId:124};const source=table([row(1),row(1,{bossSpellId:124,bossTime:102})]);const nearest=analyzeDefenses(fixture(),[source],config({mechanics:[target,other]}));assert.equal(nearest.results.length,1);assert.equal(nearest.results[0].bossSpellId,123);
+});
+test('weighted aggregate means respect sample counts without inventing variance',()=>{
+ const raw=JSON.stringify({format:'pztk-defense-observations-v1',observations:[row(1,{defensiveTime:99,sampleCount:1}),row(2,{defensiveTime:95,sampleCount:9})]});assert.throws(()=>parseDefenseTable(raw,'rows.json',{recorded:true}),/disjoint/);
+ const source=parseDefenseTable(raw,'rows.json',{recorded:true,independentAggregates:true});const r=analyzeDefenses(fixture(),[source],config()).results[0];assert.equal(r.offsets.mean,-4.6);assert.equal(r.offsets.count,10);assert.equal(r.offsets.stddev,null);assert.equal(r.offsets.median,null);
+});
+test('unknown IDs, mixed builds, binding collisions and unsupported trash timing block export',()=>{
+ const source=table([row(1,{build:'one'}),row(2,{build:'two'})]);const mixed=analyzeDefenses(fixture(),[source],config());assert.ok(mixed.results.every(r=>!r.exportable));assert.ok(analyzeDefenses(fixture(),[source],config({build:'one'})).results[0].exportable);
+ assert.equal(analyzeDefenses(fixture(),[table([row(1)])],config({mechanics:[{...target,encounterId:0}]})).results[0].exportable,false);
+ const trash={...target,kind:'trash',mapId:555};assert.equal(analyzeDefenses(fixture(),[table([row(1,{kind:'trash',defensiveTime:102})])],config({mechanics:[trash]})).results[0].exportable,false);
+ const collision={...target,bossSpellId:124};assert.equal(analyzeDefenses(fixture(),[table([row(1)])],config({mechanics:[target,collision]})).results[0].exportable,false);
+});
+test('cached fights use the assigned player and spec, and match each recorded cast to its nearest mechanic',()=>{
+ const timelines=[1,2,3,4,5].map(i=>({id:'timeline'+i,source:{report:'report',fightId:i},difficulty:8,build:'test',events:[{type:'cast',time:100,spellId:123,sourceId:20},{type:'cast',time:100-i,spellId:498,sourceId:1,sourceName:'Paladin'},{type:'cast',time:99,spellId:642,sourceId:2,sourceName:'Other'}]}));
+ const plan=analyzeDefenses(fixture(),[],config({timelineAssignments:timelines.map(t=>({timelineId:t.id,enabled:true,actorId:1,specId:65,dungeon:target.dungeon,encounter:target.encounter}))}),timelines);assert.equal(plan.results[0].offsets.mean,-3);assert.equal(plan.results[0].priorities.length,1);assert.equal(plan.results[0].pulls,5);
+ const tied={...timelines[0],events:[{type:'cast',time:98,spellId:123},{type:'cast',time:100,spellId:123},{type:'cast',time:99,spellId:498,sourceId:1}]};assert.throws(()=>analyzeDefenses(fixture(),[],config({timelineAssignments:[{timelineId:tied.id,enabled:true,actorId:1,specId:65,dungeon:target.dungeon,encounter:target.encounter}]}),[tied]),/equally close/);
+});
+test('profile export preserves original keys, unrelated settings and disabled binding; named profiles survive',()=>{
+ const profile=fixture(),before=structuredClone(profile),plan=analyzeDefenses(profile,[table([row(1),row(3)])],config());assert.throws(()=>buildDefensePack(profile,plan,{selectedIds:plan.results.map(r=>r.id)}),/Confirm/);
+ const built=buildDefensePack(profile,plan,{selectedIds:plan.results.map(r=>r.id),confirmedIds:true});assert.deepEqual(profile,before);assert.deepEqual(built.pack.data.settings,profile.pack.data.settings);assert.deepEqual(built.pack.data.raidReminders,profile.pack.data.raidReminders);assert.equal(built.pack.data.activePreset['65'],'personal');assert.equal(built.changes[0].after.enabled,false);assert.equal(built.changes[0].after.leadTime,2);assert.equal(built.changes[0].after.healerReminder,true);
+ const decoded=codec.decode(codec.encode(built.pack,{numericKeys:built.numericKeys}),{withKeys:true});assert.equal(decoded.pack.data.presets['65'].personal.list['1'],498);assert.ok(decoded.numericKeys.some(p=>JSON.stringify(p)==='["data","presets","65","personal","list","1"]'));assert.ok(decoded.numericKeys.some(p=>JSON.stringify(p)==='["data","abilityBindings","65","456","123"]'));
+ const named={...profile,pack:{format:1,name:'Named',profiles:{Holy:profile.pack.data,Other:{presets:{'66':{keep:{name:'Tank',list:[86659]}}},settings:{marker:'keep'}}}},numericKeys:profile.numericKeys.map(p=>['profiles','Holy',...p.slice(1)])};const other=structuredClone(named.pack.profiles.Other);const namedPlan=analyzeDefenses(named,[table([row(2)])],config({profileKey:'Holy'}));const namedBuilt=buildDefensePack(named,namedPlan,{confirmedIds:true,selectedIds:namedPlan.results.map(r=>r.id)});assert.deepEqual(namedBuilt.pack.profiles.Other,other);assert.equal(codec.decode(codec.encode(namedBuilt.pack,{numericKeys:namedBuilt.numericKeys})).profiles.Holy.abilityBindings['65']['456']['123'].leadTime,2);
+});
+test('persistent planner roundtrip retains original string and exports a second profile',async t=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-planner-'));t.after(()=>fs.rm(dir,{force:true,recursive:true}));const planner=new DefensivePlanner(dir,codec),original=codec.encode(pack());const p=await planner.importProfile(original);const source=await planner.importTable({filename:'rows.json',text:JSON.stringify({format:'pztk-defense-observations-v1',observations:[row(2)]}),options:{recorded:true}});const plan=await planner.analyze({...config(),profileId:p.id,tableIds:[source.id]},[]);const restarted=new DefensivePlanner(dir,codec),preview=await restarted.preview({planId:plan.id,selectedIds:plan.results.map(r=>r.id),confirmedIds:true});assert.match(preview.text,/^NSRPACK2:/);assert.equal(await fs.readFile(path.join(dir,'defensive-planner','originals',p.id+'.txt'),'utf8'),original);assert.equal((await restarted.state()).analyses.length,1);
+});
+test('unchanged NSR Lua decoder and real integration validator accept generated boss/trash and named profile packs',{skip:!process.env.DOCTOR_ADDON_TEST_ROOT||!process.env.DOCTOR_LUA51},async t=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-planner-lua-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const profile=fixture();const trash={...target,kind:'trash',bossSpellId:124,timerSpellId:124,mapId:555,bossAbility:'Защитная способность '.repeat(20)};const plan=analyzeDefenses(profile,[table([row(2),row(3,{...trash,defensiveName:'Защита '.repeat(50)})])],config({mechanics:[target,trash]}));assert.equal(plan.results.length,2);const built=buildDefensePack(profile,plan,{confirmedIds:true,selectedIds:plan.results.map(r=>r.id)});const text=codec.encode(built.pack,{numericKeys:built.numericKeys});await fs.writeFile(path.join(dir,'pack.txt'),text);
+ const named={format:1,name:'Named',profiles:{Holy:built.pack.data,Other:{presets:{'66':{keep:{name:'Tank',list:[86659]}}}}}};await fs.writeFile(path.join(dir,'named.txt'),codec.encode(named,{numericKeys:built.numericKeys.map(p=>['profiles','Holy',...p.slice(1)])}));
+ const script=`strmatch=string.match\ndofile(${JSON.stringify(resources+'/codec/LibStub.lua')})\ndofile(${JSON.stringify(resources+'/codec/LibSerialize.lua')})\ndofile(${JSON.stringify(resources+'/codec/LibDeflate.lua')})\nNaowhUITankReminder={L=function(s) return s end,SpecName=function(s) return tostring(s) end,UI={Widgets={}},THEME={}}\nCreateFrame=function() return {SetScript=function() end,RegisterEvent=function() end} end\ndofile(${JSON.stringify(process.env.DOCTOR_ADDON_TEST_ROOT+'/NaowhUI_SmartReminders_Integrations.lua')})\ndofile(${JSON.stringify(process.env.DOCTOR_ADDON_TEST_ROOT+'/NaowhUI_SmartReminders_Packs.lua')})\nlocal function read(file) local f=assert(io.open(file,'rb'));local p,e=NaowhUITankReminder.DecodePack(f:read('*a'));f:close();assert(p,e);return p end\nlocal p=read(${JSON.stringify(path.join(dir,'pack.txt'))});local d=p.data;local b=d.abilityBindings['65']['456'][123];assert(b and not d.abilityBindings['65']['456']['123']);assert(b.leadTime==2 and b.enabled==false);assert(d.presets['65'][b.preset].list[1]==498);assert(d.presets['65'].personal.list[1]==498);local count=0;for _,r in pairs(d.integrationRules['65']) do assert(NaowhUITankReminder.Integrations.ValidRule(r));assert(r.trigger.timeleft==3);count=count+1 end;assert(count==1);local n=read(${JSON.stringify(path.join(dir,'named.txt'))});assert(n.profiles.Holy.abilityBindings['65']['456'][123].leadTime==2);assert(n.profiles.Other.presets['66'].keep.list[1]==86659);print('PLANNER REAL ADDON DECODE PASSED')`;
+ await fs.writeFile(path.join(dir,'check.lua'),script);assert.match(execFileSync(process.env.DOCTOR_LUA51,[path.join(dir,'check.lua')],{encoding:'utf8'}),/PLANNER REAL ADDON DECODE PASSED/);
+});

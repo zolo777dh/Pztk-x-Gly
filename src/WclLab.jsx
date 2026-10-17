@@ -6,7 +6,7 @@ const operations=[['live','Export WCL links'],['reanalyze','Analyze saved export
 const defaults={mode:'reanalyze',spec:'holypaladin',input:'',links:'',targets:'',top:10,rankFrom:1,maxPerRun:5,survey:'Paladin:Holy:hps',encounters:''};
 const size=n=>n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB';
 
-export default function WclLab({onImport,onCompare}){
+export default function WclLab({onImport,onCompare,onPlanner}){
  const [status,setStatus]=useState(null),[form,setForm]=useState(defaults),[selected,setSelected]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[preview,setPreview]=useState(null),[filter,setFilter]=useState('');const previewTicket=useRef(0),selectedRef=useRef('');selectedRef.current=selected;
  const run=status?.runs.find(r=>r.id===selected);const active=status?.runs.find(r=>['running','finishing'].includes(r.status));
  const patch=(key,value)=>setForm(f=>({...f,[key]:value}));
@@ -17,7 +17,7 @@ export default function WclLab({onImport,onCompare}){
  async function openPreview(file){const ticket=++previewTicket.current;await action(async()=>{const value=await call('lab.preview',{id:run.id,path:file.path});if(ticket===previewTicket.current)setPreview(value);});}
  async function chooseInput(kind){await action(async()=>{if(!window.doctor?.pickLabInput)throw Error('Select a path in the Windows desktop app, or type an absolute path');const value=await window.doctor.pickLabInput(kind);if(value)patch('input',value);});}
  const files=(run?.files||[]).filter(f=>f.path.toLowerCase().includes(filter.toLowerCase()));
- return <section className="panel wcl-lab-workspace"><header className="diagnostic-heading"><div className="heading-icon"><Activity size={29}/></div><div><h2>Warcraft Logs Lab</h2><p>bgmt engine {status?.engine.version||'0.13.0'} · local analysis + WCL API V2</p></div><button className="button" onClick={onCompare}><GitCompareArrows size={16}/>Compare pulls & draft reminders</button></header><div className="wcl-lab-body">
+ return <section className="panel wcl-lab-workspace"><header className="diagnostic-heading"><div className="heading-icon"><Activity size={29}/></div><div><h2>Warcraft Logs Lab</h2><p>bgmt engine {status?.engine.version||'0.13.0'} · local analysis + WCL API V2</p></div><button className="button" onClick={onPlanner}>Defensive profile planner</button><button className="button" onClick={onCompare}><GitCompareArrows size={16}/>Compare pulls & draft reminders</button></header><div className="wcl-lab-body">
  {error&&<div className="notice amber" role="alert">{error}</div>}{message&&<div className="notice" role="status">{message}</div>}
  {status&&!status.available&&<div className="notice amber">The bundled engine runs in the Windows desktop app. Result files and timeline comparison remain available here.</div>}
  <div className="wcl-lab-grid"><div className="wcl-lab-controls"><h3>Analysis</h3><label>OPERATION<select aria-label="WCL Lab operation" value={form.mode} onChange={e=>patch('mode',e.target.value)}>{operations.map(([id,label])=><option value={id} key={id}>{label}</option>)}</select></label>

@@ -2,7 +2,7 @@
 
 Standalone Windows desktop prototype for diagnosing **NaowhForever** (all discovered modules) and **Naowh Smart Reminders**, preparing source patches, encounter notes and reminder packs. It is not a WoW addon.
 
-**[Download Windows x64 ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.6/Pztk-x-Glyalith-0.1.6-Windows-x64.zip)** · [Release and checksum](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.6)
+**[Download Windows x64 ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.7/Pztk-x-Glyalith-0.1.7-Windows-x64.zip)** · [Release and checksum](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.7)
 
 [История всех изменений / Changelog](CHANGELOG.md)
 
@@ -101,3 +101,21 @@ If Electron downloads require the environment HTTPS proxy, use a supported downl
 Use the existing isolated workspaces; do not create Git worktrees unless explicitly requested. The selected addon repositories remain unchanged during app development and tests; patch/restore tests run only in temporary folders or the disposable demo.
 
 See `THIRD_PARTY_NOTICES.md` for bundled library notices.
+
+
+## Source search
+
+**Ctrl+F** in Patch Assistant opens literal search in the current editor, including unsaved edits. Enter/Shift+Enter and F3/Shift+F3 move through matches; Escape closes it. Case and whole-word options are available. **Ctrl+Shift+F**, or the search icon beside Addons, searches text across every connected addon root, including libraries and modules. Results show project, file, line and column; clicking opens the exact match. Temporary drafts survive file/project navigation in this session. Global search reads disk, so apply edits before expecting them in global results. It skips binary/oversized/non-UTF-8 files, symlinks and development caches and explicitly reports bounded/partial results. Text formats outside Lua/TOC/XML open read-only.
+
+## Defensive profile planner
+
+Open **WCL → Defensive profile planner**. Its workflow is **import an NSRPACK2 profile → inspect existing spec presets → choose dungeon/encounter mechanic spell IDs → attach recorded tables or cached casts → review observed means and proposed bindings → export a new NSRPACK2 profile string**. No addon or SavedVariables file is written; import the result into NSR and verify it in game. The original string is stored separately in the app's user data. Single and named-profile packs are supported; only the selected named profile is updated. Licensed/derived packs remain outside the supported re-export workflow.
+
+- Attach HTML/CSV/JSON tables and map columns. A CSV header template is available. Recorded rows need dungeon, encounter, bossSpellId, specId, defensiveSpellId, bossTime, defensiveTime and an independent sample/pull ID; include player, occurrence, difficulty and build where known. Times are seconds or `m:ss`, on the same pull-relative clock. A row's spec ID is authoritative; one class's fallback priorities are not copied to another spec.
+- Canonical JSON uses `{ "format": "pztk-defense-observations-v1", "observations": [...] }`. Each observation has those same fields. Aggregated rows may use `sampleCount` only after confirming disjoint samples. Their means are count-weighted; within-group variance is unavailable. Do not combine summaries with the individual presses they summarize.
+- The supplied Holy Paladin priority HTML supplies suggested priority lists and mechanic times, **not recorded defensive presses**. It can seed mechanic selection and same-spec fallbacks; it cannot produce a defensive press mean by itself.
+- Import multiple reports with the existing WCL tools, then assign cached fights to dungeon/encounter, player and spec. The planner matches recorded defensive casts from that spec's original presets (plus explicitly entered extra IDs) to the nearest mechanic in the chosen before/after window. A whole M+ run needs explicit encounter/pull segmentation first. Selection does not infer talents, verify mitigation, or prove an optimal cooldown rotation.
+- Results keep dungeons, encounters, specs, known difficulty/build contexts and occurrences distinct. Exact duplicate observations are excluded; conflicting duplicates are refused. Mixed contexts that would overwrite the same binding must be filtered before export. Review means, counts, spread and per-occurrence results before selecting export rows.
+- Confirm the actual in-game `dungeonEncounterID` for bosses, instance `mapID` for trash and the timer-provider spell key. A WCL spell ID can differ from a boss-mod key. Boss export updates `abilityBindings`; trash export uses the supplied NSR addon’s `integrationRules` and requires its ExBoss timer provider. Unsupported trash offsets are blocked rather than silently shifted.
+- The current NSR schema stores **one lead time per ability/preset**. The export uses the pooled observed offset, while per-defense and per-occurrence means remain in the analysis. Generated lists rank observed usage, then retain same-spec reference/existing fallbacks; they do not enforce a time-specific rotation. Existing disabled bindings remain disabled.
+- Preview shows before/after bindings. After reviewing, copy/save the new string. Existing presets, active choices, other profiles/settings and unrelated reminders are retained, including numeric Lua keys. Export compatibility is tested against the supplied Retail NSR schema; behavior in Retail/Forever remains an in-game check.
