@@ -1,8 +1,10 @@
-# Pztk x Glyalith 0.1.0
+# Pztk x Glyalith
 
 Standalone Windows desktop prototype for diagnosing **NaowhForever** (all discovered modules) and **Naowh Smart Reminders**, preparing source patches, encounter notes and reminder packs. It is not a WoW addon.
 
 **[Download Windows x64 ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.4/Pztk-x-Glyalith-0.1.4-Windows-x64.zip)** · [Release and checksum](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.4)
+
+[История всех изменений / Changelog](CHANGELOG.md)
 
 ## Try the Windows app
 
