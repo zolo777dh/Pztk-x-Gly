@@ -1,5 +1,8 @@
+export function cloudProvider(settings){const provider=settings.cloudProvider||'compatible';if(!['openai','anthropic','compatible'].includes(provider))throw Error('Choose OpenAI, Anthropic Claude or an OpenAI-compatible provider.');return provider;}
+export function aiModel(settings,mode){if(mode==='local')return settings.localModel;const provider=cloudProvider(settings);return provider==='anthropic'?settings.anthropicModel:provider==='compatible'?(settings.compatibleModel??settings.cloudModel):settings.cloudModel;}
+export function aiHeaders(provider,token){if(!token)return {};return provider==='anthropic'?{'x-api-key':token,'anthropic-version':'2023-06-01'}:{Authorization:'Bearer '+token};}
 export function aiEndpoint(settings,mode){
-  const input=mode==='local'?settings.localEndpoint:settings.cloudEndpoint;
+  const provider=mode==='local'?'local':cloudProvider(settings);const input=provider==='local'?settings.localEndpoint:provider==='anthropic'?'https://api.anthropic.com/v1':provider==='openai'?'https://api.openai.com/v1':(settings.compatibleEndpoint||settings.cloudEndpoint);
   let url;try{url=new URL(input);}catch{throw Error('Enter a valid AI API URL in Settings, including http:// or https://.');}
   if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw Error('AI endpoints must use HTTP(S) without credentials in the URL.');
   if(mode==='local'&&!['127.0.0.1','localhost','[::1]'].includes(url.hostname))throw Error('Local AI endpoint must use localhost.');
@@ -24,11 +27,11 @@ export async function request(url,options,{fetcher=globalThis.fetch,label='AI pr
 export async function testAIConnection({settings,token,mode,fetcher}){
   if(!['local','cloud'].includes(mode))throw Error('Choose local or cloud AI.');
   const endpoint=aiEndpoint(settings,mode);if(mode==='cloud'&&!token)throw Error('Add your cloud API key for this session before testing.');
-  const response=await request(endpoint.base+'/models',{headers:token?{Authorization:'Bearer '+token}:{},signal:AbortSignal.timeout(15000)},{fetcher,label:'AI provider',mode});
+  const response=await request(endpoint.base+'/models',{headers:aiHeaders(mode==='local'?'local':cloudProvider(settings),token),signal:AbortSignal.timeout(15000)},{fetcher,label:'AI provider',mode});
   if(!response.ok)throw Error(`AI models endpoint returned HTTP ${response.status}. Check the API URL and credentials; some providers do not expose a model list.`);
   let body;try{body=await response.json();}catch{throw Error('The server did not return a JSON model list. Check the OpenAI-compatible API URL.');}
   if(!Array.isArray(body.data))throw Error('Unexpected model list. Use an OpenAI-compatible /v1 API endpoint.');
-  const model=mode==='local'?settings.localModel:settings.cloudModel;const models=body.data.map(m=>m.id).filter(m=>typeof m==='string');
+  const model=aiModel(settings,mode);const models=body.data.map(m=>m.id).filter(m=>typeof m==='string');
   if(model&&!models.includes(model))return {ok:true,modelFound:false,models:models.slice(0,30),message:`Server is reachable, but model “${model}” is not listed. Choose an installed model${mode==='local'?' or run ollama pull '+model:''}.`};
   return {ok:true,modelFound:true,models:models.slice(0,30),message:`Connection successful${model?' · '+model:''}. ${models.length} models available.`};
 }

@@ -3,12 +3,56 @@ import path from 'node:path';
 import fengari from 'fengari';
 import {deflateRawSync,inflateRawSync} from 'node:zlib';
 const {lua,lauxlib,lualib,to_luastring,to_jsstring}=fengari;
-function push(L,value,depth=0){if(depth>32)throw Error('Pack is too deeply nested');if(value==null)lua.lua_pushnil(L);else if(typeof value==='string')lua.lua_pushstring(L,to_luastring(value));else if(typeof value==='number'){if(!Number.isFinite(value))throw Error('Invalid pack number');lua.lua_pushnumber(L,value);}else if(typeof value==='boolean')lua.lua_pushboolean(L,value);else if(typeof value==='object'){lua.lua_newtable(L);for(const [key,v] of Object.entries(value)){if(v===undefined)continue;if(Array.isArray(value))lua.lua_pushinteger(L,Number(key)+1);else lua.lua_pushstring(L,to_luastring(key));push(L,v,depth+1);lua.lua_settable(L,-3);}}else throw Error('Unsupported pack value');}
-function read(L,index,seen=new Set(),budget={n:100000},depth=0){if(--budget.n<0||depth>32)throw Error('Decoded pack exceeds limits');index=lua.lua_absindex(L,index);switch(lua.lua_type(L,index)){case lua.LUA_TNIL:return null;case lua.LUA_TBOOLEAN:return Boolean(lua.lua_toboolean(L,index));case lua.LUA_TNUMBER:return lua.lua_tonumber(L,index);case lua.LUA_TSTRING:return lua.lua_tojsstring(L,index);case lua.LUA_TTABLE:{const pointer=lua.lua_topointer(L,index);if(seen.has(pointer))throw Error('Cyclic pack');seen.add(pointer);const result={};lua.lua_pushnil(L);while(lua.lua_next(L,index)){const key=read(L,-2,seen,budget,depth+1);if(!['string','number'].includes(typeof key)||['__proto__','constructor','prototype'].includes(String(key)))throw Error('Unsupported pack key');result[key]=read(L,-1,seen,budget,depth+1);lua.lua_pop(L,1);}seen.delete(pointer);return result;}default:throw Error('Unsupported serialized type');}}
+export const PACK_LIMITS=Object.freeze({inputCharacters:130000,decompressedBytes:4000000,expandedBytes:16000000,totalEntries:1000000,depth:64,profileEntries:100000,profileDepth:32,processingMilliseconds:10000});
+
+function dataBounds(data,label){
+  let entries=0;const pending=[{value:data,depth:0}];
+  while(pending.length){const {value,depth}=pending.pop();if(!value||typeof value!=='object')continue;
+    if(depth>PACK_LIMITS.profileDepth)throw Error(`Pack ${label} exceeds the NSR data nesting limit (${PACK_LIMITS.profileDepth} table levels).`);
+    for(const key of Object.keys(value)){if(++entries>PACK_LIMITS.profileEntries)throw Error(`Pack ${label} exceeds the NSR data limit (${PACK_LIMITS.profileEntries.toLocaleString('en-US')} table entries per profile).`);const child=value[key];if(child&&typeof child==='object')pending.push({value:child,depth:depth+1});}
+  }
+}
+export function validatePackBounds(pack){
+  const table=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+  if(!table(pack)||pack.format!==1)throw Error('Unsupported pack format');
+  const profiles=table(pack.profiles)?Object.entries(pack.profiles):[];
+  if(profiles.length){for(const [name,data]of profiles){if(!name||!table(data))throw Error('Invalid pack profile');dataBounds(data,'profile');}}
+  else{if(!table(pack.data))throw Error('Unsupported pack format: expected data or named profiles');dataBounds(pack.data,'data');}
+  return pack;
+}
+
+function push(L,value,depth=0){if(!lua.lua_checkstack(L,8))throw Error('Pack operation exceeded the Lua stack limit');if(depth>PACK_LIMITS.depth)throw Error(`Pack exceeds the inspection nesting limit (${PACK_LIMITS.depth} table levels)`);if(value==null)lua.lua_pushnil(L);else if(typeof value==='string')lua.lua_pushstring(L,to_luastring(value));else if(typeof value==='number'){if(!Number.isFinite(value))throw Error('Invalid pack number');lua.lua_pushnumber(L,value);}else if(typeof value==='boolean')lua.lua_pushboolean(L,value);else if(typeof value==='object'){lua.lua_newtable(L);for(const [key,v] of Object.entries(value)){if(v===undefined)continue;if(Array.isArray(value))lua.lua_pushinteger(L,Number(key)+1);else lua.lua_pushstring(L,to_luastring(key));push(L,v,depth+1);lua.lua_settable(L,-3);}}else throw Error('Unsupported pack value');}
+function read(L,index,state,depth=0){
+  if(!lua.lua_checkstack(L,8))throw Error('Pack inspection exceeded the Lua stack limit');
+  index=lua.lua_absindex(L,index);
+  const addBytes=n=>{state.bytes+=n;if(state.bytes>PACK_LIMITS.expandedBytes)throw Error(`Decoded pack exceeds the expanded JSON limit (${PACK_LIMITS.expandedBytes.toLocaleString('en-US')} bytes). Split the pack into smaller exports.`);};
+  switch(lua.lua_type(L,index)){
+    case lua.LUA_TNIL:addBytes(4);return null;
+    case lua.LUA_TBOOLEAN:{const value=Boolean(lua.lua_toboolean(L,index));addBytes(value?4:5);return value;}
+    case lua.LUA_TNUMBER:{const value=lua.lua_tonumber(L,index);if(!Number.isFinite(value))throw Error('Invalid pack number');addBytes(String(value).length);return value;}
+    case lua.LUA_TSTRING:{const value=lua.lua_tojsstring(L,index);addBytes(Buffer.byteLength(JSON.stringify(value)));return value;}
+    case lua.LUA_TTABLE:{
+      if(depth>PACK_LIMITS.depth)throw Error(`Decoded pack exceeds the inspection nesting limit (${PACK_LIMITS.depth} table levels).`);
+      const pointer=lua.lua_topointer(L,index);if(state.seen.has(pointer))throw Error('Cyclic pack');state.seen.add(pointer);addBytes(2);const result={};let first=true;
+      lua.lua_pushnil(L);
+      while(lua.lua_next(L,index)){
+        if(++state.entries>PACK_LIMITS.totalEntries)throw Error(`Decoded pack exceeds the total inspection limit (${PACK_LIMITS.totalEntries.toLocaleString('en-US')} table entries). Split the pack into smaller exports.`);
+        if(state.entries%1024===0&&Date.now()>state.deadline)throw Error('Pack inspection exceeded its processing time limit. Split the pack into smaller exports.');
+        const kind=lua.lua_type(L,-2);if(kind!==lua.LUA_TSTRING&&kind!==lua.LUA_TNUMBER)throw Error('Unsupported pack key');
+        const key=kind===lua.LUA_TSTRING?lua.lua_tojsstring(L,-2):lua.lua_tonumber(L,-2);
+        if((typeof key==='number'&&!Number.isFinite(key))||['__proto__','constructor','prototype'].includes(String(key)))throw Error('Unsupported pack key');
+        addBytes(Buffer.byteLength(JSON.stringify(String(key)))+1+(first?0:1));first=false;
+        result[key]=read(L,-1,state,depth+1);lua.lua_pop(L,1);
+      }
+      state.seen.delete(pointer);return result;
+    }
+    default:throw Error('Unsupported serialized type');
+  }
+}
 export class PackCodec {
   constructor(resources){this.resources=resources;}
-  invoke(fn,arg){const L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);let ticks=0;
-    lua.lua_sethook(L,()=>{if(++ticks>10000)lauxlib.luaL_error(L,to_luastring('Pack operation exceeded processing limit'));},lua.LUA_MASKCOUNT,10000);
+  invoke(fn,arg){const L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);let ticks=0;const deadline=Date.now()+PACK_LIMITS.processingMilliseconds;
+    lua.lua_sethook(L,()=>{if(++ticks>20000||Date.now()>deadline)lauxlib.luaL_error(L,to_luastring('Pack operation exceeded processing limit'));},lua.LUA_MASKCOUNT,10000);
     function execute(code){if(lauxlib.luaL_loadstring(L,to_luastring(code))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}
     try{
       execute('strmatch = string.match; math.pow = math.pow or function(a,b) return a^b end; math.ldexp = math.ldexp or function(a,b) return a*2^b end; loadstring = loadstring or load; unpack = table.unpack');
@@ -16,10 +60,18 @@ export class PackCodec {
       execute(`function doctor_encode(payload) return LibStub('LibSerialize'):Serialize(payload) end
 function doctor_decode(str) local ok,payload=LibStub('LibSerialize'):Deserialize(str); assert(ok,'Invalid serialization'); return payload end`);
       lua.lua_getglobal(L,to_luastring('doctor_'+fn));if(Buffer.isBuffer(arg))lua.lua_pushlstring(L,new Uint8Array(arg),arg.length);else push(L,arg);
-      if(lua.lua_pcall(L,1,1,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));return fn==='encode'?Buffer.from(lua.lua_tolstring(L,-1)):read(L,-1);
+      if(lua.lua_pcall(L,1,1,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));return fn==='encode'?Buffer.from(lua.lua_tolstring(L,-1)):read(L,-1,{seen:new Set(),entries:0,bytes:0,deadline});
     }finally{lua.lua_close(L);}
   }
-  decode(input){const str=String(input).replace(/\s+/g,'');if(str.includes(':LIC1:'))throw Error('Account-licensed packs must be managed in the addon. This app does not remove or bypass licenses.');if(!str.startsWith('NSRPACK2:')||str.length>130000)throw Error('Expected an NSRPACK2 string under 130 KB');const pack=this.invoke('decode',inflateRawSync(decodePrint(str.slice(9)),{maxOutputLength:4000000}));if(pack?.licensed||pack?.derivedFrom)throw Error('Re-sharing licensed or derived packs is not supported');if(pack.format!==1||(!pack.data&&!pack.profiles))throw Error('Unsupported pack format');return pack;}
+  decode(input){
+    const str=String(input).replace(/\s+/g,'');
+    if(str.includes(':LIC1:'))throw Error('Account-licensed packs must be managed in the addon. This app does not remove or bypass licenses.');
+    if(!str.startsWith('NSRPACK2:')||str.length>PACK_LIMITS.inputCharacters)throw Error('Expected an NSRPACK2 string under 130 KB');
+    let serialized;try{serialized=inflateRawSync(decodePrint(str.slice(9)),{maxOutputLength:PACK_LIMITS.decompressedBytes});}catch(error){if(error.code==='ERR_BUFFER_TOO_LARGE')throw Error('Pack exceeds the decompressed-data limit (4,000,000 bytes). Split the pack into smaller exports.');throw Error('Invalid or damaged pack compression/encoding.');}
+    const pack=this.invoke('decode',serialized);
+    if(pack?.licensed||pack?.derivedFrom)throw Error('Re-sharing licensed or derived packs is not supported');
+    return validatePackBounds(pack);
+  }
   encode(pack){if(pack.licensed||pack.derivedFrom)throw Error('Export of licensed or derived packs is not supported');if(pack.format!==1||!pack.data||typeof pack.name!=='string')throw Error('Invalid pack metadata');const str='NSRPACK2:'+encodePrint(deflateRawSync(this.invoke('encode',pack)));this.decode(str);return str;}
 }
 const alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789()';
