@@ -89,3 +89,6 @@ Published 0.1.8 verification: [Windows run 39077009398](https://github.com/zolo7
 ## Visible application version fix (0.1.9)
 
 Inspection of the downloaded 0.1.7/0.1.8 ASARs confirmed correct package versions but a stale literal `version: '0.1.6'` in the service's init response. This was a display defect in those releases. Init now reads the package version through a module-relative URL, including from app.asar. Desktop smoke compares Electron app.getVersion(), the secured IPC init response and the rendered Application version label, so packaging alone cannot hide a mismatched interface version.
+
+
+Published 0.1.9 verification: [Windows run 39077998575](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39077998575) passed, including the comparison of Electron package version, secured IPC init.version and the visible Application version label. The earlier run was cancelled by a newer README-only commit, which was preserved. The downloaded 0.1.9 ZIP matched SHA256 `58e50b51db084f0e19fe15266d881cb9db42605479349a8783a7ecd0204e2f72`, passed all 78 CRC and x64 PE checks, and its ASAR passed the Electron smoke with all three versions equal to 0.1.9.
