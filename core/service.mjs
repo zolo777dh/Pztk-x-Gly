@@ -15,6 +15,7 @@ import {discoverProjects} from './projects.mjs';
 import {WclAuth,WCL_API,wclEndpoint} from './wcl-auth.mjs';
 import {v1Report,testV1,v1Timeline} from './wcl-v1.mjs';
 import {WclLab} from './wcl-lab.mjs';
+import {searchSources} from './source-search.mjs';
 const defaults={cloudProvider:'openai',anthropicModel:'',compatibleEndpoint:'https://api.openai.com/v1',compatibleModel:'',wclEndpoint:WCL_API,client:'retail',localEndpoint:'http://127.0.0.1:11434/v1',localModel:'qwen2.5-coder:7b',cloudEndpoint:'https://api.openai.com/v1',cloudModel:'',aiMode:'local'};
 export class DoctorService {
   constructor(dataDir,resources,{fetcher,secureStore,labOptions}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.tokens={};this.wcl=new WclAuth(dataDir,{fetcher,secureStore});this.lab=new WclLab(dataDir,resources,labOptions);this.features=new Map();this.patches=new Patches(dataDir);this.codec=new PackCodec(resources);}
@@ -45,6 +46,7 @@ export class DoctorService {
       case 'project.refresh':{const p=this.project(args.id);this.invalidate(p.id);const discovered=await this.addMany({roots:p.discoveryRoots||[p.root],client:p.client,refresh:true});const scan=await analyze(p,args.client||p.client);this.scans.set(p.id,scan);return {...scan,addedProjects:discovered.added};}
       case 'scan':{const p=this.project(args.id);const scan=await analyze(p,args.client||p.client);this.scans.set(p.id,scan);return scan;}
       case 'source':return readSource(this.project(args.id).root,args.file);
+      case 'source.search':return searchSources(this.state.projects,args);
       case 'errors':{const p=this.project(args.id);const scan=this.scans.get(p.id);const files=scan?.files||await walk(p.root);let text=args.text;let summary=null;
         if(args.saved){const saved=parseSavedVariables(args.text);summary=savedSummary(saved);text=summary.filter(s=>s.type==='error').map(s=>s.text).join('\n');if(!text)return {issues:[],summary};}
         return {issues:parseErrors(text,files),summary};
