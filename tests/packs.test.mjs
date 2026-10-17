@@ -8,7 +8,7 @@ import {execFileSync} from 'node:child_process';
 import {deflateRawSync} from 'node:zlib';
 import fengari from 'fengari';
 import {DoctorService} from '../core/service.mjs';
-import {PackCodec,PACK_LIMITS,validatePackBounds} from '../core/packs.mjs';
+import {PackCodec,PACK_LIMITS,validatePackBounds,noteToPack} from '../core/packs.mjs';
 import {packPreview} from '../core/pack-preview.mjs';
 const {lua,lauxlib,lualib,to_luastring}=fengari;
 const resources=fileURLToPath(new URL('../resources',import.meta.url));const codec=new PackCodec(resources);
@@ -26,4 +26,15 @@ let exportedPlan;
 test('Export Reminder Pack completes for a 4,000-reminder plan without dropping rows',async t=>{const dir=await fs.mkdtemp(path.join(os.tmpdir(),'doctor-large-plan-'));t.after(()=>fs.rm(dir,{force:true,recursive:true}));const service=await new DoctorService(dir,resources).init();const note={client:'retail',title:'Large exported plan',encounterId:123,events:Array.from({length:4000},(_,i)=>({time:i,text:'Defensive '+i,role:'ALL'}))};const result=await service.handle('pack.encode',{note});exportedPlan=result.text;assert.equal(Object.keys(result.payload.data.raidReminders['123']).length,4000);const decoded=codec.decode(result.text);assert.equal(Object.keys(decoded.data.raidReminders['123']).length,4000);assert.equal(decoded.data.raidReminders['123'].pztk_3999.display.text,'Defensive 3999');});
 test('the unchanged addon accepts the same large fixture', {skip:!process.env.DOCTOR_ADDON_TEST_ROOT||!process.env.DOCTOR_LUA51},async t=>{const dir=await fs.mkdtemp(path.join(os.tmpdir(),'doctor-large-pack-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const packFile=path.join(dir,'pack.txt');await fs.writeFile(packFile,largePack());const planFile=path.join(dir,'plan.txt');await fs.writeFile(planFile,exportedPlan);const script=`strmatch=string.match\ndofile(${JSON.stringify(resources+'/codec/LibStub.lua')})\ndofile(${JSON.stringify(resources+'/codec/LibSerialize.lua')})\ndofile(${JSON.stringify(resources+'/codec/LibDeflate.lua')})\nNaowhUITankReminder={L=function(s) return s end,UI={Widgets={}},THEME={}}\nCreateFrame=function() return {SetScript=function() end} end\ndofile(${JSON.stringify(process.env.DOCTOR_ADDON_TEST_ROOT+'/NaowhUI_SmartReminders_Packs.lua')})\nlocal f=assert(io.open(${JSON.stringify(packFile)},'rb'));local p,e=NaowhUITankReminder.DecodePack(f:read('*a'));f:close();assert(p,e);assert(p.data.settings.flags[52000]==true);assert(p.data.callouts.boss=='Use defensive');local f2=assert(io.open(${JSON.stringify(planFile)},'rb'));local p2,e2=NaowhUITankReminder.DecodePack(f2:read('*a'));f2:close();assert(p2,e2);local n=0;for _ in pairs(p2.data.raidReminders['123']) do n=n+1 end;assert(n==4000);assert(p2.data.raidReminders['123'].pztk_3999.display.text=='Defensive 3999');print('LARGE REAL ADDON DECODE PASSED')`;
  const file=path.join(dir,'check.lua');await fs.writeFile(file,script);assert.match(execFileSync(process.env.DOCTOR_LUA51,[file],{encoding:'utf8'}),/LARGE REAL ADDON DECODE PASSED/);
+});
+
+test('derived packs decode and re-export with attribution intact; actual account-licensed packs stay blocked',()=>{
+ const attribution={name:'Original curator pack',author:'Curator',extra:{revision:7}};
+ const pack={format:1,name:'Contributor changes',author:'Contributor',derivedFrom:attribution,data:{presets:{'65':{personal:{name:'Personal',list:[498,642]}}}}};
+ const original=encoded(codec.invoke('encode',pack));const decoded=codec.decode(original,{withKeys:true});assert.deepEqual(decoded.pack.derivedFrom,attribution);
+ const before=structuredClone(decoded.pack);const text=codec.encode(decoded.pack,{numericKeys:decoded.numericKeys});assert.deepEqual(codec.decode(text).derivedFrom,attribution);assert.deepEqual(decoded.pack,before);
+ assert.throws(()=>codec.decode(original+':LIC1:signed-license'),/Account-licensed/);
+ const licensed={...pack,licensed:true};assert.throws(()=>codec.decode(encoded(codec.invoke('encode',licensed))),/account-licensed/);assert.throws(()=>codec.encode(licensed),/account-licensed/);
+ assert.throws(()=>codec.encode({...pack,derivedFrom:'invalid'}),/Invalid derivedFrom/);
+ const note={client:'retail',title:'Edited reminder',encounterId:123,derivedFrom:attribution,events:[{time:10,text:'Use defensive',role:'ALL'}]};const exported=noteToPack(note);assert.deepEqual(exported.derivedFrom,attribution);assert.deepEqual(codec.decode(codec.encode(exported)).derivedFrom,attribution);assert.notEqual(exported.derivedFrom,note.derivedFrom);
 });

@@ -1,9 +1,9 @@
-# Version 0.1.7 validation
+# Version 0.1.8 validation
 
 ## Passed in the current environment
 
 - Frozen-lockfile dependency restoration with `npm ci --ignore-scripts`, activation of the official Electron archive after published SHA256 verification, and Vite production build with a desktop Content Security Policy.
-- **66/66 core tests, no skips**, with `DOCTOR_ADDON_TEST_ROOT` and `DOCTOR_LUA51` set. They exercise real filesystem writes, exact-byte ZIP recovery, BOM/CRLF preservation, stale-source refusal, backup failure, path traversal/symlink refusal, literal-only SavedVariables parsing, Unicode, session-token non-persistence, note history, pack serialization, real-addon decoding, WCL pagination/cache normalization, generic HTML/JSON/CSV parsing and five-pull averaging.
+- **67/67 core tests, no skips**, with `DOCTOR_ADDON_TEST_ROOT` and `DOCTOR_LUA51` set. They exercise real filesystem writes, exact-byte ZIP recovery, BOM/CRLF preservation, stale-source refusal, backup failure, path traversal/symlink refusal, literal-only SavedVariables parsing, Unicode, session-token non-persistence, note history, pack serialization, real-addon decoding, WCL pagination/cache normalization, generic HTML/JSON/CSV parsing and five-pull averaging.
 - Generated NSRPACK2 data was accepted by the unchanged `NaowhSmartReminders/NaowhUI_SmartReminders_Packs.lua` **DecodePack**, using native Lua 5.1 and its actual codec libraries. This validates the wire format, not in-game triggering.
 - Browser UI smoke: disposable demo → source edit → validate/preview → verified backup/apply → rollback; note save/export; supplied reference HTML; a structurally different CSV mapped to columns; five cached synthetic pulls with mean defensive offset **−3.00 s**. The CSV produces **−2.50 s**. Browser screenshots are in `test-results/`.
 - Desktop Electron launch under Linux/Xvfb, production build load, secured preload IPC and demo scan. Tested at 1672×941 and browser layout at 1280×800 without horizontal overflow.
@@ -74,3 +74,10 @@ Browser flow: import original NSR string → attach recorded CSV → calculate f
 
 
 Published 0.1.7 verification: [Windows run 39076463792](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39076463792) passed in 2m 22s. Checks included the bundled engine, native DPAPI restart/forget, packaged planner import → five-pull mean → NSR export over secured IPC, search shortcut, and Windows ZIP extraction. The downloaded release matched SHA256 `7f934e68dfc18f8bf2d7e16237fc96d95ee73ad4bcf01b9964bc098d4ebf64c6`, passed all 78 ZIP CRC checks and x64 PE verification, contained the 0.1.7 planner/search and original engine hash, and its ASAR passed the Linux Electron smoke and planner roundtrip.
+
+
+## Derived-pack attribution fix (0.1.8)
+
+The blanket rejection of `derivedFrom` was stricter than the unchanged addon: its ExportPack explicitly creates that attribution for curator hand-back and its DecodePack accepts and describes it. Ordinary derived packs now decode/re-encode without dropping that metadata. Account license suffixes (`:LIC1:`) and explicit licensed payloads remain blocked; malformed attribution types have a separate error.
+
+Regression tests cover serializer-produced derived input, non-mutating roundtrip, malformed metadata, continued refusal of signed/account-licensed payloads, note export attribution, persistence/restart and planner exports. Native Lua 5.1 runs the unchanged NSR DecodePack and real trash validator on generated derived single/named packs and asserts retained source name/author. Browser testing includes the planner’s attribution notice and derived profile export, plus reminder-only inspection → editable plan → save → export with the original attribution intact. Live account-license verification remains the addon's responsibility.

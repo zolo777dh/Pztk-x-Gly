@@ -21,6 +21,11 @@ export function validatePackBounds(pack){
   return pack;
 }
 
+function checkPackRights(pack){
+  if(pack?.licensed)throw Error('This pack is account-licensed. Manage it in Naowh Smart Reminders; the desktop app cannot verify its account license.');
+  if(pack?.derivedFrom!=null&&(typeof pack.derivedFrom!=='object'||Array.isArray(pack.derivedFrom)))throw Error('Invalid derivedFrom attribution: expected a metadata table');
+}
+
 function push(L,value,depth=0,numericKeys=null,treePath=[]){
   if(!lua.lua_checkstack(L,8))throw Error('Pack operation exceeded the Lua stack limit');if(depth>PACK_LIMITS.depth)throw Error(`Pack exceeds the inspection nesting limit (${PACK_LIMITS.depth} table levels)`);
   if(value==null)lua.lua_pushnil(L);else if(typeof value==='string')lua.lua_pushstring(L,to_luastring(value));else if(typeof value==='number'){if(!Number.isFinite(value))throw Error('Invalid pack number');lua.lua_pushnumber(L,value);}else if(typeof value==='boolean')lua.lua_pushboolean(L,value);else if(typeof value==='object'){
@@ -74,15 +79,16 @@ function doctor_decode(str) local ok,payload=LibStub('LibSerialize'):Deserialize
     if(!str.startsWith('NSRPACK2:')||str.length>PACK_LIMITS.inputCharacters)throw Error('Expected an NSRPACK2 string under 130 KB');
     let serialized;try{serialized=inflateRawSync(decodePrint(str.slice(9)),{maxOutputLength:PACK_LIMITS.decompressedBytes});}catch(error){if(error.code==='ERR_BUFFER_TOO_LARGE')throw Error('Pack exceeds the decompressed-data limit (4,000,000 bytes). Split the pack into smaller exports.');throw Error('Invalid or damaged pack compression/encoding.');}
     const result=this.invoke('decode',serialized,{trackKeys:withKeys});const pack=withKeys?result.pack:result;
-    if(pack?.licensed||pack?.derivedFrom)throw Error('Re-sharing licensed or derived packs is not supported');
+    checkPackRights(pack);
     validatePackBounds(pack);return withKeys?result:pack;
   }
-  encode(pack,{numericKeys=[]}={}){if(pack.licensed||pack.derivedFrom)throw Error('Export of licensed or derived packs is not supported');if(pack.format!==1||!(pack.data||pack.profiles)||typeof pack.name!=='string')throw Error('Invalid pack metadata');validatePackBounds(pack);const str='NSRPACK2:'+encodePrint(deflateRawSync(this.invoke('encode',pack,{numericKeys})));this.decode(str);return str;}
+  encode(pack,{numericKeys=[]}={}){checkPackRights(pack);if(pack.format!==1||!(pack.data||pack.profiles)||typeof pack.name!=='string')throw Error('Invalid pack metadata');validatePackBounds(pack);const str='NSRPACK2:'+encodePrint(deflateRawSync(this.invoke('encode',pack,{numericKeys})));this.decode(str);return str;}
 }
 const alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789()';
 function encodePrint(bytes){let cache=0,bits=0,result='';for(const byte of bytes){cache+=byte*2**bits;bits+=8;while(bits>=6){result+=alphabet[cache%64];cache=Math.floor(cache/64);bits-=6;}}if(bits>0)result+=alphabet[cache%64];return result;}
 function decodePrint(text){let cache=0,bits=0,result=[];if(text.length%4===1)throw Error('Invalid print encoding');for(const char of text){const value=alphabet.indexOf(char);if(value<0)throw Error('Invalid print encoding');cache+=value*2**bits;bits+=6;while(bits>=8){result.push(cache%256);cache=Math.floor(cache/256);bits-=8;}}return Buffer.from(result);}
 export function noteToPack(note){
+  checkPackRights(note);
   if(note.client==='forever')throw Error('Smart Reminders pack export is currently verified only for the supplied Retail addon. Notes can still be exported as JSON/text.');
   if(!Number.isInteger(Number(note.encounterId))||Number(note.encounterId)<=0)throw Error('Set and confirm the in-game encounter ID before exporting a pack');
   const reminders={};
@@ -97,5 +103,5 @@ export function noteToPack(note){
     reminders['pztk_'+i]={name:event.text.slice(0,120),enabled:true,trigger:{type:'pull',delay:Number(event.time),leadTime:Number(event.lead||0)},target,display:{type:'text',text:event.text,dur:Number(event.duration||5)}};
   }
   if(!Object.keys(reminders).length)throw Error('Add at least one reminder row');
-  return {format:1,name:note.title||'Pztk encounter notes',author:note.author||'Pztk x Glyalith',made:new Date().toISOString().slice(0,10),data:{raidReminders:{[String(note.encounterId)]:reminders}}};
+  return {format:1,name:note.title||'Pztk encounter notes',author:note.author||'Pztk x Glyalith',made:new Date().toISOString().slice(0,10),...(note.derivedFrom!=null?{derivedFrom:structuredClone(note.derivedFrom)}:{}),data:{raidReminders:{[String(note.encounterId)]:reminders}}};
 }
