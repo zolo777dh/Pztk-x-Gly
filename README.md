@@ -46,7 +46,7 @@ Large previews are sampled to keep the interface usable. **Save decoded JSON** e
 
 The **WCL** tab includes the supplied **bgmt x warcraftlogs lab 0.13.0** Windows x64 engine. Its original binary is bundled, checked by SHA256 and invoked in the background through its supported CLI. No separate parser window or installation is required.
 
-- Start with **Check engine installation** or **Generate sample export**. The latter creates synthetic data; it cannot become a real encounter sample.
+- Start with **Check engine installation** or **Generate sample export**. The latter creates synthetic data; it cannot become a real encounter sample. Upstream 0.13.0 writes those built-in sample JSONL files in a different schema from its offline reader, so reanalyzing that sample reports a source-ID error. Use saved raw API exports for offline reanalysis.
 - **Analyze saved export** accepts the engine's raw-export folder or ZIP. Offline reanalysis does not call WCL. HTML/CSV reference documents still use Encounter Lab's existing importer.
 - **Export WCL links** accepts up to 30 links, one per line. Include fight/source parameters for the desired encounter and player.
 - **Find & analyze top logs** accepts zone IDs and encounter IDs prefixed with `e`, plus top count, starting rank and a per-run limit. **Survey specializations** accepts `Class:Spec[:dps|hps]` pairs and encounter IDs. These use the original engine's CLI defaults; not every option from its separate GUI is exposed.

@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows:
     runs-on: windows-latest
@@ -65,6 +69,12 @@ jobs:
         run: |
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $tag = "v$version"
+          $latest = gh api "repos/$env:GITHUB_REPOSITORY/commits/main" --jq '.sha'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not verify the current release commit.' }
+          if ($latest -ne $env:GITHUB_SHA) {
+            Write-Host 'A newer main commit exists; leave publication to its build.'
+            exit 0
+          }
           gh release view $tag --repo $env:GITHUB_REPOSITORY 2>$null
           if ($LASTEXITCODE -eq 0) {
             Write-Host 'This version is already released; its assets are preserved. The current build remains available as an Actions artifact.'
