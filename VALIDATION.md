@@ -1,4 +1,4 @@
-# Version 0.1.8 validation
+# Version 0.1.9 validation
 
 ## Passed in the current environment
 
@@ -84,3 +84,8 @@ Regression tests cover serializer-produced derived input, non-mutating roundtrip
 
 
 Published 0.1.8 verification: [Windows run 39077009398](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39077009398) passed in 2m 29s, including the packaged derived-profile planner roundtrip with original source/author assertions, DPAPI, bundled WCL engine and native ZIP extraction. The downloaded release matched SHA256 `059bac20cde2177a857dc2082f268fbc1f237bfe15a619d0810125357ecc9e4f`, passed CRC checks for all 78 files and x64 PE checks. Its published 0.1.8 codec retains attribution and account-license checks; the downloaded ASAR passed the Linux Electron smoke and derived planner roundtrip.
+
+
+## Visible application version fix (0.1.9)
+
+Inspection of the downloaded 0.1.7/0.1.8 ASARs confirmed correct package versions but a stale literal `version: '0.1.6'` in the service's init response. This was a display defect in those releases. Init now reads the package version through a module-relative URL, including from app.asar. Desktop smoke compares Electron app.getVersion(), the secured IPC init response and the rendered Application version label, so packaging alone cannot hide a mismatched interface version.

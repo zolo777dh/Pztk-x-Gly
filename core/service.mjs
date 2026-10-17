@@ -17,6 +17,7 @@ import {v1Report,testV1,v1Timeline} from './wcl-v1.mjs';
 import {WclLab} from './wcl-lab.mjs';
 import {searchSources} from './source-search.mjs';
 import {DefensivePlanner,inspectDefenseTable} from './defensive-planner.mjs';
+const {version:APP_VERSION}=JSON.parse(await fs.readFile(new URL('../package.json',import.meta.url),'utf8'));
 const defaults={cloudProvider:'openai',anthropicModel:'',compatibleEndpoint:'https://api.openai.com/v1',compatibleModel:'',wclEndpoint:WCL_API,client:'retail',localEndpoint:'http://127.0.0.1:11434/v1',localModel:'qwen2.5-coder:7b',cloudEndpoint:'https://api.openai.com/v1',cloudModel:'',aiMode:'local'};
 export class DoctorService {
   constructor(dataDir,resources,{fetcher,secureStore,labOptions}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.tokens={};this.wcl=new WclAuth(dataDir,{fetcher,secureStore});this.lab=new WclLab(dataDir,resources,labOptions);this.features=new Map();this.patches=new Patches(dataDir);this.codec=new PackCodec(resources);this.planner=new DefensivePlanner(dataDir,this.codec);}
@@ -35,7 +36,7 @@ export class DoctorService {
   async aiContext(args){const p=this.project(args.id);const source=await readSource(p.root,args.file);if(source.hash!==args.hash)throw Error('Source changed. Refresh and reopen it before requesting AI assistance.');return prepareContext({source:source.text,file:args.file,build:args.client==='forever'?'1.60.1.70425':'12.1.5.70448',issue:args.issue,focusLine:args.focusLine});}
   async handle(method,args={}){
     switch(method){
-      case 'init':return { ...this.state,version:'0.1.6',backups:await this.patches.list(),tokens:this.tokenStatus(),wcl:this.wcl.status()};
+      case 'init':return { ...this.state,version:APP_VERSION,backups:await this.patches.list(),tokens:this.tokenStatus(),wcl:this.wcl.status()};
       case 'project.addMany':return this.addMany(args);
       case 'project.add':{
         if(typeof args.root!=='string'||!args.root)throw Error('Select an addon directory');const root=await fs.realpath(args.root);const existing=this.state.projects.find(p=>p.root===root);if(existing)return existing;
