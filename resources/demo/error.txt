@@ -1,0 +1,4 @@
+1x Doctor Demo/reminders.lua:4: attempt to call global 'SetReminder' (a nil value)
+[Doctor Demo/reminders.lua]:4: in function 'CreateReminder'
+Locals:
+reminderId = 1

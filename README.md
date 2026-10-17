@@ -1,0 +1,71 @@
+# Pztk x Glyalith 0.1.0
+
+Standalone Windows desktop prototype for diagnosing **NaowhForever** (all discovered modules) and **Naowh Smart Reminders**, preparing source patches, encounter notes and reminder packs. It is not a WoW addon.
+
+## Try the Windows app
+
+1. Extract the entire `Pztk-x-Glyalith-0.1.0-Windows-x64.zip` archive to a writable folder.
+2. Open `Pztk x Glyalith.exe` inside the extracted folder. Keep its DLLs, `resources` and other files alongside it. Node, Python and Lua are not required on the user's PC.
+3. Click **Open disposable demo** to try the interface without touching real addons.
+4. Click **+** beside Addons and choose a folder containing an addon `.toc`, for example `Interface\AddOns\NaowhSmartReminders`. Add the Forever root separately. Development checkout layout and individually installed module folders can both be connected.
+5. Select the correct client profile and **Scan Project**. Import BugSack error text or a BugGrabber SavedVariables file. Existing logs are historical evidence; rescan alone does not prove a runtime error is fixed.
+6. Select a file, open **Patch Assistant**, edit the complete file or request AI assistance, then **Validate & preview**. **Create Backup & Apply** verifies a ZIP before writing. Test the result in game.
+7. Open **Project Tools → Backup & patch history → Restore** to undo a patch. Restoration creates another backup and refuses changed files.
+
+The prototype is unsigned. Native execution on Windows still needs user verification; the desktop shell has been tested under Linux Electron and the Windows x64 bundle has been produced and inspected.
+
+## Available features
+
+- Dark blue/yellow three-pane desktop UI based on the supplied visual reference, with separate build profiles for Retail `12.1.5.70448` and Forever `1.60.1.70425` (English game data).
+- Lua 5.1 syntax analysis, recursive TOC/XML dependency and case checks, discovery of all module TOCs, and a small set of advisory legacy API rules. UTF-8 strings are handled as Lua bytes. This is **not a complete build-specific WoW API database**, type checker, taint simulator or in-game runtime.
+- BugSack text import and literal-only parsing of Lua SavedVariables; no SavedVariables code is executed. Inspect stored profiles and Smart Reminders `observed` data. Files reflect the last `/reload`, logout or exit. There is no direct game-memory/live-widget access.
+- Full-file patch previews and unified diffs; Lua syntax validation; SHA256 freshness checks; BOM/CRLF preservation; verified per-patch ZIP backups and rollback. Manual source snapshots include Lua/TOC/XML source files (not media, account settings or the entire WoW installation). Binary/non-UTF-8 source edits are refused.
+- Local encounter plans with assignments, reminder rows, JSON import/export and up to 20 saved revisions.
+- `NSRPACK2:` reminder-only export using LibSerialize plus standard raw DEFLATE and the matching print alphabet. Encoded strings have been accepted by the **actual Smart Reminders DecodePack** implementation. Initial export uses approximate pull-relative text reminders, for all players or a role. Encounter ID must be confirmed. Stage/boss-mod timing mappings are not inferred from spell IDs. Generated timing must be tested in game.
+- Unlicensed pack inspection. Only the supported reminder-only subset can be copied into an editable plan; full profiles remain read-only. Account-licensed/derived packs are refused rather than unwrapped. No licensing restrictions are removed.
+- Warcraft Logs report/fight selection, event pagination, caching and multiple-report import; cached timeline JSON import/export.
+- **Encounter Lab:** compare several pulls of the same encounter/difficulty. Select boss and defensive spell IDs, player-name filter, cast/begincast anchor and matching window. Each defensive cast is matched to the nearest boss event once; repeated same-player/spell casts for one occurrence contribute the closest press. Display mean, median, range, population standard deviation and coverage. Occurrences are ordinal, so phase alignment requires review. Missing observations are not zeroes; unknown client builds remain unverified. Observed usage is not proof of an optimal or necessary defensive.
+- General reference-file import: HTML, JSON and CSV. Embedded JSON with `presets`/`assignments` is recognized without class-specific rules. Static tables and flat JSON object arrays can be explicitly mapped to encounter, ability, boss/press time, occurrence, difficulty and independent-pull columns. Script-only rendered HTML may have no extractable data and is refused. No scripts, handlers or remote HTML resources execute.
+- The user's Holy Paladin document is retained as an **example reference**, not a universal rule or source of recorded defensive presses. Its recommendations remain distinct from actual log measurements. New documents are parsed on import and can use different classes/encounters/columns.
+
+## Hybrid AI
+
+In Settings, configure an **OpenAI-compatible** endpoint/model. A local model is not bundled. For example, install Ollama on Windows, run `ollama pull qwen2.5-coder:7b`, keep its server running, and use `http://127.0.0.1:11434/v1` with model `qwen2.5-coder:7b`. Hardware requirements depend on the chosen model. For cloud assistance enter your provider's HTTPS API base, model ID and key.
+
+**Analyze selected file** sends that complete file and the selected issue to the chosen provider. Returned source is never applied automatically; it still requires preview, validation and a backup. Keys are **memory-only for the current session**, cleared on exit/disconnect; endpoint and model settings persist. Automated note generation by a model, full-project AI context retrieval and automatic dependency-wide repair are not implemented in v0.1.
+
+## Warcraft Logs setup and limits
+
+Enter a valid WCL API bearer token in Settings, obtained using your own registered API client's supported authentication flow. Tokens are session-only and can expire. There is no bundled shared client secret or built-in OAuth login. The initial integration uses the client API endpoint; available reports depend on token permissions. Private-report/user OAuth support and Forever product coverage need validation with real reports. **Live WCL and AI requests have not been validated with user credentials**; WCL pagination/normalization is tested with controlled responses.
+
+Open Encounter Notes → Encounter Lab → Multiple WCL links. Load report metadata, select exact fights and import them. Then compare compatible cached pulls. Cast start/completion and actor IDs remain distinct. Event IDs in WCL are not automatically boss-mod trigger IDs. For M+ runs reported as a single fight, boss-only segmentation/encounter mapping must be confirmed; v0.1 does not infer a boss encounter ID from a whole-run ID.
+
+## Data and source safety
+
+Workspace state, notes, caches and verified backups live in Electron's user data folder, normally `%APPDATA%\Pztk x Glyalith\workspace`. **Project Tools → Open backup folder** opens the actual location. Game source writes happen only through a reviewed patch. SavedVariables are read-only in this version; use supported addon import dialogs for pack updates. There is no network service in the packaged desktop app.
+
+## Develop
+
+Node 22+ and npm are needed for source development. Dependencies are pinned in `package-lock.json`.
+
+```sh
+npm ci
+npm run build
+npm start
+```
+
+Browser development (two terminals): `npm run dev` for the local-only backend, and `npm run dev:ui` for Vite. The backend accepts JSON requests only from the exact local UI origin. It must not be exposed to a network. Production uses Electron's isolated preload IPC with Node integration disabled.
+
+```sh
+npm test
+npm run test:ui        # development servers + Chromium required
+npm run package:win    # Windows x64 ZIP, can also cross-package on Linux
+```
+
+Set `DOCTOR_CHROMIUM` to a Chromium executable for browser tests. To run the real-addon codec compatibility test additionally set `DOCTOR_ADDON_TEST_ROOT` to the Smart Reminders checkout and `DOCTOR_LUA51` to Lua 5.1. The compatibility check is explicitly skipped if those external prerequisites are unavailable. `tests/desktop.mjs` is a Linux/Xvfb Electron smoke test.
+
+If Electron downloads require the environment HTTPS proxy, use a supported download proxy or download the official versioned Electron ZIP and `SHASUMS256.txt`, verify the published checksum, then pass its directory via `DOCTOR_ELECTRON_ZIPS`. Never disable TLS or checksum verification. Prepared cloud caches contain verified Electron 38.8.4 Linux/Windows archives.
+
+Use the existing isolated workspaces; do not create Git worktrees unless explicitly requested. The selected addon repositories remain unchanged during app development and tests; patch/restore tests run only in temporary folders or the disposable demo.
+
+See `THIRD_PARTY_NOTICES.md` for bundled library notices.

@@ -1,0 +1,36 @@
+{
+  "name": "pztk-x-glyalith",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WoW Lua Addon Doctor for Windows",
+  "author": "Pztk x Glyalith",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "dev": "node --watch desktop/dev-server.mjs",
+    "dev:ui": "vite --host 127.0.0.1",
+    "build": "vite build && node desktop/csp.mjs",
+    "start": "electron .",
+    "test": "node --test tests/*.test.mjs",
+    "test:ui": "node tests/ui.mjs",
+    "package:win": "npm run build && node desktop/package.mjs"
+  },
+  "dependencies": {
+    "diff": "8.0.2",
+    "fengari": "0.1.5",
+    "fflate": "0.8.2",
+    "htmlparser2": "^10.0.0",
+    "luaparse": "0.3.1",
+    "lucide-react": "0.468.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@electron/packager": "18.3.6",
+    "@vitejs/plugin-react": "4.7.0",
+    "electron": "38.8.4",
+    "playwright-core": "1.56.1",
+    "vite": "6.4.1"
+  }
+}

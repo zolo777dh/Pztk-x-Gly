@@ -1,0 +1,6 @@
+## Interface: 120105
+## Title: Doctor Demo · disposable sample
+## Version: 0.1.0
+Core.lua
+reminders.lua
+missing.lua

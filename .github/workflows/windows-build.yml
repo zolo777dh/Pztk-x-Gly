@@ -1,0 +1,42 @@
+name: Build Windows application
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test core behavior
+        run: npm test
+      # The real-addon DecodePack test is explicitly skipped here: it needs the
+      # external Smart Reminders checkout and Lua 5.1. It passed in the cloud build.
+      - name: Package Windows x64
+        run: npm run package:win
+      - name: Record artifact checksum
+        shell: pwsh
+        run: |
+          $archive = 'release/Pztk-x-Glyalith-0.1.0-Windows-x64.zip'
+          $digest = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+          "$digest  Pztk-x-Glyalith-0.1.0-Windows-x64.zip" | Set-Content release/SHA256SUMS.txt
+      - name: Upload downloadable Windows bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pztk-x-Glyalith-Windows-x64
+          path: |
+            release/Pztk-x-Glyalith-0.1.0-Windows-x64.zip
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
