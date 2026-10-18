@@ -28,11 +28,12 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
-          npm test 2>&1 | Tee-Object -FilePath core-test-output.txt
+          $testLog = Join-Path $env:RUNNER_TEMP 'pztk-core-test-output.txt'
+          npm test 2>&1 | Tee-Object -FilePath $testLog
           $testExit = $LASTEXITCODE
           if ($testExit -ne 0) {
-            $context = (Select-String -Path core-test-output.txt -Pattern 'not ok|failureType:|error:|AssertionError|Expected values' -Context 1,12 | Out-String)
-            if (-not $context) { $context = Get-Content core-test-output.txt -Tail 60 | Out-String }
+            $context = (Select-String -Path $testLog -Pattern 'not ok|failureType:|error:|AssertionError|Expected values' -Context 1,12 | Out-String)
+            if (-not $context) { $context = Get-Content $testLog -Tail 60 | Out-String }
             $annotation = $context.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
             Write-Output "::error title=Core test failure::$annotation"
             exit $testExit
