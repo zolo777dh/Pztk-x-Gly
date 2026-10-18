@@ -1,9 +1,9 @@
-# Version 0.1.9 validation
+# Version 0.1.10 validation
 
 ## Passed in the current environment
 
 - Frozen-lockfile dependency restoration with `npm ci --ignore-scripts`, activation of the official Electron archive after published SHA256 verification, and Vite production build with a desktop Content Security Policy.
-- **67/67 core tests, no skips**, with `DOCTOR_ADDON_TEST_ROOT` and `DOCTOR_LUA51` set. They exercise real filesystem writes, exact-byte ZIP recovery, BOM/CRLF preservation, stale-source refusal, backup failure, path traversal/symlink refusal, literal-only SavedVariables parsing, Unicode, session-token non-persistence, note history, pack serialization, real-addon decoding, WCL pagination/cache normalization, generic HTML/JSON/CSV parsing and five-pull averaging.
+- **81/81 core tests, no skips**, with `DOCTOR_ADDON_TEST_ROOT` and `DOCTOR_LUA51` set. They exercise real filesystem writes, exact-byte ZIP recovery, BOM/CRLF preservation, stale-source refusal, backup failure, path traversal/symlink refusal, literal-only SavedVariables parsing, Unicode, session-token non-persistence, note history, pack serialization, real-addon decoding, WCL pagination/cache normalization, generic HTML/JSON/CSV parsing and five-pull averaging.
 - Generated NSRPACK2 data was accepted by the unchanged `NaowhSmartReminders/NaowhUI_SmartReminders_Packs.lua` **DecodePack**, using native Lua 5.1 and its actual codec libraries. This validates the wire format, not in-game triggering.
 - Browser UI smoke: disposable demo → source edit → validate/preview → verified backup/apply → rollback; note save/export; supplied reference HTML; a structurally different CSV mapped to columns; five cached synthetic pulls with mean defensive offset **−3.00 s**. The CSV produces **−2.50 s**. Browser screenshots are in `test-results/`.
 - Desktop Electron launch under Linux/Xvfb, production build load, secured preload IPC and demo scan. Tested at 1672×941 and browser layout at 1280×800 without horizontal overflow.
@@ -92,3 +92,27 @@ Inspection of the downloaded 0.1.7/0.1.8 ASARs confirmed correct package version
 
 
 Published 0.1.9 verification: [Windows run 39077998575](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39077998575) passed, including the comparison of Electron package version, secured IPC init.version and the visible Application version label. The earlier run was cancelled by a newer README-only commit, which was preserved. The downloaded 0.1.9 ZIP matched SHA256 `58e50b51db084f0e19fe15266d881cb9db42605479349a8783a7ecd0204e2f72`, passed all 78 CRC and x64 PE checks, and its ASAR passed the Electron smoke with all three versions equal to 0.1.9.
+
+
+## NSR visual profile editor (0.1.10)
+
+Editor mutations operate on a separately persisted copy of the decoded pack and numeric-key paths. Revision checks plus serialized per-draft writes prevent stale concurrent saves. Unknown fields, other profiles/specs/settings/reminders and derivedFrom attribution are retained. Mutation audit entries are bounded summaries; the imported source and the complete edited pack remain available. Referenced-set deletion and destination collisions are refused. Legacy binding migration and account-license validation remain in NSR; a named Default profile is refused because NSR will not land it.
+
+Seven new core tests exercise ordered sets/Together flags, moving bindings, preservation of unknown data and original strings, refusal of linked-set deletion, concurrent revision conflicts, structured-reference preview/apply, no invented lead times, spec-tag checks, resuming drafts, other named profiles, aura-rule preservation and addon-comment labels without executing Lua. The unchanged addon DecodePack and Integrations.ValidRule accept edited/reference-derived exports under Lua 5.1, with numeric spell keys and list indices intact.
+
+The browser test covers automatic editor opening, named encounters/IDs, priority reordering and fields, reference preset/assignment import, export and decoding, retained unknown fields/settings/other specs/reminders/attribution, reopening the edited copy, transfer of a recorded CSV to the planner and reopening generated output in the editor. It also tests the Project Tools inspector entry. Screenshots show the set and encounter forms. Existing source-patch/backup/restore and planner browser checks remain covered. Desktop smoke now imports a profile in the packaged UI, creates/edits a defensive set and decodes its exported string, retaining the original reminders and attribution.
+
+The desktop does not have the live WoW Encounter Journal. Names are display labels from available profile metadata, connected NSR reference comments, imported tables and cached casts; ambiguous/unavailable names remain explicit IDs. Manual labels do not change timer identity. Boss-mod spell-key mapping, talents, available spells and in-game behavior still require verification. Aura-sound and other profile sections are preserved, not exposed as general raw-code editing. Structured priority-reference HTML/JSON and recorded timing tables are distinct; the former cannot establish mean defensive press times.
+
+
+## Session, model and NPC database changes (0.1.10)
+
+Controlled tests verify fresh startup with empty project/active timeline lists and preserved notes, profiles, settings and backup identity. Folder reconnection reuses the previous ID. Browser checks exercise Ctrl+A, Ctrl+click, Shift ranges, Shift-drag with auto-scroll and grouped refresh/delete, confirming original files remain. Saved reference/analysis data is retained while old pulls are not automatically reselected.
+
+API model lists come from authenticated provider endpoints per key, never a bundled catalog. Tests separate keys A/B, filter non-text/incompatible entries and reject a selected model absent from the list for its current key. Browser checks cover provider changes and model selection. This establishes request/list behavior against controlled fixtures, not a real user's paid entitlement or quota.
+
+The factual NPC catalog covers eight user-specified dungeons: 248 NPC entries and 1,029 associated spell IDs. Data sources, source filenames, revisions and generation instructions are included in resources/CATALOG-SOURCES.md. Map/challenge IDs and journal/dungeon encounter IDs are separate. The Guardian Druid browser flow creates a profile from scratch, configures Zaen Bladesorrow's Envenom with a defensive set and timing, then configures a trash rule and decodes the exported NSR string. The unchanged real NSR decoder also accepts Guardian (104) bindings with numeric spell keys. Manual trigger-type selection covers boss helpers/lieutenants that lack an independently identified encounter.
+
+English labels use imported/connected references, known names and a persistent tooltip cache. Controlled resolver tests verify cache restoration, no credential forwarding and unresolved-ID behavior. Live tooltip access in this cloud was HTTP 403, so the full external name lookup is not claimed verified here.
+
+Method page requests were denied by the cloud network gateway with HTTP 403. Seven important Altar of Fangs names were transcribed from the user's screenshot without numeric mappings. Local confirmation is explicit and persisted. HTML import parsing is tested against controlled fixtures with and without spell links, section boundaries and failure preservation; the live Method markup and the other seven important lists have not been validated. The primary NPC → ability → defensive set → export workflow does not require Method.

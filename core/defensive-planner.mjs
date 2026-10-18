@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {uid,sha,writeAtomic} from './files.mjs';
+import {SPEC_NAMES,SPELL_NAMES} from './wow-names.mjs';
 import {parseReference,stats} from './encounters.mjs';
 
 const integer=(v,min=1,max=100000000)=>Number.isInteger(Number(v))&&Number(v)>=min&&Number(v)<=max;
@@ -52,7 +53,7 @@ export function parseDefenseTable(text,filename,{recorded=false,independentAggre
 export function profileDescription(pack){
   const profiles=pack.profiles?Object.entries(pack.profiles):[['',pack.data]];
   if(!profiles.length||profiles.some(([,data])=>!object(data)||data.presets!=null&&!object(data.presets)))throw Error('Unsupported NSR profile structure');
-  return profiles.map(([key,data])=>({key,name:key||pack.name,specs:Object.entries(data.presets||{}).filter(([spec])=>integer(spec)).map(([spec,presets])=>({id:Number(spec),presets:Object.entries(presets).map(([id,p])=>({id,name:p.name||id,list:spellList(p.list)}))})),legacyBindings:data.bindingsBySpec===false&&Object.keys(data.abilityBindings||{}).length>0}));
+  return profiles.map(([key,data])=>({key,name:key||pack.name,specs:Object.entries(data.presets||{}).filter(([spec])=>integer(spec)).map(([spec,presets])=>({id:Number(spec),name:SPEC_NAMES[spec]||'Imported specialization',presets:Object.entries(presets).map(([id,p])=>({id,name:p.name||id,list:spellList(p.list),spells:spellList(p.list).map(spellId=>({spellId,name:SPELL_NAMES[spellId]||null}))}))})),legacyBindings:data.bindingsBySpec===false&&Object.keys(data.abilityBindings||{}).length>0}));
 }
 function weighted(values,pick){const count=values.reduce((n,v)=>n+v.count,0);return {count,mean:values.reduce((n,v)=>n+pick(v)*v.count,0)/count};}
 export function analyzeDefenses(profile,sources,config,timelines=[]){

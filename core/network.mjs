@@ -24,17 +24,26 @@ export async function request(url,options,{fetcher=globalThis.fetch,label='AI pr
     throw Error(`${label} could not be reached. Check Internet access, the API address, firewall and system proxy/VPN settings. Use Test connection in Settings.`);
   }
 }
+export function generationModel(entry,provider){
+ const id=String(entry.id||'').toLowerCase();
+ if(/embedding|whisper|transcrib|(^|[-_:])tts([-_:]|$)|moderation|dall-e|sora|realtime|gpt-image|audio|computer-use|instruct/.test(id))return false;
+ if(['embedding','image','audio','video','moderation'].includes(String(entry.type||'').toLowerCase()))return false;
+ const endpoints=entry.supported_endpoints||entry.endpoints;
+ if(Array.isArray(endpoints)&&endpoints.length){const expected=provider==='openai'?'responses':provider==='anthropic'?'messages':'chat/completions';if(!endpoints.some(e=>String(e).includes(expected)))return false;}
+ if(entry.capabilities?.text_generation===false||entry.capabilities?.chat===false&&entry.capabilities?.completion===false)return false;
+ return true;
+}
 export async function listAIModels({settings,token,mode,fetcher}){
   if(!['local','cloud'].includes(mode))throw Error('Choose local or cloud AI.');
   const endpoint=aiEndpoint(settings,mode);if(mode==='cloud'&&!token)throw Error('Add your cloud API key for this session before testing.');
-  const provider=mode==='local'?'local':cloudProvider(settings);const choices=new Map();let after='';const cursors=new Set();
+  const provider=mode==='local'?'local':cloudProvider(settings);const choices=new Map(),listed=new Set();let after='';const cursors=new Set();
   for(let page=0;page<10;page++){
     const response=await request(endpoint.base+'/models'+(after?'?after_id='+encodeURIComponent(after):''),{headers:aiHeaders(provider,token),signal:AbortSignal.timeout(15000)},{fetcher,label:'AI provider',mode});
     if(!response.ok)throw Error(`AI models endpoint returned HTTP ${response.status}. Check the API URL and credentials; some providers do not expose a model list. You can enter a model ID manually.`);
     let body;try{body=await response.json();}catch{throw Error('The server did not return a JSON model list. Check the selected provider and API URL.');}
     if(!Array.isArray(body.data))throw Error('Unexpected model list. Check the selected provider and its /v1 API endpoint.');
-    for(const entry of body.data){if(typeof entry?.id!=='string'||!entry.id.trim()||entry.id.length>300)continue;const id=entry.id.trim();choices.set(id,{id,name:String(entry.display_name||entry.name||id).slice(0,300)});if(choices.size>2000)throw Error('The provider model list exceeds 2,000 entries. Enter a model ID manually.');}
-    if(provider!=='anthropic'||!body.has_more)return {provider,models:[...choices.values()].sort((a,b)=>a.id.localeCompare(b.id))};
+    for(const entry of body.data){if(typeof entry?.id!=='string'||!entry.id.trim()||entry.id.length>300)continue;const id=entry.id.trim();listed.add(id);if(mode==='cloud'&&!generationModel(entry,provider))continue;choices.set(id,{id,name:String(entry.display_name||entry.name||id).slice(0,300)});if(choices.size>2000)throw Error('The provider model list exceeds 2,000 entries. Enter a model ID manually.');}
+    if(provider!=='anthropic'||!body.has_more)return {provider,models:[...choices.values()].sort((a,b)=>a.id.localeCompare(b.id)),apiListedCount:listed.size,excluded:listed.size-choices.size,source:'Authenticated /models response for this API key'};
     after=body.last_id;if(typeof after!=='string'||!after||cursors.has(after))throw Error('The provider model list pagination did not advance');cursors.add(after);
   }
   throw Error('The provider model list exceeds its page limit. Enter a model ID manually.');
