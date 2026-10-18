@@ -5,7 +5,10 @@
 - Browser UI and native Electron tests passed: arbitrary Shaman HTML → M+ boss/trash → raid Heroic/Mythic filtering → one NSR export → defensive-set edits → restart/resume. Browser replies exercise both code review and exact-anchor feature proposals, Lua validation, explicit backup/apply and restore. OS browser opening is tested against a stub, restricted to the two fixed assistant sites; an authenticated ChatGPT/Claude conversation is performed manually by the user.
 - Existing UI checks also cover original profile/attribution preservation, editor reference import, selected-addon batch scan, folder multiselection and bulk refresh/delete. No changes are made to the source addon repositories.
 - The raid snapshot contains 20 bosses from the supplied NorthernSkyRaidTools reference. Spell/difficulty data is source-based; an NSRT icon ID alone does not prove a matching timer in every boss mod. Source provenance and explicit aliases are documented in resources/CATALOG-SOURCES.md. The user verifies game triggers in WoW.
-- Windows packaging and release verification are recorded below when the current workflow completes.
+- Windows CI [39168487027](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39168487027) completed successfully for source commit `d0dba31c6c857d2b25115b37b46406cae359061f`: locked install, core tests, Windows package, native packaged desktop flow, Windows ZIP extraction and release publication. Native external-addon decoding is verified locally with the unchanged NSR checkout; that external checkout is not installed on the Windows runner.
+- Downloaded the published v0.2.0 ZIP, verified its SHA256 against the published manifest, inspected all 78 archive entries and launched its extracted `app.asar` with the Linux Electron runtime. The combined planner/browser workflow and restart checks passed again against the downloaded package. Packaged version is 0.2.0 and no BGMT/WCL engine is present.
+- Published archive: `Pztk-x-Glyalith-0.2.0-Windows-x64.zip` (144,946,163 bytes), SHA256 `9e9c06ea8e2b571f26ce72d1862417a7f7883f10599bd677de08394296cf8258`.
+- Download: https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.2.0/Pztk-x-Glyalith-0.2.0-Windows-x64.zip . This validates the desktop and export workflows, not live in-game triggers.
 
 # Historical validation (through 0.1.13)
 
