@@ -1,9 +1,9 @@
-# Version 0.1.12 validation
+# Version 0.1.13 validation
 
 ## Passed in the current environment
 
 - Frozen-lockfile dependency restoration with `npm ci --ignore-scripts`, activation of the official Electron archive after published SHA256 verification, and Vite production build with a desktop Content Security Policy.
-- **89/89 core tests, no skips**, with `DOCTOR_ADDON_TEST_ROOT`, `DOCTOR_LUA51` and the uploaded Restoration Shaman HTML path set. They exercise real filesystem writes, exact-byte ZIP recovery, BOM/CRLF preservation, stale-source refusal, backup failure, path traversal/symlink refusal, literal-only SavedVariables parsing, Unicode, session-token non-persistence, note history, pack serialization, real-addon decoding, WCL pagination/cache normalization, generic HTML/JSON/CSV parsing and five-pull averaging.
+- **95/95 core tests, no skips**, with `DOCTOR_ADDON_TEST_ROOT` and `DOCTOR_LUA51` set. They exercise real filesystem writes, exact-byte ZIP recovery, BOM/CRLF preservation, stale-source refusal, backup failure, path traversal/symlink refusal, literal-only SavedVariables parsing, Unicode, session-token non-persistence, note history, pack serialization, real-addon decoding, WCL pagination/cache normalization, generic HTML/JSON/CSV parsing and five-pull averaging, plus the uploaded LittleWigs/EXBoss source snapshot.
 - Generated NSRPACK2 data was accepted by the unchanged `NaowhSmartReminders/NaowhUI_SmartReminders_Packs.lua` **DecodePack**, using native Lua 5.1 and its actual codec libraries. This validates the wire format, not in-game triggering.
 - Browser UI smoke: disposable demo → source edit → validate/preview → verified backup/apply → rollback; note save/export; supplied reference HTML; a structurally different CSV mapped to columns; five cached synthetic pulls with mean defensive offset **−3.00 s**. The CSV produces **−2.50 s**. Browser screenshots are in `test-results/`.
 - Desktop Electron launch under Linux/Xvfb, production build load, secured preload IPC and demo scan. Tested at 1672×941 and browser layout at 1280×800 without horizontal overflow.
@@ -161,3 +161,12 @@ The source Electron smoke passed after the new ids-array import, Together export
 [Windows run 39117371836](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39117371836) succeeded for commit `1e11aedd6cdb0fa8700bc65fb628377704f09549`. Native checks covered core behavior (external-addon prerequisites remain explicit), the bundled WCL engine, packaged Electron launch/IPC/DPAPI, generic HTML ids-array import, Together flags in the exported NSR profile, one Murder in a Row choice and Windows ZIP extraction before publication.
 
 The downloaded release matched SHA256 `0bc159a063319bb41f94d55004ad8c5e88ea44874cd0573fd9123f7a69b6af36`, passed all 78 ZIP CRC checks and Windows x64 PE validation. Its downloaded app.asar passed the Electron desktop smoke under Linux with all versions equal to 0.1.12 and the new import/export/catalog assertions. In-game spell availability, timer events and reminder firing remain separate checks.
+
+
+## Uploaded provider catalogs (0.1.13)
+
+Both user archives were read as source data, with archive and per-file hashes retained in resources/npc-catalog.json. Five requested dungeon module bodies in Midnight.zip match the earlier public snapshot after line-ending normalization; three returning dungeon folders are absent and use the pinned upstream modules. EXBossData's Mythic+ contract and configured triggers cover all eight maps. Only four literal data tables are consumed; no Lua scripts or Factory/defensive packs are run or imported.
+
+95/95 core tests passed without skips. Provider regression tests cover reachable Mythic/Retail handlers, replacement of legacy definitions, absence of unused/Normal/Heroic cooldown evidence, distinction between CastBar and regular timers, English mechanic labels versus boss headers, Unicode literal parsing, event/spell separation, contract exclusions, exact-match precedence and rejection of ambiguous duration joins. Snapshot assertions restore Same-Day Delivery 474765 independently of MDT membership, map Nalorakk and Lightblossom creature encounters, retain Avatar of Sethraliss, and restrict each grouped-boss creature's abilities.
+
+The provider UI test passed assignment/export of the restored LittleWigs key, inspection of Nalorakk's 1243569/1297792 cross-reference, default selection of Spirit of Hunger's actual EXBoss timer 1238687 for displayed cast 1238725, export under instance map 2825 (not challenge mode 586), and per-creature Lightblossom ability choices. The exported boss/trash profile also passed unchanged NSR DecodePack and integration ValidRule under native Lua 5.1. The final source Electron smoke passed the restored key and trash alias through the actual desktop IPC/UI, plus the existing version, clean-session, WCL and profile editor checks. In-game timer availability and firing remain unverified here.

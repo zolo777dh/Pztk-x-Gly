@@ -1,5 +1,21 @@
 # NPC and dungeon catalog
 
+## Current source verification (0.1.13)
+
+The current snapshot uses the uploaded LittleWigs `Midnight.zip` (SHA256 `e53c7ca925641736451bd9a0cffe582ee506f7226654d6afdef5c78e900b17a0`) for Murder Row, Den of Nalorakk, The Blinding Vale, Voidscar Arena and Altar of Fangs. Those dungeon module bodies match the prior upstream revision after line-ending normalization. The archive does not include Ruby Life Pools, Temple of Sethraliss or Kings' Rest; their modules remain from the pinned upstream LittleWigs checkout below.
+
+Uploaded `EXBossData.zip`, version 1.0.0 (SHA256 `610f39c75ad7a87c4d1f5fa94c17c7e9800ef738573eb585f2e0b697684a8a42`), covers the Mythic+ source contract for all eight maps. Only literal facts from EncounterData.lua, TrashCDData.lua, TrashCDLocale.lua and FixedTimelineBosses.lua are read. Scripts and functions are not executed; Factory.lua and defensive preset packs are not imported. Per-file hashes are retained in the JSON.
+
+There are 249 selectable NPCs and 800 NPC/ability associations. MDT supplies seasonal NPC identities and associations; it is not a complete allowlist of LittleWigs broadcast keys. Known Mythic/Retail branches and reachable callbacks determine numeric LittleWigs Bar/CDBar and message evidence. Legacy Retail overrides replace earlier definitions. CastBar has a different callback from NSR's regular timer bridge and is not counted as cooldown evidence. Same-Day Delivery (474765) is retained from its reachable LittleWigs timer even though MDT omits that key.
+
+Configured EXBoss Mythic+ event IDs are joined to actual spell IDs, excluding the contract's exclusions and events outside its configured trigger rules. Exact spell matches take precedence over duration joins. A unique literal duration in the same Mythic-compatible encounter can establish a separate cross-provider reference; ambiguous durations do not. For example Nalorakk's 13-second branch links LittleWigs 1243569 and EXBoss spell 1297792. This does not rewrite the export to a timeline event ID. The default boss key remains the LittleWigs key; cross-provider references are informational.
+
+EXBoss trash tables use challengeModeID; exported NSR filters use instance mapID. Creature comments/headers and cast references group auras under mechanics, with explicit timer aliases preserved. Spirit of Hunger's Feast of Misery is displayed as cast 1238725 and defaults to EXBoss timer key 1238687 in map 2825. Group encounters are associated through explicit module NPCs, names/filenames, or an unambiguous journal-plus-spell match; multi-creature mechanics are restricted to supported creature associations.
+
+Reproduce the current overlay with `node tools/build-npc-catalog.mjs MDT_CHECKOUT LITTLEWIGS_CHECKOUT EXTRACTED_MIDNIGHT_ROOT MIDNIGHT_SHA256 EXTRACTED_EXBOSSDATA_ROOT EXBOSSDATA_SHA256`. Extracted roots are source inputs, not bundled application code. Sources establish the documented provider snapshot, not live verification of every ability in the user's client. Unknown English labels stay explicit IDs and may be resolved by the tooltip cache.
+
+## Earlier source snapshots
+
 The bundled JSON contains factual NPC names/IDs, NPC-to-spell associations, English spell labels when available, and independently identified dungeonEncounterIDs. It excludes executable addon code, routes, coordinates, maps and textures. No downloaded Lua is executed by the generator or application.
 
 - Mythic Dungeon Tools: https://github.com/Nnoggie/MythicDungeonTools, revision `2a2df3bb28471ec9900942f1856215f85fdefe31`, eight current `Midnight/*.lua` dungeon enemy tables.

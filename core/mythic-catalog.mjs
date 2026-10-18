@@ -12,3 +12,4 @@ export function mythicAbilities(abilities=[]){
  }return [...found.values()];
 }
 export function mythicCatalog(catalog){return {...catalog,difficulty:'mythic-plus',difficultyId:8,dungeons:catalog.dungeons.map(d=>({...d,npcs:d.npcs.map(n=>({...n,abilities:mythicAbilities(n.abilities)})).filter(n=>n.abilities.length)}))};}
+export function npcTimerChoices(npc){return [...new Map((npc?.abilities||[]).map(a=>[Number(a.timerSpellId||a.id),{id:Number(a.timerSpellId||a.id),name:a.name}])).values()];}

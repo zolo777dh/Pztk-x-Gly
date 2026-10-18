@@ -1,4 +1,4 @@
-Pztk x Glyalith 0.1.12 — быстрый старт
+Pztk x Glyalith 0.1.13 — быстрый старт
 
 Defensive planner:
 1. WCL → Defensive profile planner.
@@ -7,6 +7,7 @@ Defensive planner:
 4. В списке слева выберите НИП/босса, в среднем — его способность.
 5. Справа выберите доступный набор защит. Назначение сохранится автоматически.
 6. Export NSR → Copy NSR string → вставьте строку в NSR внутри игры.
+Каталог сверяется с присланными LittleWigs и EXBossData; связанные ID видны в Timing and IDs.
 Тайминг доступен в Timing and IDs; полный редактор и анализ логов — в Advanced tools.
 
 HTML формата rows: [{label, ids: [...], when}] читается автоматически для всех специализаций.
