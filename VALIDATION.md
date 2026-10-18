@@ -1,3 +1,14 @@
+# Current validation — 0.2.0
+
+- The app replaces WCL/BGMT and Encounter Notes with Mythic+ and Raid planners over one saved NSR working profile. There are no live log imports, bundled parser, timing means or WCL credential controls in this version.
+- Local core suite: **75 tests passed, 0 failures, 0 skips**, with native Lua 5.1 and the unchanged NSR checkout available. Combined M+ boss/trash and raid Heroic/Mythic exports were decoded by NSR; all 40 specializations use the same HTML/import/assignment pipeline. Raid alias migration preserves existing custom binding fields and warning lead time.
+- Browser UI and native Electron tests passed: arbitrary Shaman HTML → M+ boss/trash → raid Heroic/Mythic filtering → one NSR export → defensive-set edits → restart/resume. Browser replies exercise both code review and exact-anchor feature proposals, Lua validation, explicit backup/apply and restore. OS browser opening is tested against a stub, restricted to the two fixed assistant sites; an authenticated ChatGPT/Claude conversation is performed manually by the user.
+- Existing UI checks also cover original profile/attribution preservation, editor reference import, selected-addon batch scan, folder multiselection and bulk refresh/delete. No changes are made to the source addon repositories.
+- The raid snapshot contains 20 bosses from the supplied NorthernSkyRaidTools reference. Spell/difficulty data is source-based; an NSRT icon ID alone does not prove a matching timer in every boss mod. Source provenance and explicit aliases are documented in resources/CATALOG-SOURCES.md. The user verifies game triggers in WoW.
+- Windows packaging and release verification are recorded below when the current workflow completes.
+
+# Historical validation (through 0.1.13)
+
 # Version 0.1.13 validation
 
 ## Passed in the current environment

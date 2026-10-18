@@ -4,60 +4,65 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {PackCodec} from '../core/packs.mjs';
-import {parseDefenseTable,inspectDefenseTable,analyzeDefenses,buildDefensePack,DefensivePlanner} from '../core/defensive-planner.mjs';
-const resources=path.resolve('resources'),codec=new PackCodec(resources);
-const target={dungeon:'Dungeon A',encounter:'Boss A',kind:'boss',bossSpellId:123,encounterId:456,timerSpellId:123};
-const pack=()=>({format:1,name:'Original',data:{presets:{'65':{personal:{name:'Personal',list:[498,642]}}},activePreset:{'65':'personal'},bindingsBySpec:true,abilityBindings:{'65':{'456':{'123':{enabled:false,preset:'personal',mode:'defensive',leadTime:8}}}},settings:{enabled:true},raidReminders:{'456':{keep:{name:'Keep',trigger:{type:'pull',delay:10},display:{type:'text',text:'Keep',dur:5}}}}}});
-const fixture=()=>{const p=pack();return {id:'abcdef0123456789',hash:'original-hash',...codec.decode(codec.encode(p,{numericKeys:[['data','abilityBindings','65','456','123']]}),{withKeys:true})};};
-const row=(i,more={})=>({...target,sample:'report:'+i,player:'Paladin',specId:65,defensiveSpellId:498,defensiveName:'Divine Protection',bossTime:100,defensiveTime:100-i,...more});
-const table=rows=>parseDefenseTable(JSON.stringify({format:'pztk-defense-observations-v1',observations:rows}),'observations.json',{recorded:true});
-const config=(more={})=>({profileKey:'',mechanics:[target],windowBefore:10,windowAfter:5,...more});
+import {DoctorService} from '../core/service.mjs';
+import {parseDefenseTable} from '../core/defensive-planner.mjs';
+import {namedFacts} from '../tools/build-raid-catalog.mjs';
+import {SPEC_NAMES} from '../core/wow-names.mjs';
+const resources=path.resolve('resources');
+async function fixture(t){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'unified-planner-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));return new DoctorService(dir,resources).init();}
+const reference=(name,spells)=>'<script>throw Error("never run")</script><script type="application/json">'+JSON.stringify({spec:name,presets:[{id:'personal',name:'Personal',rows:spells.map(([label,id])=>({label,ids:[id]}))}]})+'</script>';
 
-test('five independent presses produce arithmetic means; dungeons and specializations stay separate',()=>{
- const source=table([1,2,3,4,5].map(i=>row(i)).concat(row(1,{specId:66,defensiveSpellId:86659,defensiveTime:99}),row(1,{dungeon:'Dungeon B',defensiveTime:96})));
- const plan=analyzeDefenses(fixture(),[source],config({mechanics:[target,{...target,dungeon:'Dungeon B',encounterId:457}]}));
- const holy=plan.results.find(r=>r.specId===65&&r.dungeon==='Dungeon A');assert.equal(holy.offsets.mean,-3);assert.equal(holy.meanPressTime,97);assert.equal(holy.leadTime,3);assert.equal(holy.pulls,5);assert.equal(holy.offsets.stddev,Math.sqrt(2));assert.deepEqual(holy.priority,[498,642]);
- assert.equal(plan.results.length,3);assert.equal(plan.results.find(r=>r.specId===66).priority.includes(642),false);assert.equal(plan.results.find(r=>r.dungeon==='Dungeon B').offsets.mean,-4);
+test('raid facts preserve separate difficulty membership, deduplicate phases and use confirmed NSR timer aliases',async t=>{
+ const s=await fixture(t),c=await s.handle('raid.catalog');assert.equal(c.seasons.length,2);assert.equal(c.seasons.flatMap(s=>s.bosses).length,20);
+ for(const season of c.seasons)for(const boss of season.bosses){assert.equal(new Set(boss.abilities.map(a=>a.id)).size,boss.abilities.length);assert.ok(boss.abilities.some(a=>a.difficulties.includes('heroic')));assert.ok(boss.abilities.some(a=>a.difficulties.includes('mythic')));for(const a of boss.abilities){assert.ok(a.name);assert.ok(a.timerSpellId>0);assert.ok(a.difficulties.every(d=>['heroic','mythic'].includes(d)));assert.equal(a.times,undefined);}}
+ const boss=c.seasons[0].bosses.find(b=>b.id===3470);assert.equal(boss.abilities.find(a=>a.id===1284103).timerSpellId,1292036);assert.deepEqual(boss.abilities.find(a=>a.id===1285623).difficulties,['mythic']);
+ assert.deepEqual({...namedFacts('local values = {1,2}; ns.Names = {[123]="Example"}; os.execute("must not execute")').Names},{123:'Example'});
 });
-test('recorded CSV requires confirmation, maps columns, and supports m:ss; references never become presses',async()=>{
- const csv='dungeon,encounter,bossSpellId,specId,defensiveSpellId,bossTime,defensiveTime,sample,player\nA,B,123,65,498,1:40,1:37,log1:p1,P';
- assert.equal(inspectDefenseTable(csv,'record.csv').tables[0].columns.defensiveTime,6);assert.throws(()=>parseDefenseTable(csv,'record.csv'),/Confirm/);assert.equal(parseDefenseTable(csv,'record.csv',{recorded:true}).observations[0].offset,-3);
- const reference=parseDefenseTable(await fs.readFile('resources/demo/holy_paladin_priority_presets_EN.html','utf8'),'reference.html',{recorded:true,defaults:{specId:65}});assert.ok(reference.mechanics.length>0);assert.equal(reference.observations.length,0);assert.equal(reference.kind,'priority-reference');assert.ok(reference.presets.every(p=>p.specId===65));
- const plan=analyzeDefenses(fixture(),[reference],config({mechanics:[{...reference.mechanics[0],encounterId:456}]}));assert.equal(plan.results.length,0);assert.equal(plan.uncovered.length,1);
+
+test('one profile imports arbitrary class HTML, assigns M+ boss/trash and raid H/M, resumes and roundtrips through NSR',async t=>{
+ const s=await fixture(t),original={format:1,name:'Combined',derivedFrom:{name:'Source',author:'Curator'},data:{settings:{keep:true},presets:{},activePreset:{},bindingsBySpec:true,abilityBindings:{},raidReminders:{'777':{keep:{name:'Keep',trigger:{type:'pull',delay:12},display:{type:'text',text:'Keep',dur:5}}}}}};
+ const imported=await s.handle('planner.importProfile',{text:s.codec.encode(original)});let v=await s.handle('nsr.open',{profileId:imported.id,resume:true});
+ for(const [specId,spells]of [[264,[['Astral Shift',108271],['Spirit Link Totem',98008]]],[256,[['Pain Suppression',33206],['Power Word: Barrier',62618]]]]){
+  const table=await s.handle('planner.importTable',{text:reference(SPEC_NAMES[specId],spells),filename:'any-filename-'+specId+'.html',options:{defaults:{specId}}});
+  const result=await s.handle('nsr.reference',{id:v.id,revision:v.revision,tableId:table.id,specId,apply:true});v=result.view;const preset=v.specs.find(x=>x.id===String(specId)).presets[0].key;
+  v=await s.handle('nsr.assignNpc',{id:v.id,revision:v.revision,specId,mapId:2813,npcId:234649,spellId:474765,preset});
+  const dungeon=(await s.handle('npc.catalog')).dungeons.find(d=>d.mapId===2825),npc=dungeon.npcs.find(n=>n.name==='Spirit of Hunger');
+  v=await s.handle('nsr.assignNpc',{id:v.id,revision:v.revision,specId,mapId:2825,npcId:npc.id,spellId:1238725,preset});
+  const args={id:v.id,revision:v.revision,specId,seasonId:'MidnightS2',encounterId:3470,spellId:1284103,preset,difficulty:'heroic'};
+  await assert.rejects(()=>s.handle('nsr.assignRaid',{...args,spellId:1285623}),/belonging/);
+  await assert.rejects(()=>s.handle('nsr.assignRaid',{...args,difficulty:'normal'}),/Heroic or Mythic/);
+  await assert.rejects(()=>s.handle('nsr.assignRaid',{...args,encounterId:3513}),/belonging/);
+  v=await s.handle('nsr.assignRaid',args);
+  v=await s.handle('nsr.assignRaid',{...args,id:v.id,revision:v.revision,difficulty:'mythic'});
+  v=await s.handle('nsr.assignRaid',{...args,id:v.id,revision:v.revision,difficulty:'mythic',spellId:1285623});
+ }
+ const restarted=await new DoctorService(s.dataDir,resources).init(),state=await restarted.handle('planner.state');assert.equal(state.active.profileId,imported.id);
+ const resumed=await restarted.handle('nsr.open',{...state.active,resume:true});assert.equal(resumed.id,v.id);assert.equal(resumed.revision,v.revision);
+ const output=await s.handle('nsr.export',{id:v.id,revision:v.revision}),pack=s.codec.decode(output.text);
+ assert.deepEqual(pack.derivedFrom,original.derivedFrom);assert.deepEqual(pack.data.settings,original.data.settings);assert.ok(pack.data.raidReminders['777']);
+ for(const spec of ['264','256']){assert.ok(pack.data.abilityBindings[spec]['3102']['474765'].preset);assert.equal(Object.keys(pack.data.abilityBindings[spec]['3470']).length,2);assert.ok(pack.data.abilityBindings[spec]['3470']['1292036'].preset);assert.ok(pack.data.abilityBindings[spec]['3470']['1285623'].preset);assert.equal(pack.data.abilityBindings[spec]['3470']['1284103'],undefined);const rule=Object.values(pack.data.integrationRules[spec])[0];assert.equal(rule.trigger.mapID,2825);assert.equal(rule.trigger.spellID,1238687);}
+ if(process.env.DOCTOR_LUA51&&process.env.DOCTOR_ADDON_TEST_ROOT){
+  const textfile=path.join(s.dataDir,'unified.txt');await fs.writeFile(textfile,output.text);const script=`strmatch=string.match\ndofile(${JSON.stringify(resources+'/codec/LibStub.lua')})\ndofile(${JSON.stringify(resources+'/codec/LibSerialize.lua')})\ndofile(${JSON.stringify(resources+'/codec/LibDeflate.lua')})\nNaowhUITankReminder={L=function(s)return s end,SpecName=function(s)return tostring(s)end,UI={Widgets={}},THEME={}}\nCreateFrame=function()return {SetScript=function()end,RegisterEvent=function()end}end\ndofile(${JSON.stringify(process.env.DOCTOR_ADDON_TEST_ROOT+'/NaowhUI_SmartReminders_Integrations.lua')})\ndofile(${JSON.stringify(process.env.DOCTOR_ADDON_TEST_ROOT+'/NaowhUI_SmartReminders_Packs.lua')})\nlocal f=assert(io.open(${JSON.stringify(textfile)},'rb'));local p,e=NaowhUITankReminder.DecodePack(f:read('*a'));assert(p,e);assert(p.derivedFrom.author=='Curator');for _,spec in ipairs({'264','256'})do local d=p.data;assert(d.abilityBindings[spec]['3102'][474765].preset);assert(d.abilityBindings[spec]['3470'][1292036].preset);assert(d.abilityBindings[spec]['3470'][1285623].preset);assert(not d.abilityBindings[spec]['3470'][1284103]);for _,r in pairs(d.integrationRules[spec])do assert(NaowhUITankReminder.Integrations.ValidRule(r));assert(r.trigger.spellID==1238687)end end;print('UNIFIED_NSR_ACCEPTED')`;
+  const lua=path.join(s.dataDir,'unified.lua');await fs.writeFile(lua,script);assert.match(execFileSync(process.env.DOCTOR_LUA51,[lua],{encoding:'utf8'}),/UNIFIED_NSR_ACCEPTED/);
+ }
 });
-test('deduplication rejects conflicts and one press is not evidence for two mechanics',()=>{
- const original=table([row(1),row(2)]);const plan=analyzeDefenses(fixture(),[original,original],config());assert.equal(plan.results[0].offsets.count,2);assert.match(plan.warnings.join(' '),/2 duplicate/);
- assert.throws(()=>analyzeDefenses(fixture(),[original,table([row(1,{defensiveTime:98})])],config()),/Conflicting duplicate/);
- const other={...target,bossSpellId:124,timerSpellId:124};const source=table([row(1),row(1,{bossSpellId:124,bossTime:102})]);const nearest=analyzeDefenses(fixture(),[source],config({mechanics:[target,other]}));assert.equal(nearest.results.length,1);assert.equal(nearest.results[0].bossSpellId,123);
+
+test('all 40 specs use the same HTML import and raid assignment pipeline without class-specific templates',async t=>{
+ const s=await fixture(t),p=await s.handle('planner.createProfile');let v=await s.handle('nsr.open',{profileId:p.id});
+ // Spell 100 is a serializer fixture, not a recommendation for these classes.
+ for(const [specId,name]of Object.entries(SPEC_NAMES)){
+  const table=await s.handle('planner.importTable',{text:reference(name,[['Fixture spell',100]]),filename:name+'.html',options:{defaults:{specId:Number(specId)}}});
+  v=(await s.handle('nsr.reference',{id:v.id,revision:v.revision,tableId:table.id,specId,apply:true})).view;
+  const preset=v.specs.find(x=>x.id===specId).presets[0].key;
+  v=await s.handle('nsr.assignRaid',{id:v.id,revision:v.revision,specId,seasonId:'MidnightS2',encounterId:3470,spellId:1284103,difficulty:'heroic',preset});
+ }
+ const pack=s.codec.decode((await s.handle('nsr.export',{id:v.id,revision:v.revision})).text);assert.equal(Object.keys(pack.data.presets).length,40);for(const specId of Object.keys(SPEC_NAMES))assert.ok(pack.data.abilityBindings[specId]['3470']['1292036'].preset);
+ assert.throws(()=>parseDefenseTable('<table><tr><th>Boss</th><th>Time</th></tr><tr><td>A</td><td>10</td></tr></table>','no-sets.html'),/No supported defensive sets/);
+ for(const method of ['wcl.report','lab.status','planner.analyze','timeline.import','notes.save'])await assert.rejects(()=>s.handle(method,{}),/Unknown application command/);
 });
-test('weighted aggregate means respect sample counts without inventing variance',()=>{
- const raw=JSON.stringify({format:'pztk-defense-observations-v1',observations:[row(1,{defensiveTime:99,sampleCount:1}),row(2,{defensiveTime:95,sampleCount:9})]});assert.throws(()=>parseDefenseTable(raw,'rows.json',{recorded:true}),/disjoint/);
- const source=parseDefenseTable(raw,'rows.json',{recorded:true,independentAggregates:true});const r=analyzeDefenses(fixture(),[source],config()).results[0];assert.equal(r.offsets.mean,-4.6);assert.equal(r.offsets.count,10);assert.equal(r.offsets.stddev,null);assert.equal(r.offsets.median,null);
-});
-test('unknown IDs, mixed builds, binding collisions and unsupported trash timing block export',()=>{
- const source=table([row(1,{build:'one'}),row(2,{build:'two'})]);const mixed=analyzeDefenses(fixture(),[source],config());assert.ok(mixed.results.every(r=>!r.exportable));assert.ok(analyzeDefenses(fixture(),[source],config({build:'one'})).results[0].exportable);
- assert.equal(analyzeDefenses(fixture(),[table([row(1)])],config({mechanics:[{...target,encounterId:0}]})).results[0].exportable,false);
- const trash={...target,kind:'trash',mapId:555};assert.equal(analyzeDefenses(fixture(),[table([row(1,{kind:'trash',defensiveTime:102})])],config({mechanics:[trash]})).results[0].exportable,false);
- const collision={...target,bossSpellId:124};assert.equal(analyzeDefenses(fixture(),[table([row(1)])],config({mechanics:[target,collision]})).results[0].exportable,false);
-});
-test('cached fights use the assigned player and spec, and match each recorded cast to its nearest mechanic',()=>{
- const timelines=[1,2,3,4,5].map(i=>({id:'timeline'+i,source:{report:'report',fightId:i},difficulty:8,build:'test',events:[{type:'cast',time:100,spellId:123,sourceId:20},{type:'cast',time:100-i,spellId:498,sourceId:1,sourceName:'Paladin'},{type:'cast',time:99,spellId:642,sourceId:2,sourceName:'Other'}]}));
- const plan=analyzeDefenses(fixture(),[],config({timelineAssignments:timelines.map(t=>({timelineId:t.id,enabled:true,actorId:1,specId:65,dungeon:target.dungeon,encounter:target.encounter}))}),timelines);assert.equal(plan.results[0].offsets.mean,-3);assert.equal(plan.results[0].priorities.length,1);assert.equal(plan.results[0].pulls,5);
- const tied={...timelines[0],events:[{type:'cast',time:98,spellId:123},{type:'cast',time:100,spellId:123},{type:'cast',time:99,spellId:498,sourceId:1}]};assert.throws(()=>analyzeDefenses(fixture(),[],config({timelineAssignments:[{timelineId:tied.id,enabled:true,actorId:1,specId:65,dungeon:target.dungeon,encounter:target.encounter}]}),[tied]),/equally close/);
-});
-test('profile export preserves original keys, unrelated settings and disabled binding; named profiles survive',()=>{
- const profile=fixture(),before=structuredClone(profile),plan=analyzeDefenses(profile,[table([row(1),row(3)])],config());assert.throws(()=>buildDefensePack(profile,plan,{selectedIds:plan.results.map(r=>r.id)}),/Confirm/);
- const built=buildDefensePack(profile,plan,{selectedIds:plan.results.map(r=>r.id),confirmedIds:true});assert.deepEqual(profile,before);assert.deepEqual(built.pack.data.settings,profile.pack.data.settings);assert.deepEqual(built.pack.data.raidReminders,profile.pack.data.raidReminders);assert.equal(built.pack.data.activePreset['65'],'personal');assert.equal(built.changes[0].after.enabled,false);assert.equal(built.changes[0].after.leadTime,2);assert.equal(built.changes[0].after.healerReminder,true);
- const decoded=codec.decode(codec.encode(built.pack,{numericKeys:built.numericKeys}),{withKeys:true});assert.equal(decoded.pack.data.presets['65'].personal.list['1'],498);assert.ok(decoded.numericKeys.some(p=>JSON.stringify(p)==='["data","presets","65","personal","list","1"]'));assert.ok(decoded.numericKeys.some(p=>JSON.stringify(p)==='["data","abilityBindings","65","456","123"]'));
- const named={...profile,pack:{format:1,name:'Named',profiles:{Holy:profile.pack.data,Other:{presets:{'66':{keep:{name:'Tank',list:[86659]}}},settings:{marker:'keep'}}}},numericKeys:profile.numericKeys.map(p=>['profiles','Holy',...p.slice(1)])};const other=structuredClone(named.pack.profiles.Other);const namedPlan=analyzeDefenses(named,[table([row(2)])],config({profileKey:'Holy'}));const namedBuilt=buildDefensePack(named,namedPlan,{confirmedIds:true,selectedIds:namedPlan.results.map(r=>r.id)});assert.deepEqual(namedBuilt.pack.profiles.Other,other);assert.equal(codec.decode(codec.encode(namedBuilt.pack,{numericKeys:namedBuilt.numericKeys})).profiles.Holy.abilityBindings['65']['456']['123'].leadTime,2);
-});
-test('persistent planner roundtrip retains original string and exports a second profile',async t=>{
- const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-planner-'));t.after(()=>fs.rm(dir,{force:true,recursive:true}));const planner=new DefensivePlanner(dir,codec),original=codec.encode({...pack(),derivedFrom:{name:'Original curator pack',author:'Curator'}});const p=await planner.importProfile(original);const source=await planner.importTable({filename:'rows.json',text:JSON.stringify({format:'pztk-defense-observations-v1',observations:[row(2)]}),options:{recorded:true}});const plan=await planner.analyze({...config(),profileId:p.id,tableIds:[source.id]},[]);const restarted=new DefensivePlanner(dir,codec),preview=await restarted.preview({planId:plan.id,selectedIds:plan.results.map(r=>r.id),confirmedIds:true});assert.match(preview.text,/^NSRPACK2:/);assert.equal(codec.decode(preview.text).derivedFrom.author,'Curator');assert.equal((await restarted.state()).profiles[0].derivedFrom.name,'Original curator pack');assert.equal(await fs.readFile(path.join(dir,'defensive-planner','originals',p.id+'.txt'),'utf8'),original);assert.equal((await restarted.state()).analyses.length,1);
-});
-test('unchanged NSR Lua decoder and real integration validator accept generated boss/trash and named profile packs',{skip:!process.env.DOCTOR_ADDON_TEST_ROOT||!process.env.DOCTOR_LUA51},async t=>{
- const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-planner-lua-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const profile=fixture();profile.pack.derivedFrom={name:'Original curator pack',author:'Curator'};const trash={...target,kind:'trash',bossSpellId:124,timerSpellId:124,mapId:555,bossAbility:'Защитная способность '.repeat(20)};const plan=analyzeDefenses(profile,[table([row(2),row(3,{...trash,defensiveName:'Защита '.repeat(50)})])],config({mechanics:[target,trash]}));assert.equal(plan.results.length,2);const built=buildDefensePack(profile,plan,{confirmedIds:true,selectedIds:plan.results.map(r=>r.id)});const text=codec.encode(built.pack,{numericKeys:built.numericKeys});await fs.writeFile(path.join(dir,'pack.txt'),text);
- assert.deepEqual(codec.decode(text).derivedFrom,profile.pack.derivedFrom);const named={format:1,name:'Named',derivedFrom:built.pack.derivedFrom,profiles:{Holy:built.pack.data,Other:{presets:{'66':{keep:{name:'Tank',list:[86659]}}}}}};await fs.writeFile(path.join(dir,'named.txt'),codec.encode(named,{numericKeys:built.numericKeys.map(p=>['profiles','Holy',...p.slice(1)])}));
- const script=`strmatch=string.match\ndofile(${JSON.stringify(resources+'/codec/LibStub.lua')})\ndofile(${JSON.stringify(resources+'/codec/LibSerialize.lua')})\ndofile(${JSON.stringify(resources+'/codec/LibDeflate.lua')})\nNaowhUITankReminder={L=function(s) return s end,SpecName=function(s) return tostring(s) end,UI={Widgets={}},THEME={}}\nCreateFrame=function() return {SetScript=function() end,RegisterEvent=function() end} end\ndofile(${JSON.stringify(process.env.DOCTOR_ADDON_TEST_ROOT+'/NaowhUI_SmartReminders_Integrations.lua')})\ndofile(${JSON.stringify(process.env.DOCTOR_ADDON_TEST_ROOT+'/NaowhUI_SmartReminders_Packs.lua')})\nlocal function read(file) local f=assert(io.open(file,'rb'));local p,e=NaowhUITankReminder.DecodePack(f:read('*a'));f:close();assert(p,e);return p end\nlocal p=read(${JSON.stringify(path.join(dir,'pack.txt'))});assert(p.derivedFrom.name=='Original curator pack' and p.derivedFrom.author=='Curator');local d=p.data;local b=d.abilityBindings['65']['456'][123];assert(b and not d.abilityBindings['65']['456']['123']);assert(b.leadTime==2 and b.enabled==false);assert(d.presets['65'][b.preset].list[1]==498);assert(d.presets['65'].personal.list[1]==498);local count=0;for _,r in pairs(d.integrationRules['65']) do assert(NaowhUITankReminder.Integrations.ValidRule(r));assert(r.trigger.timeleft==3);count=count+1 end;assert(count==1);local n=read(${JSON.stringify(path.join(dir,'named.txt'))});assert(n.derivedFrom.name=='Original curator pack');assert(n.profiles.Holy.abilityBindings['65']['456'][123].leadTime==2);assert(n.profiles.Other.presets['66'].keep.list[1]==86659);print('PLANNER REAL ADDON DECODE PASSED')`;
- await fs.writeFile(path.join(dir,'check.lua'),script);assert.match(execFileSync(process.env.DOCTOR_LUA51,[path.join(dir,'check.lua')],{encoding:'utf8'}),/PLANNER REAL ADDON DECODE PASSED/);
+
+test('raid alias migration retains existing custom binding fields and lead time instead of orphaning an imported journal ID',async t=>{
+ const s=await fixture(t),p=await s.handle('planner.importProfile',{text:s.codec.encode({format:1,name:'Alias import',data:{presets:{'264':{personal:{name:'Personal',list:[108271]}}},bindingsBySpec:true,abilityBindings:{'264':{'3470':{'1284103':{enabled:true,preset:'personal',mode:'defensive',leadTime:7,healerReminder:false,customField:'retain'}}}}}})});const v=await s.handle('nsr.open',{profileId:p.id});
+ const next=await s.handle('nsr.assignRaid',{id:v.id,revision:v.revision,specId:264,seasonId:'MidnightS2',encounterId:3470,spellId:1284103,difficulty:'heroic',preset:'personal'}),pack=s.codec.decode((await s.handle('nsr.export',{id:next.id,revision:next.revision})).text),bindings=pack.data.abilityBindings['264']['3470'];
+ assert.equal(bindings['1284103'],undefined);assert.equal(bindings['1292036'].leadTime,7);assert.equal(bindings['1292036'].customField,'retain');assert.equal(bindings['1292036'].healerReminder,false);
 });

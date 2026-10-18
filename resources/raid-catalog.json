@@ -1,0 +1,5919 @@
+{
+  "format": 1,
+  "client": "retail",
+  "source": {
+    "name": "NorthernSkyRaidTools",
+    "version": "12.1.31",
+    "files": {
+      "BossTimelines/MidnightS2/EntombedSentinels.lua": "84a10b473791518d6c8a97cfee3780bc8a792ccfc2645111761dc8713b2a0eec",
+      "BossTimelines/MidnightS2/Kithix.lua": "7d62aebf0272f7047ae9e11f8c1b87f74a40b665f5bbc68052296af01f4b8d21",
+      "BossTimelines/MidnightS2/NekzaliTheSoulcoiler.lua": "e9d6cd090afa0960c86bcc7cd85017eb3a6bb5455aa6f52b483eb5a8e5ce4409",
+      "BossTimelines/MidnightS2/NymrissaWavecaller.lua": "d79093b612ecdd0b3027a1f6b9e0907bd0acb518caf86986b19c4250d7c9f9a9",
+      "BossTimelines/MidnightS2/Sszorak.lua": "e2c2a901e7329c21bf468145c05608af443858da728a659d8f9162dc7df4d57c",
+      "BossTimelines/MidnightS2/TheCoiledAltar.lua": "9aea6cace8dedb1a86580e96452f48dcba059f155d20f4a175213cf9c55d6d7b",
+      "BossTimelines/MidnightS2/TheLostExplorers.lua": "4ab77dcf77a181dd6daf04d5f41f078f8b430aafa44959b17d9b860e84d597d7",
+      "BossTimelines/MidnightS2/TheTwinFangs.lua": "c0917259970644a99dbd5150be2bb381fca148571807cf51bd127d302ebbb7f6",
+      "BossTimelines/MidnightS2/Ulatek.lua": "cb265797941b13751b091b619385bf3a5038fa0858dd8fce9434cf28ae2260fa",
+      "BossTimelines/MidnightS2/VashnikTheMalignant.lua": "6fbdccb97e9fadd6650dc48b7a52b0f79933743f85aaf13adef13cbd8949bc3b",
+      "BossTimelines/MidnightS1/Beloren.lua": "2b1b83b2eb1d6e31a1bf2957ee5bdf15c470bae2b28f62ec50be4988bd96fadc",
+      "BossTimelines/MidnightS1/Chimaerus.lua": "4c5900f16bbaf1cfd35cd65f09e90e909cefa17aaeff76c487834c50b6938d4e",
+      "BossTimelines/MidnightS1/CrownOfTheCosmos.lua": "cd24ff2af2422838e492ff78f3f5a99d0647200504ee87c2d8a13ca4f8a90d55",
+      "BossTimelines/MidnightS1/FallenKingSalhadaar.lua": "5ff9dac3321ae8a9115eaaa2b41249f475adc4a4dbc2381b7a4f6809eb6d465d",
+      "BossTimelines/MidnightS1/ImperatorAverzian.lua": "9b7c18b4642d3087c6bfec853a463cb19045c109ef180dffb9557a3f661d7ea9",
+      "BossTimelines/MidnightS1/LightblindedVanguard.lua": "b32859007226a9f403d359eda44ffe338c068391da33c374f3ed2742ee65c5b7",
+      "BossTimelines/MidnightS1/MidnightFalls.lua": "9e2d1c36e2ac9e92077095168b9288c5bf2e0f2f104c22ba0c00864295103231",
+      "BossTimelines/MidnightS1/Rotmire.lua": "20770fbcc6120f6051d055dd16735ab0647ac9bb1ebf63526c789095cb58320f",
+      "BossTimelines/MidnightS1/VaelgorEzzorak.lua": "0a44c82906899e3fd4f9ce5c7ecd0e4d243617e1286f43f5ab8b44857b151228",
+      "BossTimelines/MidnightS1/Vorasius.lua": "22af24491bdc020947d3d6354ad776a57f21e7be945b9bc484aa5a58a46c3c3c"
+    },
+    "metadataSha256": "a5b5ba38a855141e7c5e8c0b78b4fae27856155e4c226590ac44c7c557c033db",
+    "aliasesSha256": "1c96b2d42eaffc70a3dd771b597539704fc43fd0f1e1469e72e961bc5cc94270",
+    "scope": "Factual spell IDs, encounter IDs, names, categories and difficulty membership only. No timelines or executable addon code."
+  },
+  "seasons": [
+    {
+      "id": "MidnightS2",
+      "name": "Midnight · Season 2",
+      "bosses": [
+        {
+          "id": 3379,
+          "name": "Nymrissa Wavecaller",
+          "source": "BossTimelines/MidnightS2/NymrissaWavecaller.lua",
+          "abilities": [
+            {
+              "id": 1260837,
+              "name": "Abyssal Rain",
+              "timerSpellId": 1260837,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1282937,
+              "name": "Iceblade Flurry",
+              "timerSpellId": 1282937,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "tankbuster",
+                "tank debuff"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1313393,
+              "name": "Chilling Frost",
+              "timerSpellId": 1313393,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "raid dot",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1313448,
+              "name": "Frost Orb",
+              "timerSpellId": 1313448,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "soak",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1258673,
+              "name": "Swirling Whirlpools",
+              "timerSpellId": 1258673,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1258150,
+              "name": "Pop!",
+              "timerSpellId": 1258150,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "knock"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1259098,
+              "name": "Murloc Wave",
+              "timerSpellId": 1259098,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1281951,
+              "name": "Water Jet",
+              "timerSpellId": 1281951,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "tank debuff"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3470,
+          "name": "Nek'zali the Soulcoiler",
+          "source": "BossTimelines/MidnightS2/NekzaliTheSoulcoiler.lua",
+          "abilities": [
+            {
+              "id": 1288772,
+              "name": "Soulcoil Rite",
+              "timerSpellId": 1288772,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ],
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1287434,
+              "name": "Essence Rend",
+              "timerSpellId": 1287434,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ],
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1284103,
+              "name": "Possession Barrage",
+              "timerSpellId": 1292036,
+              "timerSource": "NSR explicit alias",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "frontal"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ],
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1289919,
+              "name": "Restless Amani",
+              "timerSpellId": 1289919,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  1.5,
+                  1.75,
+                  2
+                ],
+                "mythic": [
+                  1,
+                  1.5,
+                  1.75,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1307939,
+              "name": "Corpse Blight",
+              "timerSpellId": 1307939,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  1.5,
+                  1.75,
+                  2
+                ],
+                "mythic": [
+                  1,
+                  1.5,
+                  1.75,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1295124,
+              "name": "Ritual of Awakening",
+              "timerSpellId": 1295124,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "phase change"
+              ],
+              "phases": {
+                "heroic": [
+                  1.5,
+                  1.75
+                ],
+                "mythic": [
+                  1.5,
+                  1.75
+                ]
+              }
+            },
+            {
+              "id": 1292248,
+              "name": "Soul Transfer",
+              "timerSpellId": 1292248,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event",
+                "phase change"
+              ],
+              "phases": {
+                "heroic": [
+                  1.5,
+                  1.75
+                ],
+                "mythic": [
+                  1.5,
+                  1.75
+                ]
+              }
+            },
+            {
+              "id": 1289855,
+              "name": "Hungering Pyre",
+              "timerSpellId": 1289855,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  1.5,
+                  1.75
+                ],
+                "mythic": [
+                  1.5,
+                  1.75
+                ]
+              }
+            },
+            {
+              "id": 1292315,
+              "name": "Uncoiling",
+              "timerSpellId": 1292315,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "ramping rot",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1299673,
+              "name": "Invoke",
+              "timerSpellId": 1299673,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1284034,
+              "name": "Uncoiled Rage",
+              "timerSpellId": 1284034,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1285623,
+              "name": "Grasping Depths",
+              "timerSpellId": 1285623,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "mythic": [
+                  1,
+                  1.5,
+                  1.75,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3445,
+          "name": "Entombed Sentinels",
+          "source": "BossTimelines/MidnightS2/EntombedSentinels.lua",
+          "abilities": [
+            {
+              "id": 1284458,
+              "name": "Empowering Slam",
+              "timerSpellId": 1284458,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1284487,
+              "name": "Bloodvenom Injection",
+              "timerSpellId": 1284487,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tank debuff"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1284251,
+              "name": "Venom Coagulation",
+              "timerSpellId": 1284251,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1284434,
+              "name": "Toxic Droplets",
+              "timerSpellId": 1284434,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1284257,
+              "name": "Contaminate",
+              "timerSpellId": 1284257,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1288232,
+              "name": "Unstable Miasma",
+              "timerSpellId": 1288232,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1284483,
+              "name": "Blighted Blood",
+              "timerSpellId": 1284483,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid debuff"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1284588,
+              "name": "Vitriolic Stasis",
+              "timerSpellId": 1284588,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "intermission"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1284494,
+              "name": "Mark of Acid",
+              "timerSpellId": 1284494,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "ramping rot"
+              ],
+              "phases": {
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1296878,
+              "name": "Shifting Protovenom",
+              "timerSpellId": 1296878,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "debuffs",
+                "movement"
+              ],
+              "phases": {
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3455,
+          "name": "Vashnik the Malignant",
+          "source": "BossTimelines/MidnightS2/VashnikTheMalignant.lua",
+          "abilities": [
+            {
+              "id": 1284561,
+              "name": "Toxic Vapor",
+              "timerSpellId": 1284561,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "ramping rot",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1280935,
+              "name": "Dripping Fangs",
+              "timerSpellId": 1280935,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "tank debuff"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1284663,
+              "name": "Imbibe",
+              "timerSpellId": 1284663,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1298582,
+              "name": "Hemo Expulsion",
+              "timerSpellId": 1298582,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1298587,
+              "name": "Conflagrating Expulsion",
+              "timerSpellId": 1298587,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1298583,
+              "name": "Gloom Expulsion",
+              "timerSpellId": 1298583,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1305901,
+              "name": "Burning Presence",
+              "timerSpellId": 1305901,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1285979,
+              "name": "Caustic Surge",
+              "timerSpellId": 1285979,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1282516,
+              "name": "Malignant Catalyst",
+              "timerSpellId": 1282516,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1295224,
+              "name": "Siphoning Infection",
+              "timerSpellId": 1295224,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "group soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1295173,
+              "name": "Exploding Infection",
+              "timerSpellId": 1295173,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid debuff",
+                "spread"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1295209,
+              "name": "Caustic Explosion",
+              "timerSpellId": 1295209,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1294994,
+              "name": "Stygian Infection",
+              "timerSpellId": 1294994,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid debuff"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1281910,
+              "name": "Plague Froth",
+              "timerSpellId": 1281910,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid debuff",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3497,
+          "name": "The Lost Explorers",
+          "source": "BossTimelines/MidnightS2/TheLostExplorers.lua",
+          "abilities": [
+            {
+              "id": 1295450,
+              "name": "Malevolent Presence",
+              "timerSpellId": 1295450,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1297075,
+              "name": "Empower",
+              "timerSpellId": 1297075,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "phase change"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1296021,
+              "name": "Blink Nova",
+              "timerSpellId": 1296021,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1296062,
+              "name": "Shell Spin",
+              "timerSpellId": 1296062,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1295854,
+              "name": "Shredding Shards",
+              "timerSpellId": 1295854,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "spread"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1292490,
+              "name": "Disgusting Fish",
+              "timerSpellId": 1292490,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1292779,
+              "name": "Empowered Ascension",
+              "timerSpellId": 1292779,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1291933,
+              "name": "Throw Junk",
+              "timerSpellId": 1291933,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "raid soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1296535,
+              "name": "Disgusting Fish",
+              "timerSpellId": 1296535,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1292758,
+              "name": "Evil Eyes",
+              "timerSpellId": 1292758,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1297024,
+              "name": "Binding Anguish",
+              "timerSpellId": 1297024,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid debuff"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1295891,
+              "name": "Frostfire Volley",
+              "timerSpellId": 1295891,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1292105,
+              "name": "Mushroom Toss",
+              "timerSpellId": 1292105,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1296095,
+              "name": "Mighty Thud",
+              "timerSpellId": 1296095,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1286922,
+              "name": "Icebound Flames",
+              "timerSpellId": 1286922,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1297625,
+              "name": "Explosive Surprise",
+              "timerSpellId": 1297625,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1301667,
+              "name": "Dark Whispers",
+              "timerSpellId": 1301667,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid debuff"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3420,
+          "name": "Sszorak",
+          "source": "BossTimelines/MidnightS2/Sszorak.lua",
+          "abilities": [
+            {
+              "id": 1277027,
+              "name": "Mutilate",
+              "timerSpellId": 1277027,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "group soak",
+                "frontal"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1277002,
+              "name": "Ravage",
+              "timerSpellId": 1277002,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tank debuff",
+                "frontal"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1287072,
+              "name": "Tempest",
+              "timerSpellId": 1287072,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid debuff",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1305959,
+              "name": "Venomous Surge",
+              "timerSpellId": 1305959,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid debuff",
+                "spread"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1285453,
+              "name": "Raging Crosswinds",
+              "timerSpellId": 1285453,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid dot",
+                "knock"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1286033,
+              "name": "Dig In",
+              "timerSpellId": 1286033,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "damage amp"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1297707,
+              "name": "Virulence",
+              "timerSpellId": 1297707,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "raid dot"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3421,
+          "name": "The Twin Fangs",
+          "source": "BossTimelines/MidnightS2/TheTwinFangs.lua",
+          "abilities": [
+            {
+              "id": 1290336,
+              "name": "Eternal Venom",
+              "timerSpellId": 1290336,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "ramping rot",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1289192,
+              "name": "Caustic Deluge",
+              "timerSpellId": 1289192,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tank debuff",
+                "spread"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1288538,
+              "name": "Stone Breaker",
+              "timerSpellId": 1288538,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "soak",
+                "knock"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1291404,
+              "name": "Venomous Emergence",
+              "timerSpellId": 1291404,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1290809,
+              "name": "Coiling Ichor",
+              "timerSpellId": 1290809,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid debuff",
+                "spread"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1290956,
+              "name": "Stir the Depths",
+              "timerSpellId": 1290956,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1290516,
+              "name": "Ravenous Feast",
+              "timerSpellId": 1290516,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "group soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1306872,
+              "name": "Sanguine Storm",
+              "timerSpellId": 1306872,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1294293,
+              "name": "Vile Flood",
+              "timerSpellId": 1294293,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1303230,
+              "name": "Blood Torrent",
+              "timerSpellId": 1303230,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "tank debuff",
+                "healing absorb"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1310099,
+              "name": "Tainted Blood",
+              "timerSpellId": 1310099,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "healing absorb",
+                "group soak"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3429,
+          "name": "The Coiled Altar",
+          "source": "BossTimelines/MidnightS2/TheCoiledAltar.lua",
+          "abilities": [
+            {
+              "id": 1282408,
+              "name": "Coalesced Venom",
+              "timerSpellId": 1282408,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  3
+                ],
+                "mythic": [
+                  1,
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1282487,
+              "name": "Fangs of the Coiled Altar",
+              "timerSpellId": 1282487,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1299960,
+              "name": "Toxic Deluge",
+              "timerSpellId": 1299960,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  3
+                ],
+                "mythic": [
+                  1,
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1283832,
+              "name": "Axegrinder",
+              "timerSpellId": 1283832,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1299684,
+              "name": "Sever",
+              "timerSpellId": 1299684,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "tank debuff",
+                "frontal"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1299838,
+              "name": "Venom Rupture",
+              "timerSpellId": 1299838,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  3
+                ],
+                "mythic": [
+                  1,
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1282287,
+              "name": "Venomfang",
+              "timerSpellId": 1282287,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid debuff"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1283489,
+              "name": "Guillotine",
+              "timerSpellId": 1283489,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "group soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1288635,
+              "name": "Dreadful Presence",
+              "timerSpellId": 1288635,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1288624,
+              "name": "Dreadful Presence",
+              "timerSpellId": 1288624,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "phase change"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1285643,
+              "name": "Dreadmarch",
+              "timerSpellId": 1285643,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "cc",
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3
+                ],
+                "mythic": [
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1286441,
+              "name": "Spiritcackle",
+              "timerSpellId": 1286441,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1310882,
+              "name": "Gloombomb",
+              "timerSpellId": 1310882,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "spread"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3
+                ],
+                "mythic": [
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1286620,
+              "name": "Soul Sever",
+              "timerSpellId": 1286620,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tank debuff",
+                "frontal"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1308311,
+              "name": "Retaliatory Malice",
+              "timerSpellId": 1308311,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1286918,
+              "name": "Eternal Nightfall",
+              "timerSpellId": 1286918,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3
+                ],
+                "mythic": [
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1286947,
+              "name": "Suffocating Darkness",
+              "timerSpellId": 1286947,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "healing absorb"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3
+                ],
+                "mythic": [
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1287722,
+              "name": "Spirit Erasure",
+              "timerSpellId": 1287722,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  2.5
+                ],
+                "mythic": [
+                  2.5
+                ]
+              }
+            },
+            {
+              "id": 1304033,
+              "name": "Ghastly Regeneration",
+              "timerSpellId": 1304033,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "damage buff"
+              ],
+              "phases": {
+                "heroic": [
+                  2.5
+                ],
+                "mythic": [
+                  2.5
+                ]
+              }
+            },
+            {
+              "id": 1298381,
+              "name": "Defilement of the Coiled Altar",
+              "timerSpellId": 1298381,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "healing absorb"
+              ],
+              "phases": {
+                "heroic": [
+                  3
+                ],
+                "mythic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1299267,
+              "name": "Grim Guillotine",
+              "timerSpellId": 1299267,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "group soak"
+              ],
+              "phases": {
+                "heroic": [
+                  3
+                ],
+                "mythic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1307292,
+              "name": "Blighted Sever",
+              "timerSpellId": 1307292,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "tank debuff",
+                "frontal"
+              ],
+              "phases": {
+                "heroic": [
+                  3
+                ],
+                "mythic": [
+                  3
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3492,
+          "name": "Ula'tek",
+          "source": "BossTimelines/MidnightS2/Ulatek.lua",
+          "abilities": [
+            {
+              "id": 1298367,
+              "name": "Mother's Wrath",
+              "timerSpellId": 1298367,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "knock"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1299010,
+              "name": "Spectral Coils",
+              "timerSpellId": 1299010,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "group soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1296301,
+              "name": "Mephitic Thrash",
+              "timerSpellId": 1296301,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "knock"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1292403,
+              "name": "Caustic Waves",
+              "timerSpellId": 1292403,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1304012,
+              "name": "Call of the Serpent",
+              "timerSpellId": 1304012,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1295360,
+              "name": "Malignant Shell",
+              "timerSpellId": 1295360,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "debuffs",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1286860,
+              "name": "Rage of the Shackled",
+              "timerSpellId": 1286860,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1299526,
+              "name": "Venomous Heart",
+              "timerSpellId": 1299526,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "damage amp"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1301117,
+              "name": "Grasping Fangs",
+              "timerSpellId": 1301117,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1311609,
+              "name": "Blight Vein",
+              "timerSpellId": 1311609,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1300751,
+              "name": "Call of the Serpent",
+              "timerSpellId": 1300751,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1290990,
+              "name": "Writhing Gestation",
+              "timerSpellId": 1290990,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1295905,
+              "name": "Serpent's Bite",
+              "timerSpellId": 1295905,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "group soak",
+                "debuffs"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1305878,
+              "name": "Volatile Purge",
+              "timerSpellId": 1305878,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1313531,
+              "name": "Acidic Expulsion",
+              "timerSpellId": 1313531,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid dot",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1315341,
+              "name": "Circling Prey",
+              "timerSpellId": 1315341,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "knock"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1286834,
+              "name": "Necrotic Vapors",
+              "timerSpellId": 1286834,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1299759,
+              "name": "Toxic Incubation",
+              "timerSpellId": 1299759,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1301512,
+              "name": "Submerge",
+              "timerSpellId": 1301512,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1301213,
+              "name": "Shadow Molt",
+              "timerSpellId": 1301213,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1315541,
+              "name": "Call of the Serpent",
+              "timerSpellId": 1315541,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1313754,
+              "name": "Slithering Gestation",
+              "timerSpellId": 1313754,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1310763,
+              "name": "Fester Burst",
+              "timerSpellId": 1310763,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3513,
+          "name": "Kith'ix",
+          "source": "BossTimelines/MidnightS2/Kithix.lua",
+          "abilities": [
+            {
+              "id": 1301511,
+              "name": "Voidswarm",
+              "timerSpellId": 1301511,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe",
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1302333,
+              "name": "Voidweave",
+              "timerSpellId": 1302333,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1302319,
+              "name": "Digestive Juices",
+              "timerSpellId": 1302319,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1302884,
+              "name": "Venom Roar",
+              "timerSpellId": 1302884,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "frontal"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1304930,
+              "name": "Dark Devastation",
+              "timerSpellId": 1304930,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1304424,
+              "name": "Extinguish",
+              "timerSpellId": 1304424,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1304045,
+              "name": "Unspeakable Horrors",
+              "timerSpellId": 1304045,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "dispel"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1302705,
+              "name": "Nightfall",
+              "timerSpellId": 1302705,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1302951,
+              "name": "Suffocating Darkness",
+              "timerSpellId": 1302951,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1303406,
+              "name": "Abyssal Grasp",
+              "timerSpellId": 1303406,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "healing absorb"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1303169,
+              "name": "Divine Radiance",
+              "timerSpellId": 1303169,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1305427,
+              "name": "Last Light",
+              "timerSpellId": 1305427,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "damage buff"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1301479,
+              "name": "Eightfold Eclipse",
+              "timerSpellId": 1301479,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "phase change",
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1308873,
+              "name": "Null Gate",
+              "timerSpellId": 1308873,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1318467,
+              "name": "Negation",
+              "timerSpellId": 1318467,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tank debuff"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MidnightS1",
+      "name": "Midnight · Season 1",
+      "bosses": [
+        {
+          "id": 3176,
+          "name": "Imperator Averzian",
+          "source": "BossTimelines/MidnightS1/ImperatorAverzian.lua",
+          "abilities": [
+            {
+              "id": 1249251,
+              "name": "Dark Upheaval",
+              "timerSpellId": 1249251,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1262776,
+              "name": "Shadow's Advance",
+              "timerSpellId": 1262776,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1249266,
+              "name": "Umbral Collapse",
+              "timerSpellId": 1249266,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "group soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1262036,
+              "name": "Void Rupture",
+              "timerSpellId": 1262036,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1261249,
+              "name": "Cosmic Eruption",
+              "timerSpellId": 1261249,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1258880,
+              "name": "Void Fall",
+              "timerSpellId": 1258880,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement",
+                "knock"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1260712,
+              "name": "Oblivion's Wrath",
+              "timerSpellId": 1260712,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1280015,
+              "name": "Void Marked",
+              "timerSpellId": 1280015,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3177,
+          "name": "Vorasius",
+          "source": "BossTimelines/MidnightS1/Vorasius.lua",
+          "abilities": [
+            {
+              "id": 1260052,
+              "name": "Primordial Roar",
+              "timerSpellId": 1260052,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1241836,
+              "name": "Smashing Frenzy",
+              "timerSpellId": 1241692,
+              "timerSource": "NSR explicit alias",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "raid damage",
+                "soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1254199,
+              "name": "Parasite Expulsion",
+              "timerSpellId": 1254199,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "add spawn",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1254113,
+              "name": "Fixate",
+              "timerSpellId": 1254113,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1256855,
+              "name": "Void Breath",
+              "timerSpellId": 1256855,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1259186,
+              "name": "Blisterburst",
+              "timerSpellId": 1259186,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3179,
+          "name": "Fallen-King Salhadaar",
+          "source": "BossTimelines/MidnightS1/FallenKingSalhadaar.lua",
+          "abilities": [
+            {
+              "id": 1243453,
+              "name": "Void Convergence",
+              "timerSpellId": 1243453,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1250686,
+              "name": "Twisting Obscurity",
+              "timerSpellId": 1250686,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1254081,
+              "name": "Fractured Projection",
+              "timerSpellId": 1254081,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event",
+                "interrupt"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1285211,
+              "name": "Dark Radiation",
+              "timerSpellId": 1285211,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1260823,
+              "name": "Despotic Command",
+              "timerSpellId": 1260823,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1253032,
+              "name": "Shattering Twilight",
+              "timerSpellId": 1253032,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1251213,
+              "name": "Twilight Spikes",
+              "timerSpellId": 1251213,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1246175,
+              "name": "Entropic Unraveling",
+              "timerSpellId": 1246175,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "movement",
+                "damage amp"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3178,
+          "name": "Vaelgor & Ezzorak",
+          "source": "BossTimelines/MidnightS1/VaelgorEzzorak.lua",
+          "abilities": [
+            {
+              "id": 1265131,
+              "name": "Vaelwing",
+              "timerSpellId": 1265131,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "knock"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1262623,
+              "name": "Nullbeam",
+              "timerSpellId": 1262623,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1244672,
+              "name": "Nullzone",
+              "timerSpellId": 1244672,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1244221,
+              "name": "Dread Breath",
+              "timerSpellId": 1244221,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement",
+                "dispel"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1245391,
+              "name": "Gloom",
+              "timerSpellId": 1245391,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "group soak",
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1245420,
+              "name": "Gloomfield",
+              "timerSpellId": 1245420,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "group soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1244917,
+              "name": "Void Howl",
+              "timerSpellId": 1244917,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "add spawn",
+                "movement",
+                "adds"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1245645,
+              "name": "Rakfang",
+              "timerSpellId": 1245645,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1265152,
+              "name": "Impale",
+              "timerSpellId": 1265152,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1249748,
+              "name": "Midnight Flames",
+              "timerSpellId": 1249748,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1264467,
+              "name": "Tail Lash",
+              "timerSpellId": 1264467,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "knock"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1270497,
+              "name": "Shadowmark",
+              "timerSpellId": 1270497,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1258744,
+              "name": "Midnight Manifestation",
+              "timerSpellId": 1258744,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3180,
+          "name": "Lightblinded Vanguard",
+          "source": "BossTimelines/MidnightS1/LightblindedVanguard.lua",
+          "abilities": [
+            {
+              "id": 1246497,
+              "name": "Avenger's Shield",
+              "timerSpellId": 1246497,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs",
+                "dispel",
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1251857,
+              "name": "Judgment",
+              "timerSpellId": 1251857,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1251859,
+              "name": "Shield of the Righteous",
+              "timerSpellId": 1251859,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1251812,
+              "name": "Final Verdict",
+              "timerSpellId": 1251812,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1246765,
+              "name": "Divine Storm",
+              "timerSpellId": 1246765,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event",
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1258659,
+              "name": "Light Infused",
+              "timerSpellId": 1258659,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1258514,
+              "name": "Blinding Light",
+              "timerSpellId": 1258514,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1248644,
+              "name": "Divine Toll",
+              "timerSpellId": 1248644,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1246162,
+              "name": "Aura of Devotion",
+              "timerSpellId": 1246162,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1248449,
+              "name": "Aura of Wrath",
+              "timerSpellId": 1248449,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1248451,
+              "name": "Aura of Peace",
+              "timerSpellId": 1248451,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1246749,
+              "name": "Sacred Toll",
+              "timerSpellId": 1246749,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1255738,
+              "name": "Searing Radiance",
+              "timerSpellId": 1255738,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1248710,
+              "name": "Tyr's Wrath",
+              "timerSpellId": 1248710,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "healing absorb"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1250839,
+              "name": "Execution Sentence",
+              "timerSpellId": 1250839,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs",
+                "movement",
+                "group soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1249130,
+              "name": "Elekk Charge",
+              "timerSpellId": 1249130,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "movement",
+                "event"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3181,
+          "name": "Crown of the Cosmos",
+          "source": "BossTimelines/MidnightS1/CrownOfTheCosmos.lua",
+          "abilities": [
+            {
+              "id": 1233865,
+              "name": "Null Corona",
+              "timerSpellId": 1233865,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "healing absorb"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  3,
+                  5
+                ],
+                "mythic": [
+                  1,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1233787,
+              "name": "Dark Hand",
+              "timerSpellId": 1233787,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1243743,
+              "name": "Interrupting Tremor",
+              "timerSpellId": 1243743,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1232467,
+              "name": "Grasp of Emptiness",
+              "timerSpellId": 1232467,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  5
+                ],
+                "mythic": [
+                  1,
+                  3,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1233819,
+              "name": "Void Expulsion",
+              "timerSpellId": 1233819,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  3
+                ],
+                "mythic": [
+                  1,
+                  3,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1233602,
+              "name": "Silverstrike Arrow",
+              "timerSpellId": 1233602,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1234546,
+              "name": "Silversunder Catastrophe",
+              "timerSpellId": 1234546,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  4
+                ],
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1237035,
+              "name": "Voidstalker Sting",
+              "timerSpellId": 1237035,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "heroic": [
+                  3,
+                  5
+                ],
+                "mythic": [
+                  3,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1246461,
+              "name": "Rift Slash",
+              "timerSpellId": 1246461,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn",
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  3
+                ],
+                "mythic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1237837,
+              "name": "Call of the Void",
+              "timerSpellId": 1237837,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  3
+                ],
+                "mythic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1237614,
+              "name": "Ranger Captain's Mark",
+              "timerSpellId": 1237614,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "debuffs"
+              ],
+              "phases": {
+                "heroic": [
+                  3
+                ],
+                "mythic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1246918,
+              "name": "Cosmic Barrier",
+              "timerSpellId": 1246918,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  3
+                ],
+                "mythic": [
+                  3,
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1239080,
+              "name": "Aspect of the End",
+              "timerSpellId": 1239080,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  5
+                ],
+                "mythic": [
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1238843,
+              "name": "Devouring Cosmos",
+              "timerSpellId": 1238843,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  5
+                ],
+                "mythic": [
+                  5
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3306,
+          "name": "Chimaerus",
+          "source": "BossTimelines/MidnightS1/Chimaerus.lua",
+          "abilities": [
+            {
+              "id": 1258610,
+              "name": "Rift Emergence",
+              "timerSpellId": 1258610,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1250953,
+              "name": "Rift Sickness",
+              "timerSpellId": 1250953,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "healing absorb"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1262289,
+              "name": "Alndust Upheaval",
+              "timerSpellId": 1262289,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "group soak",
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1246621,
+              "name": "Caustic Phlegm",
+              "timerSpellId": 1246621,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1262020,
+              "name": "Colossal Strikes",
+              "timerSpellId": 1262020,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1272726,
+              "name": "Rending Tear",
+              "timerSpellId": 1272726,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "frontal"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1245396,
+              "name": "Consume",
+              "timerSpellId": 1245396,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1245452,
+              "name": "Corrupted Devastation",
+              "timerSpellId": 1245452,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1245404,
+              "name": "Ravenous Dive",
+              "timerSpellId": 1245404,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "raid damage",
+                "knock"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1257087,
+              "name": "Consuming Miasma",
+              "timerSpellId": 1257087,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "dispel"
+              ],
+              "phases": {
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1264756,
+              "name": "Rift Madness",
+              "timerSpellId": 1264756,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "mythic": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3182,
+          "name": "Belo'ren",
+          "source": "BossTimelines/MidnightS1/Beloren.lua",
+          "abilities": [
+            {
+              "id": 1242981,
+              "name": "Radiant Echoes",
+              "timerSpellId": 1242981,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1261217,
+              "name": "Light Edict",
+              "timerSpellId": 1261217,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "frontal"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1261218,
+              "name": "Void Edict",
+              "timerSpellId": 1261218,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "frontal"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1244348,
+              "name": "Light Burn",
+              "timerSpellId": 1244348,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "debuffs",
+                "healing absorb"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1241291,
+              "name": "Light Dive",
+              "timerSpellId": 1241291,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "group soak"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1242515,
+              "name": "Voidlight Convergence",
+              "timerSpellId": 1242515,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1242792,
+              "name": "Incubation of Flames",
+              "timerSpellId": 1242792,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1246709,
+              "name": "Death Drop",
+              "timerSpellId": 1246709,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  2,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1241678,
+              "name": "Voidlight Edict",
+              "timerSpellId": 1241678,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "frontal"
+              ],
+              "phases": {
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1260826,
+              "name": "Guardian's Edict",
+              "timerSpellId": 1260826,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster",
+                "frontal"
+              ],
+              "phases": {
+                "mythic": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3183,
+          "name": "Midnight Falls",
+          "source": "BossTimelines/MidnightS1/MidnightFalls.lua",
+          "abilities": [
+            {
+              "id": 1267049,
+              "name": "Heaven's Lance",
+              "timerSpellId": 1267049,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  3,
+                  4
+                ],
+                "mythic": [
+                  1,
+                  3,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1249620,
+              "name": "Death's Dirge",
+              "timerSpellId": 1249620,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "event",
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1253915,
+              "name": "Heaven's Glaives",
+              "timerSpellId": 1253915,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1282470,
+              "name": "Dark Quasar",
+              "timerSpellId": 1282470,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1251386,
+              "name": "Safeguard Prism",
+              "timerSpellId": 1251386,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1251649,
+              "name": "Disintegration",
+              "timerSpellId": 1251649,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1253031,
+              "name": "Glimmering",
+              "timerSpellId": 1253031,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "heroic": [
+                  1,
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1262055,
+              "name": "Eclipsed",
+              "timerSpellId": 1262055,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "healing absorb"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1282043,
+              "name": "Into the Darkwell",
+              "timerSpellId": 1282043,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "phase change",
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  2
+                ],
+                "mythic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1284528,
+              "name": "Galvanize",
+              "timerSpellId": 1284528,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1282412,
+              "name": "Core Harvest",
+              "timerSpellId": 1282412,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  3
+                ],
+                "mythic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1281123,
+              "name": "Dark Meltdown",
+              "timerSpellId": 1281123,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "phase change"
+              ],
+              "phases": {
+                "heroic": [
+                  3
+                ],
+                "mythic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1266344,
+              "name": "Dark Constellation",
+              "timerSpellId": 1266344,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid damage",
+                "movement",
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  4
+                ],
+                "mythic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1253104,
+              "name": "Dawnlight Barrier",
+              "timerSpellId": 1253104,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "event"
+              ],
+              "phases": {
+                "heroic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1251331,
+              "name": "The Dark Archangel",
+              "timerSpellId": 1251331,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "heroic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1266810,
+              "name": "Light Siphon",
+              "timerSpellId": 1266810,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "group soak"
+              ],
+              "phases": {
+                "heroic": [
+                  4
+                ],
+                "mythic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1284931,
+              "name": "Termination Prism",
+              "timerSpellId": 1284931,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "add spawn",
+                "raid damage"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1249609,
+              "name": "Dark Rune",
+              "timerSpellId": 1249609,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1284980,
+              "name": "Grim Symphony",
+              "timerSpellId": 1284980,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1279420,
+              "name": "Dark Quasar",
+              "timerSpellId": 1279420,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1285563,
+              "name": "Total Eclipse",
+              "timerSpellId": 1285563,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid dot"
+              ],
+              "phases": {
+                "mythic": [
+                  2
+                ]
+              }
+            },
+            {
+              "id": 1284525,
+              "name": "Galvanize",
+              "timerSpellId": 1284525,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "mythic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1281184,
+              "name": "Criticality",
+              "timerSpellId": 1281184,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "mythic": [
+                  3
+                ]
+              }
+            },
+            {
+              "id": 1275057,
+              "name": "Severance",
+              "timerSpellId": 1275057,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "mythic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1266897,
+              "name": "Light Siphon [Left]",
+              "timerSpellId": 1266897,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "group soak"
+              ],
+              "phases": {
+                "mythic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1286915,
+              "name": "Death's Requiem [Left]",
+              "timerSpellId": 1286915,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "mythic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1266388,
+              "name": "Dark Constellation [Left]",
+              "timerSpellId": 1266388,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "mythic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1273375,
+              "name": "Death's Requiem [Right]",
+              "timerSpellId": 1273375,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "debuffs"
+              ],
+              "phases": {
+                "mythic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1251343,
+              "name": "The Dark Archangel",
+              "timerSpellId": 1251343,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "mythic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1263253,
+              "name": "Black Tide",
+              "timerSpellId": 1263253,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "mythic": [
+                  4
+                ]
+              }
+            },
+            {
+              "id": 1285510,
+              "name": "Starsplinter",
+              "timerSpellId": 1285510,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "spread"
+              ],
+              "phases": {
+                "mythic": [
+                  5
+                ]
+              }
+            },
+            {
+              "id": 1276525,
+              "name": "Heaven & Hell",
+              "timerSpellId": 1276525,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "mythic"
+              ],
+              "categories": [
+                "raid damage"
+              ],
+              "phases": {
+                "mythic": [
+                  5
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": 3159,
+          "name": "Rotmire",
+          "source": "BossTimelines/MidnightS1/Rotmire.lua",
+          "abilities": [
+            {
+              "id": 1221622,
+              "name": "Awaken Fungi",
+              "timerSpellId": 1221622,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1221639,
+              "name": "Shroomling",
+              "timerSpellId": 1221639,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "add spawn"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1221781,
+              "name": "Putrid Fist",
+              "timerSpellId": 1221781,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "tankbuster"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1222088,
+              "name": "Festering Vines",
+              "timerSpellId": 1222088,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "movement"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1221787,
+              "name": "Bursting Pustules",
+              "timerSpellId": 1221787,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1221637,
+              "name": "Fungal Bloom",
+              "timerSpellId": 1221637,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            },
+            {
+              "id": 1221965,
+              "name": "Bursting Shroom",
+              "timerSpellId": 1221965,
+              "timerSource": "NSRT spell ID; verify boss-mod broadcast",
+              "difficulties": [
+                "heroic",
+                "mythic"
+              ],
+              "categories": [
+                "raid aoe"
+              ],
+              "phases": {
+                "heroic": [
+                  1
+                ],
+                "mythic": [
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

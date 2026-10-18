@@ -22,7 +22,7 @@ function editBinding(draft,args){
  if(args.leadTime!==''&&args.leadTime!=null)after.leadTime=number(args.leadTime,-120,120);else delete after.leadTime;
  data.abilityBindings||={};data.abilityBindings[spec]||={};data.abilityBindings[spec][enc]||={};
  if(original&&(enc!==oldEnc||spell!==oldSpell)){delete data.abilityBindings[spec][oldEnc][oldSpell];if(!Object.keys(data.abilityBindings[spec][oldEnc]).length)delete data.abilityBindings[spec][oldEnc];}
- data.abilityBindings[spec][enc][spell]=after;data.bindingsBySpec=true;numeric(draft,'abilityBindings',spec,enc,spell);
+ data.abilityBindings[spec][enc]||={};data.abilityBindings[spec][enc][spell]=after;data.bindingsBySpec=true;numeric(draft,'abilityBindings',spec,enc,spell);
  label(draft,'encounters',enc,args.encounterName);label(draft,'dungeons',enc,args.dungeon);label(draft,'spells',spell,args.spellName);
  return {kind:'binding',specId:spec,encounterId:enc,spellId:spell,before:original||null,after};
 }
@@ -79,6 +79,15 @@ export class NsrEditor{
  async locked(id,fn){const previous=this.queues.get(id)||Promise.resolve();const next=previous.catch(()=>{}).then(fn);this.queues.set(id,next);try{return await next;}finally{if(this.queues.get(id)===next)this.queues.delete(id);}}
  async change({id,revision,operation},timelines=[],addonNames={}){return this.locked(id,async()=>{const draft=await this.read(id);if(draft.revision!==revision)throw Error('This draft changed elsewhere. Reopen it before saving.');const change=applyEditorOperation(draft,operation);draft.revision++;draft.changes.push({...auditChange(change),at:new Date().toISOString()});if(draft.changes.length>200)draft.changes=draft.changes.slice(-200);this.planner.codec.encode(draft.pack,{numericKeys:draft.numericKeys});await this.save(draft);return editorView(draft,await this.planner.list('tables'),timelines,addonNames);});}
  async export({id,revision,name}){return this.locked(id,async()=>{const draft=await this.read(id);if(draft.revision!==revision)throw Error('The draft changed after review. Refresh it before export.');const pack=structuredClone(draft.pack);if(name!==undefined)pack.name=text(name,200);const encoded=this.planner.codec.encode(pack,{numericKeys:draft.numericKeys});const result={id:uid(),draftId:id,revision,text:encoded,createdAt:new Date().toISOString(),changes:draft.changes,derivedFrom:pack.derivedFrom||null};await writeAtomic(await this.planner.file('editor-exports',result.id),JSON.stringify(result));return result;});}
+ async assignRaid(args,catalog,addonNames={}){
+  if(!['heroic','mythic'].includes(args.difficulty))throw Error('Choose Heroic or Mythic.');
+  const season=catalog.seasons.find(s=>s.id===args.seasonId),boss=season?.bosses.find(b=>Number(b.id)===Number(args.encounterId)),ability=boss?.abilities.find(a=>Number(a.id)===Number(args.spellId)&&a.difficulties.includes(args.difficulty));
+  if(!ability)throw Error('Choose an ability belonging to this boss and raid difficulty.');
+  if(!SPEC_NAMES[args.specId])throw Error('Choose a known specialization.');
+  const draft=await this.read(args.id),data=dataFor(draft),bindings=data.abilityBindings?.[String(args.specId)]?.[String(boss.id)]||{},timer=ability.timerSpellId||ability.id,oldSpell=bindings[String(timer)]?timer:ability.id,before=bindings[String(oldSpell)];
+  // Difficulty filters the catalog only. NSR shares the binding for this encounter/key.
+  return this.change({id:args.id,revision:args.revision,operation:{kind:'binding.save',args:{specId:args.specId,encounterId:boss.id,spellId:timer,originalSpellId:oldSpell,preset:String(args.preset||''),enabled:!!args.preset,mode:'defensive',healerReminder:before?.healerReminder??[65,105,256,257,264,270,1468].includes(Number(args.specId)),leadTime:before?.leadTime??'',encounterName:boss.name,dungeon:season.name,spellName:ability.name}}},[],addonNames);
+ }
  async assignNpc(args,catalog,timelines=[],addonNames={}){return this.locked(args.id,async()=>{
   const draft=await this.read(args.id);if(draft.revision!==args.revision)throw Error('This draft changed elsewhere. Reopen it before saving.');const dungeon=catalog.dungeons.find(d=>Number(d.mapId)===Number(args.mapId)),npc=dungeon?.npcs.find(n=>Number(n.id)===Number(args.npcId));
   const ability=npc?.abilities.find(a=>Number(a.id)===Number(args.spellId));if(!ability)throw Error('Choose an ability belonging to this NPC in the selected dungeon');const timer=Number(args.timerSpellId||ability.timerSpellId||ability.id);if(!npcTimerChoices(npc).some(a=>a.id===timer))throw Error('The timer spell must belong to this NPC in the selected dungeon');

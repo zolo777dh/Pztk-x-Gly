@@ -1,6 +1,14 @@
 # NPC and dungeon catalog
 
-## Current source verification (0.1.13)
+## Raid catalog (0.2.0)
+
+`raid-catalog.json` reads factual encounter/spell IDs, English names, categories and Heroic/Mythic membership from the user-supplied NorthernSkyRaidTools 12.1.31 BossData.lua and 20 BossTimelines files (Midnight S1/S2). Repeated phases are deduplicated by spell ID while difficulty/phase membership is retained. No executable Lua, alert implementation, timelines, cast times or defensive sets from that addon are bundled. The reference is All Rights Reserved; this app uses its own implementation and a factual catalog.
+
+Confirmed timer aliases are taken from the supplied NSR `BOSSMOD_KEY_TO_JOURNAL` and `DBM_TO_BIGWIGS` literals. Source spell IDs used for icons are not proof that every boss mod broadcasts the same timer key. Unaliased entries retain their factual spell ID with an explicit source/verification note. In-game behavior needs the installed NSR/boss-mod events. Difficulty is only a UI catalog filter; shared encounter/spell bindings are exported once.
+
+Reproduce with `node tools/build-raid-catalog.mjs EXTRACTED_NSRT_ROOT NSR_CHECKOUT`. The JSON records per-file SHA256 and metadata/alias-source hashes. Uploaded Lua is parsed as literals, never executed; the source addon itself is not shipped.
+
+## Mythic+ source verification (retained from 0.1.13)
 
 The current snapshot uses the uploaded LittleWigs `Midnight.zip` (SHA256 `e53c7ca925641736451bd9a0cffe582ee506f7226654d6afdef5c78e900b17a0`) for Murder Row, Den of Nalorakk, The Blinding Vale, Voidscar Arena and Altar of Fangs. Those dungeon module bodies match the prior upstream revision after line-ending normalization. The archive does not include Ruby Life Pools, Temple of Sethraliss or Kings' Rest; their modules remain from the pinned upstream LittleWigs checkout below.
 

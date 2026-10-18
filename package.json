@@ -1,8 +1,8 @@
 {
   "name": "pztk-x-glyalith",
-  "version": "0.1.13",
+  "version": "0.2.0",
   "private": true,
-  "description": "WoW Lua Addon Doctor for Windows",
+  "description": "Windows addon diagnostics and NSR defensive profile planner",
   "author": "Pztk x Glyalith",
   "license": "UNLICENSED",
   "type": "module",
