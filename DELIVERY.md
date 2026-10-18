@@ -26,3 +26,6 @@ Version 0.1.8: [Windows run 39077009398](https://github.com/zolo777dh/Pztk-x-Gly
 
 
 Version 0.1.9: [Windows run 39077998575](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39077998575) passed, including the comparison of Electron package version, secured IPC init.version and the visible Application version label. The earlier run was cancelled by a newer README-only commit, which was preserved. The downloaded 0.1.9 ZIP matched SHA256 `58e50b51db084f0e19fe15266d881cb9db42605479349a8783a7ecd0204e2f72`, passed all 78 CRC and x64 PE checks, and its ASAR passed the Electron smoke with all three versions equal to 0.1.9.
+
+
+Published 0.1.10: Windows workflow [39113433334](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39113433334) passed. Downloaded ZIP SHA256: `4b1d9d713a81f7f559a0c69867a0d87454fc367051c816285407198f71685bd0`; all 78 CRC checks and Windows x64 PE validation passed. The downloaded ASAR passed desktop version equality, fresh lists, NPC catalog and NSR editor checks, including all 40 named specialization options. Game triggering remains a separate user check.

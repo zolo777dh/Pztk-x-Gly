@@ -116,3 +116,14 @@ The factual NPC catalog covers eight user-specified dungeons: 248 NPC entries an
 English labels use imported/connected references, known names and a persistent tooltip cache. Controlled resolver tests verify cache restoration, no credential forwarding and unresolved-ID behavior. Live tooltip access in this cloud was HTTP 403, so the full external name lookup is not claimed verified here.
 
 Method page requests were denied by the cloud network gateway with HTTP 403. Seven important Altar of Fangs names were transcribed from the user's screenshot without numeric mappings. Local confirmation is explicit and persisted. HTML import parsing is tested against controlled fixtures with and without spell links, section boundaries and failure preservation; the live Method markup and the other seven important lists have not been validated. The primary NPC → ability → defensive set → export workflow does not require Method.
+
+
+## Published 0.1.10 verification
+
+[Windows run 39113433334](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39113433334), release commit `f07f3c07ceaeeaff83c80b1a5280dd4ad0f5c1db`, completed successfully. It passed core tests (external real-addon/Lua checks retain their explicit CI prerequisites), the native bundled WCL engine checks, packaged Electron launch/IPC/model transport/NSR editor roundtrip, DPAPI persistence and native Windows Expand-Archive extraction before publishing.
+
+The downloaded release matched SHA256 `4b1d9d713a81f7f559a0c69867a0d87454fc367051c816285407198f71685bd0`, passed CRC checks for all 78 ZIP entries, and contains a Windows x64 PE. Its extracted app.asar passed the Electron desktop smoke under Linux, including package/service/visible version equality at 0.1.10, empty startup folder/timeline lists, the bundled eight-dungeon NPC catalog, and the editor's placeholder plus **all 40 named specialization choices**. The desktop test now asserts that count.
+
+All **82/82** core tests passed without skips in this cloud with real NSR and native Lua 5.1. The new exhaustive editor test creates independent sets and boss bindings for every one of the 40 spec IDs, exports them in one profile, and verifies acceptance by unchanged NSR DecodePack. The shared spell in this structural fixture is not a class recommendation. Browser verification also covers the primary NPC/ability/preset flow for a boss and trash, manual important-ID confirmation, two explicit dungeon pull assignments, named spec selection, fresh sessions and retained data.
+
+Earlier Windows attempts exposed a test's comparison of a caller-supplied temporary path with its canonical long Windows path. The assertion now compares the canonical project roots used by the service. No application path checks were weakened. The initial user-cleared README remains unchanged.
