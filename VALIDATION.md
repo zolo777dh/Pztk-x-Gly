@@ -155,3 +155,9 @@ The complete uploaded file passed core and browser checks: five original sets pl
 The catalog generator statically inspects known Mythic/Retail difficulty branches in LittleWigs options and intersects boss mechanic IDs with each NPC's seasonal MDT spell table. No downloaded Lua is executed. The resulting selectable catalog has 246 NPCs and 794 associations, with original associated IDs retained separately. Tests assert unique IDs/names, seasonal MDT membership for every choice, explicit exclusion of lower-difficulty metadata, and one Murder in a Row choice rather than its effect variants. This verifies the documented source snapshots, not a live difficulty validation from authenticated Warcraft Logs for every entry. See resources/CATALOG-SOURCES.md.
 
 The source Electron smoke passed after the new ids-array import, Together export and single-mechanic UI assertions, preserving existing IPC, version, clean-session, WCL and editor checks.
+
+## Published 0.1.12 verification
+
+[Windows run 39117371836](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39117371836) succeeded for commit `1e11aedd6cdb0fa8700bc65fb628377704f09549`. Native checks covered core behavior (external-addon prerequisites remain explicit), the bundled WCL engine, packaged Electron launch/IPC/DPAPI, generic HTML ids-array import, Together flags in the exported NSR profile, one Murder in a Row choice and Windows ZIP extraction before publication.
+
+The downloaded release matched SHA256 `0bc159a063319bb41f94d55004ad8c5e88ea44874cd0573fd9123f7a69b6af36`, passed all 78 ZIP CRC checks and Windows x64 PE validation. Its downloaded app.asar passed the Electron desktop smoke under Linux with all versions equal to 0.1.12 and the new import/export/catalog assertions. In-game spell availability, timer events and reminder firing remain separate checks.
