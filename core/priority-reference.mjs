@@ -1,24 +1,45 @@
 // Read reference data only. Page scripts are never evaluated.
-import {SPELL_NAMES} from './wow-names.mjs';
+import {SPELL_NAMES,SPEC_NAMES} from './wow-names.mjs';
 const positive=v=>/^[1-9]\d{0,7}$/.test(String(v??'').trim());
 const label=n=>n?.type==='text'?n.data:['script','style'].includes(n?.name)?'':(n?.children||[]).map(label).join(' ');
 const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const walk=(n,test,out=[])=>{if(test(n))out.push(n);for(const c of n.children||[])walk(c,test,out);return out;};
 export function normalizePriorityData(value){
  const raw=value?.presets;if(!raw||typeof raw!=='object')return null;
+ const spellNames={...SPELL_NAMES};for(const spell of Array.isArray(value.catalog)?value.catalog:Object.values(value.catalog||{}))if(positive(spell?.id)&&typeof spell.name==='string')spellNames[String(Number(spell.id))]=spell.name;
+ const specId=value.specId||Object.entries(SPEC_NAMES).find(([,name])=>name.toLowerCase()===String(value.spec||'').toLowerCase())?.[0];
  const entries=Array.isArray(raw)?raw.map((p,i)=>[String(i+1),p]):Object.entries(raw);if(entries.length>1000)throw Error('Reference exceeds 1000 defensive sets');
  const presets=entries.map(([key,p],i)=>{
   if(!p||typeof p!=='object')throw Error('Defensive set '+(i+1)+' must contain a name and spell list');const source=p.rows??p.spells??p.list??p.abilities;
   const rows=Array.isArray(source)?source:source&&typeof source==='object'?Object.entries(source).map(([id,name])=>[name,id]):null;if(!rows)throw Error('Defensive set '+(p.name||key)+' needs rows, spells or list');if(rows.length>200)throw Error('A defensive set exceeds 200 spells');
-  return {...p,id:String(p.id??p.key??key),name:String(p.name??p.title??p.label??'Set '+(i+1)),rows:rows.map(r=>{
+  return {...p,...(p.specId||specId?{specId:Number(p.specId||specId)}:{}),id:String(p.id??p.key??key),name:String(p.name??p.title??p.label??'Set '+(i+1)),spellNames,rowNotes:rows.map(r=>r&&typeof r==='object'&&!Array.isArray(r)?String(r.when||''):''),rows:rows.map(r=>{
    let id,name;if(Array.isArray(r)){[name,id]=r;if(positive(name)&&!positive(id)&&typeof id==='string')[id,name]=r;}
-   else if(r&&typeof r==='object'){id=r.spellId??r.spellID??r.spell_id??r.spell??r.id;name=r.name??r.spellName??r.ability??r.label;}
+   else if(r&&typeof r==='object'){name=r.name??r.spellName??r.ability??r.label;if(r.ids!==undefined){if(!Array.isArray(r.ids)||r.ids.length>200||r.ids.some(v=>!positive(v)))throw Error('Invalid defensive ids array in '+(p.name||key));id=[...new Set(r.ids.map(v=>String(Number(v))))].join(' + ');}else id=r.spellId??r.spellID??r.spell_id??r.spell??r.id;}
    else{id=r;}
    if(id==null||id==='')return [String(name||''),''];if(!positive(id)){if(typeof id==='string'&&id.length<=200)return [String(name||''),id];throw Error('Invalid defensive spell ID in '+(p.name||key));}id=String(Number(id));return [String(name||SPELL_NAMES[id]||'Spell '+id),id];
   })};
  });
  const assignments=(value.assignments||[]);if(!Array.isArray(assignments)||assignments.length>10000)throw Error('Reference assignments exceed supported limits');
  return {...value,presets,assignments:assignments.map(a=>({...a,encounter:String(a.encounter??a.boss??''),ability:String(a.ability??a.bossAbility??a.name??''),cast:a.cast??a.bossSpellId??a.spellId,samples:Array.isArray(a.samples)?a.samples:[]}))};
+}
+
+// NSR has one Together group per preset. Different overlap choices must be
+// separate variants, otherwise independent cooldowns would all be called at once.
+export function referenceSetVariants(preset){
+ const names={...SPELL_NAMES,...preset.spellNames},ordered=[],groups=[],seen=new Set();
+ for(const [name,raw]of preset.rows||[]){
+  const value=String(raw??'').trim();if(!/^[1-9]\d{0,7}(?:\s*\+\s*[1-9]\d{0,7})*$/.test(value))continue;
+  const ids=[...new Set(value.split('+').map(n=>Number(n.trim())))];
+  if(ids.length===1&&name&&!/^Spell \d+$/.test(name))names[ids[0]]=name;
+  if(ids.length>1&&!groups.some(g=>g.length===ids.length&&g.every(id=>ids.includes(id))))groups.push(ids);
+  for(const id of ids)if(!seen.has(id)){seen.add(id);ordered.push(id);}
+ }
+ if(!ordered.length)return [];
+ return (groups.length?groups:[[]]).map((group,index)=>{
+  const ids=index?[...group,...ordered.filter(id=>!group.includes(id))]:ordered;
+  let name=preset.name;if(index){name+=' · '+group.map(id=>names[id]||'Spell '+id).join(' + ');while(Buffer.byteLength(name)>120)name=Array.from(name).slice(0,-1).join('');}
+  return {variant:index,name,spells:ids.map(id=>({spellId:id,name:names[id]||'Spell '+id,together:group.includes(id)})),notes:{role:preset.role||'',hint:preset.hint||'',note:preset.note||'',gate:preset.gate??null,rows:(preset.rows||[]).map(([label,ids],i)=>({label,ids,when:preset.rowNotes?.[i]||''}))}};
+ });
 }
 export function priorityTables(doc){
  const all=walk(doc,()=>true);const presets=[];let heading='';

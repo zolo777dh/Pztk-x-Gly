@@ -1,3 +1,4 @@
+import {mythicCatalog} from './mythic-catalog.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {uid,writeAtomic,readSource,walk,copyResources,sha} from './files.mjs';
@@ -59,7 +60,7 @@ export class DoctorService {
       case 'nsr.referenceTable':return this.planner.read('tables',args.id);
       case 'nsr.read':return this.nsrEditor.view(args.id,await this.handle('timelines'),await this.nsrNames());
       case 'nsr.change':return this.nsrEditor.change(args,await this.handle('timelines'),await this.nsrNames());
-      case 'nsr.assignNpc':return this.nsrEditor.assignNpc(args,JSON.parse(await fs.readFile(path.join(this.resources,'npc-catalog.json'),'utf8')),await this.handle('timelines'),await this.nsrNames());
+      case 'nsr.assignNpc':return this.nsrEditor.assignNpc(args,mythicCatalog(JSON.parse(await fs.readFile(path.join(this.resources,'npc-catalog.json'),'utf8'))),await this.handle('timelines'),await this.nsrNames());
       case 'nsr.export':return this.nsrEditor.export(args);
       case 'nsr.reference':return this.nsrEditor.reference(args,await this.handle('timelines'),await this.nsrNames());
       case 'npc.catalog':return this.importantAbilities.catalog();

@@ -1,9 +1,9 @@
-# Version 0.1.11 validation
+# Version 0.1.12 validation
 
 ## Passed in the current environment
 
 - Frozen-lockfile dependency restoration with `npm ci --ignore-scripts`, activation of the official Electron archive after published SHA256 verification, and Vite production build with a desktop Content Security Policy.
-- **85/85 core tests, no skips**, with `DOCTOR_ADDON_TEST_ROOT` and `DOCTOR_LUA51` set. They exercise real filesystem writes, exact-byte ZIP recovery, BOM/CRLF preservation, stale-source refusal, backup failure, path traversal/symlink refusal, literal-only SavedVariables parsing, Unicode, session-token non-persistence, note history, pack serialization, real-addon decoding, WCL pagination/cache normalization, generic HTML/JSON/CSV parsing and five-pull averaging.
+- **89/89 core tests, no skips**, with `DOCTOR_ADDON_TEST_ROOT`, `DOCTOR_LUA51` and the uploaded Restoration Shaman HTML path set. They exercise real filesystem writes, exact-byte ZIP recovery, BOM/CRLF preservation, stale-source refusal, backup failure, path traversal/symlink refusal, literal-only SavedVariables parsing, Unicode, session-token non-persistence, note history, pack serialization, real-addon decoding, WCL pagination/cache normalization, generic HTML/JSON/CSV parsing and five-pull averaging.
 - Generated NSRPACK2 data was accepted by the unchanged `NaowhSmartReminders/NaowhUI_SmartReminders_Packs.lua` **DecodePack**, using native Lua 5.1 and its actual codec libraries. This validates the wire format, not in-game triggering.
 - Browser UI smoke: disposable demo → source edit → validate/preview → verified backup/apply → rollback; note save/export; supplied reference HTML; a structurally different CSV mapped to columns; five cached synthetic pulls with mean defensive offset **−3.00 s**. The CSV produces **−2.50 s**. Browser screenshots are in `test-results/`.
 - Desktop Electron launch under Linux/Xvfb, production build load, secured preload IPC and demo scan. Tested at 1672×941 and browser layout at 1280×800 without horizontal overflow.
@@ -144,3 +144,14 @@ The exhaustive simple-planner browser test passed for all 40 named specializatio
 [Windows run 39115777968](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39115777968) succeeded for commit `89f777ab5c5a4472134d7b019ca45ed3071e1390`. It passed core tests with external-addon prerequisites explicitly skipped in CI, native WCL engine checks, packaged desktop launch/IPC/DPAPI, simple planner HTML import → assignment → NSR export, advanced editor checks and native Windows ZIP extraction before publishing.
 
 The downloaded release matched SHA256 `ebd14533f0b1ec39f8cbb72a28780dc287726ba1b441ca7b2344ed62fa9f7d7b`, passed CRC checks for all 78 entries and Windows x64 PE validation. The downloaded app.asar then passed the Electron desktop smoke under Linux, including visible/service/package version equality at 0.1.11, empty startup WCL runs and the simple and advanced NSR workflows. Actual reminder triggering still requires the user's in-game check.
+
+
+## HTML ids arrays and Mythic+ mechanic selection (0.1.12)
+
+The uploaded `restoration_shaman_priority_presets_EN.html` reproduces the former empty-set error: its object rows use `label`, `ids` arrays and `when`; none of those IDs reached the old scalar-ID importer. The shared normalizer now reads that shape and the document's spell catalog/spec metadata. It does not select a file-specific parser or supply class presets. All 40 named specs passed the same ids-array browser import/assignment/export flow using structural inputs.
+
+The complete uploaded file passed core and browser checks: five original sets plus one alternative Together combination, all original spell IDs, deduplication, retained conditions and catalog names, assignment to Zaen's Murder in a Row (1218347), NSR export/reimport and source-note rendering. Different overlap combinations remain separate presets because the actual addon supports only one Together group per preset. Native Lua 5.1 loaded unchanged NSR DecodePack and accepted the exported profile. All 89 core tests passed without skips. The uploaded file is not bundled or published; a minimal structural reproduction is used by CI when the external path is absent.
+
+The catalog generator statically inspects known Mythic/Retail difficulty branches in LittleWigs options and intersects boss mechanic IDs with each NPC's seasonal MDT spell table. No downloaded Lua is executed. The resulting selectable catalog has 246 NPCs and 794 associations, with original associated IDs retained separately. Tests assert unique IDs/names, seasonal MDT membership for every choice, explicit exclusion of lower-difficulty metadata, and one Murder in a Row choice rather than its effect variants. This verifies the documented source snapshots, not a live difficulty validation from authenticated Warcraft Logs for every entry. See resources/CATALOG-SOURCES.md.
+
+The source Electron smoke passed after the new ids-array import, Together export and single-mechanic UI assertions, preserving existing IPC, version, clean-session, WCL and editor checks.
