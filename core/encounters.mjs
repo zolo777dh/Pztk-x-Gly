@@ -1,4 +1,5 @@
 import {parseDocument} from 'htmlparser2';
+import {normalizePriorityData,priorityTables} from './priority-reference.mjs';
 import {sha} from './files.mjs';
 function text(node){return node.type==='text'?node.data:(node.children||[]).map(text).join('');}
 function find(node,match,result=[]){if(match(node))result.push(node);for(const child of node.children||[])find(child,match,result);return result;}
@@ -9,7 +10,8 @@ export function parseReference(html,filename='reference.html'){
   const scripts=find(doc,n=>n.name==='script'&&n.attribs?.type==='application/json');let data;const candidates=[];
   if(/^[\s]*[\[{]/.test(html)){try{candidates.push(JSON.parse(html));}catch{throw Error('Invalid JSON reference');}}
   for(const node of scripts){try{candidates.push(JSON.parse(text(node)));}catch{}}
-  for(const value of candidates)if(Array.isArray(value.presets)&&Array.isArray(value.assignments)){data=value;break;}
+  for(const value of candidates)if(value?.presets&&typeof value.presets==='object'){data=normalizePriorityData(value);break;}
+  if(!data)data=priorityTables(doc);
   if(!data){const tables=find(doc,n=>n.name==='table').map(n=>find(n,c=>c.name==='tr').map(row=>(row.children||[]).filter(c=>c.name==='td'||c.name==='th').map(cell=>text(cell).trim())));const headings=find(doc,n=>/^h[1-6]$/.test(n.name||'')).map(text);
     for(const value of candidates){const arrays=Array.isArray(value)?[value]:Object.values(value||{}).filter(Array.isArray);for(const array of arrays){if(!array.length||!array.every(row=>row&&typeof row==='object'&&!Array.isArray(row)))continue;const keys=[...new Set(array.flatMap(Object.keys))].slice(0,50);tables.push([keys,...array.slice(0,10000).map(row=>keys.map(k=>row[k]==null?'':typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k])))]);}}
     if(/\.csv$/i.test(filename))tables.push(parseCSV(html));

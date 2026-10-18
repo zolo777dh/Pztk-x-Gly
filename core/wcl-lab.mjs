@@ -64,7 +64,7 @@ export class WclLab {
     await fs.mkdir(this.runsDir,{recursive:true});
     for(const name of (await fs.readdir(this.runsDir)).slice(-200)){
       if(!/^[a-f\d-]{36}$/.test(name))continue;
-      try{const run=JSON.parse(await fs.readFile(path.join(this.runsDir,name,'run.json'),'utf8'));run.id=name;run.output=path.join(this.runsDir,name,'output');if(run.status==='running'||run.status==='finishing'){run.status='interrupted';run.finishedAt=new Date().toISOString();run.message='The application closed before this operation finished. Partial files were kept.';try{run.files=(await this.scanFiles(run)).files;}catch{run.files=[];}await writeAtomic(path.join(this.runsDir,name,'run.json'),JSON.stringify(run));}this.jobs.set(name,run);}catch{}
+      try{const run=JSON.parse(await fs.readFile(path.join(this.runsDir,name,'run.json'),'utf8'));run.id=name;run.output=path.join(this.runsDir,name,'output');if(run.status==='running'||run.status==='finishing'){run.status='interrupted';run.finishedAt=new Date().toISOString();run.message='The application closed before this operation finished. Partial files were kept.';try{run.files=(await this.scanFiles(run)).files;}catch{run.files=[];}await writeAtomic(path.join(this.runsDir,name,'run.json'),JSON.stringify(run));}}catch{}
     }
     return this;
   }

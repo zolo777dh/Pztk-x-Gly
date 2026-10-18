@@ -2,7 +2,7 @@
 
 The generated ZIPs exist in the cloud workspace and passed archive integrity checks. Workspace links in chat were not downloadable in the user's interface; no binary-attachment upload tool is exposed in this session.
 
-The application is now published in `zolo777dh/Pztk-x-Gly`. [Download the Windows ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.10/Pztk-x-Glyalith-0.1.10-Windows-x64.zip) or open [release v0.1.10](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.10). The [Windows workflow](https://github.com/zolo777dh/Pztk-x-Gly/actions) tests, packages, launches and extracts the bundle before publishing its ZIP and checksum. Earlier Git write access was blocked; granting the GitHub connection access to this repository resolved it.
+The application is now published in `zolo777dh/Pztk-x-Gly`. [Download the Windows ZIP](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.1.11/Pztk-x-Glyalith-0.1.11-Windows-x64.zip) or open [release v0.1.11](https://github.com/zolo777dh/Pztk-x-Gly/releases/tag/v0.1.11). The [Windows workflow](https://github.com/zolo777dh/Pztk-x-Gly/actions) tests, packages, launches and extracts the bundle before publishing its ZIP and checksum. Earlier Git write access was blocked; granting the GitHub connection access to this repository resolved it.
 
 A push to `main`, or **Actions → Build Windows application → Run workflow**, creates a downloadable **Pztk-x-Glyalith-Windows-x64** artifact containing the Windows bundle and checksum. A successful build publishes the version's ZIP using the workflow's repository-scoped token. Existing release assets are preserved; bump the application version for a new release. Documentation-only commits can use `[skip ci]` to avoid rebuilding the same version.
 
