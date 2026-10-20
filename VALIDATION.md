@@ -6,7 +6,11 @@
 - Catalog sources, API coverage limits and the official VS Code / Zed workflow references are documented in resources/CATALOG-SOURCES.md and resources/DESIGN-NOTES.md. The 0.3.0 raid catalog includes factual phase schedules for native NSRT generation; these are not real player press times.
 - Browser UI passed: all 40 specializations through generic HTML import / assignment / combined NSR export; persistent multi-module AI tasks through review / backup / apply / validation / recovery; native NSRT generation / edit / export / undo; separate Forever manual profiles. Embedded workspace layout was inspected at 1672×1000 and 1200×800, without horizontal document overflow.
 - Production build and Windows x64 cross-package passed. The packaged app.asar launched under Linux Electron / Xvfb and passed secured IPC, local model transport, embedded view isolation, shared NSR / NSRT export, browser reply recovery and restart checks.
-- Original addon repositories remain unchanged. Windows CI and published download evidence will be recorded after publication.
+- Windows CI [39516926212](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39516926212) succeeded for source commit `aa4e7e057ef177a92cbd3b1901a0cab92831f3a3`: locked install, core tests, Windows package, native packaged desktop launch, checksum generation, Windows Expand-Archive and versioned release publication. External addon / native Lua compatibility checks run locally; those source checkouts are not installed on the Windows runner.
+- Downloaded the published v0.3.0 ZIP and verified SHA256 against its release manifest. All 79 entries were readable; version 0.3.0, AI Workspace / NSRT code and the full English capabilities guide were present. BGMT / WCL engines were absent. The extracted published app.asar passed the native Electron desktop workflow again under Linux / Xvfb, including NSR / NSRT exports and restart persistence.
+- Published archive: `Pztk-x-Glyalith-0.3.0-Windows-x64.zip`, **144,994,772 bytes**, SHA256 `6b5dedbc8a63a38ca125fda19f386e12c5e48307705562222283da9afabb2bf7`.
+- [Windows download](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.3.0/Pztk-x-Glyalith-0.3.0-Windows-x64.zip) · [Full English capabilities guide](resources/APP-CAPABILITIES.md).
+- Original NaowhForever and NaowhSmartReminders repositories remain clean and unchanged. Live in-game triggering and authenticated provider website sessions remain user checks.
 
 # Historical validation — 0.2.0
 
