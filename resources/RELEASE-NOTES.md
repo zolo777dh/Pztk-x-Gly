@@ -1,12 +1,17 @@
-Pztk x Glyalith 0.2.0 — Windows x64
+Pztk x Glyalith 0.3.0 — Windows x64
 
-- WCL / BGMT Lab and Encounter Notes are replaced by Defensive Planner (M+) and Raid Planner.
-- One shared NSR profile contains defensive sets for all 40 specializations, Mythic+ boss/trash bindings and raid bindings. Import HTML sets or an existing NSRPACK2 profile, edit sets, assign mechanics and export one string.
-- M+ uses the existing eight-dungeon Mythic+ catalog. Raid has 20 bosses from the supplied NorthernSkyRaidTools reference, with Heroic / Mythic ability filters. Shared abilities use the same assignment; no automatic difficulty switching is needed.
-- Browser assistant: prepare/review a request, copy it into ChatGPT or Claude in your normal browser, then paste/upload the JSON reply. Lua validation and patch preview precede a separate Backup & Apply action. No API key is needed in Browser mode. Optional local/cloud API modes remain available.
-- Removed bundled BGMT engine, WCL credentials UI, online log imports, run history and defensive timing averages. Existing local profiles/backups and original addon files are preserved.
+A unified desktop workspace for addon diagnostics, AI-assisted source changes and NSR / NSRT profile preparation.
 
-Quick start: extract the whole archive to a normal folder, then launch “Pztk x Glyalith.exe”.
-Defensive Planner / Raid Planner → select specialization → Import profile / HTML → select dungeon/boss and ability → choose a defensive set → Export NSR. Sets and assignments are shared across both tabs and saved locally.
+- AI Workspace: persistent tasks and conversations, selected-project context, related Lua symbol candidates, TOC/XML loader references, bounded source excerpts and explicit Retail / Forever build context. Review the request before sending.
+- ChatGPT / Claude websites can open in a sandboxed panel inside the application. Use your website account and subscription; copy the request into the site and paste its JSON reply into the task. External browser fallback remains available. Website login support depends on the provider.
+- Optional local API and cloud API use the same workspace. Cloud model lists are loaded for your API key; API access is separate from a website subscription. API keys are kept only for the current app session.
+- Review changes across multiple addon modules, select files, validate Lua 5.1 syntax and apply with a verified ZIP backup. New Lua/TOC/XML files are supported in existing addon directories. Source changes invalidate stale proposals. Failed writes roll back earlier writes; task backups can restore the original files.
+- Native NSRT profiles: import/export current !NSRT:Profile: and full !NSRT:EncounterAlert: strings; visually edit raid reminders, phase schedules, Heroic/Mythic difficulty and specialization filters. Unknown imported fields are retained. Previous profile revisions can be restored.
+- Raid assignments can build a separate NSRT profile, optionally based on a copy of an existing NSRT profile. Source phase schedules produce reminders for the assigned defensive set, with its first spell icon. NSRT does not reproduce NSR's cooldown-based selection. Generation reports skipped assignments.
+- Retail and Forever have separate NSR / NSRT working profile lists and active NSR drafts. The bundled eight-dungeon M+ and 20-boss raid catalogs are Retail Midnight data. Forever uses its imported / manually configured encounters, rather than the Retail catalog.
+- Existing selected-addon batch scans, BugSack/BugGrabber imports, code search, folder selection / refresh / removal, shared M+ and raid NSR exports and all 40 specialization choices remain available. Addons starts empty each launch; profile and task history persist.
+- WCL / BGMT integration and timing-average analysis remain removed. App changes do not publish local addon edits to their GitHub repositories.
 
-The NSR decoder accepts the exported combined profile. In-game triggers still depend on the installed boss-mod events: the raid catalog records source spell IDs and confirmed NSR aliases, not a live verification of every boss-mod timer. Test the profile inside WoW. Trash reminders require NSR's ExBoss integration. This application does not press abilities or modify the original addon repositories.
+Extract the complete ZIP into a normal folder, then launch “Pztk x Glyalith.exe”. No Node.js installation is required.
+
+See START-HERE.txt and resources/APP-CAPABILITIES.md in the source repository for the complete workflow and limitations. Check generated patches and reminder behavior inside WoW. Account-licensed addon packs remain subject to the addon's licensing rules.

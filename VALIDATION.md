@@ -1,4 +1,14 @@
-# Current validation — 0.2.0
+# Current validation — 0.3.0
+
+- Local core suite: **86 tests passed, 0 failures, 0 skips**, with native Lua 5.1 and the unchanged NSR / uploaded NSRT sources available. Tests cover bounded project context, cross-module tasks, exact anchors, source guards, new files, verified backups, recovery, injected partial write failures, client-separated NSR workspaces, CBOR and native NSRT persistence / editing / export.
+- NSRT generation was decoded and imported through the unchanged supplied NSRT Functions.lua / Profiles.lua / Reminders.lua using an independent CBOR shim for the unavailable game C_EncodingUtil. Native numeric encounter / difficulty / phase / spec keys and specialization load filters were checked. This validates serialization and addon import paths; it does not validate live WoW scheduling.
+- Browser subscription mode is manual prompt / JSON reply transfer. The embedded WebContentsView is checked for sandboxing, no Node integration, context isolation and absence of the app preload. Authenticated ChatGPT / Claude sessions require the user's account and were not exercised.
+- Catalog sources, API coverage limits and the official VS Code / Zed workflow references are documented in resources/CATALOG-SOURCES.md and resources/DESIGN-NOTES.md. The 0.3.0 raid catalog includes factual phase schedules for native NSRT generation; these are not real player press times.
+- Browser UI passed: all 40 specializations through generic HTML import / assignment / combined NSR export; persistent multi-module AI tasks through review / backup / apply / validation / recovery; native NSRT generation / edit / export / undo; separate Forever manual profiles. Embedded workspace layout was inspected at 1672×1000 and 1200×800, without horizontal document overflow.
+- Production build and Windows x64 cross-package passed. The packaged app.asar launched under Linux Electron / Xvfb and passed secured IPC, local model transport, embedded view isolation, shared NSR / NSRT export, browser reply recovery and restart checks.
+- Original addon repositories remain unchanged. Windows CI and published download evidence will be recorded after publication.
+
+# Historical validation — 0.2.0
 
 - The app replaces WCL/BGMT and Encounter Notes with Mythic+ and Raid planners over one saved NSR working profile. There are no live log imports, bundled parser, timing means or WCL credential controls in this version.
 - Local core suite: **75 tests passed, 0 failures, 0 skips**, with native Lua 5.1 and the unchanged NSR checkout available. Combined M+ boss/trash and raid Heroic/Mythic exports were decoded by NSR; all 40 specializations use the same HTML/import/assignment pipeline. Raid alias migration preserves existing custom binding fields and warning lead time.

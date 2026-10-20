@@ -38,8 +38,8 @@ jobs:
             Write-Output "::error title=Core test failure::$annotation"
             exit $testExit
           }
-      # The real-addon DecodePack test is explicitly skipped here: it needs the
-      # external Smart Reminders checkout and Lua 5.1. It passed in the cloud build.
+      # Native addon compatibility checks require the external NSR / NSRT sources
+      # and Lua 5.1. They run locally; the Windows runner uses portable fixtures.
       - name: Package Windows x64
         run: npm run package:win
       - name: Launch packaged desktop and verify IPC, AI transport and pack codec

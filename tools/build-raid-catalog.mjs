@@ -30,10 +30,11 @@ export async function buildRaidCatalog(root,nsrRoot){
     if(!tables[key]?.abilities)throw Error('Missing difficulty in '+file);
     for(const row of Object.values(tables[key].abilities)){
      const id=Number(row.spellID);if(!Number.isInteger(id)||id<=0||!row.name)continue;
-     const a=bySpell.get(id)||{id,name:row.name,timerSpellId:Number(canonical[id]||id),timerSource:canonical[id]?'NSR explicit alias':'NSRT spell ID; verify boss-mod broadcast',difficulties:[],categories:[],phases:{}};
+     const a=bySpell.get(id)||{id,name:row.name,timerSpellId:Number(canonical[id]||id),timerSource:canonical[id]?'NSR explicit alias':'NSRT spell ID; verify boss-mod broadcast',difficulties:[],categories:[],phases:{},nsrtSchedule:{}};
      if(!a.difficulties.includes(difficulty))a.difficulties.push(difficulty);
      for(const category of String(row.category||'').split(',').map(c=>c.trim()).filter(Boolean))if(!a.categories.includes(category))a.categories.push(category);
      a.phases[difficulty]||=[];if(row.phase!=null&&!a.phases[difficulty].includes(row.phase))a.phases[difficulty].push(row.phase);
+     a.nsrtSchedule[difficulty]||={};const phase=String(row.phase||1);a.nsrtSchedule[difficulty][phase]||=[];for(const time of Object.values(row.times||{}))if(Number.isFinite(time)&&time>=0&&!a.nsrtSchedule[difficulty][phase].includes(time))a.nsrtSchedule[difficulty][phase].push(time);a.nsrtSchedule[difficulty][phase].sort((x,y)=>x-y);
      bySpell.set(id,a);
     }
    }
@@ -41,6 +42,6 @@ export async function buildRaidCatalog(root,nsrRoot){
   }
   bosses.sort((a,b)=>Object.values(ids).indexOf(a.id)-Object.values(ids).indexOf(b.id));seasons.push({id:folder,name:title,bosses});
  }
- return {format:1,client:'retail',source:{name:'NorthernSkyRaidTools',version:'12.1.31',files:sources,metadataSha256:createHash('sha256').update(metadata).digest('hex'),aliasesSha256:createHash('sha256').update(abilities).digest('hex'),scope:'Factual spell IDs, encounter IDs, names, categories and difficulty membership only. No timelines or executable addon code.'},seasons};
+ return {format:1,client:'retail',source:{name:'NorthernSkyRaidTools',version:'12.1.31',files:sources,metadataSha256:createHash('sha256').update(metadata).digest('hex'),aliasesSha256:createHash('sha256').update(abilities).digest('hex'),scope:'Factual spell IDs, encounter IDs, names, categories and difficulty membership only. Phase-relative schedule facts for native NSRT alerts; no executable addon code.'},seasons};
 }
 if(process.argv[1]===new URL(import.meta.url).pathname){const [root,nsrRoot]=process.argv.slice(2);if(!root||!nsrRoot)throw Error('Usage: node tools/build-raid-catalog.mjs NSRT_ROOT NSR_ROOT');await fs.writeFile('resources/raid-catalog.json',JSON.stringify(await buildRaidCatalog(root,nsrRoot),null,2)+'\n');}

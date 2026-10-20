@@ -1,3 +1,7 @@
+import {AssistantWorkspace} from './assistant-workspace.mjs';
+import {TaskPatches} from './task-patches.mjs';
+import {NsrtProfiles} from './nsrt.mjs';
+import {buildProjectContext} from './project-context.mjs';
 import {mythicCatalog} from './mythic-catalog.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -21,7 +25,7 @@ import {DefensivePlanner,inspectDefenseTable} from './defensive-planner.mjs';
 const {version:APP_VERSION}=JSON.parse(await fs.readFile(new URL('../package.json',import.meta.url),'utf8'));
 const defaults={cloudProvider:'openai',anthropicModel:'',compatibleEndpoint:'https://api.openai.com/v1',compatibleModel:'',client:'retail',localEndpoint:'http://127.0.0.1:11434/v1',localModel:'qwen2.5-coder:7b',cloudEndpoint:'https://api.openai.com/v1',cloudModel:'',aiMode:'browser',assistantWorkflow:'browser-v1'};
 export class DoctorService {
-  constructor(dataDir,resources,{fetcher}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],knownProjects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.aiModelLists=new Map();this.tokens={};this.features=new Map();this.patches=new Patches(dataDir);this.codec=new PackCodec(resources);this.planner=new DefensivePlanner(dataDir,this.codec);this.nsrEditor=new NsrEditor(this.planner);this.spellNames=new SpellNames(dataDir,fetcher);this.importantAbilities=new ImportantAbilities(dataDir,resources,fetcher);}
+  constructor(dataDir,resources,{fetcher}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],knownProjects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.aiModelLists=new Map();this.tokens={};this.features=new Map();this.patches=new Patches(dataDir);this.taskPatches=new TaskPatches(dataDir,this.patches);this.assistant=new AssistantWorkspace(dataDir,this);this.nsrt=new NsrtProfiles(dataDir);this.codec=new PackCodec(resources);this.planner=new DefensivePlanner(dataDir,this.codec);this.nsrEditor=new NsrEditor(this.planner);this.spellNames=new SpellNames(dataDir,fetcher);this.importantAbilities=new ImportantAbilities(dataDir,resources,fetcher);}
   async init(){await fs.mkdir(this.dataDir,{recursive:true});try{const s=JSON.parse(await fs.readFile(this.file,'utf8'));this.state={projects:[],knownProjects:[...new Map([...(s.knownProjects||[]),...(s.projects||[])].map(p=>[this.rootKey(p.root),p])).values()],notes:s.notes||[],hiddenRoots:[],settings:{...defaults,...s.settings}};if(!s.settings?.assistantWorkflow)this.state.settings.aiMode='browser';if(!s.settings?.cloudProvider&&s.settings?.cloudEndpoint&&s.settings.cloudEndpoint!=='https://api.openai.com/v1'){this.state.settings.cloudProvider='compatible';this.state.settings.compatibleEndpoint=s.settings.cloudEndpoint;this.state.settings.compatibleModel=s.settings.cloudModel||'';}}catch(e){if(e.code!=='ENOENT')throw Error('Workspace data could not be read. Preserve workspace.json before recovering it.');}return this;}
   cloudKey(provider=cloudProvider(this.state.settings)){return this.tokens[provider]||'';}
   tokenStatus(){return {cloud:Boolean(this.cloudKey()),cloudProviders:Object.fromEntries(['openai','anthropic','compatible'].map(p=>[p,Boolean(this.tokens[p])]))};}
@@ -37,6 +41,25 @@ export class DoctorService {
   async handle(method,args={}){
     switch(method){
       case 'init':return { ...this.state,version:APP_VERSION,backups:await this.patches.list(),tokens:this.tokenStatus()};
+      case 'assistant.list':return this.assistant.list();
+      case 'assistant.create':return this.assistant.create(args);
+      case 'assistant.read':return this.assistant.view(await this.assistant.read(args.id));
+      case 'assistant.prepare':return this.assistant.prepare(args);
+      case 'assistant.receive':return this.assistant.receive(args.id,args.requestId,args.text);
+      case 'assistant.generate':return this.assistant.generate(args.id,args.requestId);
+      case 'assistant.apply':return this.assistant.apply(args.id,args.requestId,args.selected);
+      case 'assistant.verify':{const task=await this.assistant.read(args.id),results=[];for(const id of task.projectIds){const scan=await analyze(this.project(id),task.client);this.scans.set(id,scan);results.push({projectId:id,...scan});}task.messages.push({id:uid(),role:'system',text:'Validation: '+results.map(r=>this.project(r.projectId).name+': '+r.issues.length+' findings in '+r.luaCount+' Lua files').join('; ')});await this.assistant.save(task);return {task:this.assistant.view(task),results};}
+      case 'task.backups':return this.taskPatches.list();
+      case 'task.restore':return this.taskPatches.restore(this.state.projects,args.id);
+      case 'projects.context':return (await buildProjectContext((args.projectIds||[]).map(id=>this.project(id)),args)).context;
+      case 'nsrt.list':return this.nsrt.list();
+      case 'nsrt.create':return this.nsrt.create(args);
+      case 'nsrt.import':return this.nsrt.import(args);
+      case 'nsrt.read':return this.nsrt.view(await this.nsrt.read(args.id));
+      case 'nsrt.edit':return this.nsrt.edit(args);
+      case 'nsrt.undo':return this.nsrt.undo(args);
+      case 'nsrt.export':return this.nsrt.export(args.id);
+      case 'nsrt.fromNsr':{const draft=await this.nsrEditor.read(args.id);if(draft.revision!==args.revision)throw Error('NSR draft changed. Refresh before exporting.');return this.nsrt.fromNsr({...args,draft,catalog:await this.handle('raid.catalog')});}
       case 'project.addMany':return this.addMany(args);
       case 'project.add':{
         if(typeof args.root!=='string'||!args.root)throw Error('Select an addon directory');const root=await fs.realpath(args.root);const existing=this.state.projects.find(p=>p.root===root);if(existing)return existing;
@@ -50,7 +73,7 @@ export class DoctorService {
       case 'source':return readSource(this.project(args.id).root,args.file);
       case 'source.search':return searchSources(this.state.projects,args);
       case 'spells.resolve':return this.spellNames.resolve(args.ids,{online:args.online!==false});
-      case 'nsr.open':{const id=await this.nsrEditor.open(args);await writeAtomic(path.join(this.planner.dir,'active.json'),JSON.stringify({profileId:args.profileId,profileKey:args.profileKey||''}));return this.nsrEditor.view(id,[],await this.nsrNames());}
+      case 'nsr.open':{const id=await this.nsrEditor.open(args),item=args.profileId?await this.planner.read('profiles',args.profileId):null,client=item?.client||'retail';await writeAtomic(path.join(this.planner.dir,client==='retail'?'active.json':'active-'+client+'.json'),JSON.stringify({profileId:args.profileId,profileKey:args.profileKey||''}));return this.nsrEditor.view(id,[],await this.nsrNames());}
       case 'nsr.referenceTable':return this.planner.read('tables',args.id);
       case 'nsr.read':return this.nsrEditor.view(args.id,[],await this.nsrNames());
       case 'nsr.change':return this.nsrEditor.change(args,[],await this.nsrNames());
@@ -62,9 +85,9 @@ export class DoctorService {
       case 'npc.catalog':return this.importantAbilities.catalog();
       case 'npc.importantImport':return this.importantAbilities.import(args);
       case 'npc.importantMark':return this.importantAbilities.mark(args);
-      case 'planner.createProfile':return this.planner.importProfile(this.codec.encode({format:1,name:'My defensive profile',data:{presets:{},activePreset:{},bindingsBySpec:true,abilityBindings:{},integrationRules:{}}}));
-      case 'planner.state':return this.planner.state();
-      case 'planner.importProfile':return this.planner.importProfile(args.text);
+      case 'planner.createProfile':return this.planner.importProfile(this.codec.encode({format:1,name:'My defensive profile',data:{presets:{},activePreset:{},bindingsBySpec:true,abilityBindings:{},integrationRules:{}}}),args.client);
+      case 'planner.state':if(args.client&&!['retail','forever'].includes(args.client))throw Error('Choose Retail or Forever');return this.planner.state(args.client);
+      case 'planner.importProfile':return this.planner.importProfile(args.text,args.client);
       case 'planner.importTable':return this.planner.importTable(args);
       case 'planner.inspectTable':return inspectDefenseTable(args.text,args.filename);
       case 'errors':{const p=this.project(args.id);const scan=this.scans.get(p.id);const files=scan?.files||await walk(p.root);let text=args.text;let summary=null;

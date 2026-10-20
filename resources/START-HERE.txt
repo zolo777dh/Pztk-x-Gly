@@ -1,49 +1,79 @@
-Pztk x Glyalith 0.2.0 — Windows x64
+Pztk x Glyalith 0.3.0 — Windows x64
 
-Распакуйте архив целиком в обычную папку и запустите Pztk x Glyalith.exe.
-Не запускайте exe прямо из ZIP. Node.js и среда разработки не требуются.
+Extract the complete ZIP into a normal folder and launch Pztk x Glyalith.exe.
+Do not run the exe directly inside the ZIP. Node.js is not required.
 
-DEFENSIVE PLANNER / RAID PLANNER
-1. Выберите специализацию по названию (доступны все 40).
-2. Import profile / HTML: загрузите NSRPACK2 или HTML/JSON с наборами защит.
-   HTML импортируется для выбранной специализации независимо от имени файла.
-   Поддерживаются структурированные presets и статические таблицы наборов со spell ID.
-3. Для М+ выберите одно из восьми подземелий, НИП/босса и его способность.
-   Для рейда выберите сезон и Heroic / Mythic, затем босса и способность.
-4. Выберите набор защит. Назначение автоматически сохраняется локально.
-5. Export NSR создаёт одну строку с М+, рейдом и всеми настроенными специализациями.
-   Импортируйте её в Naowh Smart Reminders и проверьте поведение в игре.
+ADDONS AND DIAGNOSTICS
+Choose Retail or Forever before working. Add the base addon and module folders
+with +, or select their common parent directory. Multiple folders can be added
+and selected together. Scan checks every selected addon under the selected client.
+Ctrl+A, Ctrl+click, Shift+click and Shift+drag support multiple folder selection.
+Right-click Refresh updates the source listing. Delete folder removes the entry
+from the application list; it does not delete your addon from disk.
+Ctrl+F searches the open source; Ctrl+Shift+F searches connected addon folders.
+Import BugSack / BugGrabber reads exported errors / SavedVariables. It does not
+read the live game process. Save game data with /reload, logout or exit first.
+The Addons list starts empty each launch. Reconnect the same folders to continue
+saved tasks. Task history, profiles, settings and backups remain saved locally.
 
-Обе вкладки редактируют ОДИН профиль. Наборы защит доступны в обеих вкладках.
-Heroic / Mythic фильтрует список механик; одинаковый spell ID использует общее назначение.
-Для М+ доступны только способности сезонного каталога Эпохальный+.
-Реальные времена нажатий и парсер логов не нужны.
-Edit defensive sets открывает редактор: название, порядок, spell ID и Together.
-Рабочие профили и исходные строки сохраняются отдельно; профили переживают перезапуск.
-База рейдов взята из присланного NorthernSkyRaidTools: только ID, названия и принадлежность
-к сложности, без Lua-кода и времён. Подтверждённые различия ID/ключей NSR учитываются.
-Наличие способности в справочнике не создаёт отсутствующее событие в boss-mod.
-Для треша нужны ExBoss и подходящие таймеры; карта и spell ID сохраняются отдельно от NPC.
+AI WORKSPACE
+1. Select your addon projects, open AI Workspace and describe an error or feature.
+   Diagnostics can open a task with the selected file and runtime error context.
+2. Prepare context. Review the Context tab: build, source excerpts, loaders,
+   lexical symbol matches and the complete request. No request is sent yet.
+3. Browser mode: open Browser panel, select ChatGPT or Claude and Open inside app.
+   Sign in normally. Copy request, paste it into the website, then copy the JSON
+   reply into Import JSON reply. Load reply also accepts a .json / .txt file.
+   An external browser is available if the provider rejects embedded login.
+4. Local / Cloud API: configure an endpoint, model and any API key in Settings.
+   Load available models and Save Settings. Send reviewed request sends the
+   prepared request to that endpoint. Cloud API billing is separate from a
+   ChatGPT / Claude website subscription. API keys are session-only.
+5. Validate reply, inspect Changes and select files to accept. Backup & apply
+   verifies a ZIP backup before writing. Validate task projects rescans the code.
+6. Restore task backup can restore original files if no later edits conflict.
+   New files are removed by recovery only when their contents still match.
 
-БРАУЗЕРНЫЙ ПОМОЩНИК — БЕЗ API-КЛЮЧА
-Diagnostics / Patch Assistant → Browser → Analyze selected file.
-Или Describe a feature → Browser → Prepare browser request.
-Просмотрите контекст → Copy request → Open ChatGPT / Open Claude → вставьте запрос.
-Вернитесь в приложение: вставьте JSON-ответ или загрузите файл ответа.
-Validate & preview reply проверяет Lua и показывает изменения.
-Create Backup & Apply создаёт проверенный ZIP-бэкап и применяет патч.
-Если исходный код изменился после подготовки запроса, подготовьте новый запрос.
-Используется обычный аккаунт в браузере и его лимиты; обмен запросом/ответом ручной.
-Settings позволяет выбрать Browser, Local API либо Cloud API.
-Подписка ChatGPT/Claude и оплата API — разные услуги; Browser не требует API.
+The assistant can propose changes across selected modules and create Lua / TOC /
+XML files in existing directories. It cannot delete files or create directories.
+Exact anchors and source hashes prevent applying an answer to changed code.
+Lua syntax checks do not verify every game API or guarantee behavior in combat.
+Website mode uses manual prompt / response transfer; it does not automate your
+subscription or provide API access through the website account.
 
-ДИАГНОСТИКА И ФАЙЛЫ
-Addons → +: выберите несколько папок или общую папку NaowhForever и модулей.
-Ctrl+A, Ctrl+ЛКМ, Shift+ЛКМ и Shift+перетаскивание выделяют несколько папок.
-Scan сканирует выделенные папки под выбранный профиль Retail / Forever.
-ПКМ → Refresh / Delete folder: обновление либо удаление только из списка.
-После перезапуска список Addons пустой; рабочие профили и бэкапы сохраняются.
-Ctrl+F ищет в открытом файле; Ctrl+Shift+F — по подключённым папкам.
-Import BugSack / BugGrabber читает сохранённые ошибки, а не память процесса игры.
-Перед записью исходников всегда создаётся бэкап; поведение проверяется вами внутри WoW.
-Изменения локальных аддонов автоматически в GitHub не отправляются.
+NSR: DEFENSIVE PLANNER / RAID PLANNER
+Choose specialization by name (all 40 supported), then import an NSRPACK2 profile
+or an HTML / JSON reference containing defensive sets. Create sets manually if
+preferred. The importer reads the document's supported data / tables, not its name.
+M+: choose dungeon -> NPC / boss -> ability -> defensive set.
+Raid: choose season and Heroic / Mythic -> boss -> ability -> defensive set.
+Assignments save locally. Both tabs edit ONE NSR profile. Export NSR creates one
+string containing the configured M+, trash and raid rules for all configured specs.
+Copy the string into Naowh Smart Reminders inside the game and verify triggers.
+Trash needs NSR's ExBoss integration. A catalog entry cannot create a missing timer.
+Account-licensed packs must be managed in the addon; licenses are not bypassed.
+
+NSRT: NATIVE RAID PROFILES
+Raid Planner -> NSRT profiles imports current !NSRT:Profile: or full
+!NSRT:EncounterAlert: exports. Create / edit reminders, encounter IDs, Heroic /
+Mythic difficulty, defensive icon / mechanic IDs, text, spec and phase-relative times.
+Blank specialization preserves imported load filters. Explicit spec restricts them.
+Restore previous version restores the preceding locally saved profile revision.
+Single / group alert exports can roundtrip but require a full alerts export for
+visual editing. The supported codec is the current CBOR / Deflate format.
+
+Build NSRT profile uses shared NSR raid assignments and factual source schedules.
+Choose a new profile or a copy of an existing NSRT profile. Review the generation
+summary and skipped assignments, edit times if required, then Export NSRT profile.
+NSRT shows the assigned set as text with its first spell icon. It does not implement
+NSR's cooldown-based priority selection. NSRT may ask you to confirm shared raid
+data during import. Import the string in NSRT and test it in game.
+
+CLIENT AND DATA LIMITS
+Retail target: 12.1.5.70448. Forever target: 1.60.1.70425.
+NSR and NSRT workspaces are separated by client. The bundled eight M+ dungeons
+and 20 raid bosses are Retail Midnight reference data. For Forever, use imported
+or manually configured encounters and verify the installed addon's compatibility.
+The app does not install profiles into live game memory, press abilities, publish
+addon source edits to GitHub, or remove addon licensing. WCL / BGMT parsing and
+real defensive-press timing averages are not included in this version.

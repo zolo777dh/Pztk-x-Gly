@@ -1,10 +1,10 @@
 # NPC and dungeon catalog
 
-## Raid catalog (0.2.0)
+## Raid catalog (0.3.0)
 
-`raid-catalog.json` reads factual encounter/spell IDs, English names, categories and Heroic/Mythic membership from the user-supplied NorthernSkyRaidTools 12.1.31 BossData.lua and 20 BossTimelines files (Midnight S1/S2). Repeated phases are deduplicated by spell ID while difficulty/phase membership is retained. No executable Lua, alert implementation, timelines, cast times or defensive sets from that addon are bundled. The reference is All Rights Reserved; this app uses its own implementation and a factual catalog.
+`raid-catalog.json` reads factual encounter/spell IDs, English names, categories and Heroic/Mythic membership from the user-supplied NorthernSkyRaidTools 12.1.31 BossData.lua and 20 BossTimelines files (Midnight S1/S2). Repeated phases are deduplicated by spell ID while difficulty/phase membership is retained. The 0.3.0 catalog also records literal phase-relative mechanic schedules per difficulty for native NSRT reminder generation. No executable Lua, alert implementation or defensive sets from that addon are bundled. These reference schedules are not observed player defensive presses. The reference is All Rights Reserved; this app uses its own implementation and a factual catalog.
 
-Confirmed timer aliases are taken from the supplied NSR `BOSSMOD_KEY_TO_JOURNAL` and `DBM_TO_BIGWIGS` literals. Source spell IDs used for icons are not proof that every boss mod broadcasts the same timer key. Unaliased entries retain their factual spell ID with an explicit source/verification note. In-game behavior needs the installed NSR/boss-mod events. Difficulty is only a UI catalog filter; shared encounter/spell bindings are exported once.
+Confirmed timer aliases are taken from the supplied NSR `BOSSMOD_KEY_TO_JOURNAL` and `DBM_TO_BIGWIGS` literals. Source spell IDs used for icons are not proof that every boss mod broadcasts the same timer key. Unaliased entries retain their factual spell ID with an explicit source/verification note. In-game behavior needs the installed NSR/boss-mod events. For NSR, difficulty is a UI catalog filter and shared encounter/spell bindings are exported once. Native NSRT exports use separate Heroic and Mythic alert tables with their own phase schedules.
 
 Reproduce with `node tools/build-raid-catalog.mjs EXTRACTED_NSRT_ROOT NSR_CHECKOUT`. The JSON records per-file SHA256 and metadata/alias-source hashes. Uploaded Lua is parsed as literals, never executed; the source addon itself is not shipped.
 
