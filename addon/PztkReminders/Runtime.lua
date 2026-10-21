@@ -1,14 +1,17 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.PztkReminders = ns
-ns.version = "0.1.0"
+ns.version = "0.1.1"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
 end
 function ns.Get(t, key)
-    if type(t) ~= "table" or key == nil then return nil end
-    return t[key] or t[tostring(key)] or (tonumber(key) and t[tonumber(key)])
+    if not ns.Plain(t, "table") or not ns.Plain(key) or (type(key) ~= "string" and type(key) ~= "number") then return nil end
+    if t[key] ~= nil then return t[key] end
+    if t[tostring(key)] ~= nil then return t[tostring(key)] end
+    local numeric = tonumber(key)
+    if numeric then return t[numeric] end
 end
 function ns.Conflict()
     local loaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
@@ -52,9 +55,10 @@ function ns.Target(t)
     if t.names and next(t.names) then
         local name, realm
         if UnitFullName then name, realm = UnitFullName("player") end
+        if not ns.Plain(name) or not ns.Plain(realm) then return false end
         name = name or UnitName("player")
         realm = realm or (GetRealmName and GetRealmName())
-        if not ns.Plain(name) or not ns.Plain(realm) then return false end
+        if not ns.Plain(name, "string") or not ns.Plain(realm, "string") then return false end
         local full = name and realm and (name .. "-" .. realm:gsub("%s+", ""))
         if not t.names[name] and not (full and t.names[full]) then return false end
     end
@@ -62,7 +66,10 @@ function ns.Target(t)
         local group = 1
         for i = 1, 40 do
             local name, _, subgroup = GetRaidRosterInfo(i)
-            if name and UnitIsUnit(name, "player") then group = subgroup; break end
+            if ns.Plain(name, "string") and ns.Plain(subgroup, "number") then
+                local isPlayer = UnitIsUnit("raid" .. i, "player")
+                if ns.Plain(isPlayer, "boolean") and isPlayer then group = subgroup; break end
+            end
         end
         if not ns.Get(t.subgroups, group) then return false end
     end
@@ -99,6 +106,7 @@ function ns.Fire(entry)
 end
 function ns.Reset()
     ns.Cancel(); ns.generation = ns.generation + 1; ns.occurrences = {}; ns.encounter = nil; ns.phase = nil
+    if ns.ResetProviders then ns.ResetProviders() end
     if ns.HideDisplays then ns.HideDisplays() end
 end
 function ns.Anchor(kind, phase)
@@ -114,9 +122,11 @@ function ns.Anchor(kind, phase)
     end
 end
 function ns.Begin(encounter, difficulty, map)
-    if not ns.Plain(encounter, "number") or not ns.Plain(difficulty, "number") then return end
+    if not ns.Plain(encounter, "number") or not ns.Plain(difficulty, "number") then ns.Reset(); return end
+    local firstBars=ns.CaptureProviderTimers and ns.CaptureProviderTimers(encounter)
     ns.Reset(); ns.encounter, ns.difficulty, ns.map, ns.phase = encounter, difficulty, map, 1
     ns.Anchor("pull"); ns.Anchor("stage", 1)
+    if ns.ReplayProviderTimers then ns.ReplayProviderTimers(firstBars) end
 end
 function ns.Phase(phase)
     if not ns.Plain(phase, "number") or phase == ns.phase or not ns.encounter then return end
@@ -127,12 +137,12 @@ local function Ready(spell)
     if known then local ok, value = pcall(known, spell); if not ok or not ns.Plain(value, "boolean") or not value then return false end end
     if C_Spell and C_Spell.GetSpellCharges then
         local ok, charges = pcall(C_Spell.GetSpellCharges, spell)
-        if ok and charges and ns.Plain(charges) and ns.Plain(charges.currentCharges, "number") then return charges.currentCharges > 0 end
+        if ok and ns.Plain(charges, "table") and ns.Plain(charges.currentCharges, "number") then return charges.currentCharges > 0 end
     end
     local start, duration, enabled
     if C_Spell and C_Spell.GetSpellCooldown then
         local ok, cd = pcall(C_Spell.GetSpellCooldown, spell)
-        if not ok or not cd or not ns.Plain(cd) then return false end
+        if not ok or not ns.Plain(cd, "table") then return false end
         start, duration, enabled = cd.startTime, cd.duration, cd.isEnabled
     elseif GetSpellCooldown then
         local ok
@@ -155,17 +165,18 @@ function ns.Pick(preset)
     end
     return result
 end
-function ns.Defensive(binding, lead, key)
+function ns.Defensive(binding, lead, key, valid)
     local profile, spec = ns.Active(), ns.Spec()
     if not profile or binding.enabled == false or not spec then return end
     ns.Schedule(key, math.max(0, lead), function()
+        if ns.Spec() ~= spec or (valid and not valid()) then return end
         local presetKey = binding.preset or ns.Get(profile.data.activePreset, spec)
         local preset = ns.Get(ns.Get(profile.data.presets, spec), presetKey)
         local spells = ns.Pick(preset)
         if #spells > 0 and ns.Display then ns.Display({type="icon",spells=spells,spellID=spells[1],text=binding.display and binding.display.text or "Use defensive",dur=binding.display and binding.display.dur or 5,sound=binding.sound}) end
     end)
 end
-function ns.Mechanic(spell, duration, identity, encounter)
+function ns.Mechanic(spell, duration, identity, encounter, skipDefensive)
     if not ns.Plain(spell, "number") or (duration ~= nil and not ns.Plain(duration, "number")) then return end
     if ns.Conflict() or not ns.Plain(identity) or not ns.Plain(encounter) then return end
     local profile, spec = ns.Active(), ns.Spec()
@@ -174,7 +185,7 @@ function ns.Mechanic(spell, duration, identity, encounter)
     local prefix = "ability:" .. tostring(identity or spell) .. ":"
     ns.Cancel(prefix)
     local binding = ns.Get(ns.Get(ns.Get(profile.data.abilityBindings, spec), encounter), spell)
-    if binding then ns.Defensive(binding, duration and math.max(0, duration - (binding.leadTime or 3)) or 0, prefix .. "defensive") end
+    if binding and not skipDefensive then ns.Defensive(binding, duration and math.max(0, duration - (binding.leadTime or 3)) or 0, prefix .. "defensive") end
     for key, entry in pairs(ns.Get(profile.data.raidReminders, encounter) or {}) do
         local trigger = entry.trigger or {}
         if trigger.spellID == spell and ((duration and trigger.type == "bwtimer") or (not duration and trigger.type == "bwmsg")) then
@@ -182,14 +193,14 @@ function ns.Mechanic(spell, duration, identity, encounter)
         end
     end
 end
-function ns.Trash(spell, remaining, identity)
+function ns.Trash(spell, remaining, identity, valid)
     if not ns.Plain(spell, "number") or not ns.Plain(remaining, "number") or ns.Conflict() then return end
     local p, spec = ns.Active(), ns.Spec()
     if not p then return end
     for key, rule in pairs(ns.Get(p.data.integrationRules, spec) or {}) do
         local trigger = rule.trigger or {}
         if trigger.type == "exboss" and trigger.spellID == spell and trigger.mapID == ns.map then
-            ns.Defensive(rule, math.max(0, remaining - (trigger.timeleft or 3)), "trash:" .. tostring(identity or spell) .. ":" .. tostring(key))
+            ns.Defensive(rule, math.max(0, remaining - (trigger.timeleft or 3)), "trash:" .. tostring(identity or spell) .. ":" .. tostring(key), valid and function() return valid(key) end)
         end
     end
 end

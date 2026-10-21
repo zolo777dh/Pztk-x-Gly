@@ -1,12 +1,16 @@
-Pztk x Glyalith 0.4.0 + Pztk Reminders 0.1.0
+Pztk x Glyalith 0.4.1 + Pztk Reminders 0.1.1
 
-This release includes a separate in-game addon, Pztk Reminders. Existing NSR / NSRT addons are not modified.
+Reminder runtime fixes, checked against the user's BigWigs v427.6, LittleWigs v12.1.21 and ExBoss 1.0.0 source archives. The native PZTK1 format and existing profiles remain compatible.
 
-- Reminders workspace: one working profile for defensive sets, Mythic+ / raid mechanic bindings, raid assignments and timed reminders. Export one native PZTK1 string and import it with /pztkr.
-- Time / phase / ability-timer / mechanic-message triggers; spec / role / player / everyone recipients; spell icons, text, sounds and frame glows, with additional bar/circle/TTS displays. Timeline dragging prepares an edit that must be saved.
-- Independent in-game scheduler, target/difficulty filters, defensive priority/Together selection, BigWigs / DBM callbacks and ExBoss trash timers. Profile imports create new saved copies and are separated by client. Conflicting NSR / NSRT / TimelineReminders installations pause live dispatch; disable those addons when using Pztk Reminders.
-- Migrate supported NSRPACK2 and current NSRT scheduled alerts through the desktop. OR target conditions and countdown lead times are preserved for supported entries. Review exclusions before export; source data remains local. No guessed TimelineReminders string decoder is included without a verified format/sample.
-- Retail 12.1.5.70448 and Forever 1.60.1.70425 targets remain unchanged. Bundled Midnight S1/S2 encounter references belong to Retail; Forever uses manual/imported encounters.
-- Existing all-40-spec set imports, diagnostics, source search, AI Workspace and source backup/recovery remain available. Legacy NSR / NSRT compatibility editors are retained separately.
+- BigWigs timer stop/pause now matches the provider's text label and module. Resume reschedules from the paused remaining time; one module cannot cancel another module's reminders.
+- Mechanic messages no longer cancel countdowns for the same spell or repeat an already predicted defensive. The first bars survive when BigWigs handles encounter start before this addon. Other encounters cannot move the active phase. Boss wipe/disable, zone and specialization changes clear obsolete schedules.
+- ExBoss reads existing active trash timers, verifies source/map/deadline before delivery, cancels removed timers and avoids repeating a delivered alert for a correction to the same cast cycle. Fixed timeline advances can start the next cycle.
+- Failed callback registration can retry. DBM fallback is not disabled by a failed BigWigs connection.
+- Defensive display fields and target flags are validated in both the desktop and addon before entering runtime callbacks. Missing optional spell/voice information falls back safely. Frame glows have independent ownership keys; nameplate glows use nameplates.
+- Text reminder exports omit blank optional spell IDs. The desktop and addon also recover this exact empty-field sentinel in 0.4.0 exports, which the original game decoder could refuse.
+- /pztkr debug and the Diagnostics button prepare a copyable build/provider/connection report without player or profile names. Send this with the first BugSack error and stack when reporting a game failure.
+- Addon ZIP names and BUILD-SOURCES versions now come from the TOC version. The complete Windows bundle includes PztkReminders-0.1.1.zip.
 
-Install: extract the Windows bundle and run Pztk x Glyalith.exe. Extract PztkReminders-0.1.0.zip into WoW Interface/AddOns, disable NSR / NSRT / TimelineReminders and import the desktop's PZTK1 string through /pztkr. Test in both live clients. Interface declarations and code tests do not verify every game API or provider trigger. The addon does not press abilities or bypass secret cooldown data.
+Replace the PztkReminders folder with the new one while WoW is closed. Do not delete PztkRemindersDB SavedVariables; existing profiles are retained. Keep NSR / NSRT / TimelineReminders disabled while testing this separate addon. Retail 12.1.5.70448 and Forever 1.60.1.70425 targets are unchanged.
+
+The supplied ExBoss version requires EXBossData, ExwindCore and EXBOSS-Locale; EXBOSS-Locale requires EXBOSS-LocaleBase. Install complete providers separately. The uploaded provider snapshots include Retail-only interface declarations and do not establish Forever compatibility. No live WoW session was available: source replay and mocked game API tests verify the covered paths, not every in-game behavior or an unreported BugSack stack.

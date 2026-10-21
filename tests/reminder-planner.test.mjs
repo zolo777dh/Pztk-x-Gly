@@ -5,6 +5,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
+import {deflateRawSync} from 'node:zlib';
+import {encodePrint} from '../core/packs.mjs';
 import {DoctorService} from '../core/service.mjs';
 const resources=path.resolve('resources');
 async function fixture(t,client='retail'){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-unified-reminders-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const s=await new DoctorService(dir,resources).init(),p=await s.handle('planner.createProfile',{client}),v=await s.handle('nsr.open',{profileId:p.id});return {s,p,v};}
@@ -45,4 +47,40 @@ test('invalid targets, IDs, difficulty and stale revisions cannot overwrite a wo
 test('native PZTK1 profiles retain all 40 specialization sets and enforce client separation on import',async t=>{
  const {s}=await fixture(t),sets=Object.fromEntries(Object.keys(SPEC_NAMES).map(spec=>[spec,{personal:{name:'Personal '+spec,list:[498],together:{}}}]));const input=s.reminderPack.encode({format:1,addon:'PztkReminders',name:'All specs',client:'retail',data:{presets:sets,activePreset:Object.fromEntries(Object.keys(sets).map(spec=>[spec,'personal'])),raidReminders:{}}});
  const imported=await s.handle('reminders.import',{text:input,client:'retail'}),draft=await s.handle('nsr.open',{profileId:imported.id}),out=await s.handle('reminders.export',{id:draft.id,revision:draft.revision}),pack=s.reminderPack.decode(out.text).pack;assert.equal(Object.keys(pack.data.presets).length,40);assert.equal(pack.build,'12.1.5.70448');await assert.rejects(()=>s.handle('reminders.import',{text:input,client:'forever'}),/belongs to retail/);assert.equal((await s.handle('planner.state',{client:'forever'})).profiles.length,0);
+});
+
+test('desktop and game refuse malformed binding displays and target flags before they can reach runtime callbacks',async t=>{
+ const {s}=await fixture(t),base={format:1,addon:'PztkReminders',name:'Invalid data test',client:'retail',data:{}},bad=[];
+ for(const binding of [{enabled:'false'},{display:42},{display:{dur:'five'}},{display:{text:{}}}])bad.push({...structuredClone(base),data:{abilityBindings:{264:{3470:{123:binding}}}}});
+ for(const target of [{all:'false'},{matchAny:42}])bad.push({...structuredClone(base),data:{raidReminders:{3470:{r:{trigger:{type:'pull',delay:10},target,display:{type:'text',text:'Invalid'}}}}}});
+ for(const pack of bad)assert.throws(()=>s.reminderPack.encode(pack),/Invalid/);
+ if(process.env.DOCTOR_LUA51){
+  const addon=path.resolve('addon/PztkReminders'),inputs=[];
+  for(const [i,pack]of bad.entries()){const file=path.join(s.dataDir,'invalid-'+i+'.txt');await fs.writeFile(file,'PZTK1:'+encodePrint(deflateRawSync(s.codec.invoke('encode',pack))));inputs.push(file);}
+  const script=`strmatch=string.match
+  dofile(${JSON.stringify(addon+'/Libs/LibStub.lua')})
+  dofile(${JSON.stringify(addon+'/Libs/LibSerialize.lua')})
+  dofile(${JSON.stringify(addon+'/Libs/LibDeflate.lua')})
+  local ns={};assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('PztkReminders',ns)
+  for _,path in ipairs({${inputs.map(p=>JSON.stringify(p)).join(',')}})do local f=assert(io.open(path,'rb'));local text=f:read('*a');f:close();local profile,error=ns.Decode(text);assert(profile==nil and error=='Unsupported profile data')end
+  print('MALFORMED_PROFILE_REFUSED')`;
+  const file=path.join(s.dataDir,'invalid.lua');await fs.writeFile(file,script);assert.match(execFileSync(process.env.DOCTOR_LUA51,[file],{encoding:'utf8'}),/MALFORMED_PROFILE_REFUSED/);
+ }
+});
+
+test('text reminders omit blank spell IDs and 0.4.0 exports recover that optional sentinel in desktop and native Lua',async t=>{
+ const {s,v}=await fixture(t),view=await s.handle('reminders.save',reminder(v,{display:{type:'text',text:'Text only',dur:5,spellID:'',sound:'',glowTarget:''}}));
+ let exported=await s.handle('reminders.export',{id:view.id,revision:view.revision}),pack=s.reminderPack.decode(exported.text).pack;
+ assert.equal(pack.data.raidReminders['3470'].test.display.spellID,undefined);
+ const draft=await s.nsrEditor.read(view.id),data=draft.pack.data||draft.pack.profiles[draft.profileKey];data.raidReminders['3470'].test.display.spellID='';await s.nsrEditor.save(draft);
+ exported=await s.handle('reminders.export',{id:view.id,revision:view.revision});assert.equal(s.reminderPack.decode(exported.text).pack.data.raidReminders['3470'].test.display.spellID,undefined);
+ assert.equal((await s.nsrEditor.read(view.id)).pack.data.raidReminders['3470'].test.display.spellID,'','source working copy is retained');
+ pack.data.raidReminders['3470'].test.display.spellID='';const legacy='PZTK1:'+encodePrint(deflateRawSync(s.codec.invoke('encode',pack)));
+ assert.equal(s.reminderPack.decode(legacy).pack.data.raidReminders['3470'].test.display.spellID,undefined);
+ if(process.env.DOCTOR_LUA51){const addon=path.resolve('addon/PztkReminders'),file=path.join(s.dataDir,'legacy.txt');await fs.writeFile(file,legacy);const script=`strmatch=string.match
+ dofile(${JSON.stringify(addon+'/Libs/LibStub.lua')});dofile(${JSON.stringify(addon+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(addon+'/Libs/LibDeflate.lua')})
+ local ns={};assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('PztkReminders',ns)
+ local f=assert(io.open(${JSON.stringify(file)},'rb'));local text=f:read('*a');f:close();local pack,error=ns.Decode(text);assert(pack,error)
+ local entries=pack.data.raidReminders[3470]or pack.data.raidReminders['3470'];assert(entries.test.display.spellID==nil);print('LEGACY_BLANK_ID_RECOVERED')`;
+ const lua=path.join(s.dataDir,'legacy.lua');await fs.writeFile(lua,script);assert.match(execFileSync(process.env.DOCTOR_LUA51,[lua],{encoding:'utf8'}),/LEGACY_BLANK_ID_RECOVERED/);}
 });

@@ -1,8 +1,9 @@
-# Pztk x Glyalith 0.4.0 + Pztk Reminders 0.1.0
+# Pztk x Glyalith 0.4.1 + Pztk Reminders 0.1.1
 
 Pztk x Glyalith is a Windows desktop app for planning profiles for **Pztk Reminders**, a separate WoW addon that combines defensive priorities, raid assignments and timed encounter reminders. Addon maintenance and AI tools remain in the same desktop application.
 
 - **One native export:** PZTK1 contains configured defensive sets, Mythic+ / raid mechanic bindings and scheduled assignments. Import it in Pztk Reminders with `/pztkr`.
+- **In-game diagnostics:** `/pztkr debug` prepares a copyable client, build, provider-version and connection report for troubleshooting alongside BugSack errors.
 - **Reminder model:** time, phase, ability timer or mechanic message → specialization, role, player or everyone → spell icon, text, sound or player-frame glow. Bar/countdown, circle and TTS displays are also supported.
 - **Timeline planning:** inspect reminders and drag markers to prepare new times, then save explicitly.
 - **Defensive planning:** all 40 specializations, shared M+ / Raid set editors, and supported HTML/JSON imports. Public spell readiness selects available priorities / Together groups; inaccessible cooldown data is not guessed.

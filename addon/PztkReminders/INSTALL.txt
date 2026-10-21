@@ -1,14 +1,16 @@
-Pztk Reminders 0.1.0 — standalone preview
+Pztk Reminders 0.1.1 — standalone preview
 
 1. Close WoW and back up existing reminder profiles.
 2. Extract the PztkReminders folder into Interface/AddOns for the desired client.
 3. Enable Pztk Reminders. Disable NaowhSmartReminders, NorthernSkyRaidTools and
    TimelineReminders while using this addon. It pauses live dispatch if they are loaded.
-4. In Pztk x Glyalith 0.4.0, open Reminders, create/import a working profile,
+4. In Pztk x Glyalith 0.4.1, open Reminders, create/import a working profile,
    configure defensive sets and assignments, then Export complete profile.
 5. In game, type /pztkr or /pztkreminders. Paste PZTK1 and click Import string.
    Import creates a new local profile; Next profile switches stored profiles.
 6. Test display previews, then check encounter triggers inside WoW.
+7. For an issue, run /pztkr debug and copy the generated diagnostics with the
+   first BugSack/BugGrabber error and stack. The report omits player/profile names.
 
 Targets: Retail 12.1.5.70448 and Forever 1.60.1.70425. Client profiles are separate.
 Retail catalogs use the supplied Midnight S1/S2 reference data. Forever encounters
@@ -20,6 +22,10 @@ reported spell IDs; aliases may need manual verification. ExBoss supplies Mythic
 trash timer events. These providers are optional; time-from-pull reminders use
 ENCOUNTER_START. Boss phase reminders require a matching stage event. A reference
 schedule cannot create a missing provider event. The addon does not press abilities.
+
+The supplied ExBoss build requires EXBossData, ExwindCore and EXBOSS-Locale;
+EXBOSS-Locale also requires EXBOSS-LocaleBase. Install compatible complete provider
+packages in the game. Pztk Reminders does not bundle or modify these addons.
 
 Spell, text, bar/countdown, circle and sound reminders use this addon's own display.
 Player-frame glow needs a resolvable visible unit frame. TTS uses available game

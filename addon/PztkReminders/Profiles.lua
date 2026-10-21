@@ -34,7 +34,12 @@ local function Flags(t)
     return true
 end
 local function Binding(b)
-    return type(b)=="table" and (b.enabled==nil or type(b.enabled)=="boolean") and (b.preset==nil or type(b.preset)=="string") and Number(b.leadTime,-120,120,true)
+    if type(b)~="table" or (b.enabled~=nil and type(b.enabled)~="boolean") or (b.preset~=nil and type(b.preset)~="string") or not Number(b.leadTime,-120,120,true) then return false end
+    if b.sound~=nil and type(b.sound)~="string" then return false end
+    if b.display~=nil then
+        if type(b.display)~="table" or not Number(b.display.dur,0.1,120,true) or (b.display.text~=nil and type(b.display.text)~="string") then return false end
+    end
+    return true
 end
 function ns.Validate(profile)
     if type(profile) ~= "table" or profile.format ~= 1 or profile.addon ~= "PztkReminders" or type(profile.name) ~= "string" or #profile.name > 200 or type(profile.data) ~= "table" then return false end
@@ -64,6 +69,7 @@ function ns.Validate(profile)
         if type(entries) ~= "table" then return false end
         for _, entry in pairs(entries) do
             if type(entry) ~= "table" or type(entry.trigger) ~= "table" or type(entry.display) ~= "table" then return false end
+            if entry.enabled~=nil and type(entry.enabled)~="boolean"then return false end
             local trigger = entry.trigger
             if trigger.type ~= "pull" and trigger.type ~= "stage" and trigger.type ~= "bwtimer" and trigger.type ~= "bwmsg" then return false end
             if not Number(trigger.delay,0,7200,true)or not Number(trigger.leadTime,0,120,true)or not Number(trigger.stage,0.01,100,true)then return false end
@@ -76,6 +82,7 @@ function ns.Validate(profile)
             for _,key in ipairs({"text","sound","ttsText","glowTarget"})do if display[key]~=nil and type(display[key])~="string"then return false end end
             if display.tts~=nil and type(display.tts)~="boolean"then return false end
             if entry.target and type(entry.target) ~= "table" then return false end
+            for _,key in ipairs({"all","matchAny"})do if entry.target and entry.target[key]~=nil and type(entry.target[key])~="boolean"then return false end end
             for _, key in ipairs({"roles","specs","classes","names","subgroups"}) do if entry.target and entry.target[key] and not Flags(entry.target[key]) then return false end end
         end
     end
@@ -90,6 +97,16 @@ function ns.Decode(input)
     local raw = bytes and ld:DecompressDeflate(bytes)
     if not raw or #raw > 4000000 then return nil, "Invalid compressed profile or size limit exceeded" end
     local ok, profile = ser:Deserialize(raw)
+    -- 0.4.0 desktop text reminders could serialize an optional ID as "".
+    -- Treat that exact blank sentinel as absent, while still refusing other bad IDs.
+    if ok and type(profile)=="table"and type(profile.data)=="table"and type(profile.data.raidReminders)=="table"then
+        for _,entries in pairs(profile.data.raidReminders)do if type(entries)=="table"then
+            for _,entry in pairs(entries)do if type(entry)=="table"then
+                if type(entry.display)=="table"and entry.display.spellID==""then entry.display.spellID=nil end
+                if type(entry.trigger)=="table"and entry.trigger.spellID==""and entry.trigger.type~="bwtimer"and entry.trigger.type~="bwmsg"then entry.trigger.spellID=nil end
+            end end
+        end end
+    end
     if not ok or not ns.Validate(profile) then return nil, "Unsupported profile data" end
     return profile
 end

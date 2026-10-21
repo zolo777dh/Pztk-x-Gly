@@ -7,29 +7,32 @@ import fengari from 'fengari';
 import {unzipSync} from 'fflate';
 import {packageAddon} from '../tools/package-addon.mjs';
 import {parseLua} from '../core/analyzer.mjs';
-const files=['Runtime.lua','Profiles.lua','Display.lua','Main.lua'];
+const files=['Runtime.lua','Profiles.lua','Display.lua','Providers.lua','Main.lua'];
 const sources=await Promise.all(files.map(f=>fs.readFile('addon/PztkReminders/'+f,'utf8')));
 test('standalone addon bundle contains valid runtime, complete loader dependencies, codecs, media and no NSR/NSRT runtime',async t=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-addon-zip-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const archive=await packageAddon(process.cwd(),dir),entries=unzipSync(await fs.readFile(archive));for(const [i,f]of files.entries()){assert.ok(entries['PztkReminders/'+f]);parseLua(sources[i]);}assert.ok(entries['PztkReminders/Libs/LibSerialize.lua']);assert.ok(entries['PztkReminders/Media/Voice/use-a-defensive.ogg']);assert.ok(entries['PztkReminders/BUILD-SOURCES.json']);assert.ok(!Object.keys(entries).some(k=>k.startsWith('NaowhSmartReminders/')||k.startsWith('NorthernSkyRaidTools/')));
+ const manifest=JSON.parse(Buffer.from(entries['PztkReminders/BUILD-SOURCES.json']).toString()),toc=Buffer.from(entries['PztkReminders/PztkReminders.toc']).toString();assert.match(toc,new RegExp('## Version: '+manifest.version.replaceAll('.','\\.')));assert.equal(path.basename(archive),'PztkReminders-'+manifest.version+'.zip');assert.match(sources[0],new RegExp('ns.version = "'+manifest.version.replaceAll('.','\\.')+'"'));
 });
 test('own addon boots, opens its import window and renders basic text/icon/circle/sound previews under a controlled WoW UI harness',()=>{
- const script=`local ns={};local frames={};local scripts={};local sound
+ const script=`local ns={};local frames={};local scripts={};local sound;local build='12.1.5';local map=2813;local glowStarts,glowStops={},{}
 local methods={}
 local frame
 frame=function()local f={};setmetatable(f,{__index=function(t,k)if methods[k]then return methods[k]end;if k:match("^[A-Z]")then return function()end end end});f.TitleText={SetText=function()end};frames[#frames+1]=f;return f end
 methods.SetScript=function(self,key,fn)self._scripts=self._scripts or {};self._scripts[key]=fn end
+methods.RegisterEvent=function(self,event)self._events=self._events or {};self._events[event]=true end
 methods.CreateTexture=function()return frame()end
 methods.CreateFontString=function()return frame()end
 function CreateFrame()return frame()end
 UIParent=frame();GameFontHighlightSmall={};SlashCmdList={}
-function GetBuildInfo()return '12.1.5','70448','',120105 end
+function GetBuildInfo()return build,'70448','',build=='12.1.5'and 120105 or 16001 end
 function GetTime()return 100 end
-function GetInstanceInfo()return '',nil,15,nil,nil,nil,nil,2813 end
+function GetInstanceInfo()return '',nil,15,nil,nil,nil,nil,map end
 function UnitName()return 'Tester'end
 function GetSpecialization()return 1 end
 function GetSpecializationInfo()return 264 end
 function PlaySoundFile(path)sound=path end
-function LibStub()return nil end
+local libs={}
+function LibStub(key)return libs[key]end
 C_Spell={GetSpellInfo=function()return {name='Astral Shift',iconID=1}end}
 C_Timer={NewTimer=function()return {Cancel=function()end}end}
 `+sources.map(s=>`;(function(...)\n${s}\nend)('PztkReminders',ns);`).join('\n')+`
@@ -40,6 +43,35 @@ ns.Display({type='circle',spellID=108271,text='Countdown',dur=5})
 ns.Display({type='chat',sound='voice:use-a-defensive',text=''})
 assert(sound=='Interface\\\\AddOns\\\\PztkReminders\\\\Media\\\\Voice\\\\use-a-defensive.ogg')
 ns.HideDisplays();assert(#frames>5)
+-- A failed optional name/icon lookup or unavailable voice list must not break display.
+C_Spell.GetSpellInfo=function()error('not available')end
+function GetSpellInfo()return 'Legacy spell',nil,2 end
+C_VoiceChat={GetTtsVoices=function()error('not initialized')end,SpeakText=function()end}
+ns.Display({type='icon',spellID=108271,tts=true,dur=5});ns.HideDisplays()
+-- Glows use independent ownership keys, and nameplates use the nameplate API.
+local unitFrame,plate=frame(),frame();local plateQueries=0
+function UnitExists(token)return token=='player'end
+libs['LibGetFrame-1.0']={GetUnitFrame=function()return unitFrame end}
+libs['LibCustomGlow-1.0']={PixelGlow_Start=function(f,_,_,_,_,_,_,_,_,key)glowStarts[#glowStarts+1]={frame=f,key=key}end,PixelGlow_Stop=function(f,key)glowStops[#glowStops+1]={frame=f,key=key}end}
+C_NamePlate={GetNamePlateForUnit=function()plateQueries=plateQueries+1;return {UnitFrame=plate}end}
+ns.Display({type='raidframeGlow',text='First',glowTarget='Tester'})
+ns.Display({type='raidframeGlow',text='Second',glowTarget='Tester'})
+ns.Display({type='nameplateGlow',text='Nameplate',glowTarget='Tester'})
+assert(glowStarts[1].frame==unitFrame and glowStarts[2].frame==unitFrame and glowStarts[1].key~=glowStarts[2].key)
+assert(glowStarts[3].frame==plate and plateQueries==1);ns.HideDisplays();assert(#glowStops==3)
+for _,stop in ipairs(glowStops)do assert(type(stop.key)=='string'and stop.key:find('PztkReminders:',1,true)==1)end
+-- Exercise the actual lifecycle event callback, then reopen in the other client.
+local eventFrame
+for _,f in ipairs(frames)do if f._events and f._events.PLAYER_ENTERING_WORLD then eventFrame=f end end
+assert(eventFrame)
+PztkRemindersDB.clients.retail.profiles.p={data={raidReminders={[3470]={r={trigger={type='pull',delay=30},display={type='text',text='Old zone'}}}}}}
+PztkRemindersDB.clients.retail.active='p'
+ns.Begin(3470,15,2813);assert(next(ns.timers));map=999;eventFrame._scripts.OnEvent(eventFrame,'PLAYER_ENTERING_WORLD')
+assert(ns.encounter==nil and ns.map==999 and next(ns.timers)==nil)
+ns.Begin(3470,15,999);eventFrame._scripts.OnEvent(eventFrame,'PLAYER_SPECIALIZATION_CHANGED','player');assert(ns.encounter==nil)
+map=nil;eventFrame._scripts.OnEvent(eventFrame,'PLAYER_ENTERING_WORLD');assert(ns.map==nil)
+build='1.60.1';ns.Open();assert(PztkRemindersDB.clients.forever)
+local diagnostic=ns.Diagnostics();assert(diagnostic:find('Pztk Reminders 0.1.1',1,true));assert(diagnostic:find('Client: forever',1,true));assert(diagnostic:find('EXBOSS-Locale:',1,true))
 `;
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
 });

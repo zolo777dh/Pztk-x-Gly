@@ -1,11 +1,11 @@
-Pztk x Glyalith 0.4.0 — Windows x64
+Pztk x Glyalith 0.4.1 — Windows x64
 
 Extract the complete ZIP into a normal folder and launch Pztk x Glyalith.exe.
 Do not run the exe directly inside the ZIP. Node.js is not required.
 
 
 PZTK REMINDERS — SEPARATE ADDON, NEW IN 0.4.0
-The bundle includes PztkReminders-0.1.0.zip. Extract its PztkReminders folder into
+The bundle includes PztkReminders-0.1.1.zip. Extract its PztkReminders folder into
 Interface/AddOns for the correct game client. Disable NaowhSmartReminders,
 NorthernSkyRaidTools and TimelineReminders; the new addon pauses live dispatch
 when these are loaded. Their source files and settings are not modified.
@@ -17,6 +17,8 @@ Timeline dragging prepares an edit; Save reminder commits it locally.
 Export complete profile produces ONE PZTK1 string. In game, /pztkr opens import,
 export, profile switching and display preview. Paste PZTK1 and click Import string.
 Each import creates a new saved profile; old profiles remain available.
+To troubleshoot in game, /pztkr debug creates a copyable version/connection report.
+Send it with the first BugSack/BugGrabber error and its stack trace.
 
 NSRPACK2 imports open migration working copies. Current NSRT Profile / full
 EncounterAlert schedules migrate with OR targets, difficulty and countdown lead.
@@ -31,6 +33,8 @@ ExBoss supplies M+ trash timers. Time-from-pull works through ENCOUNTER_START;
 phases and ability countdowns require matching provider events. Glows need a
 visible supported frame, TTS needs game voices, and protected cooldown values
 are not bypassed. No live WoW session was available for validation.
+For the supplied ExBoss build, install EXBossData, ExwindCore, EXBOSS-Locale and
+its required EXBOSS-LocaleBase dependency. These providers are not bundled here.
 
 Legacy native NSR / NSRT editors and exports remain as compatibility tools;
 they are separate from the new PZTK1 profile described above.
