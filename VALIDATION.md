@@ -5,6 +5,9 @@
 - A new native/portable workspace scenario opens Mythic+, Raids, Profiles and Settings for both client workspaces and checks the font arguments, including multiline inputs. Existing profile/edit/dispatch scenarios run with the stricter API harness.
 - Removed the duplicate Catalog.lua TOC entry. Packaging now traverses all TOC/XML file loads and rejects a second load. Regression fixtures cover a duplicate path alias in TOC and a duplicate through XML, while ignoring XML comments.
 - The profile schema, minimum editor version and SavedVariables names remain unchanged. No live WoW session is available; these checks reproduce the reported API contract and loader errors in controlled tests.
+- Windows CI [39694111089](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39694111089) succeeded for release source `df2bedcd724c3d495611a82b8abaf1ed866297b9`, including packaging, the packaged desktop workflow, Windows ZIP extraction and publication.
+- Downloaded the published `PztkReminders-0.3.1.zip`: **207,795 bytes**, SHA256 `e4481c3a538a9ca54b91ddb528305d53398258c11d796d87fc3717e59d95f814`. All 45 ZIP entries passed integrity/manifest checks, every source matches the release checkout after line-ending normalization, and Catalog.lua appears exactly once in the TOC. The downloaded addon passed all ten native Lua workspace/import scenarios, including the stricter EditBox contract and the private unlicensed migration fixture.
+- [Addon download](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.6.1/PztkReminders-0.3.1.zip) · [Windows desktop](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.6.1/Pztk-x-Glyalith-0.6.1-Windows-x64.zip).
 
 # Historical validation — 0.6.0 + Puzatik Reminders 0.3.0
 
