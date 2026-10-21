@@ -1,4 +1,13 @@
-# Current validation — 0.6.1 + Puzatik Reminders 0.3.1
+# Current validation — 0.6.2 + Puzatik Reminders 0.3.2
+
+- **138 tests passed, 0 failures, 0 skips** locally with native Lua 5.1, the unchanged NSR checkout, supplied NSRT/provider sources and the private unlicensed fixture. The 18 portable addon packaging/workspace checks and the production build also passed.
+- Reproduced lost set/input/navigation state and lost general-settings drafts with the real Lua UI callbacks before the fix. Original NSR ShowPage/RefreshPage and NSRT Create/Load/SaveProfile flows were reviewed; no source runtime/UI was copied.
+- UI tests create independent M+/raid sets through every one of the 40 named specialization contexts and return to each after a new module load. Tests also cover exact mechanic inputs, Heroic/Mythic draft separation, failed-save recovery, manual Forever encounter drafts, profile switching/rename and scroll restoration.
+- Reload simulation dispatches PLAYER_LOGOUT, serializes/deserializes SavedVariables through the actual bundled library under native Lua, then loads fresh runtime/editor/UI modules. Native profile export/import is checked after those edits. Unfinished editor drafts remain outside the exported runtime profile.
+- Frame pooling is now scoped to the parent. Scroll content is explicitly anchored, shown and assigned a level above its viewport; range/offset restoration occurs after content sizing. The harness checks visible controls and viewport ownership/anchors/levels through repeated page changes. Browser layout captures show the actual Lua control tree; they are not live WoW screenshots.
+- No live Retail or Forever client is available. Source catalogs, providers, profile formats and the existing readiness/licensing limits are unchanged.
+
+# Historical validation — 0.6.1 + Puzatik Reminders 0.3.1
 
 - **130 tests passed, 0 failures, 0 skips** locally with native Lua 5.1, the unchanged NSR checkout, supplied NSRT/provider snapshots and the private unlicensed migration fixture. The production build and local addon packaging passed.
 - Reproduced the reported EditBox SetFont failure by requiring a string flags argument in the workspace harness: all six existing workspace scenarios failed before the fix. Both input creation paths now provide explicit empty flags. Font labels do so as well, and display resizing falls back to empty flags.

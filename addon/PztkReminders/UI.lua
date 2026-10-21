@@ -5,7 +5,65 @@ local state={tab="mythic",mode="mechanics",difficulty=15,filter="",setRows={},fo
 ns.UIState=state
 local window,body,header,status
 local Refresh
+-- UI drafts are local SavedVariables, separate from the active runtime profile.
+-- Navigation never commits a partial reminder or silently throws its inputs away.
+local workspace,owner,profileName
+local viewFields={"mode","difficulty","group","entity","ability","ruleKey","timed","form","reference","context","inspectorTab","ruleDrafts","setKey","setRows","setName","setDrafts","newSpell","settings","settingFields","manual","profileName","importText","confirmDelete","scrolls"}
+local function viewKey()return state.tab..":"..tostring((state.tab=="mythic"or state.tab=="raid")and state.spec or"general")end
+local function ruleKey(ctx,key)
+    return table.concat({ctx.scope,tostring(ctx.spec),tostring(ctx.map),tostring(ctx.npc),tostring(ctx.encounter),tostring(ctx.difficulty),tostring(ctx.spell or"timed"),tostring(key or"new")},":")
+end
+local function capture()
+    for key,c in pairs(ns.UIControls)do
+        if key=="set-name"then state.setName=c:GetText()
+        elseif key=="new-spell"then state.newSpell=c:GetText()
+        elseif key=="profile-name"then state.profileName=c:GetText()
+        elseif key=="profile-string"then state.importText=c:GetText()
+        elseif key:match("^rule:")and c.GetText and c.GetObjectType and c:GetObjectType()=="EditBox"then
+            if state.form then state.form[key:sub(6)]=c:GetText()end
+        elseif key:match("^setting:")and c.GetObjectType and c:GetObjectType()=="EditBox"then
+            state.settingFields=state.settingFields or{};state.settingFields[key:sub(9)]=c:GetText()
+        elseif key:match("^manual:")and c.GetObjectType and c:GetObjectType()=="EditBox"then
+            state.manual=state.manual or{};state.manual[key:sub(8)]=c:GetText()
+        end
+    end
+    state.scrolls=state.scrolls or{}
+    for key,s in pairs(ns.UIScrolls)do state.scrolls[key]=s:GetVerticalScroll()end
+end
+local function remember()
+    if state.context and state.form then
+        state.ruleDrafts=state.ruleDrafts or{}
+        state.ruleDrafts[ruleKey(state.context,state.ruleKey)]={form=ns.Clone(state.form),reference=ns.Clone(state.reference),inspectorTab=state.inspectorTab}
+    end
+    if state.setName then
+        state.setDrafts=state.setDrafts or{}
+        state.setDrafts[state.setKey or"new"]={name=state.setName,rows=ns.Clone(state.setRows),newSpell=state.newSpell}
+    end
+end
+local function saveView()
+    if not workspace then return end
+    remember();local saved={};for _,key in ipairs(viewFields)do saved[key]=ns.Clone(state[key])end
+    workspace.views[viewKey()]=saved;workspace.tab=state.tab;workspace.spec=state.spec
+end
+local function loadView()
+    local saved=workspace.views[viewKey()]or{}
+    for _,key in ipairs(viewFields)do state[key]=ns.Clone(saved[key])end
+    state.mode=state.mode or"mechanics";state.difficulty=state.difficulty or 15;state.setRows=state.setRows or{}
+    state.ruleDrafts=state.ruleDrafts or{};state.setDrafts=state.setDrafts or{};state.scrolls=state.scrolls or{}
+end
+local function ensureWorkspace()
+    local store=ns.Store()
+    if owner==store and profileName==store.active then return end
+    saveView();owner=store;profileName=store.active
+    store.workspace=store.workspace or{profiles={}};store.workspace.profiles=store.workspace.profiles or{}
+    local key=profileName or"";workspace=store.workspace.profiles[key]or{views={}};workspace.views=workspace.views or{}
+    store.workspace.profiles[key]=workspace
+    state.tab=workspace.tab or"mythic";state.spec=workspace.spec or ns.Spec()or 104;loadView()
+end
+W.BeforeAction=function()capture();saveView()end
+function ns.SaveWorkspaceDrafts()if window then capture();saveView()end end
 local function notify(text,error)
+    if error then text=tostring(text):gsub("^.-%.lua:%d+:%s*","")end
     state.message=text;state.error=error;if status then status:SetText(text);status:SetTextColor(unpack(error and W.colors.warning or W.colors.muted))end
 end
 local function done(value,error,message)
@@ -23,9 +81,12 @@ local function rowsOptions(t)
     table.sort(rows,function(a,b)return a.label<b.label end);return rows
 end
 local function read(key)return ns.UIControls[key]:GetText()end
-local function chooseSet(key)
+local function chooseSet(key,fresh)
     state.setKey=key;state.setRows={};local p=ns.ScopePresets(ns.Active(),scope(),state.spec)[key]
+    local draft=not fresh and state.setDrafts and state.setDrafts[key or"new"]
+    if draft then state.setName=draft.name;state.setRows=ns.Clone(draft.rows);state.newSpell=draft.newSpell;return end
     state.setName=p and p.name or"New defensive set"
+    state.newSpell=""
     for _,spell in ipairs(p and p.list or{})do state.setRows[#state.setRows+1]={spellID=spell,together=ns.Get(p.together,spell)==true,enabled=not ns.Get(p.disabled,spell)}end
 end
 local function ContentHeader(parent,title,subtitle)
@@ -36,14 +97,14 @@ local function DrawSets(parent)
     local sets=ns.ScopePresets(ns.Active(),scope(),state.spec);local options=rowsOptions(sets)
     if state.setKey and not sets[state.setKey]then chooseSet(nil)end
     if not state.setName then chooseSet(options[1]and options[1].value)end
-    local list=W.Scroll(parent,0,60,205,452)
+    local list=W.Scroll(parent,0,60,205,452,"sets:list")
     for i,o in ipairs(options)do W.Button(list,o.label,0,(i-1)*35,177,function()chooseSet(o.value);Refresh()end,o.value==state.setKey,"set:"..o.value)end;list:SetHeight(math.max(1,#options*35))
-    W.Button(parent,"+ New set",0,522,97,function()chooseSet(nil);Refresh()end,false,"new-set")
+    W.Button(parent,"+ New set",0,522,97,function()chooseSet(nil,true);Refresh()end,false,"new-set")
     W.Button(parent,"Copy",103,522,102,function()state.setKey=nil;state.setName=(state.setName or"Set").." copy";Refresh()end,false,"copy-set")
     local panel=W.Panel(parent,218,60,650,452)
     W.Field(panel,"SET NAME",state.setName,14,12,420,"set-name")
     W.Label(panel,"Priority order · first ready ability, or the ready Together group",14,71,600,12,W.colors.muted)
-    local content=W.Scroll(panel,12,98,625,280)
+    local content=W.Scroll(panel,12,98,625,280,"sets:abilities")
     for i,row in ipairs(state.setRows)do
         local y=(i-1)*48;local r=W.Panel(content,0,y,594,43,W.colors.raised);W.Icon(r,row.spellID,8,8,26);W.Label(r,name(row.spellID),43,7,220,12);W.Label(r,tostring(row.spellID),43,24,200,10,W.colors.muted)
         W.Toggle(r,"On",row.enabled,268,9,64,function(v)row.enabled=v end,"set-enabled:"..i)
@@ -52,11 +113,11 @@ local function DrawSets(parent)
         W.Button(r,"v",488,6,33,function()if i<#state.setRows then state.setRows[i],state.setRows[i+1]=state.setRows[i+1],state.setRows[i]end;state.setName=read("set-name");Refresh()end,false,"set-down:"..i)
         W.Button(r,"x",524,6,33,function()table.remove(state.setRows,i);state.setName=read("set-name");Refresh()end,false,"set-remove:"..i)
     end;content:SetHeight(math.max(1,#state.setRows*48))
-    W.Field(panel,"ADD ABILITY BY SPELL ID","",14,389,210,"new-spell")
-    W.Button(panel,"Add ability",236,406,120,function()local spell=tonumber(read("new-spell"));if not spell or spell<1 or spell%1~=0 then notify("Enter a positive integer spell ID",true);return end;for _,r in ipairs(state.setRows)do if r.spellID==spell then notify("Ability already exists",true);return end end;state.setName=read("set-name");state.setRows[#state.setRows+1]={spellID=spell,enabled=true};Refresh()end,false,"add-spell")
-    W.Button(parent,"Delete set",218,522,116,function()local a,b=ns.DeleteSet(scope(),state.spec,state.setKey);if done(a,b,"Set deleted")then chooseSet(nil);Refresh()end end,false,"delete-set")
+    W.Field(panel,"ADD ABILITY BY SPELL ID",state.newSpell or"",14,389,210,"new-spell")
+    W.Button(panel,"Add ability",236,406,120,function()local spell=tonumber(read("new-spell"));if not spell or spell<1 or spell%1~=0 then notify("Enter a positive integer spell ID",true);return end;for _,r in ipairs(state.setRows)do if r.spellID==spell then notify("Ability already exists",true);return end end;state.setName=read("set-name");state.setRows[#state.setRows+1]={spellID=spell,enabled=true};state.newSpell="";Refresh()end,false,"add-spell")
+    W.Button(parent,"Delete set",218,522,116,function()local key=state.setKey;local a,b=ns.DeleteSet(scope(),state.spec,key);if a then state.setDrafts[key or"new"]=nil;chooseSet(nil,true)end;done(a,b,"Set deleted")end,false,"delete-set")
     W.Button(parent,"Test set",524,522,130,function()local preset={list={},together={},disabled={}};for _,r in ipairs(state.setRows)do preset.list[#preset.list+1]=r.spellID;if r.together then preset.together[r.spellID]=true end;if not r.enabled then preset.disabled[r.spellID]=true end end;local spells=ns.Pick(preset);if #spells==0 then for _,r in ipairs(state.setRows)do if r.enabled then spells={r.spellID};break end end end;ns.Display({type="icon",spells=spells,text="Set preview",dur=4});notify("Preview only; no encounter trigger was fired")end,false,"test-set")
-    W.Button(parent,"Save set",666,522,202,function()local a,b=ns.SaveSet(scope(),state.spec,state.setKey,read("set-name"),state.setRows);if a then state.setKey=a;state.setName=read("set-name")end;done(a,b,"Defensive set saved")end,true,"save-set")
+    W.Button(parent,"Save set",666,522,202,function()local oldKey=state.setKey;local a,b=ns.SaveSet(scope(),state.spec,oldKey,read("set-name"),state.setRows);if a then state.setDrafts[oldKey or"new"]=nil;state.setKey=a;state.setName=read("set-name")end;done(a,b,"Defensive set saved")end,true,"save-set")
 end
 local function InitialForm(ctx,reference)
     local e=reference and reference.entry or{};local t=e.trigger or{};local d=e.display or{}
@@ -84,7 +145,7 @@ local function DrawInspector(parent,ctx)
     for i,t in ipairs({{"assignment","Assignment"},{"display","Display"},{"filters","Conditions"}})do
         W.Button(p,t[2],12+(i-1)*124,61,118,function()collect();state.inspectorTab=t[1];Refresh()end,state.inspectorTab==t[1],"inspector:"..t[1])
     end
-    local content=W.Scroll(p,8,101,374,284)
+    local content=W.Scroll(p,8,101,374,284,"inspector:"..state.inspectorTab)
     local y=8
     local function field(title,key,w,x)W.Field(content,title,form[key],x or 8,y,w or 325,"rule:"..key);end
     local function select(title,key,options,w,x)
@@ -136,8 +197,8 @@ local function DrawInspector(parent,ctx)
     end
     content:SetHeight(y+12)
     W.Button(p,"Test",12,397,72,function()collect();local spell=tonumber(form.displaySpellID);if form.action=="defensive"then local preset=ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec)[form.preset];spell=preset and preset.list[1]end;ns.Display({type=spell and"icon"or"text",spellID=spell,text=form.text~=""and form.text or"Reminder preview",dur=tonumber(form.duration)or 4,sound=form.sound,tts=form.tts});notify("Display preview; verify the mechanic in game")end,false,"test-rule")
-    W.Button(p,"Delete",92,397,82,function()done(ns.DeleteRule(ctx,state.reference));state.reference=nil;state.form=InitialForm(ctx);Refresh()end,false,"delete-rule")
-    W.Button(p,"Save reminder",182,397,198,function()collect();local key,error=ns.SaveRule(ctx,form,state.reference);if key then state.ruleKey=key;state.form=nil end;done(key,error,"Reminder saved")end,true,"save-rule")
+    W.Button(p,"Delete",92,397,82,function()local a,b=ns.DeleteRule(ctx,state.reference);if a then state.ruleDrafts[ruleKey(ctx,state.ruleKey)]=nil;state.reference=nil;state.ruleKey="new";state.form=InitialForm(ctx)end;done(a,b,"Reminder deleted")end,false,"delete-rule")
+    W.Button(p,"Save reminder",182,397,198,function()collect();local key,error=ns.SaveRule(ctx,form,state.reference);if key then state.ruleDrafts[ruleKey(ctx,state.ruleKey)]=nil;state.ruleDrafts[ruleKey(ctx,key)]=nil;state.ruleKey=key;state.form=nil end;done(key,error,"Reminder saved")end,true,"save-rule")
 end
 local function DrawManual(parent)
     ContentHeader(parent,"Add an encounter mechanic","Use verified IDs from your installed client. Retail catalogs are not applied to Forever.")
@@ -159,7 +220,7 @@ local function DrawMechanics(parent)
     local entities=g and(g.npcs or g.bosses)or{};if content=="raid"and g then entities=g.bosses end
     local n=entities[1];for _,v in ipairs(entities)do if v.id==state.entity then n=v end end
     if n then state.entity=n.id end
-    local list=W.Scroll(parent,0,111,224,440)
+    local list=W.Scroll(parent,0,111,224,440,"mechanics:entities")
     W.Label(list,content=="mythic"and"BOSSES & TRASH"or"BOSSES",6,8,190,10,W.colors.muted)
     for i,v in ipairs(entities)do local label=(v.kind=="trash"and"T · "or"B · ")..v.name;W.Button(list,label,0,29+(i-1)*37,196,function()state.entity=v.id;state.timed=false;state.ability=nil;state.form=nil;state.ruleKey=nil;Refresh()end,n==v,"entity:"..v.id)end;list:SetHeight(38+#entities*37)
     local abilities={};for _,a in ipairs(n and n.abilities or{})do
@@ -169,7 +230,7 @@ local function DrawMechanics(parent)
     local ability=abilities[1];for _,a in ipairs(abilities)do if a.id==state.ability then ability=a end end
     local ctx={scope=content,spec=state.spec,map=g and g.mapID,group=g and g.id,npc=n and n.id,kind=n and n.kind or"boss",encounter=n and(n.encounterId or(content=="raid"and n.id)),difficulty=content=="mythic"and 8 or state.difficulty,spell=ability and ability.id,abilityName=ability and name(ability.id,ability.name)}
     if ability then state.ability=ability.id end
-    local mechanics=W.Scroll(parent,234,111,232,440);W.Label(mechanics,"MECHANICS",6,8,200,10,W.colors.muted)
+    local mechanics=W.Scroll(parent,234,111,232,440,"mechanics:abilities");W.Label(mechanics,"MECHANICS",6,8,200,10,W.colors.muted)
     for i,a in ipairs(abilities)do local button=W.Button(mechanics,name(a.id,a.name),0,29+(i-1)*37,204,function()state.ability=a.id;state.form=nil;state.ruleKey=nil;state.timed=false;Refresh()end,ability==a and not state.timed,"ability:"..a.id);W.Icon(button,a.id,5,7,16);button.label:ClearAllPoints();button.label:SetPoint("TOPLEFT",button,"TOPLEFT",28,-8);button.label:SetWidth(165)end
     local my=35+#abilities*37
     if content=="raid"and n then W.Button(mechanics,"+ Timed reminder",0,my,204,function()state.timed=true;state.ruleKey=nil;state.form=nil;Refresh()end,state.timed,"new-timed");my=my+38 end
@@ -184,22 +245,28 @@ local function DrawMechanics(parent)
     if n and(ability or state.timed)then
         local rules=ns.RuleOptions(ctx);local reference
         for _,r in ipairs(rules)do if r.key==state.ruleKey then reference=r end end
-        if not state.form then reference=reference or(not state.timed and rules[1]);state.reference=reference;state.form=InitialForm(ctx,reference);state.inspectorTab="assignment";if state.timed and not reference then state.form.trigger="pull";state.form.delay=30;state.form.action="text"end end
+        if not state.form then
+            if not reference and state.ruleKey~="new"and not state.timed then reference=rules[1]end
+            state.ruleKey=reference and reference.key or"new"
+            local draft=state.ruleDrafts[ruleKey(ctx,state.ruleKey)]
+            if draft then state.reference=ns.Clone(draft.reference);state.form=ns.Clone(draft.form);state.inspectorTab=draft.inspectorTab
+            else state.reference=reference;state.form=InitialForm(ctx,reference);state.inspectorTab="assignment";if state.timed and not reference then state.form.trigger="pull";state.form.delay=30;state.form.action="text"end end
+        end
         state.context=ctx;DrawInspector(parent,ctx)
         if #rules>0 and not state.timed then
             local o={{value="new",label="+ Another reminder for this mechanic"}};for _,r in ipairs(rules)do o[#o+1]={value=r.key,label=r.entry.name or tostring(r.key)}end
-            W.Select(parent,"SAVED REMINDERS",o,state.reference and state.reference.key or"new",476,55,220,function(v)state.ruleKey=v;state.form=nil;if v=="new"then state.reference=nil;state.form=InitialForm(ctx)end;Refresh()end,"rule-choice")
+            W.Select(parent,"SAVED REMINDERS",o,state.reference and state.reference.key or"new",476,55,220,function(v)state.ruleKey=v;state.form=nil;Refresh()end,"rule-choice")
         end
     else W.Label(parent,"Choose an encounter and mechanic, or add your own verified IDs.",493,150,350,14,W.colors.muted)end
 end
 local function DrawSettings(parent)
     ContentHeader(parent,"General settings","One display style across both content types. Defensive sets stay separate.")
-    local s=ns.Clone(ns.Settings());state.settings=s
+    local s=state.settings or ns.Clone(ns.Settings());state.settings=s;state.settingFields=state.settingFields or{}
     local panel=W.Panel(parent,0,62,868,451)
     local flags={{"Enable reminders","enabled"},{"Show spell icons","showIcon"},{"Show reminder text","showText"},{"Show duration bar","showBar"},{"Enable text to speech","voiceOn"},{"Call external when no defensive is ready","fallbackOn"}}
     for i,f in ipairs(flags)do local value=s[f[2]];if value==nil then value=f[2]~="voiceOn"and f[2]~="fallbackOn"end;W.Toggle(panel,f[1],value,18,18+(i-1)*44,420,function(v)s[f[2]]=v end,"setting:"..f[2])end
     local fields={{"ICON SIZE","iconSize",42},{"TEXT SIZE","textSize",14},{"VOICE VOLUME","voiceVol",100},{"X POSITION","x",0},{"Y POSITION","y",100}}
-    for i,f in ipairs(fields)do local v=(f[2]=="x"or f[2]=="y")and s.pos and s.pos[f[2]]or s[f[2]];W.Field(panel,f[1],v or f[3],488,18+(i-1)*64,325,"setting:"..f[2])end
+    for i,f in ipairs(fields)do local v=(f[2]=="x"or f[2]=="y")and s.pos and s.pos[f[2]]or s[f[2]];W.Field(panel,f[1],state.settingFields[f[2]]or v or f[3],488,18+(i-1)*64,325,"setting:"..f[2])end
     W.Select(panel,"BOSS MOD SOURCE",{{value="bigwigs",label="BigWigs / LittleWigs"},{value="dbm",label="DBM"}},s.bossSource or"bigwigs",18,300,420,function(v)s.bossSource=v end,"setting:bossSource")
     W.Label(panel,"Boss mechanics require matching provider messages/timers.\nExBoss supplies trash countdowns. Readiness uses public game APIs.",18,373,425,12,W.colors.muted)
     W.Button(parent,"Preview display",0,526,160,function()ns.Display({type="icon",spellID=22812,text="Use a defensive",dur=4,tts=s.voiceOn});notify("Preview uses currently saved settings")end,false,"preview-display")
@@ -210,57 +277,59 @@ end
 local function DrawProfiles(parent)
     ContentHeader(parent,"Profiles","One profile holds both content types. Imports create a separate copy.")
     local opts={};for name in pairs(ns.Store().profiles)do opts[#opts+1]={value=name,label=name}end;table.sort(opts,function(a,b)return a.label<b.label end)
-    W.Select(parent,"ACTIVE PROFILE",opts,ns.Store().active,0,60,400,function(v)local a,b=ns.SelectProfile(v);state.group=nil;state.entity=nil;state.form=nil;state.setName=nil;done(a,b,"Profile selected")end,"profile-select")
-    W.Field(parent,"NEW PROFILE NAME","",420,60,448,"profile-name")
+    W.Select(parent,"ACTIVE PROFILE",opts,ns.Store().active,0,60,400,function(v)local a,b=ns.SelectProfile(v);done(a,b,"Profile selected")end,"profile-select")
+    W.Field(parent,"NEW PROFILE NAME",state.profileName or"",420,60,448,"profile-name")
     W.Button(parent,"Create",0,127,130,function()done(ns.CreateProfile(read("profile-name"),false))end,false,"profile-create")
     W.Button(parent,"Copy active",140,127,130,function()done(ns.CreateProfile(read("profile-name"),true))end,false,"profile-copy")
     W.Button(parent,"Rename",280,127,120,function()done(ns.RenameProfile(read("profile-name")))end,false,"profile-rename")
     W.Button(parent,state.confirmDelete and"Confirm delete"or"Delete active",420,127,160,function()if not state.confirmDelete then state.confirmDelete=true;Refresh()else state.confirmDelete=false;done(ns.DeleteProfile())end end,false,"profile-delete")
     W.Label(parent,"IMPORT / EXPORT STRING",0,183,700,11,W.colors.muted)
     local panel=W.Panel(parent,0,207,868,230,W.colors.background);local scroll=W.Frame("ScrollFrame",nil,panel,"UIPanelScrollFrameTemplate");scroll:SetPoint("TOPLEFT",10,-10);scroll:SetSize(832,210)
-    local text=W.Frame("EditBox",nil,scroll);text:SetMultiLine(true);text:SetFont(STANDARD_TEXT_FONT or"Fonts\\FRIZQT__.TTF",12,"");text:SetWidth(812);text:SetHeight(200);text:SetAutoFocus(false);text:SetMaxLetters(130000);text:SetText(state.importText or"");scroll:SetScrollChild(text);text:SetScript("OnTextChanged",function(self)
+    local text=W.Frame("EditBox",nil,scroll);text:SetMultiLine(true);text:SetFont(STANDARD_TEXT_FONT or"Fonts\\FRIZQT__.TTF",12,"");text:SetWidth(812);text:SetHeight(200);text:SetAutoFocus(false);text:SetMaxLetters(130000);text:SetText(state.importText or"");W.AttachScrollChild(scroll,text);text:SetScript("OnTextChanged",function(self)
         if self.GetNumLines then local ok,n=pcall(self.GetNumLines,self);if ok and type(n)=="number"then self:SetHeight(math.max(210,n*16+24));scroll:UpdateScrollChildRect()end end
     end);text:SetScript("OnEscapePressed",function(self)self:ClearFocus()end);ns.UIControls["profile-string"]=text
-    W.Button(parent,"Import profile",0,452,180,function()local value=read("profile-string");local a,b,report=ns.Import(value);if a then state.importText=ns.ImportReportText(report);state.form=nil;state.setName=nil;state.group=nil end;done(a,b,report and("Imported · "..#report.issues.." migration items to review below")or"Profile imported")end,true,"profile-import")
+    W.Button(parent,"Import profile",0,452,180,function()local value=read("profile-string");local a,b,report=ns.Import(value);if a then ensureWorkspace();state.tab="profiles";loadView();state.importText=ns.ImportReportText(report)end;done(a,b,report and("Imported · "..#report.issues.." migration items to review below")or"Profile imported")end,true,"profile-import")
     W.Button(parent,"Export active",192,452,180,function()local value,error=ns.Export();if value then text:SetText(value);text:HighlightText();text:SetFocus();state.importText=value;notify("Export ready · Ctrl+C copies the selected text")else notify(error,true)end end,false,"profile-export")
     W.Button(parent,"Diagnostics",384,452,160,function()local v=ns.Diagnostics();text:SetText(v);text:HighlightText();text:SetFocus();state.importText=v;notify("Diagnostics ready to copy")end,false,"diagnostics")
     W.Label(parent,"PZTK1, NSRPACK2 and full NSRT Profile / EncounterAlert imports. Review migration notes.\nProfile data is local to the current game client. Original profiles are retained.",0,510,860,12,W.colors.muted)
 end
 Refresh=function()
     if not window then return end
+    ensureWorkspace()
     if W.popup then W.popup:Hide()end
-    W.Clear(body);W.Clear(header);W.Begin();ns.UIControls={}
+    W.Clear(body);W.Clear(header);W.Begin();ns.UIControls={};ns.UIScrolls={};W.scrollPositions=state.scrolls
     header=W.Frame("Frame",nil,window);header:SetPoint("TOPLEFT",0,0);header:SetSize(1120,105)
     W.Label(header,"PUZATIK",22,17,300,25);W.Label(header,"REMINDERS",23,48,300,12,W.colors.accent)
     W.Label(header,ns.Client():upper().."  /  "..ns.version.."  /  "..tostring(ns.Store().active or"No profile"),335,24,720,12,W.colors.muted)
     local specs={};for id,label in pairs(ns.Catalog.specs)do specs[#specs+1]={value=id,label=label}end;table.sort(specs,function(a,b)return a.label<b.label end)
-    W.Select(header,"SPECIALIZATION",specs,state.spec,773,43,310,function(v)state.spec=v;state.setName=nil;state.form=nil;state.ruleKey=nil;Refresh()end,"specialization")
+    W.Select(header,"SPECIALIZATION",specs,state.spec,773,43,310,function(v)state.spec=v;loadView();Refresh()end,"specialization")
     W.Button(header,"x",1080,12,28,function()window:Hide();if W.popup then W.popup:Hide()end end,false,"close")
     local tabs={{"mythic","Mythic+"},{"raid","Raids"},{"profiles","Profiles"},{"settings","Settings"}}
-    for i,t in ipairs(tabs)do W.Button(header,t[2],18,115+(i-1)*44,124,function()state.tab=t[1];state.mode="mechanics";state.group=nil;state.entity=nil;state.ability=nil;state.timed=false;state.form=nil;state.setName=nil;Refresh()end,state.tab==t[1],"tab:"..t[1])end
+    for i,t in ipairs(tabs)do W.Button(header,t[2],18,115+(i-1)*44,124,function()if state.tab~=t[1]then state.tab=t[1];loadView()end;Refresh()end,state.tab==t[1],"tab:"..t[1])end
     W.Label(header,"M+ and raid sets\nare independent.",24,510,112,11,W.colors.muted)
     body=W.Frame("Frame",nil,window);body:SetPoint("TOPLEFT",164,-113);body:SetSize(868,560)
     if state.tab=="mythic"or state.tab=="raid"then
         -- Context navigation belongs to the current content, not global extra modules.
-        W.Button(header,"Mechanics",164,72,126,function()state.mode="mechanics";state.form=nil;Refresh()end,state.mode=="mechanics","mode:mechanics")
-        W.Button(header,"Defensive sets",300,72,150,function()state.mode="sets";state.setName=nil;Refresh()end,state.mode=="sets","mode:sets")
+        W.Button(header,"Mechanics",164,72,126,function()state.mode="mechanics";Refresh()end,state.mode=="mechanics","mode:mechanics")
+        W.Button(header,"Defensive sets",300,72,150,function()state.mode="sets";Refresh()end,state.mode=="sets","mode:sets")
         if state.mode=="sets"then DrawSets(body)elseif state.mode=="manual"then DrawManual(body)else DrawMechanics(body)end
     elseif state.tab=="profiles"then DrawProfiles(body)else DrawSettings(body)end
-    W.Finish();notify(state.message or"Choose an encounter to configure a reminder",state.error)
+    W.Finish();saveView();notify(state.message or"Drafts stay when you navigate. Save explicitly to activate changes.",state.error)
 end
 function ns.OpenWorkspace()
+    if window then capture();saveView()end
     if not window then
         window=W.Panel(UIParent,0,0,1120,720,W.colors.background);window:ClearAllPoints();window:SetPoint("CENTER");window:SetFrameStrata("DIALOG");window:SetMovable(true);window:EnableMouse(true);window:RegisterForDrag("LeftButton");window:SetScript("OnDragStart",function(self)if not(InCombatLockdown and InCombatLockdown())then self:StartMoving()end end);window:SetScript("OnDragStop",function(self)self:StopMovingOrSizing()end)
         local sw=GetScreenWidth and GetScreenWidth()or 1920;local sh=GetScreenHeight and GetScreenHeight()or 1080
         window:SetScale(math.min(1,math.max(0.55,(sw-30)/1120),math.max(0.55,(sh-50)/720)))
         window:EnableKeyboard(true);window:SetPropagateKeyboardInput(true);window:SetScript("OnKeyDown",function(self,key)if key=="ESCAPE"then self:Hide();if W.popup then W.popup:Hide()end end end)
+        window:SetScript("OnHide",function()capture();saveView();if W.popup then W.popup:Hide()end end)
         status=W.Label(window,"",20,687,1080,11,W.colors.muted)
         ns.WorkspaceWindow=window
     end
     if not ns.Active()then
         if not(InCombatLockdown and InCombatLockdown())then ns.CreateProfile("Default",false)end
     end
-    state.spec=state.spec or ns.Spec()or 104
     Refresh();window:Show()
 end
 function ns.ShowDiagnostics()

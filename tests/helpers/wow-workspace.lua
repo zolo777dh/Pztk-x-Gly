@@ -10,10 +10,13 @@ UIParent=node('Root');UIParent.w=1280;UIParent.h=800
 function methods:SetScript(k,v)self.scripts[k]=v end
 function methods:HasScript()return true end
 function methods:RegisterEvent(k)self.events[k]=true end
-function methods:SetParent(p)self.parent=p end
-function methods:Show()self.shown=true end
-function methods:Hide()self.shown=false end
+function methods:SetParent(p)local cursor=p;while cursor do assert(cursor~=self,'Cyclic frame parenting');cursor=cursor.parent end;self.parent=p end
+function methods:Show()local changed=not self.shown;self.shown=true;if changed and self.scripts.OnShow then self.scripts.OnShow(self)end end
+function methods:Hide()local changed=self.shown;self.shown=false;if changed and self.scripts.OnHide then self.scripts.OnHide(self)end end
 function methods:IsShown()return self.shown end
+function methods:IsVisible()return self.shown and(not self.parent or self.parent:IsVisible())end
+function methods:GetFrameLevel()return self.level or(self.parent and self.parent:GetFrameLevel()+1)or 0 end
+function methods:SetFrameLevel(level)assert(type(level)=='number');self.level=level end
 function methods:SetSize(w,h)self.w=w;self.h=h end
 function methods:SetWidth(w)self.w=w end
 function methods:SetHeight(h)self.h=h end
@@ -21,6 +24,7 @@ function methods:GetWidth()return self.w end
 function methods:GetHeight()return self.h end
 function methods:SetText(t)self.text=tostring(t or'')end
 function methods:GetText()return self.text or''end
+function methods:GetObjectType()return self.kind=='Text'and'FontString'or self.kind end
 function methods:SetFont(file,size,flags)
  assert(type(file)=='string'and type(size)=='number','SetFont requires a font file and height')
  -- EditBox requires flags in the game API; permissive no-op mocks hid this error.
@@ -37,8 +41,13 @@ function methods:SetPoint(point,a,b,c,d)
  elseif type(a)=='table'then self.point={point=point,relative=a,relativePoint=b,x=c or 0,y=d or 0}
  else self.point={point=point,relative=self.parent,x=0,y=0}end
 end
-function methods:SetScrollChild(child)self.scrollChild=child;child.parent=self;child.point={point='TOPLEFT',relative=self,x=0,y=0}end
+function methods:SetScrollChild(child)
+ if self.scrollChild and self.scrollChild~=child then self.scrollChild.scrollOwner=nil end
+ self.scrollChild=child;child.scrollOwner=self;child:SetParent(self)
+end
+function methods:GetScrollChild()return self.scrollChild end
 function methods:SetVerticalScroll(v)self.scroll=v end
+function methods:GetVerticalScroll()return self.scroll or 0 end
 function methods:CreateTexture()return node('Texture',self)end
 function methods:CreateFontString()return node('Text',self)end
 function methods:SetTexture(texture)self.texture=texture end
@@ -72,5 +81,16 @@ function env.select(key,value)
  env.click(key);local menu=PztkReminders.Widgets.menu
  for _,r in ipairs(menu.rows)do if r.shown and r.label.text==value then r:Click();return end end
  error('Missing option '..value..' for '..key)
+end
+function env.assertLayout()
+ for _,f in ipairs(env.frames)do
+  if f.kind=='ScrollFrame'and f:IsVisible()then
+   local child=assert(f.scrollChild,'Visible scroll frame has no content')
+   assert(child.parent==f and child.scrollOwner==f,'Scroll child was recycled into another viewport')
+   assert(child.shown and child.point and child.point.relative==f,'Scroll content is hidden or unanchored')
+   assert(child:GetFrameLevel()>f:GetFrameLevel(),'Scroll content is below its background')
+  end
+ end
+ for key,f in pairs(PztkReminders.UIControls)do assert(f:IsVisible(),'Control is hidden: '..key)end
 end
 return env

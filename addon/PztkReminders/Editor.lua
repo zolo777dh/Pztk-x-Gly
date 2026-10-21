@@ -78,11 +78,13 @@ function ns.SelectProfile(name)
     return ok,not ok and tostring(error)or nil
 end
 function ns.RenameProfile(name)
-    local ok,error=pcall(function()Editable();name=Name(name);local store=ns.Store();assert(ns.Active(),"No active profile");assert(not store.profiles[name],"A profile with this name already exists");local p=ns.Active();store.profiles[store.active]=nil;store.profiles[name]=p;p.name=name;store.active=name;Changed()end)
+    local ok,error=pcall(function()Editable();name=Name(name);local store=ns.Store();assert(ns.Active(),"No active profile");assert(not store.profiles[name],"A profile with this name already exists");local p=ns.Active();local oldName=store.active;store.profiles[oldName]=nil;store.profiles[name]=p;p.name=name;store.active=name
+        if store.workspace and store.workspace.profiles then store.workspace.profiles[name]=store.workspace.profiles[oldName];store.workspace.profiles[oldName]=nil end
+        Changed()end)
     return ok,not ok and tostring(error)or nil
 end
 function ns.DeleteProfile()
-    local ok,error=pcall(function()Editable();local store=ns.Store();store.profiles[store.active]=nil;store.active=nil;for name in pairs(store.profiles)do if not store.active or name<store.active then store.active=name end end;Changed()end)
+    local ok,error=pcall(function()Editable();local store=ns.Store();store.profiles[store.active]=nil;if store.workspace and store.workspace.profiles then store.workspace.profiles[store.active]=nil end;store.active=nil;for name in pairs(store.profiles)do if not store.active or name<store.active then store.active=name end end;Changed()end)
     return ok,not ok and tostring(error)or nil
 end
 function ns.SaveSet(scope,spec,key,name,rows)
@@ -90,7 +92,7 @@ function ns.SaveSet(scope,spec,key,name,rows)
         assert(scope=="mythic"or scope=="raid","Choose content");spec=Integer(spec,"specialization");assert(ns.Catalog.specs[spec],"Unknown specialization")
         local sets=ns.Get(data.scopePresets[scope],spec);if not sets then sets={};data.scopePresets[scope][spec]=sets end
         key=key or ns.UID("set");local p={name=Name(name),list={},together={},disabled={}}
-        local seen={};assert(#rows<=200,"Use at most 200 abilities in one set")
+        local seen={};assert(#rows>0,"Add at least one defensive ability");assert(#rows<=200,"Use at most 200 abilities in one set")
         for _,row in ipairs(rows)do local spell=Integer(row.spellID,"spell ID");assert(not seen[spell],"This ability is already in the set");seen[spell]=true;p.list[#p.list+1]=spell;if row.together then p.together[spell]=true end;if row.enabled==false then p.disabled[spell]=true end end
         sets[key]=p;if not ns.Get(data.scopeActivePreset[scope],spec)then data.scopeActivePreset[scope][spec]=key end;return key
     end)
@@ -106,7 +108,7 @@ local function Referenced(data,scope,spec,key)
     end end
 end
 function ns.DeleteSet(scope,spec,key)
-    return ns.EditProfile(function(data)spec=Integer(spec,"specialization");assert(not Referenced(data,scope,spec,key),"This set is assigned to mechanics. Reassign them first.");local sets=ns.Get(data.scopePresets[scope],spec)or{};sets[key]=nil;if ns.Get(data.scopeActivePreset[scope],spec)==key then data.scopeActivePreset[scope][spec]=nil end end)
+    return ns.EditProfile(function(data)spec=Integer(spec,"specialization");assert(key,"Choose a saved set first");assert(not Referenced(data,scope,spec,key),"This set is assigned to mechanics. Reassign them first.");local sets=ns.Get(data.scopePresets[scope],spec)or{};sets[key]=nil;if ns.Get(data.scopeActivePreset[scope],spec)==key then data.scopeActivePreset[scope][spec]=nil end end)
 end
 function ns.EncounterScope(encounter)
     for _,d in ipairs(ns.Catalog.dungeons)do for _,n in ipairs(d.npcs)do if n.encounterId==encounter then return "mythic"end end end

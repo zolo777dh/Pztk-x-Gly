@@ -1,4 +1,4 @@
-Puzatik Reminders 0.3.1 — in-game editor and reminder engine
+Puzatik Reminders 0.3.2 — in-game editor and reminder engine
 
 INSTALL
 Close WoW. Replace the PztkReminders folder in Interface/AddOns with this folder.
@@ -10,6 +10,12 @@ using this addon. It pauses reminder dispatch if those engines are loaded.
 OPEN
 Use /puzatik or /pztkr. The workspace has Mythic+, Raids, Profiles and Settings.
 Choose a specialization by name. All 40 current specialization labels are present.
+
+Navigation preserves your selected encounter, specialization, defensive-set draft,
+reminder fields, settings draft and scroll position. Drafts are saved locally on
+navigation, close and logout/reload, separately for each client/profile/spec.
+Save set / Save reminder / Save settings activates the reviewed change. Exports
+include saved profile content; incomplete editor drafts stay local.
 
 MYTHIC+
 1. Open Defensive sets. Create a named set and add your defensive spell IDs.

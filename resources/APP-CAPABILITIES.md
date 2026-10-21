@@ -1,8 +1,9 @@
-# Pztk x Glyalith 0.6.1 + Puzatik Reminders 0.3.1
+# Pztk x Glyalith 0.6.2 + Puzatik Reminders 0.3.2
 
 Pztk x Glyalith is a Windows desktop app for planning profiles for **Puzatik Reminders**, a separate WoW addon that combines defensive priorities, raid assignments and timed encounter reminders. Addon maintenance and AI tools remain in the same desktop application.
 
 - **In-game workspace:** `/puzatik` or `/pztkr` opens Mythic+, Raids, Profiles and Settings. Create and edit content-specific sets and mechanic / pull / phase reminders directly in WoW. Assignment, Display and Conditions keep related controls together.
+- **Persistent editing:** switching pages, encounters, difficulty, specialization or profiles keeps unfinished inputs and navigation state. Drafts survive close and logout/reload in local SavedVariables; explicit Save activates a change. Drafts are separate from runtime profiles and are not included in exports.
 - **Independent content sets:** M+ and raid priorities are separate for every spec, with Together and disabled abilities. The first save copies legacy shared sets into independent collections.
 - **Direct in-game migration:** unlicensed NSRPACK2 and current full NSRT Profile / EncounterAlert exports can be imported with a review report. Source strings and reports stay locally in SavedVariables. Native PZTK1 combines the configured content.
 - **One native export:** PZTK1 contains configured defensive sets, Mythic+ / raid mechanic bindings and scheduled assignments. Import it in Pztk Reminders with `/pztkr`.

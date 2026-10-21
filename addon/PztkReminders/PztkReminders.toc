@@ -3,7 +3,7 @@
 ## Title: Puzatik Reminders
 ## Notes: In-game Mythic+ defensive sets and raid mechanic / encounter-time reminders.
 ## Author: Pztk x Glyalith
-## Version: 0.3.1
+## Version: 0.3.2
 ## SavedVariables: PztkRemindersDB
 ## OptionalDeps: BigWigs, DBM-Core, EXBoss
 Libs\LibStub.lua

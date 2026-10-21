@@ -1,9 +1,100 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
 const root=path.resolve('addon/PztkReminders'),files=['Runtime','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
-async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('PztkReminders',ns)`).join('\n')+`\nns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\n${body}`;
+async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('PztkReminders',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(PztkRemindersDB));assert(ok);PztkRemindersDB=db else PztkRemindersDB=ns.Clone(PztkRemindersDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
 }
+test('unsaved set names, ability inputs and chosen encounters survive navigation and reopening',()=>run(`
+env.select('group','Altar of Fangs');local group=ns.UIState.group
+env.click('mode:sets');env.input('set-name','Unfinished set');env.input('new-spell','22812')
+env.click('mode:mechanics');assert(ns.UIState.group==group)
+env.click('tab:raid');env.click('tab:mythic');assert(ns.UIState.group==group)
+env.click('mode:sets');assert(ns.UIControls['set-name']:GetText()=='Unfinished set');assert(ns.UIControls['new-spell']:GetText()=='22812')
+env.click('add-spell');env.input('new-spell','61336');ns.WorkspaceWindow:Hide();ns.Open()
+assert(ns.UIControls['set-name']:GetText()=='Unfinished set');assert(ns.UIControls['new-spell']:GetText()=='61336')
+env.click('add-spell');env.click('save-set');local key=ns.UIState.setKey;assert(key)
+env.click('tab:settings');env.click('tab:mythic');env.click('mode:sets')
+assert(ns.UIControls['set-name']:GetText()=='Unfinished set');assert(#ns.ScopePresets(ns.Active(),'mythic',104)[key].list==2)
+`));
+test('settings drafts survive a source dropdown, page changes and closing, then save exactly',()=>run(`
+env.click('tab:settings');env.input('setting:iconSize','57');env.input('setting:x','125');env.click('setting:voiceOn');env.select('setting:bossSource','DBM')
+assert(ns.UIControls['setting:bossSource'].label:GetText()=='DBM  v')
+env.click('tab:profiles');env.click('tab:settings');assert(ns.UIControls['setting:iconSize']:GetText()=='57');assert(ns.UIControls['setting:voiceOn'].value)
+ns.WorkspaceWindow:Hide();ns.Open();assert(ns.UIControls['setting:x']:GetText()=='125');env.click('save-settings')
+assert(ns.Settings().iconSize==57 and ns.Settings().pos.x==125 and ns.Settings().voiceOn and ns.Settings().bossSource=='dbm')
+`));
+test('scroll viewports keep their visible anchored content through repeated page changes',()=>run(`
+for i=1,8 do
+ for _,tab in ipairs({'mythic','raid','profiles','settings'})do
+  env.click('tab:'..tab);env.assertLayout()
+  if tab=='mythic'or tab=='raid'then
+   env.click('mode:sets');env.assertLayout();env.click('mode:mechanics');env.assertLayout()
+  end
+ end
+end
+`));
+test('mechanic drafts keep exact inputs per ability, specialization and difficulty, and save after returning',()=>run(`
+local preset=assert(ns.SaveSet('mythic',104,nil,'Personal',{{spellID=22812,enabled=true}}))
+env.select('group','Murder Row');env.click('entity:236071');env.click('ability:1216529')
+env.input('rule:name','My trash shield');env.select('rule:preset','Personal');env.input('rule:leadTime','3.5')
+env.click('inspector:display');env.input('rule:text','Shield now');env.input('rule:duration','6')
+env.click('tab:raid');env.click('tab:mythic');assert(ns.UIState.entity==236071 and ns.UIState.ability==1216529)
+assert(ns.UIControls['rule:text']:GetText()=='Shield now');env.click('inspector:assignment');assert(ns.UIControls['rule:name']:GetText()=='My trash shield')
+env.select('specialization','Restoration Shaman');env.click('mode:sets');env.input('set-name','Shaman draft')
+env.select('specialization','Guardian Druid');assert(ns.UIState.mode=='mechanics');assert(ns.UIControls['rule:leadTime']:GetText()=='3.5')
+env.click('save-rule');local key=ns.UIState.ruleKey;local e=ns.Get(ns.Active().data.integrationRules,104)[key]
+assert(e.name=='My trash shield'and e.preset==preset and e.trigger.timeleft==3.5 and e.display.text=='Shield now')
+env.click('tab:raid');env.click('new-timed');env.input('rule:name','Heroic draft');env.input('rule:delay','45');env.select('difficulty','Mythic')
+env.click('new-timed');env.input('rule:name','Mythic draft');env.select('difficulty','Heroic');env.click('new-timed');assert(ns.UIControls['rule:name']:GetText()=='Heroic draft')
+env.select('difficulty','Mythic');env.click('new-timed');assert(ns.UIControls['rule:name']:GetText()=='Mythic draft')
+`));
+test('drafts and navigation survive a fresh addon load, remain profile-local and stay outside exports',()=>run(`
+env.click('mode:sets');env.input('set-name','Not active yet');env.input('new-spell','22812');env.click('add-spell')
+env.reload();assert(ns.UIState.mode=='sets');assert(ns.UIControls['set-name']:GetText()=='Not active yet');assert(#ns.UIState.setRows==1)
+assert(next(ns.ScopePresets(ns.Active(),'mythic',104))==nil)
+env.click('save-set');local saved=ns.UIState.setKey;env.click('tab:profiles');env.input('profile-name','Other');env.click('profile-create')
+env.click('mode:sets');assert(ns.UIControls['set-name']:GetText()~='Not active yet');env.input('set-name','Other draft')
+env.click('tab:profiles');env.select('profile-select','Default');env.click('tab:mythic');assert(ns.UIState.mode=='sets');assert(ns.UIState.setKey==saved)
+env.reload();assert(ns.ScopePresets(ns.Active(),'mythic',104)[saved].name=='Not active yet')
+env.click('tab:profiles');env.click('profile-export');local output=ns.UIControls['profile-string']:GetText()
+if ns.DecodeImport then
+ -- The native codec is available in the Lua 5.1 run. Portable codec fixtures
+ -- deliberately do not implement decoding.
+ local lib=LibStub('LibSerialize')
+ if lib.Deserialize then local p=assert(ns.Decode(output));assert(not p.workspace and not p.data.workspace);env.input('profile-string',output);env.click('profile-import');assert(ns.ScopePresets(ns.Active(),'mythic',104)[saved].name=='Not active yet')end
+end
+`));
+test('all 40 named specializations keep independent M+ and raid set editors',()=>run(`
+local ids={};for id in pairs(ns.Catalog.specs)do ids[#ids+1]=id end;table.sort(ids);assert(#ids==40)
+for _,id in ipairs(ids)do
+ env.select('specialization',ns.Catalog.specs[id]);env.click('tab:mythic');env.click('mode:sets')
+ env.input('set-name','Dungeon '..id);env.input('new-spell','22812');env.click('add-spell');env.click('save-set')
+ env.click('tab:raid');env.click('mode:sets');env.input('set-name','Raid '..id);env.input('new-spell','61336');env.click('add-spell');env.click('save-set')
+end
+env.reload()
+for _,id in ipairs(ids)do
+ env.select('specialization',ns.Catalog.specs[id]);env.click('tab:mythic');assert(ns.UIControls['set-name']:GetText()=='Dungeon '..id)
+ env.click('tab:raid');assert(ns.UIControls['set-name']:GetText()=='Raid '..id)
+ local _,m=next(ns.ScopePresets(ns.Active(),'mythic',id));local _,r=next(ns.ScopePresets(ns.Active(),'raid',id));assert(m.list[1]==22812 and r.list[1]==61336)
+end
+`));
+test('client workspaces, profile rename and manual encounter drafts retain the correct context',()=>run(`
+env.click('mode:sets');env.input('set-name','Retail draft');env.click('tab:profiles');env.input('profile-name','Renamed');env.click('profile-rename')
+env.click('tab:mythic');assert(ns.UIControls['set-name']:GetText()=='Retail draft')
+env.version='1.60.1';ns.Open();env.click('add-mechanic');env.input('manual:groupName','Forever dungeon');env.input('manual:npcName','Forever boss')
+env.click('tab:raid');env.click('tab:mythic');assert(ns.UIControls['manual:groupName']:GetText()=='Forever dungeon');assert(ns.UIControls['manual:npcName']:GetText()=='Forever boss')
+env.reload();assert(ns.UIControls['manual:groupName']:GetText()=='Forever dungeon')
+env.version='12.1.5';ns.Open();assert(ns.Active().name=='Renamed');assert(ns.UIControls['set-name']:GetText()=='Retail draft')
+`));
+test('a failed save preserves the draft and viewport offset survives navigation',()=>run(`
+env.click('mode:sets');env.input('set-name','');env.input('new-spell','22812');env.click('add-spell');env.click('save-set')
+assert(ns.UIState.error);assert(#ns.UIState.setRows==1);assert(next(ns.ScopePresets(ns.Active(),'mythic',104))==nil)
+env.click('tab:profiles');env.click('tab:mythic');assert(ns.UIControls['set-name']:GetText()=='');assert(#ns.UIState.setRows==1)
+env.input('set-name','Recovered');env.click('save-set');assert(not ns.UIState.error)
+env.click('tab:raid');env.click('new-timed');env.select('rule:trigger','Time from phase')
+ns.UIScrolls['inspector:assignment']:SetVerticalScroll(40);env.click('tab:settings');env.click('tab:raid')
+assert(ns.UIScrolls['inspector:assignment']:GetVerticalScroll()==40);env.assertLayout()
+`));
 test('all workspace pages and multiline inputs supply the flags required by EditBox:SetFont',()=>run(`
 local bad=CreateFrame('EditBox',nil,UIParent);local ok,error=pcall(bad.SetFont,bad,'Fonts/FRIZQT__.TTF',12);assert(not ok and error:find("bad argument #3"))
 for _,version in ipairs({'12.1.5','1.60.1'})do

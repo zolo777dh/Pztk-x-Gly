@@ -40,9 +40,10 @@ SlashCmdList.PZTKREMINDERS=function(message)
     if type(message)=="string"and message:lower():match("^%s*debug%s*$")then ns.ShowDiagnostics()else ns.Open()end
 end
 local events=CreateFrame("Frame")
-for _,event in ipairs({"ADDON_LOADED","PLAYER_ENTERING_WORLD","ENCOUNTER_START","ENCOUNTER_END","PLAYER_REGEN_ENABLED","PLAYER_SPECIALIZATION_CHANGED"})do events:RegisterEvent(event)end
+for _,event in ipairs({"ADDON_LOADED","PLAYER_ENTERING_WORLD","ENCOUNTER_START","ENCOUNTER_END","PLAYER_REGEN_ENABLED","PLAYER_SPECIALIZATION_CHANGED","PLAYER_LOGOUT"})do events:RegisterEvent(event)end
 events:SetScript("OnEvent",function(_,event,a,b,c)
-    if event=="ENCOUNTER_START"then ns.RefreshContext();ns.Begin(a,c,ns.map)
+    if event=="PLAYER_LOGOUT"then if ns.SaveWorkspaceDrafts then ns.SaveWorkspaceDrafts()end;return
+    elseif event=="ENCOUNTER_START"then ns.RefreshContext();ns.Begin(a,c,ns.map)
     elseif event=="ENCOUNTER_END"then ns.Reset()
     elseif event=="PLAYER_REGEN_ENABLED"then ns.Cancel("trash:")
     else

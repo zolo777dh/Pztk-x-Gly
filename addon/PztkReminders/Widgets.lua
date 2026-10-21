@@ -1,22 +1,34 @@
 -- Original lightweight controls. No settings framework or source-addon UI dependency.
 local _,ns=...
-local W={};ns.Widgets=W;ns.UIControls={}
+local W={};ns.Widgets=W;ns.UIControls={};ns.UIScrolls={}
 W.colors={background={0.025,0.035,0.055,1},panel={0.045,0.065,0.09,1},raised={0.065,0.09,0.12,1},line={0.13,0.2,0.27,1},accent={0.04,0.74,0.88,1},text={0.87,0.92,0.96,1},muted={0.52,0.65,0.73,1},warning={1,0.7,0.25,1}}
 -- WoW frames cannot be destroyed. Reuse dynamic controls across redraws.
 local framePools,fontPool,texturePool={},{},{}
 function W.Begin()
     W.building=true;W.fontIndex=0;W.textureIndex=0
-    for _,pool in pairs(framePools)do pool.index=0;for _,f in ipairs(pool)do f:Hide()end end
+    for _,pools in pairs(framePools)do for _,pool in pairs(pools)do pool.index=0;for _,f in ipairs(pool)do f:Hide()end end end
     for _,f in ipairs(fontPool)do f:Hide()end;for _,t in ipairs(texturePool)do t:Hide()end
 end
-function W.Finish()W.building=false end
+function W.Finish()
+    W.building=false
+    for key,s in pairs(ns.UIScrolls)do s:UpdateScrollChildRect();s:SetVerticalScroll(W.scrollPositions and W.scrollPositions[key]or 0)end
+end
+function W.AttachScrollChild(scroll,child)
+    scroll:SetScrollChild(child);child:ClearAllPoints();child:SetPoint("TOPLEFT",scroll,"TOPLEFT",0,0)
+    local level=scroll.GetFrameLevel and scroll:GetFrameLevel();if type(level)=="number"then child:SetFrameLevel(level+1)end
+    child:Show()
+end
 function W.Frame(kind,unused,parent,template)
     if not W.building then return CreateFrame(kind,nil,parent,template)end
-    local key=kind..":"..(template or"");local pool=framePools[key]or{index=0};framePools[key]=pool;pool.index=pool.index+1
+    -- A ScrollFrame retains its scroll child. Never recycle that child into a
+    -- different parent while the old ScrollFrame still owns it.
+    local pools=framePools[parent];if not pools then pools={};framePools[parent]=pools end
+    local key=kind..":"..(template or"");local pool=pools[key]or{index=0};pools[key]=pool;pool.index=pool.index+1
     local f=pool[pool.index];if not f then f=CreateFrame(kind,nil,parent,template);pool[pool.index]=f else
         f:SetParent(parent);f:ClearAllPoints()
         for _,event in ipairs({"OnClick","OnEnter","OnLeave","OnEscapePressed","OnEnterPressed","OnTextChanged","OnKeyDown","OnUpdate"})do if f:HasScript(event)then f:SetScript(event,nil)end end
     end
+    local level=parent and parent.GetFrameLevel and parent:GetFrameLevel();if type(level)=="number"then f:SetFrameLevel(level+1)end
     f:Show();return f
 end
 local function Font(parent)
@@ -42,7 +54,7 @@ function W.Button(parent,text,x,y,w,callback,selected,key)
     local b=W.Frame("Button",nil,parent,"BackdropTemplate");b:SetPoint("TOPLEFT",x,-y);b:SetSize(w,30)
     b:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1});b:SetBackdropColor(unpack(selected and{0.025,0.23,0.3,1}or W.colors.raised));b:SetBackdropBorderColor(unpack(selected and W.colors.accent or W.colors.line))
     b.label=W.Label(b,text,9,8,w-18,12,selected and W.colors.accent or W.colors.text)
-    b:SetScript("OnClick",function()if W.popup then W.popup:Hide()end;if callback then callback()end end)
+    b:SetScript("OnClick",function()if W.BeforeAction then W.BeforeAction()end;if W.popup then W.popup:Hide()end;if callback then callback()end end)
     b:SetScript("OnEnter",function(self)self:SetBackdropBorderColor(unpack(W.colors.accent))end)
     b:SetScript("OnLeave",function(self)self:SetBackdropBorderColor(unpack(selected and W.colors.accent or W.colors.line))end)
     return register(b,key)
@@ -60,7 +72,7 @@ function W.Toggle(parent,title,value,x,y,w,callback,key)
     local text=W.Label(b,title,0,5,w-36,12)
     local thumb=Texture(b);thumb:SetSize(10,10);thumb:SetColorTexture(0.91,0.95,0.98,1)
     local function paint()mark:SetColorTexture(unpack(b.value and W.colors.accent or W.colors.line));thumb:ClearAllPoints();thumb:SetPoint("RIGHT",b,"RIGHT",b.value and -4 or -15,0)end;paint()
-    b:SetScript("OnClick",function()b.value=not b.value;paint();if callback then callback(b.value)end end);return register(b,key)
+    b:SetScript("OnClick",function()if W.BeforeAction then W.BeforeAction()end;b.value=not b.value;paint();if callback then callback(b.value)end end);return register(b,key)
 end
 function W.Select(parent,title,options,value,x,y,w,callback,key)
     W.Label(parent,title,x,y,w,10,W.colors.muted)
@@ -71,7 +83,7 @@ function W.Select(parent,title,options,value,x,y,w,callback,key)
         if not p then
             p=W.Panel(UIParent,0,0,w,300,W.colors.background);p:SetFrameStrata("TOOLTIP");p:SetClampedToScreen(true);p.rows={}
             p.scroll=CreateFrame("ScrollFrame",nil,p,"UIPanelScrollFrameTemplate");p.scroll:SetPoint("TOPLEFT",3,-3)
-            p.child=CreateFrame("Frame",nil,p.scroll);p.scroll:SetScrollChild(p.child);W.menu=p
+            p.child=CreateFrame("Frame",nil,p.scroll);W.AttachScrollChild(p.scroll,p.child);W.menu=p
         end
         p:ClearAllPoints();local height=math.min(300,#options*28+8);local bottom=b.GetBottom and b:GetBottom()
         if type(bottom)=="number"and bottom<height then p:SetPoint("BOTTOMLEFT",b,"TOPLEFT",0,2)else p:SetPoint("TOPLEFT",b,"BOTTOMLEFT",0,-2)end
@@ -81,14 +93,15 @@ function W.Select(parent,title,options,value,x,y,w,callback,key)
             local row=p.rows[i]
             if not row then row=W.Button(p.child,"",0,(i-1)*28,w-28,nil);p.rows[i]=row end
             row:SetWidth(w-28);row.label:SetWidth(w-46);row.label:SetText(o.label);row:Show()
-            row:SetScript("OnClick",function()p:Hide();if callback then callback(o.value)end end)
+            row:SetScript("OnClick",function()if W.BeforeAction then W.BeforeAction()end;p:Hide();b.label:SetText(o.label.."  v");if callback then callback(o.value)end end)
         end
         p:Show();W.popup=p
     end,false,key);return b
 end
-function W.Scroll(parent,x,y,w,h)
+function W.Scroll(parent,x,y,w,h,key)
     local panel=W.Panel(parent,x,y,w,h);local s=W.Frame("ScrollFrame",nil,panel,"UIPanelScrollFrameTemplate");s:SetPoint("TOPLEFT",4,-4);s:SetSize(w-25,h-8)
-    local child=W.Frame("Frame",nil,s);child:SetSize(w-28,1);s:SetScrollChild(child);s:SetVerticalScroll(0);return child,s,panel
+    local child=W.Frame("Frame",nil,s);child:SetSize(w-28,1);W.AttachScrollChild(s,child)
+    if key then ns.UIScrolls[key]=s end;s:SetVerticalScroll(key and W.scrollPositions and W.scrollPositions[key]or 0);return child,s,panel
 end
 function W.Icon(parent,spell,x,y,size)
     local texture=Texture(parent);texture:SetSize(size or 24,size or 24);texture:SetPoint("TOPLEFT",x,-y)
