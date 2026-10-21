@@ -1,43 +1,36 @@
-Pztk x Glyalith 0.5.0 — Windows x64
+Pztk x Glyalith 0.6.0 — Windows x64
 
 Extract the complete ZIP into a normal folder and launch Pztk x Glyalith.exe.
 Do not run the exe directly inside the ZIP. Node.js is not required.
 
 
-PZTK REMINDERS — SEPARATE ADDON, NEW IN 0.4.0
-The bundle includes PztkReminders-0.2.0.zip. Extract its PztkReminders folder into
-Interface/AddOns for the correct game client. Disable NaowhSmartReminders,
-NorthernSkyRaidTools and TimelineReminders; the new addon pauses live dispatch
-when these are loaded. Their source files and settings are not modified.
+PUZATIK REMINDERS — IN-GAME WORKSPACE (0.3.0)
+The bundle includes PztkReminders-0.3.0.zip. Replace Interface/AddOns/PztkReminders
+with its folder while WoW is closed. Keep PztkRemindersDB SavedVariables.
+The displayed name is Puzatik Reminders. Disable NSR / NSRT / TimelineReminders
+while using this separate reminder engine.
 
-Reminders -> New shared profile / Import data. Use M+ defensive sets / Raid
- defensive sets for the same active working profile. Return to Reminders to
-configure time, phase, ability or mechanic triggers, recipients and actions.
-Timeline dragging prepares an edit; Save reminder commits it locally.
-Export complete profile produces ONE PZTK1 string. In game, /pztkr opens import,
-export, profile switching and display preview. Paste PZTK1 and click Import string.
-Each import creates a new saved profile; old profiles remain available.
-To troubleshoot in game, /pztkr debug creates a copyable version/connection report.
-Send it with the first BugSack/BugGrabber error and its stack trace.
+Open /puzatik or /pztkr. Create defensive sets separately under Mythic+ and Raids.
+Choose spec -> dungeon/raid -> NPC/boss -> ability -> defensive set. Raid reminders
+also support time from pull / phase, recipients and display actions. Save explicitly.
+A defensive callout shows the selected defensive icon(s) and text. Together groups
+and priority order are editable. Test previews the display; verify triggers in game.
 
-NSRPACK2 imports open migration working copies. Current NSRT Profile / full
-EncounterAlert schedules migrate with OR targets, difficulty and countdown lead.
-Review skips/warnings and native-export warnings. Unsupported original sections
-remain in the working copy; NSRT strings are retained locally. Cast-bound hooks,
-negative pre-pull times and nickname substitutions need manual configuration.
-TimelineReminders strings are not claimed as decoded without a verified sample.
+Profiles manages creation, copies, rename/delete, selection and PZTK1 import/export.
+Direct NSRPACK2 and full current NSRT Profile/EncounterAlert imports are supported
+with review reports. Licensed NSR packs stay managed in NSR. Source strings remain
+local. One native PZTK1 string combines configured M+ and raid content.
+Old shared presets split into independent copies on first editor save.
+The desktop preserves both collections and imports HTML/JSON into chosen content.
+Use the in-game set editor for scoped profiles; legacy NSR editors are compatibility
+tools over the original shared source data.
 
-The new addon has its own runtime, displays and SavedVariables. BigWigs/LittleWigs
-is recommended for the bundled timer IDs. DBM uses its own IDs; verify aliases.
-ExBoss supplies M+ trash timers. Time-from-pull works through ENCOUNTER_START;
-phases and ability countdowns require matching provider events. Glows need a
-visible supported frame, TTS needs game voices, and protected cooldown values
-are not bypassed. No live WoW session was available for validation.
-For the supplied ExBoss build, install EXBossData, ExwindCore, EXBOSS-Locale and
-its required EXBOSS-LocaleBase dependency. These providers are not bundled here.
-
-Legacy native NSR / NSRT editors and exports remain as compatibility tools;
-they are separate from the new PZTK1 profile described above.
+Retail 12.1.5.70448 / Forever 1.60.1.70425 targets remain unchanged. The bundled
+catalog is Retail-only. Forever supports manual/imported IDs. BigWigs/LittleWigs,
+DBM and ExBoss are separate providers. No live game test was available. Public
+readiness is used; inaccessible charge counts are not guessed. Fixed spell-icon
+reminders can be configured without readiness selection. /pztkr debug prepares
+a copyable provider report for BugSack troubleshooting. Read addon INSTALL.txt.
 
 ADDONS AND DIAGNOSTICS
 Choose Retail or Forever before working. Add the base addon and module folders

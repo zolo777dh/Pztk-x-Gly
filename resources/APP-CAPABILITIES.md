@@ -1,7 +1,10 @@
-# Pztk x Glyalith 0.5.0 + Pztk Reminders 0.2.0
+# Pztk x Glyalith 0.6.0 + Puzatik Reminders 0.3.0
 
-Pztk x Glyalith is a Windows desktop app for planning profiles for **Pztk Reminders**, a separate WoW addon that combines defensive priorities, raid assignments and timed encounter reminders. Addon maintenance and AI tools remain in the same desktop application.
+Pztk x Glyalith is a Windows desktop app for planning profiles for **Puzatik Reminders**, a separate WoW addon that combines defensive priorities, raid assignments and timed encounter reminders. Addon maintenance and AI tools remain in the same desktop application.
 
+- **In-game workspace:** `/puzatik` or `/pztkr` opens Mythic+, Raids, Profiles and Settings. Create and edit content-specific sets and mechanic / pull / phase reminders directly in WoW. Assignment, Display and Conditions keep related controls together.
+- **Independent content sets:** M+ and raid priorities are separate for every spec, with Together and disabled abilities. The first save copies legacy shared sets into independent collections.
+- **Direct in-game migration:** unlicensed NSRPACK2 and current full NSRT Profile / EncounterAlert exports can be imported with a review report. Source strings and reports stay locally in SavedVariables. Native PZTK1 combines the configured content.
 - **One native export:** PZTK1 contains configured defensive sets, Mythic+ / raid mechanic bindings and scheduled assignments. Import it in Pztk Reminders with `/pztkr`.
 - **In-game diagnostics:** `/pztkr debug` prepares a copyable client, build, provider-version and connection report for troubleshooting alongside BugSack errors.
 - **Reminder model:** time, phase, ability timer or mechanic message → specialization, role, player or everyone → spell icon, text, sound or player-frame glow. Bar/countdown, circle and TTS displays are also supported.
@@ -19,4 +22,4 @@ The separate addon has its own runtime, displays, SavedVariables and PZTK1 impor
 
 See [START-HERE.txt](START-HERE.txt) and the included addon INSTALL.txt for installation.
 
-Migration does not implement cdmGlow or coveredSkip / coveredSkipDefaultOn / coveredCastWindow behavior. These values are retained and flagged, as are missing preset references. Native aura registration depends on the installed client API; it is not guaranteed on Forever. New migrated behavior requires Pztk Reminders 0.2.0.
+Migration does not implement cdmGlow or coveredSkip / coveredSkipDefaultOn / coveredCastWindow behavior. These values are retained and flagged, as are missing preset references. Native aura registration depends on the installed client API; it is not guaranteed on Forever. The in-game editor and scoped sets require Puzatik Reminders 0.3.0. The folder and SavedVariables name remain PztkReminders / PztkRemindersDB.

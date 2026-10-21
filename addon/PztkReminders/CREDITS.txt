@@ -6,3 +6,8 @@ Third-party runtime libraries are redistributed with their existing notices:
 - LibDeflate (its full LICENSE is included)
 - CallbackHandler-1.0, LibCustomGlow-1.0, LibGetFrame-1.0 (embedded notices / license files retained)
 Library snapshots and the seven English voice clips originate from the user's supplied complete addon archive. The voice files provide the same named cues through the new addon's own path. No strategy article text or NSRT encounter implementation is bundled.
+
+The 0.3.0 in-game editor, controls, scoped-set model, bounded CBOR import adapter
+and original layout are implemented in this project. The bundled Catalog.lua is
+factual reference data generated from the existing source snapshots, not provider
+logic or a copied NSR/NSRT interface. Game icons/fonts are resolved by the client.

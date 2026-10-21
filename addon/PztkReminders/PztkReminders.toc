@@ -1,9 +1,9 @@
 ## Interface: 120105, 16001
 ## AllowLoadGameType: standard, camelot
-## Title: Pztk Reminders
-## Notes: Unified defensive, raid-assignment and timed encounter reminders planned in Pztk x Glyalith.
+## Title: Puzatik Reminders
+## Notes: In-game Mythic+ defensive sets and raid mechanic / encounter-time reminders.
 ## Author: Pztk x Glyalith
-## Version: 0.2.0
+## Version: 0.3.0
 ## SavedVariables: PztkRemindersDB
 ## OptionalDeps: BigWigs, DBM-Core, EXBoss
 Libs\LibStub.lua
@@ -13,9 +13,15 @@ Libs\LibDeflate.lua
 Libs\LibCustomGlow-1.0\LibCustomGlow-1.0.xml
 Libs\LibGetFrame-1.0\LibGetFrame-1.0.xml
 Runtime.lua
+Catalog.lua
 Profiles.lua
 Display.lua
 RuleRuntime.lua
+Catalog.lua
 AuraSounds.lua
 Providers.lua
+Editor.lua
+Import.lua
+Widgets.lua
+UI.lua
 Main.lua

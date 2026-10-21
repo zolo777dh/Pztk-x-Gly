@@ -19,7 +19,7 @@ local function Data(value, seen, depth, budget)
     seen[value] = true
     for key, child in pairs(value) do
         budget[1] = budget[1] - 1
-        if budget[1] < 0 or (type(key) ~= "string" and type(key) ~= "number") or not Data(child, seen, depth+1,budget) then return false end
+        if key=="__proto__"or key=="constructor"or key=="prototype"or budget[1] < 0 or (type(key) ~= "string" and type(key) ~= "number") or not Data(child, seen, depth+1,budget) then return false end
     end
     seen[value] = nil; return true
 end
@@ -57,10 +57,44 @@ local function Settings(s)
     return true
 end
 function ns.Validate(profile)
-    if type(profile) ~= "table" or profile.format ~= 1 or profile.addon ~= "PztkReminders" or type(profile.name) ~= "string" or #profile.name > 200 or type(profile.data) ~= "table" then return false end
+    if type(profile) ~= "table" or profile.format ~= 1 or profile.addon ~= "PztkReminders" or type(profile.name) ~= "string" or #profile.name > 200 or type(profile.data) ~= "table"or profile.licensed then return false end
     if profile.client ~= "retail" and profile.client ~= "forever" then return false end
     if not Data(profile, {}, 0, {100000}) then return false end
     if not Settings(profile.data.settings)then return false end
+    local function Scope(value)return value==nil or value=="mythic"or value=="raid"end
+    if profile.data.contentDifficulties~=nil then
+        if type(profile.data.contentDifficulties)~="table"then return false end
+        for scope,flags in pairs(profile.data.contentDifficulties)do if not Scope(scope)or not Flags(flags)then return false end end
+    end
+    if profile.data.scopePresets~=nil then
+        if type(profile.data.scopePresets)~="table"then return false end
+        for scope,presets in pairs(profile.data.scopePresets)do
+            if not Scope(scope)or not ns.Validate({format=1,addon="PztkReminders",name="Scoped sets",client=profile.client,data={presets=presets}})then return false end
+        end
+    end
+    if profile.data.scopeActivePreset~=nil then
+        if type(profile.data.scopeActivePreset)~="table"then return false end
+        for scope,active in pairs(profile.data.scopeActivePreset)do
+            if not Scope(scope)or type(active)~="table"then return false end
+            for _,key in pairs(active)do if type(key)~="string"then return false end end
+        end
+    end
+    if profile.data.manualCatalog~=nil then
+        if type(profile.data.manualCatalog)~="table"then return false end
+        for scope,groups in pairs(profile.data.manualCatalog)do
+            if not Scope(scope)or type(groups)~="table"then return false end
+            for _,g in pairs(groups)do
+                if type(g)~="table"or type(g.name)~="string"or(type(g.id)~="string"and type(g.id)~="number")or(g.mapID~=nil and not ID(g.mapID))then return false end
+                for _,list in pairs({g.npcs or{},g.bosses or{}})do
+                    if type(list)~="table"then return false end
+                    for _,n in pairs(list)do
+                        if type(n)~="table"or not ID(n.id)or type(n.name)~="string"or type(n.abilities)~="table"or(n.encounterId~=nil and not ID(n.encounterId))then return false end
+                        for _,a in pairs(n.abilities)do if type(a)~="table"or not ID(a.id)or(a.name~=nil and type(a.name)~="string")then return false end end
+                    end
+                end
+            end
+        end
+    end
     for _, key in ipairs({"presets","activePreset","abilityBindings","integrationRules","raidReminders","callouts","settings"}) do if profile.data[key] ~= nil and type(profile.data[key]) ~= "table" then return false end end
     for _,value in pairs(profile.data.callouts or{})do if type(value)~="string"then return false end end
     if profile.data.voiceNone~=nil and type(profile.data.voiceNone)~="string"then return false end
@@ -68,7 +102,7 @@ function ns.Validate(profile)
     for _, presets in pairs(profile.data.presets or {})do
         if type(presets) ~= "table" then return false end
         for _,preset in pairs(presets)do
-            if type(preset) ~= "table" or type(preset.list) ~= "table" or not Flags(preset.together) then return false end
+            if type(preset) ~= "table" or type(preset.list) ~= "table" or not Flags(preset.together)or not Flags(preset.disabled) then return false end
             local count=0
             for index,spell in pairs(preset.list)do if not ID(index)or not ID(spell)then return false end;count=count+1 end
             if count>200 then return false end
@@ -78,12 +112,12 @@ function ns.Validate(profile)
     for _,value in pairs(profile.data.activePreset or {})do if type(value)~="string"then return false end end
     for _,encounters in pairs(profile.data.abilityBindings or {})do
         if type(encounters)~="table"then return false end
-        for _,bindings in pairs(encounters)do if type(bindings)~="table"then return false end;for _,binding in pairs(bindings)do if not Binding(binding)then return false end end end
+        for _,bindings in pairs(encounters)do if type(bindings)~="table"then return false end;for _,binding in pairs(bindings)do if not Scope(binding.content)or not Flags(binding.difficulties)or not Binding(binding)then return false end end end
     end
     for _,rules in pairs(profile.data.integrationRules or {})do
         if type(rules)~="table"then return false end
         for _,rule in pairs(rules)do
-            if not Binding(rule)or type(rule.trigger)~="table"then return false end
+            if not Scope(rule.content)or not Flags(rule.difficulties)or not Binding(rule)or type(rule.trigger)~="table"then return false end
             local t=rule.trigger
             if (t.type~="exboss"and t.type~="auraSound")or not Number(t.mapID,0,100000000)or t.mapID%1~=0 or not ID(t.spellID)or not Number(t.timeleft,0,120,true)then return false end
             if t.type=="auraSound"then
@@ -98,9 +132,10 @@ function ns.Validate(profile)
             if type(entry) ~= "table" or type(entry.trigger) ~= "table" or type(entry.display) ~= "table" then return false end
             if entry.enabled~=nil and type(entry.enabled)~="boolean"then return false end
             local trigger = entry.trigger
+            if not Scope(entry.content)then return false end
             if entry.defensive~=nil then
                 local d=entry.defensive
-                if type(d)~="table"or type(d.preset)~="string"or not ID(d.specID)then return false end
+                if type(d)~="table"or not Scope(d.scope)or type(d.preset)~="string"or not ID(d.specID)then return false end
             end
             if trigger.counterGroups~=nil then
                 if type(trigger.counterGroups)~="table"then return false end
@@ -151,19 +186,28 @@ function ns.Decode(input)
     return profile
 end
 function ns.Import(input)
-    local profile, error = ns.Decode(input)
+    if (InCombatLockdown and InCombatLockdown())or ns.encounter then return nil,"Import after combat and the encounter"end
+    local profile, error, report
+    if ns.DecodeImport then profile,error,report=ns.DecodeImport(input)else profile,error=ns.Decode(input)end
     if not profile then return nil, error end
     if profile.client ~= ns.Client() then return nil, "Profile belongs to " .. profile.client .. "; use the matching game client" end
     local store = ns.Store()
     local name, index = profile.name, 2
     while store.profiles[name] do name = profile.name .. " " .. index; index = index+1 end
-    profile.name = name; store.profiles[name] = profile; store.active = name; ns.Reset()
-    return name
+    profile.name = name; store.profiles[name] = profile; store.active = name
+    if report then store.importReports=store.importReports or{};store.importReports[name]=report;store.migrationSources=store.migrationSources or{};store.migrationSources[name]=input end
+    ns.Reset()
+    return name,nil,report
 end
-function ns.Export()
-    local profile = ns.Active()
-    if not profile then return nil, "No active profile" end
+function ns.Encode(profile)
+    if not profile or not ns.Validate(profile)then return nil,"Invalid profile data"end
     local raw = LibStub("LibSerialize"):Serialize(profile)
     local ld = LibStub("LibDeflate")
-    return "PZTK1:" .. ld:EncodeForPrint(ld:CompressDeflate(raw))
+    local encoded="PZTK1:" .. ld:EncodeForPrint(ld:CompressDeflate(raw))
+    if #encoded>130000 then return nil,"Profile exceeds the 130 KB export limit. Reduce its content before saving."end
+    return encoded
+end
+
+function ns.Export()
+    local profile=ns.Active();if not profile then return nil,"No active profile"end;return ns.Encode(profile)
 end

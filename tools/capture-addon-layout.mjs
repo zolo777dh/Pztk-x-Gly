@@ -1,0 +1,28 @@
+// Capture the actual Lua control tree under the local WoW API harness.
+// The PNGs are layout checks, not screenshots of a live WoW client.
+import fs from 'node:fs/promises';import path from 'node:path';import {execFileSync}from 'node:child_process';import {chromium}from 'playwright-core';
+const root=path.resolve('addon/PztkReminders'),out=path.resolve('test-results/addon-layout');await fs.mkdir(out,{recursive:true});const harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const sources=['Runtime','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Main'];
+const prefix=`strmatch=string.match;local env=(function()\n${harness}\nend)();local ns={};\n`+['Libs/LibStub.lua','Libs/LibSerialize.lua','Libs/LibDeflate.lua',...sources.map(x=>x+'.lua')].map(x=>x.startsWith('Libs/')?`dofile(${JSON.stringify(root+'/'+x)})`:`assert(loadfile(${JSON.stringify(root+'/'+x)}))('PztkReminders',ns)`).join('\n')+`\nns.Open();local m=assert(ns.SaveSet('mythic',104,nil,'Magic damage',{{spellID=22812,enabled=true},{spellID=61336,enabled=true},{spellID=200851,enabled=true}}));assert(ns.SaveSet('raid',104,nil,'Raid personal',{{spellID=22812,enabled=true},{spellID=61336,enabled=true}}));\n`;
+const scenarios={mythic:`env.click('tab:mythic');env.select('group','Altar of Fangs');env.click('entity:270306');env.click('ability:1306517');env.select('rule:preset','Magic damage');env.click('save-rule')`,sets:`env.click('tab:mythic');env.click('mode:sets')`,raid:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Personal defensive');env.select('rule:action','Defensive priority set');env.select('rule:preset','Raid personal');env.input('rule:delay','45');env.click('save-rule')`,profiles:`env.click('tab:profiles')`,settings:`env.click('tab:settings')`};
+const serializer=`
+local function esc(s)return '"'..tostring(s):gsub('\\\\','\\\\\\\\'):gsub('"','\\\\"'):gsub('\\n','\\\\n'):gsub('\\r','\\\\r')..'"'end
+local function json(v)if type(v)=='string'then return esc(v)elseif type(v)=='number'then return tostring(v)elseif type(v)=='boolean'then return tostring(v)elseif type(v)=='table'then local p={};for k,x in pairs(v)do p[#p+1]=esc(k)..':'..json(x)end;return '{'..table.concat(p,',')..'}'else return 'null'end end
+local seen={};local function visible(f)if not f then return true end;if not f.shown then return false end;return visible(f.parent)end
+local function rect(f)
+ if not f or f==UIParent then return 0,0,1280,800 end
+ local p=f.point or{};local px,py,pw,ph=rect(p.relative or f.parent);local w,h=f.w or 0,f.h or 0
+ if f.kind=='Text'then h=(f.fontSize or 12)*1.4*(1+select(2,(f.text or''):gsub('\\n',''))) end
+ local x,y=px+(p.x or 0),py-(p.y or 0)
+ local rp=p.relativePoint or p.point
+ if rp=='CENTER'then x=x+pw/2;y=y+ph/2 elseif rp=='RIGHT'then x=x+pw;y=y+ph/2 elseif rp=='BOTTOMLEFT'then y=y+ph elseif rp=='BOTTOMRIGHT'then x=x+pw;y=y+ph end
+ if p.point=='CENTER'then x=x-w/2;y=y-h/2 elseif p.point=='RIGHT'then x=x-w;y=y-h/2 end
+ return x,y,w,h
+end
+local function level(f)if not f or f==UIParent then return 0 end;return 1+level(f.parent)end
+local function clip(f)if not f then return nil end;if f.kind=='ScrollFrame'then local x,y,w,h=rect(f);return {x,y,w,h}end;return clip(f.parent)end
+local result={};for i,f in ipairs(env.frames)do if visible(f)then local x,y,w,h=rect(f);result[#result+1]={kind=f.kind,x=x,y=y,w=w,h=h,text=f.text,fontSize=f.fontSize,color=f.textColor,background=f.background,border=f.border,texture=f.texture,template=f.template,level=level(f),clip=clip(f.parent)}end end
+local file=assert(io.open(OUTPUT,'wb'));file:write('[');for i,r in ipairs(result)do if i>1 then file:write(',')end;file:write(json(r))end;file:write(']');file:close()
+`;
+const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+try{for(const [name,scenario]of Object.entries(scenarios)){const target=path.join(out,name+'.json'),script=prefix+scenario+'\n'+serializer.replace('OUTPUT',JSON.stringify(target));await fs.writeFile(out+'/capture.lua',script);execFileSync(process.env.DOCTOR_LUA51||'lua5.1',[out+'/capture.lua']);const controls=JSON.parse(await fs.readFile(target,'utf8')),page=await browser.newPage({viewport:{width:1280,height:800}});await page.setContent('<html><body style="margin:0;background:#101820;color:#d8e6ee;font-family:Arial,sans-serif"><div style="position:absolute;bottom:8px;left:10px;color:#79909f;font-size:10px">Lua layout harness · not a live WoW client</div></body></html>');await page.evaluate(rows=>{const c=v=>v?'rgba('+[1,2,3].map(k=>Math.round((v[k]??0)*255)).join(',')+','+(v[4]??1)+')':undefined;for(const r of rows){if(r.kind==='Root')continue;const d=document.createElement('div');Object.assign(d.style,{position:'absolute',left:r.x+'px',top:r.y+'px',width:r.w+'px',height:r.h+'px',boxSizing:'border-box',zIndex:(r.level*3+(r.kind==='Text'||r.kind==='EditBox'?2:r.kind==='Texture'?1:0)),fontSize:(r.fontSize||12)+'px',color:c(r.color),background:c(r.background),border:r.border?'1px solid '+c(r.border):undefined,whiteSpace:'pre-wrap',overflow:'hidden'});if(r.clip){const q=r.clip,top=Math.max(0,q[2]-r.y),left=Math.max(0,q[1]-r.x),bottom=Math.max(0,r.y+r.h-q[2]-q[4]),right=Math.max(0,r.x+r.w-q[1]-q[3]);d.style.clipPath='inset('+[top,right,bottom,left].map(x=>x+'px').join(' ')+')';}if(r.kind==='EditBox'){d.textContent=r.text;d.style.fontSize='12px';}else if(r.kind==='Text')d.textContent=r.text;else if(r.kind==='Texture'&&r.texture){d.style.background='#365464';d.style.border='1px solid #6899aa';}document.body.append(d);}},controls);await page.screenshot({path:out+'/'+name+'.png'});await page.close();console.log('Captured',name);}}finally{await browser.close();}

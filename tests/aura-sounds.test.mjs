@@ -52,7 +52,7 @@ test('delayed authored defensives honor occurrence conditions, callouts and stal
 profile.data.integrationRules={};profile.data.raidReminders={[123]={r={enabled=true,trigger={type='bwmsg',spellID=400,delay=2,counterGroups={{{op='>',value=1}}}},target={specs={[264]=true}},defensive={specID=264,preset='p'},display={type='icon',text='',dur=3}}}}
 profile.data.abilityBindings={[264]={[123]={[400]={enabled=true,preset='p'}}}}
 ns.Begin(123,8,456);ns.Mechanic(400,nil,'message');advance(3);assert(#shown==0)
-ns.Mechanic(400,nil,'message');advance(4);assert(#shown==0);advance(5);assert(#shown==1 and shown[1].spellID==100 and shown[1].text=='Fixture callout'and shown[1].tts)
+ns.Mechanic(400,nil,'message');advance(4);assert(#shown==0);advance(5);assert(#shown==1 and shown[1].spellID==100 and shown[1].text=='Fixture spell 100'and shown[1].ttsText=='Fixture callout'and shown[1].tts)
 ns.Mechanic(400,nil,'message');ns.Reset();advance(10);assert(#shown==1)
 ns.Begin(123,8,456);spec=65;ns.Mechanic(400,nil,'message');advance(20);assert(#shown==1)
 `));
@@ -60,4 +60,19 @@ test('overlapping delayed mechanic messages remain independent and bar cancellat
 profile.data.integrationRules={};profile.data.raidReminders={[123]={r={enabled=true,trigger={type='bwmsg',spellID=400,delay=18},target={specs={[264]=true}},defensive={specID=264,preset='p'},display={type='icon',text='',dur=3}}}}
 ns.Begin(123,8,456);ns.Mechanic(400,nil,'message');advance(5);ns.Mechanic(400,nil,'message')
 ns.Cancel('ability:message:');advance(18);assert(#shown==1);advance(23);assert(#shown==2)
+`));
+
+test('defensive selection uses public cooldown flags when timestamps are secret, and never confuses empty charges with an inactive cooldown',()=>execute(fixture+`
+known[100]=true;C_Spell.GetSpellCooldown=function()return{startTime=secret,duration=secret,isEnabled=true,isActive=false,isOnGCD=false}end
+assert(ns.Pick({list={100}})[1]==100)
+C_Spell.GetSpellCharges=function()return{currentCharges=0,maxCharges=2,isActive=false}end;assert(#ns.Pick({list={100}})==0)
+C_Spell.GetSpellCharges=function()return{currentCharges=secret,maxCharges=2,isActive=true}end;assert(#ns.Pick({list={100}})==0)
+C_Spell.GetSpellCharges=nil;C_Spell.GetSpellCooldown=function()return{startTime=secret,duration=secret,isEnabled=true,isActive=secret,isOnGCD=false}end;assert(#ns.Pick({list={100}})==0)
+`));
+
+test('defensive calls always carry the actual spell name/icon while custom trash text without a set remains usable',()=>execute(fixture+`
+ns.RenderDefensive({preset='p',display={type='text',text='Boss context'}},true)
+assert(shown[1].type=='icon'and shown[1].spellID==100 and shown[1].text:find('Fixture spell 100',1,true))
+ns.RenderDefensive({display={type='text',text='Custom mechanic warning'}},true)
+assert(shown[2].text=='Custom mechanic warning')
 `));

@@ -1,48 +1,67 @@
-Pztk Reminders 0.2.0 — standalone preview
+Puzatik Reminders 0.3.0 — in-game editor and reminder engine
 
-1. Close WoW and back up existing reminder profiles.
-2. Extract the PztkReminders folder into Interface/AddOns for the desired client.
-3. Enable Pztk Reminders. Disable NaowhSmartReminders, NorthernSkyRaidTools and
-   TimelineReminders while using this addon. It pauses live dispatch if they are loaded.
-4. In Pztk x Glyalith 0.5.0, open Reminders, create/import a working profile,
-   configure defensive sets and assignments, then Export complete profile.
-5. In game, type /pztkr or /pztkreminders. Paste PZTK1 and click Import string.
-   Import creates a new local profile; Next profile switches stored profiles.
-6. Test display previews, then check encounter triggers inside WoW.
-7. For an issue, run /pztkr debug and copy the generated diagnostics with the
-   first BugSack/BugGrabber error and stack. The report omits player/profile names.
+INSTALL
+Close WoW. Replace the PztkReminders folder in Interface/AddOns with this folder.
+The in-game title is Puzatik Reminders; the folder and PztkRemindersDB name stay
+unchanged so existing profiles remain available. Do not delete SavedVariables.
+Disable NaowhSmartReminders, NorthernSkyRaidTools and TimelineReminders while
+using this addon. It pauses reminder dispatch if those engines are loaded.
 
-Targets: Retail 12.1.5.70448 and Forever 1.60.1.70425. Client profiles are separate.
-Retail catalogs use the supplied Midnight S1/S2 reference data. Forever encounters
-must be imported or entered manually. No live WoW test was performed in the build
-container; interface declarations and Lua tests are not proof of exact-build behavior.
+OPEN
+Use /puzatik or /pztkr. The workspace has Mythic+, Raids, Profiles and Settings.
+Choose a specialization by name. All 40 current specialization labels are present.
 
-BigWigs/LittleWigs is recommended for the bundled timer IDs. DBM callbacks use its
-reported spell IDs; aliases may need manual verification. ExBoss supplies Mythic+
-trash timer events. These providers are optional; time-from-pull reminders use
-ENCOUNTER_START. Boss phase reminders require a matching stage event. A reference
-schedule cannot create a missing provider event. The addon does not press abilities.
+MYTHIC+
+1. Open Defensive sets. Create a named set and add your defensive spell IDs.
+   Icons and names come from the client. Set priority with up/down arrows;
+   Together combines checked abilities; On controls whether an ability is used.
+2. Open Mechanics. Select dungeon, NPC/boss and its ability.
+3. Choose the defensive set in Assignment and configure warning time.
+4. Display configures text, sound, duration and TTS. Conditions holds counters.
+5. Save reminder. Test is a display preview; check the actual trigger in game.
+M+ is restricted to Mythic+ difficulty. ExBoss supplies trash countdowns;
+BigWigs/LittleWigs or DBM supplies boss messages and bars.
 
-The supplied ExBoss build requires EXBossData, ExwindCore and EXBOSS-Locale;
-EXBOSS-Locale also requires EXBOSS-LocaleBase. Install compatible complete provider
-packages in the game. Pztk Reminders does not bundle or modify these addons.
+RAIDS
+Select raid, boss and Heroic or Mythic explicitly. Raid defensive sets are separate
+from Mythic+ sets, even with matching names or keys. Bind a defensive set to a
+mechanic or create a timed reminder from pull / phase. Actions include a chosen
+spell icon, text, countdown, circle, sound and a supported player-frame glow.
+Recipients can be the selected spec, role, player or everyone. Imported combined
+recipient filters and difficulty filters can be retained. Save explicitly.
 
-Spell, text, bar/countdown, circle and sound reminders use this addon's own display.
-Player-frame glow needs a resolvable visible unit frame. TTS uses available game
-voices. Secret / unavailable cooldown data is not bypassed or guessed.
+PROFILES
+Create, copy, rename, delete, select, import or export a profile inside the game.
+PZTK1 is the native combined M+ / raid export. Imports create a separate profile.
+Direct imports also accept unlicensed NSRPACK2 and current full !NSRT:Profile:
+or !NSRT:EncounterAlert: exports. Review the migration report in the string box.
+Original migration strings and reports stay locally in SavedVariables. Unavailable
+conditions, displays and source engines are reported; they are not guessed.
+Account-licensed NSR strings remain managed in NSR. Licenses are not bypassed.
+Old shared sets get independent content copies on the first editor save. Existing
+legacy root data is retained for compatibility; scoped sets are used by this engine.
 
-The desktop migrates supported NSR and NSRT data and reports exclusions. A separate
-TimelineReminders export decoder is not claimed without a verified format/sample.
-Do not import NSRPACK2 / !NSRT directly here: use the desktop migration first.
+SETTINGS / DIAGNOSTICS
+Configure icons, text, sizes, position, voice volume and boss-mod source. Default
+spell labels and icons identify the chosen defensive, not only the boss ability.
+Together callouts show the selected group. Public readiness chooses priorities;
+closed/unknown charge counts are not guessed. Fixed spell-icon reminders do not
+require readiness-based selection. Preview is not a live encounter test.
+Use /pztkr debug for a copyable build/provider report and the first BugSack stack.
 
-NSR MIGRATION REVIEW (0.5.0 / addon 0.2.0)
-Export complete profile shows grouped issues with spec and rule IDs. Save the full
-migration report for review. Open editable migrated copy preserves the original
-source and opens native reminders: edit defensive set, occurrence condition and
-delay, then save and export again. Unsupported trigger conditions are not guessed.
-Missing set references need review. ExBoss's empty-text active-set fallback remains.
-cdmGlow, coveredSkip, coveredSkipDefaultOn and coveredCastWindow are retained but
-not implemented. Do not treat a successful decode as full behavioral equivalence.
-Native aura sounds require C_UnitAuras.AddAuraSound. /pztkr debug reports missing
-APIs and pending/failed registrations. Registration changes wait for restrictions
-to end. Private racial clips stay muted when readiness is unknown or inaccessible.
+CLIENTS / DATA
+Targets remain Retail 12.1.5.70448 and Forever 1.60.1.70425. Client workspaces are
+separate. The bundled eight-dungeon / twenty-boss catalog is Retail reference data
+from the supplied LittleWigs/ExBoss and NSRT sources. Only evidenced timer/message
+keys are offered for M+. Forever uses imported or manually added encounters.
+Add mechanic accepts explicit map/NPC/encounter/spell IDs from your game client.
+Provider packages are separate. The supplied ExBoss build requires EXBossData,
+ExwindCore, EXBOSS-Locale and its required EXBOSS-LocaleBase dependency.
+
+LIMITS
+No combat or active-encounter editing. No automatic ability presses. Native aura
+sounds need the corresponding public game API. Several source behaviors remain
+unavailable (cdmGlow, coveredSkip, coveredSkipDefaultOn, coveredCastWindow); imports
+retain and report them. QoL, Ready Check, group management, nickname engines and
+pace-comparison modules are outside this reminder addon. No live WoW test was
+available in the build environment. Use supported providers and verify in game.

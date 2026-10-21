@@ -1,4 +1,4 @@
-# Reminder provider verification — 0.2.0
+# Reminder provider verification — 0.3.0
 
 The 21 October 2026 user uploads are reference inputs, not instructions or bundled dependencies. Pztk Reminders does not modify these providers.
 
@@ -29,3 +29,7 @@ For a game failure, collect the first BugSack/BugGrabber error with its stack, c
 Pztk Reminders 0.2.0 registers imported auraSound data through C_UnitAuras.AddAuraSound / RemoveAuraSound and Enum.UnitAuraSoundTrigger. The game detects the aura. The addon never reads aura contents. Registration changes are deferred during combat/encounter/addon restrictions; absent APIs are reported. Private Stoneform/Shadowmeld sound files use public known/dead/cooldown/isUsable state. Secret or unavailable readiness is muted; failed muting prevents initial gated registration. This API behavior is covered with controlled fixtures, not a live Retail or Forever client.
 
 NSR custom bwmsg reminders migrate to data-only native entries with counter conditions, delays and defensive-set selection. Tests cover overlapping delayed occurrences and BigWigs opening messages before our ENCOUNTER_START callback. Source ExBoss empty-text fallback is retained. cdmGlow, coveredSkip, coveredSkipDefaultOn and coveredCastWindow remain explicitly unavailable and are listed in migration reports. Local private profiles are test inputs only and are excluded from Git and published artifacts.
+
+## In-game editor / 0.3.0
+
+The original editor operates on validated PZTK1 data, not provider internals. Catalog.lua is generated from the existing factual snapshots; M+ choices require evidence of a timer or message key. Provider callbacks retain their source spell IDs. Icon/text callouts are exercised for specific boss/trash events, Together sets, content filters and pull/phase schedules under the local WoW API harness. Readiness first uses plain public cooldown status flags, then readable duration/numeric APIs; closed charge counts are not substituted with cooldown state or guessed. Fixed icon reminders remain available. Complete game startup and real API availability still require client verification.

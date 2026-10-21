@@ -66,7 +66,7 @@ function ns.RefreshAuraSounds()
     end
     local wanted,missing={},0
     local profile=ns.Active()
-    if ns.Enabled()and(ns.instanceType=="party"or ns.instanceType=="raid")then
+    if ns.Enabled()and(not ns.ContentMatches or ns.ContentMatches({}))and(ns.instanceType=="party"or ns.instanceType=="raid")then
         for _,rule in pairs(ns.Get(profile.data.integrationRules,ns.Spec())or{})do
             local t=rule.trigger or{}
             if rule.enabled~=false and t.type=="auraSound"and(t.mapID==0 or t.mapID==ns.map)then

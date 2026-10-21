@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.PztkReminders = ns
-ns.version = "0.2.0"
+ns.version = "0.3.0"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -101,7 +101,7 @@ function ns.Schedule(key, delay, callback)
     ns.timers[key] = timer
 end
 function ns.Fire(entry)
-    if (ns.Enabled and not ns.Enabled()) or ns.Conflict() or entry.enabled == false or not ns.Difficulty(entry) or not ns.Target(entry.target) then return end
+    if (ns.ContentMatches and not ns.ContentMatches(entry))or (ns.Enabled and not ns.Enabled()) or ns.Conflict() or entry.enabled == false or not ns.Difficulty(entry) or not ns.Target(entry.target) then return end
     if entry.defensive and ns.RenderDefensive then return ns.RenderDefensive(entry)end
     if ns.Display then ns.Display(entry.display or {}) end
 end
@@ -136,28 +136,52 @@ function ns.Phase(phase)
     ns.Cancel("stage:"); ns.phase = phase; ns.Anchor("stage", phase)
 end
 local function Ready(spell)
-    local known = C_SpellBook and C_SpellBook.IsSpellKnown or IsPlayerSpell
-    if known then local ok, value = pcall(known, spell); if not ok or not ns.Plain(value, "boolean") or not value then return false end end
+    local known=C_SpellBook and(C_SpellBook.IsSpellKnownOrInSpellBook or C_SpellBook.IsSpellKnown)or IsPlayerSpell
+    if known then local ok,value=pcall(known,spell);if not ok or not ns.Plain(value,"boolean")or not value then return false end end
     if C_Spell and C_Spell.GetSpellCharges then
-        local ok, charges = pcall(C_Spell.GetSpellCharges, spell)
-        if ok and ns.Plain(charges, "table") and ns.Plain(charges.currentCharges, "number") then return charges.currentCharges > 0 end
-    end
-    local start, duration, enabled
-    if C_Spell and C_Spell.GetSpellCooldown then
-        local ok, cd = pcall(C_Spell.GetSpellCooldown, spell)
-        if not ok or not ns.Plain(cd, "table") then return false end
-        start, duration, enabled = cd.startTime, cd.duration, cd.isEnabled
-    elseif GetSpellCooldown then
-        local ok
-        ok, start, duration, enabled = pcall(GetSpellCooldown, spell)
+        local ok,charges=pcall(C_Spell.GetSpellCharges,spell)
         if not ok then return false end
+        if ns.Plain(charges,"table")then
+            local read,current,maximum=pcall(function()return charges.currentCharges,charges.maxCharges end)
+            if not read then return false end
+            if ns.Plain(current,"number")then return current>0 end
+            -- A cooldown can be inactive at zero charges. Never substitute its state
+            -- for an unreadable charge count or invent a recharge estimate.
+            if not ns.Plain(current)or(ns.Plain(maximum,"number")and maximum>0)then return false end
+        end
+    end
+    local start,duration,enabled,active,gcd
+    if C_Spell and C_Spell.GetSpellCooldown then
+        local ok,cd=pcall(C_Spell.GetSpellCooldown,spell)
+        if not ok or not ns.Plain(cd,"table")then return false end
+        local read;read,enabled,active,gcd=pcall(function()return cd.isEnabled,cd.isActive,cd.isOnGCD end)
+        if not read then return false end
+        if ns.Plain(enabled)and(enabled==false or enabled==0)then return false end
+        -- Public status flags answer without arithmetic on protected timestamps.
+        if ns.Plain(active,"boolean")and ns.Plain(gcd)and(type(gcd)=="boolean"or gcd==nil)then return gcd==true or not active end
+        if C_Spell.GetSpellCooldownDuration then
+            local got,object=pcall(C_Spell.GetSpellCooldownDuration,spell,true)
+            if got and ns.Plain(object)and object then
+                local readZero,zero=pcall(function()return object:IsZero()end)
+                if readZero and ns.Plain(zero,"boolean")then return zero end
+            end
+        end
+        local readTimes;readTimes,start,duration=pcall(function()return cd.startTime,cd.duration end)
+        if not readTimes then return false end
+    elseif GetSpellCooldown then
+        local ok;ok,start,duration,enabled=pcall(GetSpellCooldown,spell);if not ok then return false end
     else return false end
-    if not ns.Plain(start, "number") or not ns.Plain(duration, "number") or not ns.Plain(enabled) then return false end
-    if enabled == false or enabled == 0 then return false end
-    return start == 0 or start + duration <= GetTime() or duration <= 1.5
+    if not ns.Plain(start,"number")or not ns.Plain(duration,"number")or not ns.Plain(enabled)then return false end
+    if enabled==false or enabled==0 then return false end
+    return start==0 or start+duration<=GetTime()or duration<=1.5
 end
 function ns.Pick(preset)
     if not preset then return {} end
+    if preset.disabled then
+        local filtered={list={},together=preset.together}
+        for _,spell in ipairs(preset.list or{})do if not ns.Get(preset.disabled,spell)then filtered.list[#filtered.list+1]=spell end end
+        preset=filtered
+    end
     local together, ready, result = {}, true, {}
     for _, spell in ipairs(preset.list or {}) do
         if ns.Get(preset.together, spell) then together[#together + 1] = spell; if not Ready(spell) then ready = false end end
@@ -198,9 +222,9 @@ function ns.Mechanic(spell, duration, identity, encounter, skipDefensive, repeat
     local binding = ns.Get(ns.Get(ns.Get(profile.data.abilityBindings, spec), encounter), spell)
     local entries=ns.Get(profile.data.raidReminders,encounter)or{}
     local authored=false
-    for _,entry in pairs(entries)do if entry.defensive and entry.enabled~=false and entry.trigger.spellID==spell and ns.Target(entry.target)and ns.Difficulty(entry)then authored=true;break end end
+    for _,entry in pairs(entries)do if entry.defensive and entry.enabled~=false and entry.trigger.spellID==spell and ns.Target(entry.target)and ns.Difficulty(entry)and(not ns.ContentMatches or ns.ContentMatches(entry))then authored=true;break end end
     local defaults=profile.data.settings or{}
-    if binding and not skipDefensive and not authored and binding.mode~="custom" then ns.Defensive(binding, duration and math.max(0, duration - (binding.leadTime or profile.data.leadTime or defaults.leadTime or 3)) or 0, prefix .. "defensive") end
+    if binding and ns.Difficulty(binding)and(not ns.ContentMatches or ns.ContentMatches(binding))and not skipDefensive and not authored and binding.mode~="custom" then ns.Defensive(binding, duration and math.max(0, duration - (binding.leadTime or profile.data.leadTime or defaults.leadTime or 3)) or 0, prefix .. "defensive") end
     for key, entry in pairs(entries) do
         local trigger = entry.trigger or {}
         if trigger.spellID == spell and entry.enabled~=false and ns.Target(entry.target) and ((duration and trigger.type == "bwtimer") or (not duration and trigger.type == "bwmsg")) then
@@ -219,7 +243,7 @@ function ns.Trash(spell, remaining, identity, valid)
     if not p then return end
     for key, rule in pairs(ns.Get(p.data.integrationRules, spec) or {}) do
         local trigger = rule.trigger or {}
-        if trigger.type == "exboss" and trigger.spellID == spell and (trigger.mapID==0 or trigger.mapID == ns.map) then
+        if (not ns.ContentMatches or ns.ContentMatches(rule))and ns.Difficulty(rule)and trigger.type == "exboss" and trigger.spellID == spell and (trigger.mapID==0 or trigger.mapID == ns.map) then
             ns.Defensive(rule, math.max(0, remaining - (trigger.timeleft or 3)), "trash:" .. tostring(identity or spell) .. ":" .. tostring(key), valid and function() return valid(key) end)
         end
     end

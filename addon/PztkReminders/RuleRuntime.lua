@@ -38,27 +38,36 @@ function ns.RenderDefensive(binding, trash)
     local dynamic=binding.defensive
     if dynamic and dynamic.specID~=spec then return end
     local data=profile.data
-    local sets=ns.Get(data.presets,spec)
-    local key=dynamic and dynamic.preset or binding.preset or ns.Get(data.activePreset,spec)
+    local scope=ns.ContentScope and ns.ContentScope(binding)or(trash and"mythic"or"raid")
+    local sets=ns.ScopePresets and ns.ScopePresets(profile,scope,spec)or ns.Get(data.presets,spec)
+    local active=ns.ScopeActive and ns.ScopeActive(profile,scope,spec)or ns.Get(data.activePreset,spec)
+    local key=dynamic and dynamic.preset or binding.preset or active
     local preset=ns.Get(sets,key)
     if trash and not preset and not(binding.display and binding.display.text and binding.display.text~="")then
-        preset=ns.Get(sets,ns.Get(data.activePreset,spec))
+        preset=ns.Get(sets,active)
+    end
+    local settings=ns.Settings()
+    if trash and(not binding.preset or not preset)and binding.display and binding.display.text and binding.display.text~=""then
+        local custom=Copy(binding.display);custom.type=custom.type or"text"
+        if custom.tts==nil then custom.tts=settings.voiceOn==true end
+        if settings.voiceOn==false then custom.tts=false end
+        if ns.Display then ns.Display(custom)end;return
     end
     local spells=ns.Pick(preset)
-    local settings=ns.Settings()
     if #spells==0 then
         local external=binding.external==true or(settings.fallbackOn==true and binding.external~=false)
         if external and ns.Display then ns.Display({type="text",text=data.voiceNone or settings.voiceNone or "Call external",dur=settings.lingerSec or 4,tts=settings.voiceOn==true})end
         return
     end
     local display=Copy(binding.display)
-    display.type=display.type or "icon"
+    display.type="icon"
     display.spells,display.spellID=spells,spells[1]
     display.dur=display.dur or settings.lingerSec or 5
-    local callouts={}
-    for _,spell in ipairs(spells)do callouts[#callouts+1]=ns.Get(data.callouts,spell)or(ns.SpellLabel and ns.SpellLabel(spell))or("Spell "..spell)end
-    local spoken=table.concat(callouts," and ")
-    if not display.text or display.text==""then display.text=spoken end
+    local callouts,labels={},{}
+    for _,spell in ipairs(spells)do local label=(ns.SpellLabel and ns.SpellLabel(spell))or("Spell "..spell);labels[#labels+1]=label;callouts[#callouts+1]=ns.Get(data.callouts,spell)or label end
+    local spoken=table.concat(callouts," and ");local label=table.concat(labels," and ")
+    if not display.text or display.text==""then display.text=label
+    elseif not display.text:find(label,1,true)then display.text=display.text.."\n"..label end
     display.ttsText=display.ttsText or spoken
     if display.tts==nil then display.tts=settings.voiceOn==true end
     if settings.voiceOn==false then display.tts=false end
