@@ -21,7 +21,12 @@ function methods:GetWidth()return self.w end
 function methods:GetHeight()return self.h end
 function methods:SetText(t)self.text=tostring(t or'')end
 function methods:GetText()return self.text or''end
-function methods:SetFont(file,size)self.font=file;self.fontSize=size end
+function methods:SetFont(file,size,flags)
+ assert(type(file)=='string'and type(size)=='number','SetFont requires a font file and height')
+ -- EditBox requires flags in the game API; permissive no-op mocks hid this error.
+ if self.kind=='EditBox'then assert(type(flags)=='string',"bad argument #3 to 'SetFont'")end
+ self.font=file;self.fontSize=size;self.fontFlags=flags;return true
+end
 function methods:GetFont()return self.font or'Fonts/FRIZQT__.TTF',self.fontSize or 14,''end
 function methods:SetTextColor(r,g,b)self.textColor={r,g,b}end
 function methods:SetBackdropColor(r,g,b,a)self.background={r,g,b,a}end

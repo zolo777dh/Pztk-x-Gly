@@ -1,4 +1,4 @@
-# Pztk x Glyalith 0.6.0 + Puzatik Reminders 0.3.0
+# Pztk x Glyalith 0.6.1 + Puzatik Reminders 0.3.1
 
 Pztk x Glyalith is a Windows desktop app for planning profiles for **Puzatik Reminders**, a separate WoW addon that combines defensive priorities, raid assignments and timed encounter reminders. Addon maintenance and AI tools remain in the same desktop application.
 

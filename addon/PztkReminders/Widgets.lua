@@ -36,7 +36,7 @@ function W.Panel(parent,x,y,w,h,color)
     f:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1});f:SetBackdropColor(unpack(color or W.colors.panel));f:SetBackdropBorderColor(unpack(W.colors.line));return f
 end
 function W.Label(parent,text,x,y,w,size,color)
-    local label=Font(parent);label:SetFont(font,size or 12);label:SetPoint("TOPLEFT",x,-y);label:SetWidth(w or 200);label:SetJustifyH("LEFT");label:SetTextColor(unpack(color or W.colors.text));label:SetText(text or"");return label
+    local label=Font(parent);label:SetFont(font,size or 12,"");label:SetPoint("TOPLEFT",x,-y);label:SetWidth(w or 200);label:SetJustifyH("LEFT");label:SetTextColor(unpack(color or W.colors.text));label:SetText(text or"");return label
 end
 function W.Button(parent,text,x,y,w,callback,selected,key)
     local b=W.Frame("Button",nil,parent,"BackdropTemplate");b:SetPoint("TOPLEFT",x,-y);b:SetSize(w,30)
@@ -49,7 +49,7 @@ function W.Button(parent,text,x,y,w,callback,selected,key)
 end
 function W.Input(parent,value,x,y,w,key,multiline)
     local surround=W.Panel(parent,x,y,w,multiline and 180 or 28,W.colors.background)
-    local input=W.Frame("EditBox",nil,surround);input:SetPoint("TOPLEFT",7,-5);input:SetSize(w-14,multiline and 165 or 20);input:SetFont(font,12);input:SetTextColor(unpack(W.colors.text));input:SetAutoFocus(false);input:SetMaxLetters(multiline and 130000 or 500);input:SetMultiLine(multiline==true);input:SetText(tostring(value or""));input:SetScript("OnEscapePressed",function(self)self:ClearFocus()end);return register(input,key)
+    local input=W.Frame("EditBox",nil,surround);input:SetPoint("TOPLEFT",7,-5);input:SetSize(w-14,multiline and 165 or 20);input:SetFont(font,12,"");input:SetTextColor(unpack(W.colors.text));input:SetAutoFocus(false);input:SetMaxLetters(multiline and 130000 or 500);input:SetMultiLine(multiline==true);input:SetText(tostring(value or""));input:SetScript("OnEscapePressed",function(self)self:ClearFocus()end);return register(input,key)
 end
 function W.Field(parent,title,value,x,y,w,key)
     W.Label(parent,title,x,y,w,10,W.colors.muted);return W.Input(parent,value,x,y+17,w,key)

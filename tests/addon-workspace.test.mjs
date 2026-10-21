@@ -4,6 +4,17 @@ async function run(body){const script=`local env=(function()\n${harness}\nend)()
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
 }
+test('all workspace pages and multiline inputs supply the flags required by EditBox:SetFont',()=>run(`
+local bad=CreateFrame('EditBox',nil,UIParent);local ok,error=pcall(bad.SetFont,bad,'Fonts/FRIZQT__.TTF',12);assert(not ok and error:find("bad argument #3"))
+for _,version in ipairs({'12.1.5','1.60.1'})do
+ env.version=version;ns.Open()
+ for _,tab in ipairs({'mythic','raid','profiles','settings'})do
+  env.click('tab:'..tab)
+  for _,frame in ipairs(env.frames)do if frame.kind=='EditBox'and frame~=bad then assert(type(frame.fontFlags)=='string','EditBox font flags are missing')end end
+ end
+ local input=ns.Widgets.Input(UIParent,'first\\nsecond',0,0,300,'multiline-font-test',true);assert(input.fontFlags=='')
+end
+`));
 test('in-game UI creates, orders and saves independent M+ and raid defensive sets and refuses combat edits',()=>run(`
 assert(ns.WorkspaceWindow:IsShown());assert(ns.Active().name=='Default')
 env.click('mode:sets');env.input('set-name','M+ personal');env.input('new-spell','22812');env.click('add-spell');env.input('new-spell','61336');env.click('add-spell');env.click('set-up:2');env.click('set-together:1');env.click('save-set')

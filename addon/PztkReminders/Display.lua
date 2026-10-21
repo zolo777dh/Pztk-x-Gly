@@ -88,7 +88,7 @@ function ns.Display(display)
     for i,icon in ipairs(r.icons)do if i<=count then local _,texture=Spell(spells[i]);icon:SetSize(iconSize,iconSize);icon:ClearAllPoints();icon:SetPoint("LEFT",8+(i-1)*(iconSize+4),0);icon:SetTexture(texture or 134400);icon:Show()else icon:Hide()end end
     r.text:ClearAllPoints();r.text:SetPoint("TOPLEFT",r,"TOPLEFT",count>0 and (10+(iconSize+4)*count)or 10,-8);r.text:SetPoint("RIGHT",r,"RIGHT",-8,0);r.text:SetText(text)
     if settings.showText==false then r.text:Hide()else r.text:Show()end
-    if settings.textSize then local font,_,flags=r.text:GetFont();if type(font)=="string"then r.text:SetFont(font,settings.textSize,flags)end end
+    if settings.textSize then local font,_,flags=r.text:GetFont();if type(font)=="string"then r.text:SetFont(font,settings.textSize,flags or"")end end
     local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5));r.expires=GetTime()+dur;if display.type=="circle"then r.swipe:SetCooldown(GetTime(),dur);r.swipe:Show()else r.swipe:Hide()end;r.bar:SetMinMaxValues(0,dur);r.bar:SetValue(dur);r:Show()
     if settings.showBar==false then r.bar:Hide()else r.bar:Show()end
     if display.type=="raidframeGlow"or display.type=="nameplateGlow"then r.glow=Glow(display,r.glowKey);if not r.glow then ns.Print("Glow target frame unavailable; showing the reminder instead.")end end

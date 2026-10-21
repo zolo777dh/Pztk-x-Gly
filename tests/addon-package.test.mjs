@@ -13,6 +13,18 @@ test('standalone addon bundle contains valid runtime, complete loader dependenci
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-addon-zip-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const archive=await packageAddon(process.cwd(),dir),entries=unzipSync(await fs.readFile(archive));for(const [i,f]of files.entries()){assert.ok(entries['PztkReminders/'+f]);parseLua(sources[i]);}assert.ok(entries['PztkReminders/Libs/LibSerialize.lua']);assert.ok(entries['PztkReminders/Media/Voice/use-a-defensive.ogg']);assert.ok(entries['PztkReminders/BUILD-SOURCES.json']);assert.ok(!Object.keys(entries).some(k=>k.startsWith('NaowhSmartReminders/')||k.startsWith('NorthernSkyRaidTools/')));
  const manifest=JSON.parse(Buffer.from(entries['PztkReminders/BUILD-SOURCES.json']).toString()),toc=Buffer.from(entries['PztkReminders/PztkReminders.toc']).toString();assert.match(toc,new RegExp('## Version: '+manifest.version.replaceAll('.','\\.')));assert.equal(path.basename(archive),'PztkReminders-'+manifest.version+'.zip');assert.match(sources[0],new RegExp('ns.version = "'+manifest.version.replaceAll('.','\\.')+'"'));
 });
+test('addon packaging rejects duplicate Lua loads through either TOC or XML',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-loader-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ const addon=path.join(root,'addon','PztkReminders'),output=path.join(root,'release');await fs.mkdir(addon,{recursive:true});
+ await fs.writeFile(path.join(addon,'Catalog.lua'),'local _,ns=...;ns.Catalog={}');
+ await fs.writeFile(path.join(addon,'PztkReminders.toc'),'## Version: 0.3.1\nCatalog.lua\n./Catalog.lua\n');
+ await assert.rejects(packageAddon(root,output),/Duplicate addon file load: PztkReminders\/Catalog\.lua/);
+ await fs.writeFile(path.join(addon,'PztkReminders.toc'),'## Version: 0.3.1\nCatalog.lua\nIncludes.xml\n');
+ await fs.writeFile(path.join(addon,'Includes.xml'),'<Ui><Script file="Catalog.lua"/></Ui>');
+ await assert.rejects(packageAddon(root,output),/Duplicate addon file load: PztkReminders\/Catalog\.lua/);
+ await fs.writeFile(path.join(addon,'Includes.xml'),'<Ui><!-- <Script file="Catalog.lua"/> --></Ui>');
+ await packageAddon(root,output);
+});
 test('own addon boots, opens its import window and renders basic text/icon/circle/sound previews under a controlled WoW UI harness',()=>{
  const script=`unpack=unpack or table.unpack;local ns={};local frames={};local scripts={};local sound;local build='12.1.5';local map=2813;local glowStarts,glowStops={},{}
 local methods={}

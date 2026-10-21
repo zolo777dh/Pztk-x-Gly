@@ -1,4 +1,12 @@
-# Current validation — 0.6.0 + Puzatik Reminders 0.3.0
+# Current validation — 0.6.1 + Puzatik Reminders 0.3.1
+
+- **130 tests passed, 0 failures, 0 skips** locally with native Lua 5.1, the unchanged NSR checkout, supplied NSRT/provider snapshots and the private unlicensed migration fixture. The production build and local addon packaging passed.
+- Reproduced the reported EditBox SetFont failure by requiring a string flags argument in the workspace harness: all six existing workspace scenarios failed before the fix. Both input creation paths now provide explicit empty flags. Font labels do so as well, and display resizing falls back to empty flags.
+- A new native/portable workspace scenario opens Mythic+, Raids, Profiles and Settings for both client workspaces and checks the font arguments, including multiline inputs. Existing profile/edit/dispatch scenarios run with the stricter API harness.
+- Removed the duplicate Catalog.lua TOC entry. Packaging now traverses all TOC/XML file loads and rejects a second load. Regression fixtures cover a duplicate path alias in TOC and a duplicate through XML, while ignoring XML comments.
+- The profile schema, minimum editor version and SavedVariables names remain unchanged. No live WoW session is available; these checks reproduce the reported API contract and loader errors in controlled tests.
+
+# Historical validation — 0.6.0 + Puzatik Reminders 0.3.0
 
 - **128 tests passed, 0 failures, 0 skips** locally with native Lua 5.1, unchanged NSR sources, supplied NSRT/provider snapshots and the explicit private unlicensed migration input. The production build and native Electron desktop workflow passed. External sources and private inputs are not installed on CI; portable model/provider fixtures run there.
 - New in-game workspace tests execute the actual Catalog/Editor/Widgets/UI/Main Lua modules against a controlled WoW API harness. They click the real control handlers to create/reorder/Together/save independent content sets, author pull/phase reminders, choose recipients, manage profiles and manual Forever encounters, refuse combat edits and prevent unbounded frame allocation across redraws.
