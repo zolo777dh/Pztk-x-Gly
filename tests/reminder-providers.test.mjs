@@ -132,3 +132,10 @@ Scheduler:RegisterTrashLocalTimer(runtime,{npcID=1},spell,10,{});Scheduler:_Remo
 spell.fixed=true;spell.step=10;id=Scheduler:RegisterTrashLocalTimer(runtime,{npcID=1},spell,10,{})
 advance(48);assert(#shown==2);Scheduler:_AdvanceTrashFixedCombatTimeline(Scheduler._active[id],50);advance(58);assert(#shown==3)
 `));
+
+test('opening BigWigs mechanic messages replay once after encounter start and stale messages are discarded',()=>execute(fixture+`
+profile();current.data.abilityBindings={};current.data.raidReminders[3470]={message={trigger={type='bwmsg',spellID=123,delay=2},display={type='text',text='Opening'}}}
+ns.Reset();ns.ConnectProviders();public:SendMessage('BigWigs_Message',boss,123,'Info');advance(0.1);assert(#shown==0)
+ns.Begin(3470,15,2813);advance(2.2);assert(#shown==1 and shown[1].text=='Opening')
+ns.Reset();public:SendMessage('BigWigs_Message',boss,123,'Info');advance(5);ns.Begin(3470,15,2813);advance(10);assert(#shown==1)
+`));

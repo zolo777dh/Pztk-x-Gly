@@ -38,6 +38,21 @@ local function Binding(b)
     if b.sound~=nil and type(b.sound)~="string" then return false end
     if b.display~=nil then
         if type(b.display)~="table" or not Number(b.display.dur,0.1,120,true) or (b.display.text~=nil and type(b.display.text)~="string") then return false end
+        for _,key in ipairs({"sound","ttsText"})do if b.display[key]~=nil and type(b.display[key])~="string"then return false end end
+        if b.display.tts~=nil and type(b.display.tts)~="boolean"then return false end
+    end
+    return true
+end
+local function Settings(s)
+    if s==nil then return true end
+    if type(s)~="table"then return false end
+    for _,key in ipairs({"enabled","voiceOn","soundOn","fallbackOn","showIcon","showText","showBar"})do if s[key]~=nil and type(s[key])~="boolean"then return false end end
+    for _,range in ipairs({{"voiceVol",0,100},{"iconSize",8,256},{"textSize",6,80},{"leadTime",0,120},{"lingerSec",0.1,120}})do if not Number(s[range[1]],range[2],range[3],true)then return false end end
+    for _,key in ipairs({"soundKey","voiceNone","textSide","bossSource"})do if s[key]~=nil and type(s[key])~="string"then return false end end
+    if s.pos~=nil then
+        if type(s.pos)~="table"or not Number(s.pos.x,-10000,10000,true)or not Number(s.pos.y,-10000,10000,true)then return false end
+        local anchors={CENTER=true,TOP=true,BOTTOM=true,LEFT=true,RIGHT=true,TOPLEFT=true,TOPRIGHT=true,BOTTOMLEFT=true,BOTTOMRIGHT=true}
+        for _,key in ipairs({"point","relPoint"})do if s.pos[key]~=nil and not anchors[s.pos[key]]then return false end end
     end
     return true
 end
@@ -45,7 +60,11 @@ function ns.Validate(profile)
     if type(profile) ~= "table" or profile.format ~= 1 or profile.addon ~= "PztkReminders" or type(profile.name) ~= "string" or #profile.name > 200 or type(profile.data) ~= "table" then return false end
     if profile.client ~= "retail" and profile.client ~= "forever" then return false end
     if not Data(profile, {}, 0, {100000}) then return false end
-    for _, key in ipairs({"presets","activePreset","abilityBindings","integrationRules","raidReminders"}) do if profile.data[key] ~= nil and type(profile.data[key]) ~= "table" then return false end end
+    if not Settings(profile.data.settings)then return false end
+    for _, key in ipairs({"presets","activePreset","abilityBindings","integrationRules","raidReminders","callouts","settings"}) do if profile.data[key] ~= nil and type(profile.data[key]) ~= "table" then return false end end
+    for _,value in pairs(profile.data.callouts or{})do if type(value)~="string"then return false end end
+    if profile.data.voiceNone~=nil and type(profile.data.voiceNone)~="string"then return false end
+    if not Number(profile.data.leadTime,0,120,true)then return false end
     for _, presets in pairs(profile.data.presets or {})do
         if type(presets) ~= "table" then return false end
         for _,preset in pairs(presets)do
@@ -63,7 +82,15 @@ function ns.Validate(profile)
     end
     for _,rules in pairs(profile.data.integrationRules or {})do
         if type(rules)~="table"then return false end
-        for _,rule in pairs(rules)do if not Binding(rule)or type(rule.trigger)~="table"or rule.trigger.type~="exboss"or not ID(rule.trigger.mapID)or not ID(rule.trigger.spellID)or not Number(rule.trigger.timeleft,0,120,true)then return false end end
+        for _,rule in pairs(rules)do
+            if not Binding(rule)or type(rule.trigger)~="table"then return false end
+            local t=rule.trigger
+            if (t.type~="exboss"and t.type~="auraSound")or not Number(t.mapID,0,100000000)or t.mapID%1~=0 or not ID(t.spellID)or not Number(t.timeleft,0,120,true)then return false end
+            if t.type=="auraSound"then
+                if (t.target~="player"and t.target~="party")or(t.auraEvent~="Added"and t.auraEvent~="ApplicationsIncreased"and t.auraEvent~="Removed")or type(rule.display)~="table"or type(rule.display.sound)~="string"or rule.display.sound==""or rule.display.sound=="none"then return false end
+                if (rule.display.sound=="voice:stoneform-ready"or rule.display.sound=="voice:shadowmeld-ready")and t.target~="player"then return false end
+            end
+        end
     end
     for _, entries in pairs(profile.data.raidReminders or {}) do
         if type(entries) ~= "table" then return false end
@@ -71,6 +98,19 @@ function ns.Validate(profile)
             if type(entry) ~= "table" or type(entry.trigger) ~= "table" or type(entry.display) ~= "table" then return false end
             if entry.enabled~=nil and type(entry.enabled)~="boolean"then return false end
             local trigger = entry.trigger
+            if entry.defensive~=nil then
+                local d=entry.defensive
+                if type(d)~="table"or type(d.preset)~="string"or not ID(d.specID)then return false end
+            end
+            if trigger.counterGroups~=nil then
+                if type(trigger.counterGroups)~="table"then return false end
+                for _,group in pairs(trigger.counterGroups)do
+                    if type(group)~="table"then return false end
+                    for _,pred in pairs(group)do
+                        if type(pred)~="table"or not Number(pred.value,-1000000,1000000)or not({["="]=true,["!"]=true,[">"]=true,["<"]=true,[">="]=true,["<="]=true})[pred.op]then return false end
+                    end
+                end
+            end
             if trigger.type ~= "pull" and trigger.type ~= "stage" and trigger.type ~= "bwtimer" and trigger.type ~= "bwmsg" then return false end
             if not Number(trigger.delay,0,7200,true)or not Number(trigger.leadTime,0,120,true)or not Number(trigger.stage,0.01,100,true)then return false end
             if (trigger.type=="bwtimer"or trigger.type=="bwmsg")and not ID(trigger.spellID)then return false end

@@ -27,6 +27,7 @@ local function Stop(record)
 end
 
 local function BigWigs(event, module, spell, duration, _, text)
+    if ns.ProviderSelected and not ns.ProviderSelected("bigwigs")then return end
     local state = Module(module)
     if not state then return end
     if event == "BigWigs_Timer" then
@@ -40,12 +41,18 @@ local function BigWigs(event, module, spell, duration, _, text)
             record = {id = "BW:" .. serial}
             state.bars[key] = record
         end
+        local repeatEvent=record.deadline and record.deadline>GetTime()
         record.spell, record.encounter, record.deadline = spell, encounter, GetTime() + duration
         record.paused, record.remaining = false, nil
-        ns.Mechanic(spell, duration, record.id, encounter)
+        ns.Mechanic(spell, duration, record.id, encounter,false,repeatEvent)
     elseif event == "BigWigs_Message" then
         local encounter = Encounter(module)
         if not encounter or not ns.Plain(spell, "number") then return end
+        if not ns.encounter then
+            state.messages=state.messages or {}
+            if #state.messages<50 then state.messages[#state.messages+1]={spell=spell,at=GetTime(),encounter=encounter}end
+            return
+        end
         local predicted = false
         for _, record in pairs(state.bars) do
             if record.spell == spell and not record.paused and record.deadline >= GetTime() - 2 then predicted = true; break end
@@ -60,7 +67,7 @@ local function BigWigs(event, module, spell, duration, _, text)
             if not record.paused or not record.remaining or record.remaining <= 0 then return end
             record.deadline = GetTime() + record.remaining
             record.paused = false
-            ns.Mechanic(record.spell, record.remaining, record.id, record.encounter)
+            ns.Mechanic(record.spell, record.remaining, record.id, record.encounter,false,true)
         else
             Stop(record)
             if event == "BigWigs_StopBar" then state.bars[spell] = nil
@@ -70,14 +77,16 @@ local function BigWigs(event, module, spell, duration, _, text)
         if Encounter(module) then ns.Phase(spell) end
     elseif event == "BigWigs_StopBars" or event == "BigWigs_OnBossDisable" or event == "BigWigs_OnBossWipe" then
         for _, record in pairs(state.bars) do Stop(record) end
-        state.bars = {}
+        state.bars, state.messages = {}, {}
         if event ~= "BigWigs_StopBars" and Encounter(module) == ns.encounter then ns.Reset() end
     end
 end
 
 local function DBMEvent(event, ...)
     -- A failed BigWigs registration must not silently disable DBM too.
-    if bwConnected then return end
+    if ns.ProviderSelected and not ns.ProviderSelected("dbm")then return end
+    local explicit=ns.Settings and ns.Settings().bossSource
+    if bwConnected and explicit~="dbm"then return end
     if event == "DBM_TimerBegin" or event == "DBM_TimerStart" then
         local identity, _, duration, _, _, spell = ...
         if ns.Plain(identity, "string") and ns.Plain(spell, "number") and ns.Plain(duration, "number") then
@@ -149,6 +158,12 @@ function ns.CaptureProviderTimers(encounter)
                 result[#result+1]={module=module,spell=record.spell,deadline=record.deadline,label=type(label)=="string"and label or nil}
             end
         end
+        for _,message in ipairs(state.messages or {})do
+            if message.encounter==encounter and GetTime()-message.at>=0 and GetTime()-message.at<=1 then
+                result.messages=result.messages or {}
+                result.messages[#result.messages+1]={module=module,spell=message.spell}
+            end
+        end
     end
     return result
 end
@@ -158,6 +173,7 @@ function ns.ReplayProviderTimers(records)
         local remaining=record.deadline-GetTime()
         if remaining>0 then BigWigs("BigWigs_Timer",record.module,record.spell,remaining,nil,record.label)end
     end
+    for _,message in ipairs(records and records.messages or {})do BigWigs("BigWigs_Message",message.module,message.spell)end
 end
 
 function ns.ProviderStatus()

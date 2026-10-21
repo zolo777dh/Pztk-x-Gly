@@ -1,16 +1,14 @@
-Pztk x Glyalith 0.4.1 + Pztk Reminders 0.1.1
+Pztk x Glyalith 0.5.0 + Pztk Reminders 0.2.0
 
-Reminder runtime fixes, checked against the user's BigWigs v427.6, LittleWigs v12.1.21 and ExBoss 1.0.0 source archives. The native PZTK1 format and existing profiles remain compatible.
+NSR migration now handles native aura sounds and authored defensive reminders instead of skipping them with one warning per rule.
 
-- BigWigs timer stop/pause now matches the provider's text label and module. Resume reschedules from the paused remaining time; one module cannot cancel another module's reminders.
-- Mechanic messages no longer cancel countdowns for the same spell or repeat an already predicted defensive. The first bars survive when BigWigs handles encounter start before this addon. Other encounters cannot move the active phase. Boss wipe/disable, zone and specialization changes clear obsolete schedules.
-- ExBoss reads existing active trash timers, verifies source/map/deadline before delivery, cancels removed timers and avoids repeating a delivered alert for a correction to the same cast cycle. Fixed timeline advances can start the next cycle.
-- Failed callback registration can retry. DBM fallback is not disabled by a failed BigWigs connection.
-- Defensive display fields and target flags are validated in both the desktop and addon before entering runtime callbacks. Missing optional spell/voice information falls back safely. Frame glows have independent ownership keys; nameplate glows use nameplates.
-- Text reminder exports omit blank optional spell IDs. The desktop and addon also recover this exact empty-field sentinel in 0.4.0 exports, which the original game decoder could refuse.
-- /pztkr debug and the Diagnostics button prepare a copyable build/provider/connection report without player or profile names. Send this with the first BugSack error and stack when reporting a game failure.
-- Addon ZIP names and BUILD-SOURCES versions now come from the TOC version. The complete Windows bundle includes PztkReminders-0.1.1.zip.
+- Supported NSR custom reminders become editable native entries with specialization, priority set, occurrence condition and delay. Counter OR/AND conditions are compiled as data; imported Lua is never executed. Unknown conditions are reported rather than silently widened.
+- ExBoss and auraSound rules, custom callout text, default lead time, fallback and supported voice/display settings survive PZTK1 conversion. The report groups issues and identifies the specialization and source rule, with a downloadable JSON report.
+- Open editable migrated copy creates a native profile for changes while retaining the original source. Dynamic defensive actions choose available spells from the assigned set at dispatch. Referenced sets cannot be deleted without reassignment.
+- Aura sounds use the game's native C_UnitAuras.AddAuraSound API. Registrations are scoped to specialization, instance and map, deduplicated and deferred during restrictions. Stoneform/Shadowmeld cues use private sound files gated by public racial readiness. Unavailable/secret readiness stays muted; missing native APIs are reported in /pztkr debug. No aura contents are read.
+- Repeated mechanic messages keep independent delayed reminders. Opening BigWigs messages survive encounter-start callback ordering; stale opening messages are discarded. Existing bar pause/resume and ExBoss cycle protections remain.
+- Migration retains unavailable settings but reports them: cdmGlow, coveredSkip, coveredSkipDefaultOn and coveredCastWindow do not have runtime implementations. Missing preset references need review; ExBoss's existing empty-text active-set fallback is preserved. A conversion report is not a claim of complete behavioral equivalence.
 
-Replace the PztkReminders folder with the new one while WoW is closed. Do not delete PztkRemindersDB SavedVariables; existing profiles are retained. Keep NSR / NSRT / TimelineReminders disabled while testing this separate addon. Retail 12.1.5.70448 and Forever 1.60.1.70425 targets are unchanged.
+Replace the desktop with the complete Windows ZIP and the PztkReminders folder with addon 0.2.0 while WoW is closed. Keep PztkRemindersDB SavedVariables. Profiles using the new behavior require addon 0.2.0. Keep NSR / NSRT / TimelineReminders disabled while testing this separate addon.
 
-The supplied ExBoss version requires EXBossData, ExwindCore and EXBOSS-Locale; EXBOSS-Locale requires EXBOSS-LocaleBase. Install complete providers separately. The uploaded provider snapshots include Retail-only interface declarations and do not establish Forever compatibility. No live WoW session was available: source replay and mocked game API tests verify the covered paths, not every in-game behavior or an unreported BugSack stack.
+Targets remain Retail 12.1.5.70448 and Forever 1.60.1.70425. Native aura sounds require the corresponding public client API; Forever support is not inferred from Retail. Provider packages are installed separately. No live WoW session was available: codec roundtrips, source replays and controlled API tests cover the documented paths. Original addon sources and private user profiles are not published or changed. Licensed source packs remain excluded from conversion.

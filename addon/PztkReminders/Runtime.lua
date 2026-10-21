@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.PztkReminders = ns
-ns.version = "0.1.1"
+ns.version = "0.2.0"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -101,12 +101,14 @@ function ns.Schedule(key, delay, callback)
     ns.timers[key] = timer
 end
 function ns.Fire(entry)
-    if ns.Conflict() or entry.enabled == false or not ns.Difficulty(entry) or not ns.Target(entry.target) then return end
+    if (ns.Enabled and not ns.Enabled()) or ns.Conflict() or entry.enabled == false or not ns.Difficulty(entry) or not ns.Target(entry.target) then return end
+    if entry.defensive and ns.RenderDefensive then return ns.RenderDefensive(entry)end
     if ns.Display then ns.Display(entry.display or {}) end
 end
 function ns.Reset()
     ns.Cancel(); ns.generation = ns.generation + 1; ns.occurrences = {}; ns.encounter = nil; ns.phase = nil
     if ns.ResetProviders then ns.ResetProviders() end
+    if ns.SuspendAuraSounds then ns.SuspendAuraSounds()end
     if ns.HideDisplays then ns.HideDisplays() end
 end
 function ns.Anchor(kind, phase)
@@ -117,7 +119,8 @@ function ns.Anchor(kind, phase)
         if trigger.type == kind and (kind ~= "stage" or trigger.stage == phase) then
             local delay = tonumber(trigger.delay) or 0
             local lead = tonumber(trigger.leadTime) or 0
-            ns.Schedule(kind .. ":" .. tostring(key), math.max(0, delay - lead), function() ns.Fire(entry) end)
+            ns.occurrences[entry]=(ns.occurrences[entry]or 0)+1
+            if not ns.CounterMatches or ns.CounterMatches(trigger.counterGroups,ns.occurrences[entry])then ns.Schedule(kind .. ":" .. tostring(key), math.max(0, delay - lead), function() ns.Fire(entry) end)end
         end
     end
 end
@@ -170,26 +173,43 @@ function ns.Defensive(binding, lead, key, valid)
     if not profile or binding.enabled == false or not spec then return end
     ns.Schedule(key, math.max(0, lead), function()
         if ns.Spec() ~= spec or (valid and not valid()) then return end
+        if ns.RenderDefensive then return ns.RenderDefensive(binding,binding.trigger and binding.trigger.type=="exboss")end
         local presetKey = binding.preset or ns.Get(profile.data.activePreset, spec)
         local preset = ns.Get(ns.Get(profile.data.presets, spec), presetKey)
         local spells = ns.Pick(preset)
         if #spells > 0 and ns.Display then ns.Display({type="icon",spells=spells,spellID=spells[1],text=binding.display and binding.display.text or "Use defensive",dur=binding.display and binding.display.dur or 5,sound=binding.sound}) end
     end)
 end
-function ns.Mechanic(spell, duration, identity, encounter, skipDefensive)
+function ns.Mechanic(spell, duration, identity, encounter, skipDefensive, repeatEvent)
     if not ns.Plain(spell, "number") or (duration ~= nil and not ns.Plain(duration, "number")) then return end
     if ns.Conflict() or not ns.Plain(identity) or not ns.Plain(encounter) then return end
     local profile, spec = ns.Active(), ns.Spec()
     if not profile then return end
+    if ns.Enabled and not ns.Enabled()then return end
     encounter = encounter or ns.encounter
     local prefix = "ability:" .. tostring(identity or spell) .. ":"
-    ns.Cancel(prefix)
+    if duration then ns.Cancel(prefix)
+    else
+        -- Each message occurrence owns its delayed reminders. A new occurrence
+        -- must not cancel an older one that is still waiting for its delay.
+        ns.occurrences[prefix]=(ns.occurrences[prefix]or 0)+1
+        prefix="message:"..tostring(identity or spell)..":"..ns.occurrences[prefix]..":"
+    end
     local binding = ns.Get(ns.Get(ns.Get(profile.data.abilityBindings, spec), encounter), spell)
-    if binding and not skipDefensive then ns.Defensive(binding, duration and math.max(0, duration - (binding.leadTime or 3)) or 0, prefix .. "defensive") end
-    for key, entry in pairs(ns.Get(profile.data.raidReminders, encounter) or {}) do
+    local entries=ns.Get(profile.data.raidReminders,encounter)or{}
+    local authored=false
+    for _,entry in pairs(entries)do if entry.defensive and entry.enabled~=false and entry.trigger.spellID==spell and ns.Target(entry.target)and ns.Difficulty(entry)then authored=true;break end end
+    local defaults=profile.data.settings or{}
+    if binding and not skipDefensive and not authored and binding.mode~="custom" then ns.Defensive(binding, duration and math.max(0, duration - (binding.leadTime or profile.data.leadTime or defaults.leadTime or 3)) or 0, prefix .. "defensive") end
+    for key, entry in pairs(entries) do
         local trigger = entry.trigger or {}
-        if trigger.spellID == spell and ((duration and trigger.type == "bwtimer") or (not duration and trigger.type == "bwmsg")) then
-            ns.Schedule(prefix .. tostring(key), duration and math.max(0, duration - (trigger.leadTime or 3)) or 0, function() ns.Fire(entry) end)
+        if trigger.spellID == spell and entry.enabled~=false and ns.Target(entry.target) and ((duration and trigger.type == "bwtimer") or (not duration and trigger.type == "bwmsg")) then
+            if not repeatEvent then ns.occurrences[entry]=(ns.occurrences[entry]or 0)+1 end
+            local occurrence=ns.occurrences[entry]or 0
+            if not ns.CounterMatches or ns.CounterMatches(trigger.counterGroups,occurrence)then
+                local delay=(duration and math.max(0,duration-(trigger.leadTime or 3))or 0)+(trigger.delay or 0)
+                ns.Schedule(prefix .. tostring(key),delay,function()ns.Fire(entry)end)
+            end
         end
     end
 end
@@ -199,7 +219,7 @@ function ns.Trash(spell, remaining, identity, valid)
     if not p then return end
     for key, rule in pairs(ns.Get(p.data.integrationRules, spec) or {}) do
         local trigger = rule.trigger or {}
-        if trigger.type == "exboss" and trigger.spellID == spell and trigger.mapID == ns.map then
+        if trigger.type == "exboss" and trigger.spellID == spell and (trigger.mapID==0 or trigger.mapID == ns.map) then
             ns.Defensive(rule, math.max(0, remaining - (trigger.timeleft or 3)), "trash:" .. tostring(identity or spell) .. ":" .. tostring(key), valid and function() return valid(key) end)
         end
     end

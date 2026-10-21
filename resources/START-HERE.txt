@@ -1,11 +1,11 @@
-Pztk x Glyalith 0.4.1 — Windows x64
+Pztk x Glyalith 0.5.0 — Windows x64
 
 Extract the complete ZIP into a normal folder and launch Pztk x Glyalith.exe.
 Do not run the exe directly inside the ZIP. Node.js is not required.
 
 
 PZTK REMINDERS — SEPARATE ADDON, NEW IN 0.4.0
-The bundle includes PztkReminders-0.1.1.zip. Extract its PztkReminders folder into
+The bundle includes PztkReminders-0.2.0.zip. Extract its PztkReminders folder into
 Interface/AddOns for the correct game client. Disable NaowhSmartReminders,
 NorthernSkyRaidTools and TimelineReminders; the new addon pauses live dispatch
 when these are loaded. Their source files and settings are not modified.
@@ -113,3 +113,15 @@ or manually configured encounters and verify the installed addon's compatibility
 The app does not install profiles into live game memory, press abilities, publish
 addon source edits to GitHub, or remove addon licensing. WCL / BGMT parsing and
 real defensive-press timing averages are not included in this version.
+
+NSR MIGRATION REVIEW (0.5.0 / addon 0.2.0)
+Export complete profile shows grouped issues with spec and rule IDs. Save the full
+migration report for review. Open editable migrated copy preserves the original
+source and opens native reminders: edit defensive set, occurrence condition and
+delay, then save and export again. Unsupported trigger conditions are not guessed.
+Missing set references need review. ExBoss's empty-text active-set fallback remains.
+cdmGlow, coveredSkip, coveredSkipDefaultOn and coveredCastWindow are retained but
+not implemented. Do not treat a successful decode as full behavioral equivalence.
+Native aura sounds require C_UnitAuras.AddAuraSound. /pztkr debug reports missing
+APIs and pending/failed registrations. Registration changes wait for restrictions
+to end. Private racial clips stay muted when readiness is unknown or inaccessible.

@@ -84,3 +84,10 @@ test('text reminders omit blank spell IDs and 0.4.0 exports recover that optiona
  local entries=pack.data.raidReminders[3470]or pack.data.raidReminders['3470'];assert(entries.test.display.spellID==nil);print('LEGACY_BLANK_ID_RECOVERED')`;
  const lua=path.join(s.dataDir,'legacy.lua');await fs.writeFile(lua,script);assert.match(execFileSync(process.env.DOCTOR_LUA51,[lua],{encoding:'utf8'}),/LEGACY_BLANK_ID_RECOVERED/);}
 });
+
+test('an authored dynamic defensive prevents deleting the preset it still references',async t=>{
+ const {s,v}=await fixture(t);const n=await s.handle('nsr.change',{id:v.id,revision:v.revision,operation:{kind:'preset.save',args:{specId:264,key:'personal',name:'Personal',spells:[{spellId:108271}]}}});
+ const u=await s.handle('reminders.save',reminder(n,{defensive:{specID:264,preset:'personal'},display:{type:'icon',text:'',dur:3}}));
+ await assert.rejects(()=>s.handle('nsr.change',{id:u.id,revision:u.revision,operation:{kind:'preset.delete',args:{specId:264,key:'personal'}}}),/still assigned/);
+ assert.equal((await s.handle('reminders.read',{id:u.id})).sets[0].key,'personal');
+});

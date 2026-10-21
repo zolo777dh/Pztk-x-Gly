@@ -7,7 +7,7 @@ import fengari from 'fengari';
 import {unzipSync} from 'fflate';
 import {packageAddon} from '../tools/package-addon.mjs';
 import {parseLua} from '../core/analyzer.mjs';
-const files=['Runtime.lua','Profiles.lua','Display.lua','Providers.lua','Main.lua'];
+const files=['Runtime.lua','Profiles.lua','Display.lua','RuleRuntime.lua','AuraSounds.lua','Providers.lua','Main.lua'];
 const sources=await Promise.all(files.map(f=>fs.readFile('addon/PztkReminders/'+f,'utf8')));
 test('standalone addon bundle contains valid runtime, complete loader dependencies, codecs, media and no NSR/NSRT runtime',async t=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-addon-zip-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const archive=await packageAddon(process.cwd(),dir),entries=unzipSync(await fs.readFile(archive));for(const [i,f]of files.entries()){assert.ok(entries['PztkReminders/'+f]);parseLua(sources[i]);}assert.ok(entries['PztkReminders/Libs/LibSerialize.lua']);assert.ok(entries['PztkReminders/Media/Voice/use-a-defensive.ogg']);assert.ok(entries['PztkReminders/BUILD-SOURCES.json']);assert.ok(!Object.keys(entries).some(k=>k.startsWith('NaowhSmartReminders/')||k.startsWith('NorthernSkyRaidTools/')));
@@ -71,7 +71,7 @@ assert(ns.encounter==nil and ns.map==999 and next(ns.timers)==nil)
 ns.Begin(3470,15,999);eventFrame._scripts.OnEvent(eventFrame,'PLAYER_SPECIALIZATION_CHANGED','player');assert(ns.encounter==nil)
 map=nil;eventFrame._scripts.OnEvent(eventFrame,'PLAYER_ENTERING_WORLD');assert(ns.map==nil)
 build='1.60.1';ns.Open();assert(PztkRemindersDB.clients.forever)
-local diagnostic=ns.Diagnostics();assert(diagnostic:find('Pztk Reminders 0.1.1',1,true));assert(diagnostic:find('Client: forever',1,true));assert(diagnostic:find('EXBOSS-Locale:',1,true))
+local diagnostic=ns.Diagnostics();assert(diagnostic:find('Pztk Reminders '..ns.version,1,true));assert(diagnostic:find('Client: forever',1,true));assert(diagnostic:find('EXBOSS-Locale:',1,true))
 `;
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
 });

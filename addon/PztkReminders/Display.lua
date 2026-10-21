@@ -1,5 +1,13 @@
 local _, ns = ...
 local pool, active, serial = {}, {}, 0
+local builtins={ ["voice:use-a-defensive"]="use-a-defensive.ogg",["voice:move-out"]="move-out.ogg",["voice:dispel-me"]="dispel-me.ogg",["voice:stoneform-ready"]="stoneform-ready.ogg",["voice:shadowmeld-ready"]="shadowmeld-ready.ogg",["voice:stoneform-preview"]="stoneform-preview.ogg",["voice:shadowmeld-preview"]="shadowmeld-preview.ogg" }
+function ns.SoundPath(key)
+    if builtins[key]then return "Interface\\AddOns\\PztkReminders\\Media\\Voice\\"..builtins[key]end
+    if type(key)~="string"or key==""or key=="none"then return nil end
+    if key:match("^Interface[\\/]")then return key end
+    local lsm=LibStub("LibSharedMedia-3.0",true)
+    if lsm then local ok,path=pcall(lsm.Fetch,lsm,"sound",key:gsub("^lsm:",""),true);if ok and type(path)=="string"then return path end end
+end
 local function Spell(spell)
     if type(spell)~="number"or spell<=0 then return "Reminder",134400 end
     if C_Spell and C_Spell.GetSpellInfo then
@@ -9,6 +17,7 @@ local function Spell(spell)
     if GetSpellInfo then local ok,name,_,texture=pcall(GetSpellInfo,spell); if ok and ns.Plain(name,"string") then return name,ns.Plain(texture,"number")and texture end end
     return "Spell " .. tostring(spell), 134400
 end
+ns.SpellLabel=Spell
 local function Region()
     local r = table.remove(pool)
     if r then return r end
@@ -30,7 +39,9 @@ local function Release(index)
     pool[#pool+1]=r
 end
 local function Arrange()
-    for i,r in ipairs(active)do r:ClearAllPoints();r:SetPoint("CENTER",UIParent,"CENTER",0,100-(i-1)*66)end
+    local s=ns.Settings and ns.Settings()or{};local p=type(s.pos)=="table"and s.pos or{}
+    local offset=0
+    for _,r in ipairs(active)do r:ClearAllPoints();r:SetPoint(p.point or"CENTER",UIParent,p.relPoint or"CENTER",p.x or 0,(p.y or 100)-offset);offset=offset+(r.height or 60)+6 end
 end
 function ns.HideDisplays()for i=#active,1,-1 do Release(i)end end
 local function Glow(display,key)
@@ -60,24 +71,26 @@ local function Glow(display,key)
     end
 end
 function ns.Display(display)
+    local settings=ns.Settings and ns.Settings()or{}
     local text=type(display.text)=="string" and display.text or ""
     local spells=display.spells or (display.spellID and {display.spellID}) or {}
     if text=="" and spells[1] and display.type~="chat"then text=Spell(spells[1])end
-    local sound=display.sound
-    local builtins={ ["voice:use-a-defensive"]="use-a-defensive.ogg",["voice:move-out"]="move-out.ogg",["voice:dispel-me"]="dispel-me.ogg" }
-    if builtins[sound]then sound="Interface\\AddOns\\PztkReminders\\Media\\Voice\\"..builtins[sound]end
-    if type(sound)=="string" and sound:match("^Interface[\\/]")then pcall(PlaySoundFile,sound,"Master")
-    elseif type(sound)=="string" and sound~="" and sound~="none"then local lsm=LibStub("LibSharedMedia-3.0",true);if lsm then local file=lsm:Fetch("sound",sound:gsub("^lsm:",""),true);if file then pcall(PlaySoundFile,file,"Master")end end end
+    local sound=ns.SoundPath(display.sound)
+    if sound then pcall(PlaySoundFile,sound,"Master")end
     if display.tts and C_VoiceChat and C_VoiceChat.GetTtsVoices and C_VoiceChat.SpeakText then
         local ok,voices=pcall(C_VoiceChat.GetTtsVoices);local spoken=display.ttsText and display.ttsText~="" and display.ttsText or text
-        if ok and voices and voices[1] and spoken~=""then pcall(C_VoiceChat.SpeakText,voices[1].voiceID,spoken,0,100,false)end
+        if ok and voices and voices[1] and spoken~=""and settings.voiceOn~=false then pcall(C_VoiceChat.SpeakText,voices[1].voiceID,spoken,0,settings.voiceVol or 100,false)end
     end
     if display.type=="chat"then if text~=""then ns.Print(text)end;return end
     if #active>=6 then Release(1)end
-    local r=Region();local count=display.type=="text"and 0 or math.min(6,#spells);if display.type=="circle"and count==0 then count=1;spells={display.spellID or 0}end
-    for i,icon in ipairs(r.icons)do if i<=count then local _,texture=Spell(spells[i]);icon:SetTexture(texture or 134400);icon:Show()else icon:Hide()end end
-    r.text:ClearAllPoints();r.text:SetPoint("TOPLEFT",r,"TOPLEFT",count>0 and (10+46*count)or 10,-8);r.text:SetPoint("RIGHT",r,"RIGHT",-8,0);r.text:SetText(text)
+    local r=Region();local count=(display.type=="text"or settings.showIcon==false)and 0 or math.min(6,#spells);if display.type=="circle"and count==0 and settings.showIcon~=false then count=1;spells={display.spellID or 0}end
+    local iconSize=tonumber(settings.iconSize)or 42;r.height=math.max(60,iconSize+16);r:SetSize(math.max(340,count*(iconSize+4)+120),r.height)
+    for i,icon in ipairs(r.icons)do if i<=count then local _,texture=Spell(spells[i]);icon:SetSize(iconSize,iconSize);icon:ClearAllPoints();icon:SetPoint("LEFT",8+(i-1)*(iconSize+4),0);icon:SetTexture(texture or 134400);icon:Show()else icon:Hide()end end
+    r.text:ClearAllPoints();r.text:SetPoint("TOPLEFT",r,"TOPLEFT",count>0 and (10+(iconSize+4)*count)or 10,-8);r.text:SetPoint("RIGHT",r,"RIGHT",-8,0);r.text:SetText(text)
+    if settings.showText==false then r.text:Hide()else r.text:Show()end
+    if settings.textSize then local font,_,flags=r.text:GetFont();if type(font)=="string"then r.text:SetFont(font,settings.textSize,flags)end end
     local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5));r.expires=GetTime()+dur;if display.type=="circle"then r.swipe:SetCooldown(GetTime(),dur);r.swipe:Show()else r.swipe:Hide()end;r.bar:SetMinMaxValues(0,dur);r.bar:SetValue(dur);r:Show()
+    if settings.showBar==false then r.bar:Hide()else r.bar:Show()end
     if display.type=="raidframeGlow"or display.type=="nameplateGlow"then r.glow=Glow(display,r.glowKey);if not r.glow then ns.Print("Glow target frame unavailable; showing the reminder instead.")end end
     r:SetScript("OnUpdate",function(self)local left=self.expires-GetTime();if left<=0 then for i,v in ipairs(active)do if v==self then Release(i);Arrange();break end end else self.timer:SetText(string.format("%.1f",left));self.bar:SetValue(left)end end)
     active[#active+1]=r;Arrange()

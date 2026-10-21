@@ -3,7 +3,7 @@
 ## Title: Pztk Reminders
 ## Notes: Unified defensive, raid-assignment and timed encounter reminders planned in Pztk x Glyalith.
 ## Author: Pztk x Glyalith
-## Version: 0.1.1
+## Version: 0.2.0
 ## SavedVariables: PztkRemindersDB
 ## OptionalDeps: BigWigs, DBM-Core, EXBoss
 Libs\LibStub.lua
@@ -15,5 +15,7 @@ Libs\LibGetFrame-1.0\LibGetFrame-1.0.xml
 Runtime.lua
 Profiles.lua
 Display.lua
+RuleRuntime.lua
+AuraSounds.lua
 Providers.lua
 Main.lua

@@ -2,10 +2,11 @@ local _,ns=...
 function ns.Print(message)print("|cff009dffPztk Reminders:|r "..tostring(message))end
 local warning,window
 function ns.RefreshContext()
-    local difficulty,map
-    if GetInstanceInfo then local _,_,d,_,_,_,_,m=GetInstanceInfo();difficulty=d;map=m end
+    local difficulty,map,kind
+    if GetInstanceInfo then local _,k,d,_,_,_,_,m=GetInstanceInfo();difficulty=d;map=m;kind=k end
     ns.difficulty=ns.Plain(difficulty,"number")and difficulty or nil
     ns.map=ns.Plain(map,"number")and map or nil
+    ns.instanceType=ns.Plain(kind,"string")and kind or nil
 end
 local function Button(parent,label,x,y,callback)
     local b=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate");b:SetSize(125,24);b:SetPoint("TOPLEFT",x,y);b:SetText(label);b:SetScript("OnClick",callback);return b
@@ -27,6 +28,7 @@ function ns.Diagnostics()
     lines[#lines+1]="Conflict: "..(ns.Conflict()or "none")
     lines[#lines+1]="Profile present: "..(ns.Active()and "yes"or "no")
     lines[#lines+1]="Encounter / difficulty / map: "..tostring(ns.encounter).." / "..tostring(ns.difficulty).." / "..tostring(ns.map)
+    if ns.AuraSoundStatus then lines[#lines+1]="Aura sounds: "..ns.AuraSoundStatus()end
     return table.concat(lines,"\n")
 end
 function ns.Open()
@@ -43,6 +45,7 @@ function ns.Open()
         local help=window:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");help:SetPoint("BOTTOMLEFT",16,16);help:SetText("Paste one PZTK1 profile from Pztk x Glyalith. Disable NSR / NSRT / TimelineReminders.")
     end
     ns.ConnectProviders()
+    if ns.RefreshAuraSounds then ns.RefreshAuraSounds()end
     local conflict=ns.Conflict();window.status:SetText(ns.Client().." | Profile: "..tostring(ns.Store().active or "none")..(conflict and " | PAUSED: "..conflict.." is loaded"or " | Ready"));window:Show()
 end
 SLASH_PZTKREMINDERS1="/pztkr"
@@ -62,4 +65,5 @@ events:SetScript("OnEvent",function(_,event,a,b,c)
         if event=="PLAYER_ENTERING_WORLD"or event=="PLAYER_SPECIALIZATION_CHANGED"then ns.Reset()end
         ns.RefreshContext();ns.ConnectProviders();local conflict=ns.Conflict();if conflict then ns.Cancel();if ns.HideDisplays then ns.HideDisplays()end end;if conflict and warning~=conflict then warning=conflict;ns.Print("Paused: disable "..conflict.." and reload to use Pztk Reminders.")elseif not conflict then warning=nil end
     end
+    if ns.RefreshAuraSounds then ns.RefreshAuraSounds()end
 end)
