@@ -7,6 +7,13 @@
 - Unavailable runtime settings (cdmGlow, coveredSkip, coveredSkipDefaultOn, coveredCastWindow) are retained and explicitly reported. Missing presets are not guessed; source ExBoss empty-text fallback is preserved. New native behavior requires addon 0.2.0. No live Retail/Forever session or complete behavioral equivalence is claimed.
 - Previous provider source versions, hashes and dependencies remain documented in [PROVIDER-COMPATIBILITY.md](resources/PROVIDER-COMPATIBILITY.md). Original addon checkouts and uploaded references are unchanged. README.md remains unchanged.
 
+- Windows CI [39587694123](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39587694123) succeeded for release source `5d60742b58bde03aa1bf0ac11d89e594212ac168`: core tests, Windows package, native packaged migration/edit/export/restart workflow, checksums, Windows ZIP extraction and publication. CI uses synthetic source profiles.
+- Downloaded both published archives and verified their SHA256 values and ZIP integrity (**80 desktop entries, 40 addon entries**). BUILD-SOURCES matches every addon file; published sources match the release checkout after normalizing Windows text line endings. The addon ZIP inside the desktop bundle is byte-identical to the separate download. New migration/runtime sources and version 0.5.0 are present in app.asar; private test artifacts are absent.
+- The downloaded app.asar passed the native Electron workflow again under Linux / Xvfb. The extracted published addon accepted the final private PZTK1 and roundtripped its checked sections with native Lua 5.1, including converted custom entries and their healer flags. No private string is included in this document or the release.
+- Published desktop: `Pztk-x-Glyalith-0.5.0-Windows-x64.zip`, **145,295,386 bytes**, SHA256 `21e504c18ea746de17846cdf618e73bfd9c69077ecbf2e4baa63be1cca1afefc`.
+- Published addon: `PztkReminders-0.2.0.zip`, **173,987 bytes**, SHA256 `09978af423f794cb5fc9a44ceb6698e1889665b5c0ffc519f42e98ea33211401`.
+- [Windows download](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.5.0/Pztk-x-Glyalith-0.5.0-Windows-x64.zip) · [Addon download](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.5.0/PztkReminders-0.2.0.zip).
+
 # Historical validation — 0.4.1 + Pztk Reminders 0.1.1
 
 - **105 tests passed, 0 failures, 0 skips** locally, with native Lua 5.1, the unchanged NSR checkout, the newly uploaded NSRT 12.1.31 and provider source snapshots. Production build and the native Electron desktop workflow passed, including legacy planners, unified PZTK1 export/decode, AI patch backup/apply/restore and restart persistence.
