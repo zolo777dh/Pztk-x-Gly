@@ -1,17 +1,12 @@
-Pztk x Glyalith 0.3.0 — Windows x64
+Pztk x Glyalith 0.4.0 + Pztk Reminders 0.1.0
 
-A unified desktop workspace for addon diagnostics, AI-assisted source changes and NSR / NSRT profile preparation.
+This release includes a separate in-game addon, Pztk Reminders. Existing NSR / NSRT addons are not modified.
 
-- AI Workspace: persistent tasks and conversations, selected-project context, related Lua symbol candidates, TOC/XML loader references, bounded source excerpts and explicit Retail / Forever build context. Review the request before sending.
-- ChatGPT / Claude websites can open in a sandboxed panel inside the application. Use your website account and subscription; copy the request into the site and paste its JSON reply into the task. External browser fallback remains available. Website login support depends on the provider.
-- Optional local API and cloud API use the same workspace. Cloud model lists are loaded for your API key; API access is separate from a website subscription. API keys are kept only for the current app session.
-- Review changes across multiple addon modules, select files, validate Lua 5.1 syntax and apply with a verified ZIP backup. New Lua/TOC/XML files are supported in existing addon directories. Source changes invalidate stale proposals. Failed writes roll back earlier writes; task backups can restore the original files.
-- Native NSRT profiles: import/export current !NSRT:Profile: and full !NSRT:EncounterAlert: strings; visually edit raid reminders, phase schedules, Heroic/Mythic difficulty and specialization filters. Unknown imported fields are retained. Previous profile revisions can be restored.
-- Raid assignments can build a separate NSRT profile, optionally based on a copy of an existing NSRT profile. Source phase schedules produce reminders for the assigned defensive set, with its first spell icon. NSRT does not reproduce NSR's cooldown-based selection. Generation reports skipped assignments.
-- Retail and Forever have separate NSR / NSRT working profile lists and active NSR drafts. The bundled eight-dungeon M+ and 20-boss raid catalogs are Retail Midnight data. Forever uses its imported / manually configured encounters, rather than the Retail catalog.
-- Existing selected-addon batch scans, BugSack/BugGrabber imports, code search, folder selection / refresh / removal, shared M+ and raid NSR exports and all 40 specialization choices remain available. Addons starts empty each launch; profile and task history persist.
-- WCL / BGMT integration and timing-average analysis remain removed. App changes do not publish local addon edits to their GitHub repositories.
+- Reminders workspace: one working profile for defensive sets, Mythic+ / raid mechanic bindings, raid assignments and timed reminders. Export one native PZTK1 string and import it with /pztkr.
+- Time / phase / ability-timer / mechanic-message triggers; spec / role / player / everyone recipients; spell icons, text, sounds and frame glows, with additional bar/circle/TTS displays. Timeline dragging prepares an edit that must be saved.
+- Independent in-game scheduler, target/difficulty filters, defensive priority/Together selection, BigWigs / DBM callbacks and ExBoss trash timers. Profile imports create new saved copies and are separated by client. Conflicting NSR / NSRT / TimelineReminders installations pause live dispatch; disable those addons when using Pztk Reminders.
+- Migrate supported NSRPACK2 and current NSRT scheduled alerts through the desktop. OR target conditions and countdown lead times are preserved for supported entries. Review exclusions before export; source data remains local. No guessed TimelineReminders string decoder is included without a verified format/sample.
+- Retail 12.1.5.70448 and Forever 1.60.1.70425 targets remain unchanged. Bundled Midnight S1/S2 encounter references belong to Retail; Forever uses manual/imported encounters.
+- Existing all-40-spec set imports, diagnostics, source search, AI Workspace and source backup/recovery remain available. Legacy NSR / NSRT compatibility editors are retained separately.
 
-Extract the complete ZIP into a normal folder, then launch “Pztk x Glyalith.exe”. No Node.js installation is required.
-
-See START-HERE.txt and resources/APP-CAPABILITIES.md in the source repository for the complete workflow and limitations. Check generated patches and reminder behavior inside WoW. Account-licensed addon packs remain subject to the addon's licensing rules.
+Install: extract the Windows bundle and run Pztk x Glyalith.exe. Extract PztkReminders-0.1.0.zip into WoW Interface/AddOns, disable NSR / NSRT / TimelineReminders and import the desktop's PZTK1 string through /pztkr. Test in both live clients. Interface declarations and code tests do not verify every game API or provider trigger. The addon does not press abilities or bypass secret cooldown data.

@@ -1,0 +1,30 @@
+Pztk Reminders 0.1.0 — standalone preview
+
+1. Close WoW and back up existing reminder profiles.
+2. Extract the PztkReminders folder into Interface/AddOns for the desired client.
+3. Enable Pztk Reminders. Disable NaowhSmartReminders, NorthernSkyRaidTools and
+   TimelineReminders while using this addon. It pauses live dispatch if they are loaded.
+4. In Pztk x Glyalith 0.4.0, open Reminders, create/import a working profile,
+   configure defensive sets and assignments, then Export complete profile.
+5. In game, type /pztkr or /pztkreminders. Paste PZTK1 and click Import string.
+   Import creates a new local profile; Next profile switches stored profiles.
+6. Test display previews, then check encounter triggers inside WoW.
+
+Targets: Retail 12.1.5.70448 and Forever 1.60.1.70425. Client profiles are separate.
+Retail catalogs use the supplied Midnight S1/S2 reference data. Forever encounters
+must be imported or entered manually. No live WoW test was performed in the build
+container; interface declarations and Lua tests are not proof of exact-build behavior.
+
+BigWigs/LittleWigs is recommended for the bundled timer IDs. DBM callbacks use its
+reported spell IDs; aliases may need manual verification. ExBoss supplies Mythic+
+trash timer events. These providers are optional; time-from-pull reminders use
+ENCOUNTER_START. Boss phase reminders require a matching stage event. A reference
+schedule cannot create a missing provider event. The addon does not press abilities.
+
+Spell, text, bar/countdown, circle and sound reminders use this addon's own display.
+Player-frame glow needs a resolvable visible unit frame. TTS uses available game
+voices. Secret / unavailable cooldown data is not bypassed or guessed.
+
+The desktop migrates supported NSR and NSRT data and reports exclusions. A separate
+TimelineReminders export decoder is not claimed without a verified format/sample.
+Do not import NSRPACK2 / !NSRT directly here: use the desktop migration first.

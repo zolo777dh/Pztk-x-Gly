@@ -85,8 +85,8 @@ function doctor_decode(str) local ok,payload=LibStub('LibSerialize'):Deserialize
   encode(pack,{numericKeys=[]}={}){checkPackRights(pack);if(pack.format!==1||!(pack.data||pack.profiles)||typeof pack.name!=='string')throw Error('Invalid pack metadata');validatePackBounds(pack);const str='NSRPACK2:'+encodePrint(deflateRawSync(this.invoke('encode',pack,{numericKeys})));this.decode(str);return str;}
 }
 const alphabet='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789()';
-function encodePrint(bytes){let cache=0,bits=0,result='';for(const byte of bytes){cache+=byte*2**bits;bits+=8;while(bits>=6){result+=alphabet[cache%64];cache=Math.floor(cache/64);bits-=6;}}if(bits>0)result+=alphabet[cache%64];return result;}
-function decodePrint(text){let cache=0,bits=0,result=[];if(text.length%4===1)throw Error('Invalid print encoding');for(const char of text){const value=alphabet.indexOf(char);if(value<0)throw Error('Invalid print encoding');cache+=value*2**bits;bits+=6;while(bits>=8){result.push(cache%256);cache=Math.floor(cache/256);bits-=8;}}return Buffer.from(result);}
+export function encodePrint(bytes){let cache=0,bits=0,result='';for(const byte of bytes){cache+=byte*2**bits;bits+=8;while(bits>=6){result+=alphabet[cache%64];cache=Math.floor(cache/64);bits-=6;}}if(bits>0)result+=alphabet[cache%64];return result;}
+export function decodePrint(text){let cache=0,bits=0,result=[];if(text.length%4===1)throw Error('Invalid print encoding');for(const char of text){const value=alphabet.indexOf(char);if(value<0)throw Error('Invalid print encoding');cache+=value*2**bits;bits+=6;while(bits>=8){result.push(cache%256);cache=Math.floor(cache/256);bits-=8;}}return Buffer.from(result);}
 export function noteToPack(note){
   checkPackRights(note);
   if(note.client==='forever')throw Error('Smart Reminders pack export is currently verified only for the supplied Retail addon. Notes can still be exported as JSON/text.');

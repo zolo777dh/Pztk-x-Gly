@@ -1,4 +1,13 @@
-# Current validation — 0.3.0
+# Current validation — 0.4.0 + Pztk Reminders 0.1.0
+
+- The release targets a separate in-game addon, with its own PZTK1 codec, runtime, target/difficulty filters, schedules, displays and saved profiles. NSR/NSRT remain migration sources and compatibility tools. The superseded NSR draft PR is closed; neither original addon main branch was changed.
+- New runtime tests execute the independent Lua scheduler under Fengari: OR/AND targets, realm-qualified names, difficulty, phase/pull cancellation, stale profiles, timer-key isolation, priority/Together readiness, secret cooldown refusal, ExBoss map/spec binding and competing-addon pause.
+- Native Lua validates desktop PZTK1 → actual Pztk Decode → Import → Export roundtrip using the bundled codec libraries, plus refusal of a Retail profile in Forever. NSRT migration checks duration/lead semantics and preserves source strings; unsupported source features are reported.
+- Desktop UI tests cover assignments, generic set import, NSRT migration, difficulty, timeline dragging, one native export, restart and client separation. Companion packaging verifies reachable literal TOC/XML references before producing the addon ZIP.
+- Retail target remains 12.1.5.70448 and Forever target 1.60.1.70425. No live WoW or authenticated assistant website session is available in this environment. No TimelineReminders export decoder is claimed without a confirmed format/sample. Static diagnostics are not an exhaustive API database.
+- Local core suite: **97 passed, 0 failures, 0 skips**, with native Lua and original NSR / supplied NSRT sources available. All 40 specialization UI flows passed, and a native PZTK1 roundtrip separately preserves all 40 set collections. The packaged desktop also passed its combined legacy/migration/AI/native-export workflow under Linux Electron / Xvfb. Published Windows evidence will be recorded after verification. Original addon checkouts remain clean.
+
+# Historical validation — 0.3.0
 
 - Local core suite: **86 tests passed, 0 failures, 0 skips**, with native Lua 5.1 and the unchanged NSR / uploaded NSRT sources available. Tests cover bounded project context, cross-module tasks, exact anchors, source guards, new files, verified backups, recovery, injected partial write failures, client-separated NSR workspaces, CBOR and native NSRT persistence / editing / export.
 - NSRT generation was decoded and imported through the unchanged supplied NSRT Functions.lua / Profiles.lua / Reminders.lua using an independent CBOR shim for the unavailable game C_EncodingUtil. Native numeric encounter / difficulty / phase / spec keys and specialization load filters were checked. This validates serialization and addon import paths; it does not validate live WoW scheduling.

@@ -1,17 +1,17 @@
-# Pztk x Glyalith 0.3.0 — application capabilities
+# Pztk x Glyalith 0.4.0 + Pztk Reminders 0.1.0
 
-Pztk x Glyalith is a Windows desktop app for WoW addon maintenance and defensive reminder planning, focused on NaowhForever, its modules, Naowh Smart Reminders (NSR), and Northern Sky Raid Tools (NSRT) profiles.
+Pztk x Glyalith is a Windows desktop app for planning profiles for **Pztk Reminders**, a separate WoW addon that combines defensive priorities, raid assignments and timed encounter reminders. Addon maintenance and AI tools remain in the same desktop application.
 
-- **Retail & Forever:** separate client targets and profile workspaces.
-- **Addon management:** connect multiple folders, batch scan, refresh, remove from the list, and search source files.
-- **Diagnostics:** check Lua syntax, loader dependencies, interface declarations, and selected API migration issues; import BugSack/BugGrabber errors.
-- **AI Workspace:** investigate errors, explain code, and generate features using context from selected addon modules, with saved tasks and conversations.
-- **ChatGPT & Claude:** embedded website panel with manual prompt/reply transfer, plus optional local and cloud APIs. Website subscriptions and API billing are separate.
-- **Reviewed code changes:** per-file diffs, syntax validation, verified backups, stale-source protection, and restoration.
-- **NSR planning:** import supported HTML/JSON or existing profiles, edit defensive sets for all 40 specializations, and assign them to Mythic+ or raid mechanics. Export one NSR profile covering configured M+ and raid rules.
-- **Raid support:** Heroic/Mythic selection, native NSRT profile editing and export, and generation from shared raid assignments using reference phase schedules.
-- **Local persistence:** saved tasks, profiles, and backups; the Addons list starts empty each launch. API keys are session-only.
+- **One native export:** PZTK1 contains configured defensive sets, Mythic+ / raid mechanic bindings and scheduled assignments. Import it in Pztk Reminders with `/pztkr`.
+- **Reminder model:** time, phase, ability timer or mechanic message → specialization, role, player or everyone → spell icon, text, sound or player-frame glow. Bar/countdown, circle and TTS displays are also supported.
+- **Timeline planning:** inspect reminders and drag markers to prepare new times, then save explicitly.
+- **Defensive planning:** all 40 specializations, shared M+ / Raid set editors, and supported HTML/JSON imports. Public spell readiness selects available priorities / Together groups; inaccessible cooldown data is not guessed.
+- **Migration:** existing NSRPACK2 working profiles and supported current NSRT Profile / full EncounterAlert schedules; warnings, skipped entries and original NSRT strings are retained for review. Unsupported source sections remain in the desktop working copy. TimelineReminders export strings require a confirmed format/sample and are not advertised as decoded.
+- **Two clients:** Retail 12.1.5.70448 and Forever 1.60.1.70425, with separate profile workspaces. Retail catalogs use the supplied Midnight S1/S2 reference snapshot: eight M+ dungeons and 20 raid bosses. Forever uses imported/manual encounters.
+- **Addon maintenance:** multiple folders, batch scans, refresh and source search. Removing an entry never deletes files. Diagnostics cover Lua syntax, TOC/XML load references, interface declarations and advisory GetSpellInfo / GetSpellCooldown / GetSpellCharges / GetItemSpell migration checks; BugSack/BugGrabber imports are supported.
+- **Optional AI:** selected-module context, saved conversations, local/cloud APIs and a ChatGPT/Claude website panel with manual transfer. Cloud requests send reviewed source/error context; website subscriptions and API billing are separate.
+- **Reviewed source changes:** per-file diffs, syntax validation, verified backups, stale-source protection and restoration. Tasks, profiles and backups are local; API keys are session-only. Addons starts empty each launch.
 
-NSR and NSRT use separate export strings. NSRT displays scheduled reminders rather than reproducing NSR's cooldown-based defensive selection. Diagnostics are advisory, and game behavior still requires testing in WoW. The bundled encounter catalogs cover Retail Midnight; Forever encounters use imported or manually configured data. WCL/BGMT parsing is not included.
+The separate addon has its own runtime, displays, SavedVariables and PZTK1 import/export. It pauses live reminders when NSR, NSRT or TimelineReminders is loaded, preventing competing engines. It does not modify or uninstall those addons. Boss timers and phases need matching provider events; ExBoss supplies trash timers. Glows require supported visible frames. No live game or authenticated assistant website session was tested in the build environment.
 
-See [START-HERE.txt](START-HERE.txt) for usage instructions.
+See [START-HERE.txt](START-HERE.txt) and the included addon INSTALL.txt for installation.

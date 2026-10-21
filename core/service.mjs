@@ -1,3 +1,5 @@
+import {ReminderPack} from './reminder-pack.mjs';
+import {ReminderPlanner} from './reminder-planner.mjs';
 import {AssistantWorkspace} from './assistant-workspace.mjs';
 import {TaskPatches} from './task-patches.mjs';
 import {NsrtProfiles} from './nsrt.mjs';
@@ -25,7 +27,7 @@ import {DefensivePlanner,inspectDefenseTable} from './defensive-planner.mjs';
 const {version:APP_VERSION}=JSON.parse(await fs.readFile(new URL('../package.json',import.meta.url),'utf8'));
 const defaults={cloudProvider:'openai',anthropicModel:'',compatibleEndpoint:'https://api.openai.com/v1',compatibleModel:'',client:'retail',localEndpoint:'http://127.0.0.1:11434/v1',localModel:'qwen2.5-coder:7b',cloudEndpoint:'https://api.openai.com/v1',cloudModel:'',aiMode:'browser',assistantWorkflow:'browser-v1'};
 export class DoctorService {
-  constructor(dataDir,resources,{fetcher}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],knownProjects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.aiModelLists=new Map();this.tokens={};this.features=new Map();this.patches=new Patches(dataDir);this.taskPatches=new TaskPatches(dataDir,this.patches);this.assistant=new AssistantWorkspace(dataDir,this);this.nsrt=new NsrtProfiles(dataDir);this.codec=new PackCodec(resources);this.planner=new DefensivePlanner(dataDir,this.codec);this.nsrEditor=new NsrEditor(this.planner);this.spellNames=new SpellNames(dataDir,fetcher);this.importantAbilities=new ImportantAbilities(dataDir,resources,fetcher);}
+  constructor(dataDir,resources,{fetcher}={}){this.fetcher=fetcher;this.dataDir=dataDir;this.resources=resources;this.file=path.join(dataDir,'workspace.json');this.state={projects:[],knownProjects:[],notes:[],hiddenRoots:[],settings:{...defaults}};this.scans=new Map();this.aiModelLists=new Map();this.tokens={};this.features=new Map();this.patches=new Patches(dataDir);this.taskPatches=new TaskPatches(dataDir,this.patches);this.assistant=new AssistantWorkspace(dataDir,this);this.nsrt=new NsrtProfiles(dataDir);this.codec=new PackCodec(resources);this.reminderPack=new ReminderPack(this.codec);this.planner=new DefensivePlanner(dataDir,this.codec);this.nsrEditor=new NsrEditor(this.planner);this.reminders=new ReminderPlanner(this);this.spellNames=new SpellNames(dataDir,fetcher);this.importantAbilities=new ImportantAbilities(dataDir,resources,fetcher);}
   async init(){await fs.mkdir(this.dataDir,{recursive:true});try{const s=JSON.parse(await fs.readFile(this.file,'utf8'));this.state={projects:[],knownProjects:[...new Map([...(s.knownProjects||[]),...(s.projects||[])].map(p=>[this.rootKey(p.root),p])).values()],notes:s.notes||[],hiddenRoots:[],settings:{...defaults,...s.settings}};if(!s.settings?.assistantWorkflow)this.state.settings.aiMode='browser';if(!s.settings?.cloudProvider&&s.settings?.cloudEndpoint&&s.settings.cloudEndpoint!=='https://api.openai.com/v1'){this.state.settings.cloudProvider='compatible';this.state.settings.compatibleEndpoint=s.settings.cloudEndpoint;this.state.settings.compatibleModel=s.settings.cloudModel||'';}}catch(e){if(e.code!=='ENOENT')throw Error('Workspace data could not be read. Preserve workspace.json before recovering it.');}return this;}
   cloudKey(provider=cloudProvider(this.state.settings)){return this.tokens[provider]||'';}
   tokenStatus(){return {cloud:Boolean(this.cloudKey()),cloudProviders:Object.fromEntries(['openai','anthropic','compatible'].map(p=>[p,Boolean(this.tokens[p])]))};}
@@ -41,6 +43,13 @@ export class DoctorService {
   async handle(method,args={}){
     switch(method){
       case 'init':return { ...this.state,version:APP_VERSION,backups:await this.patches.list(),tokens:this.tokenStatus()};
+      case 'reminders.decode':return this.reminderPack.decode(args.text).pack;
+      case 'reminders.import':{const {pack,numericKeys}=this.reminderPack.decode(args.text);if(pack.client!==args.client)throw Error('This profile belongs to '+pack.client+'. Switch the client target before importing.');const legacy={format:1,name:pack.name,data:pack.data,pztkLabels:pack.pztkLabels,...(pack.derivedFrom?{derivedFrom:pack.derivedFrom}:{})};return this.planner.importProfile(this.codec.encode(legacy,{numericKeys}),args.client);}
+      case 'reminders.export':{const d=await this.nsrEditor.read(args.id);if(d.revision!==args.revision)throw Error('Profile changed after review. Refresh before export.');const source=await this.planner.read(d.source.kind,d.source.id);return this.reminderPack.fromDraft(d,source.client||'retail');}
+      case 'reminders.read':return this.reminders.view(args.id);
+      case 'reminders.save':return this.reminders.save(args);
+      case 'reminders.reference':return this.reminders.reference(args);
+      case 'reminders.migrateNsrt':return this.reminders.migrateNsrt(args);
       case 'assistant.list':return this.assistant.list();
       case 'assistant.create':return this.assistant.create(args);
       case 'assistant.read':return this.assistant.view(await this.assistant.read(args.id));
