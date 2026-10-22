@@ -6,6 +6,9 @@
 - Reload simulation dispatches PLAYER_LOGOUT, serializes/deserializes SavedVariables through the actual bundled library under native Lua, then loads fresh runtime/editor/UI modules. Native profile export/import is checked after those edits. Unfinished editor drafts remain outside the exported runtime profile.
 - Frame pooling is now scoped to the parent. Scroll content is explicitly anchored, shown and assigned a level above its viewport; range/offset restoration occurs after content sizing. The harness checks visible controls and viewport ownership/anchors/levels through repeated page changes. Browser layout captures show the actual Lua control tree; they are not live WoW screenshots.
 - No live Retail or Forever client is available. Source catalogs, providers, profile formats and the existing readiness/licensing limits are unchanged.
+- Windows CI [39696673804](https://github.com/zolo777dh/Pztk-x-Gly/actions/runs/39696673804) succeeded for release source `74b521a9ef2984b7ec396317802a49c5aba8b1e1`, including Windows packaging, packaged desktop workflow, extraction and publication.
+- Downloaded the published `PztkReminders-0.3.2.zip`: **209,567 bytes**, SHA256 `afbf477b71eb2036eb28026270ebf32be83969237fd08a40082d5466933e6e43`. All 45 entries passed ZIP/manifest integrity checks and source comparison after line-ending normalization; the TOC loads Catalog.lua once. The downloaded addon passed all **18 native Lua workspace/import scenarios**, including all 40 UI contexts, SavedVariables reload, draft recovery and the private unlicensed import fixture.
+- [Addon download](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.6.2/PztkReminders-0.3.2.zip) · [Windows desktop](https://github.com/zolo777dh/Pztk-x-Gly/releases/download/v0.6.2/Pztk-x-Glyalith-0.6.2-Windows-x64.zip).
 
 # Historical validation — 0.6.1 + Puzatik Reminders 0.3.1
 
