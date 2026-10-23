@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.6.0 — in-game editor and reminder engine
+Naowh Defensive Planner 0.6.5 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -116,6 +116,13 @@ mechanic or create a timed reminder from pull / phase. Actions include a chosen
 spell icon, text, countdown, circle, sound and a supported player-frame glow.
 Recipients can be the selected spec, role, player or everyone. Imported combined
 recipient filters and difficulty filters can be retained. Save explicitly.
+Non-defensive reminders have a LOOK section, like NSRT Encounter Alerts: text
+colour, a countdown bar with its own colour and ticks (seconds left, e.g. 5, 10),
+a custom icon spell ID for bars and circles, Show seconds left (bars and circles
+hide their timer when it is off, text and icons add the seconds after the text),
+Stay after timer (sticky seconds after the countdown ends) and Also glow players
+(raid frames of the listed names, with a glow colour). Profiles that use these
+need addon 0.6.5. Defensive call-outs keep the plain icons and names look.
 
 PROFILES
 Create, copy, rename, delete, select, import or export a profile inside the game.

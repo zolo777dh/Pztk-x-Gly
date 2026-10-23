@@ -19,7 +19,7 @@ local function Spell(spell)
 end
 ns.SpellLabel=Spell
 -- Reminder look follows Naowh Smart Reminders: spell icons in a row and the call-out text
--- beside them. No panel, timer or bar, so nothing has to be redrawn while it is shown.
+-- beside them. Only countdown bars and reminders with a visible timer redraw while shown.
 local function Region()
     local r = table.remove(pool)
     if r then return r end
@@ -31,6 +31,11 @@ local function Region()
     r.icons = {}
     for i=1,6 do local icon=r:CreateTexture(nil,"ARTWORK");icon:SetSize(42,42);icon:SetPoint("LEFT",(i-1)*46,0);icon:SetTexCoord(0.07,0.93,0.07,0.93);r.icons[i]=icon end
     r.swipe=CreateFrame("Cooldown",nil,r,"CooldownFrameTemplate");r.swipe:SetAllPoints(r.icons[1]);r.swipe:Hide()
+    -- Countdown bar (NSRT "Bar" alerts): drains from right to left, ticks mark seconds left.
+    r.bar=CreateFrame("StatusBar",nil,r);r.bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar");r.bar:SetMinMaxValues(0,1);r.bar:Hide()
+    r.bar.bg=r.bar:CreateTexture(nil,"BACKGROUND");r.bar.bg:SetAllPoints();r.bar.bg:SetColorTexture(0,0,0,0.55)
+    r.ticks={};r.ticker=false
+    r.clock=r:CreateFontString(nil,"OVERLAY","GameFontNormalLarge");r.clock:SetJustifyH("RIGHT");r.clock:SetShadowColor(0,0,0,1);r.clock:SetShadowOffset(1,-1);r.clock:Hide()
     return r
 end
 -- Buttons that can show a spell: the Cooldown Manager first, then Blizzard and common action bar addons.
@@ -78,6 +83,8 @@ local function StopGlow(frame,key)
 end
 local function Release(index)
     local r=table.remove(active,index);r:Hide();r:SetScript("OnUpdate",nil);if r.timer then r.timer:Cancel();r.timer=nil end
+    if r.ticker then r.ticker:Cancel();r.ticker=false end
+    r.bar:Hide();r.clock:Hide();for _,t in ipairs(r.ticks)do t:Hide()end
     for _,frame in ipairs(r.glows or {})do StopGlow(frame,r.glowKey)end
     r.glows=nil
     pool[#pool+1]=r
@@ -155,16 +162,55 @@ function ns.Display(display)
     if speak and settings.voiceOn~=false then ns.Speak(display.ttsText and display.ttsText~="" and display.ttsText or text)end
     if display.type=="chat"then if text~=""then ns.Print(text)end;return end
     if #active>=6 then Release(1)end
-    local r=Region();local count=(display.type=="text"or settings.showIcon==false)and 0 or math.min(6,#spells);if display.type=="circle"and count==0 and settings.showIcon~=false then count=1;spells={display.spellID or 0}end
+    local bar=display.type=="bar"
+    local r=Region();local count=(display.type=="text"or settings.showIcon==false)and 0 or math.min(bar and 1 or 6,#spells);if(display.type=="circle"or bar)and count==0 and settings.showIcon~=false and display.spellID then count=1;spells={display.spellID}end
+    if display.type=="circle"and count==0 and settings.showIcon~=false then count=1;spells={0}end
     local iconSize=tonumber(settings.iconSize)or 42;local gap=4
     for i,icon in ipairs(r.icons)do if i<=count then local _,texture=Spell(spells[i]);icon:SetSize(iconSize,iconSize);icon:ClearAllPoints();icon:SetPoint("LEFT",r,"LEFT",(i-1)*(iconSize+gap),0);icon:SetTexture(texture or 134400);icon:Show()else icon:Hide()end end
     local font,_,flags=r.text:GetFont();if ns.Widgets then font=ns.Widgets.Font(true)end
-    if type(font)=="string"then r.text:SetFont(font,tonumber(settings.textSize)or 18,"OUTLINE")end
-    r.text:ClearAllPoints();r.text:SetPoint("LEFT",r,"LEFT",count>0 and count*(iconSize+gap)+6 or 0,0);r.text:SetText(text)
+    local size=tonumber(settings.textSize)or 18
+    if type(font)=="string"then r.text:SetFont(font,size,"OUTLINE");r.clock:SetFont(font,size,"OUTLINE")end
+    local tc=GlowColor(display.textColor)or{1,1,1,1};r.text:SetTextColor(tc[1],tc[2],tc[3],tc[4]);r.clock:SetTextColor(tc[1],tc[2],tc[3],tc[4])
+    local left=count>0 and count*(iconSize+gap)+(bar and 0 or 6)or 0
+    local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5))
+    local sticky=math.max(0,math.min(60,tonumber(display.sticky)or 0))
+    -- Seconds left: always on bars unless hidden, on other types only when the countdown is switched on.
+    local clock=display.hideTimer~=true and(bar or display.countdown==true)and display.type~="circle"
+    r.text:ClearAllPoints()
+    if bar then
+        local width=math.max(120,tonumber(settings.barWidth)or 240)
+        r.bar:ClearAllPoints();r.bar:SetPoint("LEFT",r,"LEFT",left,0);r.bar:SetSize(width,iconSize)
+        local bc=GlowColor(display.barColor)or{1,0.55,0.1,1};r.bar:SetStatusBarColor(bc[1],bc[2],bc[3],bc[4]);r.bar:SetValue(1);r.bar:Show()
+        local n=0
+        for _,t in ipairs(type(display.ticks)=="table"and display.ticks or{})do
+            if type(t)=="number"and t>0 and t<dur then
+                n=n+1;local mark=r.ticks[n]
+                if not mark then mark=r.bar:CreateTexture(nil,"OVERLAY");mark:SetColorTexture(1,1,1,0.9);r.ticks[n]=mark end
+                mark:ClearAllPoints();mark:SetSize(2,iconSize);mark:SetPoint("LEFT",r.bar,"LEFT",math.floor(t/dur*width),0);mark:Show()
+            end
+        end
+        for i=n+1,#r.ticks do r.ticks[i]:Hide()end
+        r.text:SetPoint("LEFT",r.bar,"LEFT",6,0);r.text:SetText(text)
+        r.clock:ClearAllPoints();r.clock:SetPoint("RIGHT",r.bar,"RIGHT",-6,0)
+        r.height=iconSize;r:SetSize(left+width,r.height)
+    else
+        r.text:SetPoint("LEFT",r,"LEFT",left,0);r.text:SetText(text)
+        r.clock:ClearAllPoints();r.clock:SetPoint("LEFT",r.text,"RIGHT",6,0)
+        local width=r.text.GetStringWidth and r.text:GetStringWidth()or 0;if type(width)~="number"then width=0 end
+        r.height=math.max(iconSize,24);r:SetSize(math.max(40,left+width+(clock and size*2 or 0)),r.height)
+    end
     if settings.showText==false then r.text:Hide()else r.text:Show()end
-    local width=r.text.GetStringWidth and r.text:GetStringWidth()or 0;if type(width)~="number"then width=0 end
-    r.height=math.max(iconSize,24);r:SetSize(math.max(40,count*(iconSize+gap)+6+width),r.height)
-    local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5));if display.type=="circle"then r.swipe:SetCooldown(GetTime(),dur);r.swipe:Show()else r.swipe:Hide()end;r:Show()
+    if display.type=="circle"then if r.swipe.SetHideCountdownNumbers then r.swipe:SetHideCountdownNumbers(display.hideTimer==true)end;r.swipe:SetCooldown(GetTime(),dur);r.swipe:Show()else r.swipe:Hide()end;r:Show()
+    -- One cheap ticker per bar or visible timer; the text is rewritten only when the whole second changes.
+    local ends=GetTime()+dur;local shown
+    local function tick()
+        local remain=math.max(0,ends-GetTime())
+        if bar then r.bar:SetValue(remain/dur)end
+        if clock then local s=remain>0 and math.ceil(remain)or nil;if s~=shown then shown=s;r.clock:SetText(s and tostring(s)or"")end end
+        if remain<=0 and r.ticker then r.ticker:Cancel();r.ticker=false end
+    end
+    if clock then r.clock:Show()end
+    if(bar or clock)then tick();if C_Timer and C_Timer.NewTicker then r.ticker=C_Timer.NewTicker(bar and 0.05 or 0.2,tick)end end
     r.glows={}
     if display.type=="raidframeGlow"or display.type=="nameplateGlow"then local frame=Glow(display.glowTarget,display.type,r.glowKey);if frame then r.glows[1]=frame else ns.Print("Glow target frame unavailable; showing the reminder instead.")end end
     -- Like NSR: only the called defensive glows, on the player's own Cooldown Manager or action bar button.
@@ -183,7 +229,8 @@ function ns.Display(display)
     end
     -- One timer per reminder instead of a per-frame OnUpdate.
     local function expire()for i,v in ipairs(active)do if v==r then Release(i);Arrange();break end end end
-    if C_Timer and C_Timer.NewTimer then r.timer=C_Timer.NewTimer(dur,expire)else r.expires=GetTime()+dur;r:SetScript("OnUpdate",function(self)if GetTime()>=self.expires then expire()end end)end
+    -- Sticky time keeps the reminder up after its countdown runs out.
+    if C_Timer and C_Timer.NewTimer then r.timer=C_Timer.NewTimer(dur+sticky,expire)else r.expires=GetTime()+dur+sticky;r:SetScript("OnUpdate",function(self)if GetTime()>=self.expires then expire()end end)end
     active[#active+1]=r;Arrange()
 end
 -- Movable anchor: a sample icon exactly where a reminder's first icon appears. Dragging it saves the position.

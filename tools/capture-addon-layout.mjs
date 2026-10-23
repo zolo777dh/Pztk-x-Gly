@@ -10,6 +10,7 @@ const scenarios={
  mythic:`env.click('tab:mythic');env.select('group','Altar of Fangs');env.click('entity:270306');env.click('ability:1306517');env.select('rule:preset','Magic damage');env.click('save-rule')`,
  sets:`env.click('tab:mythic');env.click('mode:sets')`,
  raid:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Personal defensive');env.select('rule:action','Defensive priority set');env.select('rule:preset','Raid personal');env.input('rule:delay','45');env.click('save-rule')`,
+ raidbar:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Soak');env.select('rule:action','Countdown bar');env.select('rule:barColor','Red');env.input('rule:ticks','3, 6');local f=ns.UIControls['rule:glowNames'];assert(f)`,
  timeline:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Pull wall');env.input('rule:delay','20');env.click('save-rule');env.click('new-timed');env.input('rule:name','Big add');env.input('rule:delay','95');env.click('save-rule');env.click('tab:timeline')`,
  callout:`env.click('tab:mythic');env.click('mode:sets');env.click('set-callout:1')`,
  debuffs:`assert(ns.AddRacialDebuffs(104,'stoneform'));assert(ns.AddRacialDebuffs(104,'shadowmeld'));env.click('tab:mythic');env.click('mode:debuffs');local r=ns.DebuffRules(104)[1];env.click('debuff:'..r.key)`,

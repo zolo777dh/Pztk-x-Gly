@@ -13,7 +13,7 @@ local WIDTH,HEIGHT,SIDEBAR,TOP=1120,720,176,60
 -- Navigation never commits a partial reminder or silently throws its inputs away.
 local workspace,owner,profileName
 local viewFields={"mode","difficulty","group","entity","ability","ruleKey","timed","form","reference","context","ruleDrafts","setKey","setRows","setName","setDrafts","newSpell","settings","settingFields","manual","profileName","importText","confirmDelete","confirmCopy","scrolls","setScope","tlGroup","tlBoss","tlDifficulty","callout","drafts"}
-local formKeys={"name","leadTime","delay","phase","counter","duration","text","displaySpellID","player","glowTarget"}
+local formKeys={"name","leadTime","delay","phase","counter","duration","text","displaySpellID","player","glowTarget","sticky","ticks","glowNames"}
 local specTabs={mythic=true,raid=true,sets=true,timeline=true}
 local function viewKey()return state.tab..":"..tostring(specTabs[state.tab]and state.spec or"general")end
 local function scope()return state.tab=="raid"and"raid"or"mythic"end
@@ -283,7 +283,7 @@ local function InitialForm(ctx,reference)
         elseif e.target.names then recipient="player";player=next(e.target.names)
         elseif not e.target.all then recipient="preserve"end
     end
-    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or 0,phase=t.stage or 1,counter=ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",recipient=recipient,role=role or"HEALER",player=player or"",preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
+    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or 0,phase=t.stage or 1,counter=ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=(d.type=="bar"or d.type=="circle")and d.hideTimer~=true or d.countdown==true,sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),recipient=recipient,role=role or"HEALER",player=player or"",preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
 end
 local actionLabels={defensive="Defensive priority set",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
 local roleLabels={TANK="Tank",HEALER="Healer",DAMAGER="Damage"}
@@ -369,19 +369,40 @@ local function DrawInspector(parent,ctx,rules)
     end
     if form.action=="defensive"then
         local sets=rowsOptions(ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec));table.insert(sets,1,{value="",label="Choose defensive set..."});select("DEFENSIVE SET","preset",sets);cy=cy+54
-    elseif form.action=="icon"then field("DISPLAY SPELL ID","displaySpellID");cy=cy+54 end
+    elseif form.action=="icon"then field("DISPLAY SPELL ID","displaySpellID");cy=cy+54
+    elseif form.action=="bar"or form.action=="circle"then field("ICON SPELL ID · BLANK USES THE MECHANIC","displaySpellID");cy=cy+54 end
     field("TEXT · BLANK USES THE SPELL NAME","text");cy=cy+54
     local sounds={{value="",label="None"},{value="voice:use-a-defensive",label="Use a defensive"},{value="voice:move-out",label="Move out"},{value="voice:dispel-me",label="Dispel me"}}
     local known=false;for _,o in ipairs(sounds)do if o.value==form.sound then known=true end end
     if not known then sounds[#sounds+1]={value=form.sound,label="Imported sound"}end
     select("SOUND","sound",sounds,186);field("SHOW FOR (SECONDS)","duration",186,204);cy=cy+54
     if form.action=="raidframeGlow"then field("PLAYER TO GLOW","glowTarget");cy=cy+54 end
+    -- NSRT-style look. Defensive call-outs keep the plain icon and name look.
+    if form.action~="defensive"and form.action~="chat"then
+        heading("LOOK")
+        local function colors(key)
+            local o={};for _,c in ipairs(ns.LookColors)do o[#o+1]={value=c.value,label=c.label}end
+            if form[key]=="imported"then o[#o+1]={value="imported",label="Imported colour"}end
+            return o
+        end
+        select("TEXT COLOUR","textColor",colors("textColor"),186);field("STAY AFTER TIMER (S)","sticky",186,204);cy=cy+54
+        if form.action=="bar"then select("BAR COLOUR","barColor",colors("barColor"),186);field("TICKS (S LEFT) · E.G. 5, 10","ticks",186,204);cy=cy+54 end
+        if form.action~="raidframeGlow"then
+            W.Toggle(content,(form.action=="bar"or form.action=="circle")and"Show seconds left"or"Show seconds left after the text",form.showTimer,6,cy,384,function(v)form.showTimer=v end,"rule:showTimer");cy=cy+32
+        end
+        if ctx.scope=="raid"then
+            field("ALSO GLOW PLAYERS · NAMES, SPACE-SEPARATED","glowNames");cy=cy+54
+            select("GLOW COLOUR","glowColor",colors("glowColor"),186);cy=cy+54
+        end
+    end
     W.Toggle(content,"Text to speech",form.tts,6,cy,384,function(v)form.tts=v end,"rule:tts");cy=cy+32
     if form.preserveDifficulties then
         W.Toggle(content,"Keep imported difficulty filters",true,6,cy,384,function(v)form.preserveDifficulties=v end,"rule:preserve-difficulty");cy=cy+32
     end
     content:SetHeight(cy+8)
-    W.Button(p,L("Test"),12,462,76,function()collect();local spell=tonumber(form.displaySpellID);if form.action=="defensive"then local preset=ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec)[form.preset];spell=preset and preset.list[1]end;ns.Display({type=spell and"icon"or"text",spellID=spell,text=form.text~=""and form.text or"Reminder preview",dur=tonumber(form.duration)or 4,sound=form.sound,tts=form.tts});notify("Display preview; verify the mechanic in game")end,false,"test-rule",{align="CENTER"})
+    W.Button(p,L("Test"),12,462,76,function()collect();local spell=tonumber(form.displaySpellID);if form.action=="defensive"then local preset=ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec)[form.preset];spell=preset and preset.list[1]end;local preview={type=spell and"icon"or"text",spellID=spell,text=form.text~=""and form.text or"Reminder preview",dur=tonumber(form.duration)or 4,sound=form.sound,tts=form.tts}
+        if form.action~="defensive"and form.action~="chat"and form.action~="raidframeGlow"then preview.type=form.action;preview.spellID=spell or(form.action~="text"and ctx.spell)or nil;local ok,error=pcall(ns.ApplyLook,preview,form,state.reference and state.reference.entry.display);if not ok then return notify(tostring(error):gsub("^.-:%d+: ",""),true)end end
+        ns.Display(preview);notify("Display preview; verify the mechanic in game")end,false,"test-rule",{align="CENTER"})
     W.Button(p,L("Delete"),96,462,86,function()local a,b=ns.DeleteRule(ctx,state.reference);if a then state.ruleDrafts[ruleKey(ctx,state.ruleKey)]=nil;state.reference=nil;state.ruleKey="new";state.form=InitialForm(ctx)end;done(a,b,"Reminder deleted")end,false,"delete-rule",{kind="danger",align="CENTER"})
     W.Button(p,L("Save reminder"),258,462,170,function()collect();local key,error=ns.SaveRule(ctx,form,state.reference);if key then state.ruleDrafts[ruleKey(ctx,state.ruleKey)]=nil;state.ruleDrafts[ruleKey(ctx,key)]=nil;state.ruleKey=key;state.form=nil end;done(key,error,"Reminder saved")end,true,"save-rule",{kind="primary",align="CENTER"})
 end
