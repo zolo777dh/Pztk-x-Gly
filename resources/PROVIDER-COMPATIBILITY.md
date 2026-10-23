@@ -22,7 +22,7 @@ Source SHA256 (original uploaded bytes):
 | BigWigs_Core/BossPrototype.lua | `a2f0c6b0f40f8ca82e8862ee49aa382115926a33503225f5759ff172ab36012d` |
 | EXBoss/ExBossEngine/Scheduler.lua | `7c4a07568eee15590df196472b38f0251fe57951848b06b3ded7c64672cea197` |
 
-For a game failure, collect the first BugSack/BugGrabber error with its stack, client/build, reproduction steps, and `/nwhdp debug` output. A profile-related failure also needs the relevant PZTK1 string with private assignments removed. Later cascading errors alone may hide the original failure.
+For a game failure, collect the first BugSack/BugGrabber error with its stack, client/build, reproduction steps, and `/ndp diag` output. A profile-related failure also needs the relevant PZTK1 string with private assignments removed. Later cascading errors alone may hide the original failure.
 
 ## Native aura sounds and migrated custom reminders
 

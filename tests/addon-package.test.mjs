@@ -7,7 +7,7 @@ import fengari from 'fengari';
 import {unzipSync} from 'fflate';
 import {packageAddon} from '../tools/package-addon.mjs';
 import {parseLua} from '../core/analyzer.mjs';
-const files=['Runtime.lua','Catalog.lua','Profiles.lua','Display.lua','RuleRuntime.lua','AuraSounds.lua','Providers.lua','Editor.lua','Import.lua','Widgets.lua','UI.lua','Main.lua'];
+const files=['Runtime.lua','Locale.lua','Catalog.lua','Profiles.lua','Display.lua','RuleRuntime.lua','AuraSounds.lua','Providers.lua','Editor.lua','Import.lua','Widgets.lua','Anim.lua','UI.lua','Main.lua'];
 const sources=await Promise.all(files.map(f=>fs.readFile('addon/NaowhDefensivePlanner/'+f,'utf8')));
 test('standalone addon bundle contains valid runtime, complete loader dependencies, codecs, media and no NSR/NSRT runtime',async t=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-addon-zip-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const archive=await packageAddon(process.cwd(),dir),entries=unzipSync(await fs.readFile(archive));for(const [i,f]of files.entries()){assert.ok(entries['NaowhDefensivePlanner/'+f]);parseLua(sources[i]);}assert.ok(entries['NaowhDefensivePlanner/Libs/LibSerialize.lua']);assert.ok(entries['NaowhDefensivePlanner/Media/Voice/use-a-defensive.ogg']);assert.ok(entries['NaowhDefensivePlanner/BUILD-SOURCES.json']);assert.ok(!Object.keys(entries).some(k=>k.startsWith('NaowhSmartReminders/')||k.startsWith('NorthernSkyRaidTools/')));
@@ -48,7 +48,7 @@ function LibStub(key)return libs[key]end
 C_Spell={GetSpellInfo=function()return {name='Astral Shift',iconID=1}end}
 C_Timer={NewTimer=function()return {Cancel=function()end}end}
 `+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns);`).join('\n')+`
-assert(SlashCmdList.NWHDP and SLASH_NWHDP1=='/nwhdp' and SLASH_NWHDP3=='/pztkr');
+assert(SlashCmdList.NDP and SLASH_NDP1=='/ndp' and SLASH_NDP2=='/nwhdp' and SLASH_NDP4=='/pztkr');
 -- A renamed PztkReminders.lua SavedVariables file is adopted once and dropped.
 PztkRemindersDB={clients={retail={profiles={Old={name='Old',data={}}},active='Old',history={}}}}
 assert(ns.Store().profiles.Old and NaowhDefensivePlannerDB.clients.retail.active=='Old' and PztkRemindersDB==nil)

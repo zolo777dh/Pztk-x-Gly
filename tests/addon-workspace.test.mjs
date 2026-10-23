@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','Anim','UI','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
@@ -40,8 +40,8 @@ env.input('rule:name','My trash shield');env.select('rule:preset','Personal');en
 env.input('rule:text','Shield now');env.input('rule:duration','6')
 env.click('tab:raid');env.click('tab:mythic');assert(ns.UIState.entity==236071 and ns.UIState.ability==1216529)
 assert(ns.UIControls['rule:text']:GetText()=='Shield now');assert(ns.UIControls['rule:name']:GetText()=='My trash shield')
-env.select('specialization','Restoration Shaman');env.click('mode:sets');env.input('set-name','Shaman draft')
-env.select('specialization','Guardian Druid');assert(ns.UIState.mode=='mechanics');assert(ns.UIControls['rule:leadTime']:GetText()=='3.5')
+env.spec=105;ns.Open();env.click('mode:sets');env.input('set-name','Restoration draft')
+env.spec=104;ns.Open();assert(ns.UIState.mode=='mechanics');assert(ns.UIControls['rule:leadTime']:GetText()=='3.5')
 env.click('save-rule');local key=ns.UIState.ruleKey;local e=ns.Get(ns.Active().data.integrationRules,104)[key]
 assert(e.name=='My trash shield'and e.preset==preset and e.trigger.timeleft==3.5 and e.display.text=='Shield now')
 env.click('tab:raid');env.click('new-timed');env.input('rule:name','Heroic draft');env.input('rule:delay','45');env.click('difficulty:16')
@@ -64,16 +64,16 @@ if ns.DecodeImport then
  if lib.Deserialize then local p=assert(ns.Decode(output));assert(not p.workspace and not p.data.workspace);env.input('profile-string',output);env.click('profile-import');assert(ns.ScopePresets(ns.Active(),'mythic',104)[saved].name=='Not active yet')end
 end
 `));
-test('all 40 named specializations keep independent M+ and raid set editors',()=>run(`
+test('every specialization of every class keeps independent M+ and raid set editors',()=>run(`
 local ids={};for id in pairs(ns.Catalog.specs)do ids[#ids+1]=id end;table.sort(ids);assert(#ids==40)
 for _,id in ipairs(ids)do
- env.select('specialization',ns.Catalog.specs[id]);env.click('tab:mythic');env.click('mode:sets')
+ env.spec=id;env.class=ns.SpecClass(id);ns.Open();env.click('tab:mythic');env.click('mode:sets')
  env.input('set-name','Dungeon '..id);env.input('new-spell','22812');env.click('add-spell');env.click('save-set')
  env.click('tab:raid');env.click('mode:sets');env.input('set-name','Raid '..id);env.input('new-spell','61336');env.click('add-spell');env.click('save-set')
 end
 env.reload()
 for _,id in ipairs(ids)do
- env.select('specialization',ns.Catalog.specs[id]);env.click('tab:mythic');assert(ns.UIControls['set-name']:GetText()=='Dungeon '..id)
+ env.spec=id;env.class=ns.SpecClass(id);ns.Open();env.click('tab:mythic');assert(ns.UIControls['set-name']:GetText()=='Dungeon '..id)
  env.click('tab:raid');assert(ns.UIControls['set-name']:GetText()=='Raid '..id)
  local _,m=next(ns.ScopePresets(ns.Active(),'mythic',id));local _,r=next(ns.ScopePresets(ns.Active(),'raid',id));assert(m.list[1]==22812 and r.list[1]==61336)
 end
@@ -168,10 +168,39 @@ env.click('mode:sets');env.input('set-name','Copied set');env.click('suggest:228
 assert(not ns.UIControls['suggest:22812'],'A spell already in the set is still suggested');env.click('save-set');local key=ns.UIState.setKey
 local ctx={scope='mythic',spec=104,encounter=3456,npc=259445,kind='boss',spell=1296050,difficulty=8}
 assert(ns.SaveRule(ctx,{name='Boss defensive',action='defensive',preset=key,trigger='bwmsg',delay=0,leadTime=0,duration=4}))
-env.select('copy-spec','Copy setup to Restoration Shaman');env.click('copy-spec-confirm')
-assert(ns.ScopePresets(ns.Active(),'mythic',264)[key].name=='Copied set');local copies=0
-for _,e in pairs(ns.Get(ns.Active().data.raidReminders,3456))do if e.defensive and e.defensive.specID==264 then copies=copies+1 end end;assert(copies==1)
-env.select('copy-spec','Copy setup to Restoration Shaman');env.click('copy-spec-confirm');copies=0
-for _,e in pairs(ns.Get(ns.Active().data.raidReminders,3456))do if e.defensive and e.defensive.specID==264 then copies=copies+1 end end;assert(copies==1,'Copying twice duplicated reminders')
-assert(ns.SetUses('mythic',104,key)==1 and ns.SetUses('mythic',264,key)==1 and ns.SetUses('raid',104,key)==0)
+env.select('copy-spec','Copy setup to Restoration Druid');env.click('copy-spec-confirm')
+assert(ns.ScopePresets(ns.Active(),'mythic',105)[key].name=='Copied set');local copies=0
+for _,e in pairs(ns.Get(ns.Active().data.raidReminders,3456))do if e.defensive and e.defensive.specID==105 then copies=copies+1 end end;assert(copies==1)
+env.select('copy-spec','Copy setup to Restoration Druid');env.click('copy-spec-confirm');copies=0
+for _,e in pairs(ns.Get(ns.Active().data.raidReminders,3456))do if e.defensive and e.defensive.specID==105 then copies=copies+1 end end;assert(copies==1,'Copying twice duplicated reminders')
+assert(ns.SetUses('mythic',104,key)==1 and ns.SetUses('mythic',105,key)==1 and ns.SetUses('raid',104,key)==0)
+`));
+
+test('the window shows only the current specialization and refuses edits for another class',()=>run(`
+assert(not ns.UIControls.specialization,'A spec picker is still shown')
+assert(ns.SpecClass(104)=='DRUID' and ns.SpecClass(62)=='MAGE' and ns.SpecClass(250)=='DEATHKNIGHT')
+local ok,error=ns.SaveSet('mythic',62,nil,'Mage set',{{spellID=45438,enabled=true}});assert(not ok and error:find('another class'))
+assert(ns.SaveSet('mythic',105,nil,'Resto set',{{spellID=22812,enabled=true}}))
+env.click('mode:sets');env.click('copy-spec');for _,r in ipairs(ns.Widgets.menu.rows)do if r.shown then assert(r.label.text:find('Druid'),'Copy offers another class: '..r.label.text)end end
+env.spec=105;for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_SPECIALIZATION_CHANGED then f.scripts.OnEvent(f,'PLAYER_SPECIALIZATION_CHANGED','player');break end end
+assert(ns.UIState.spec==105,'Window did not follow the spec change')
+env.class='MAGE';env.spec=62;ns.Open();assert(ns.UIState.spec==62);assert(ns.SaveSet('mythic',62,nil,'Mage set',{{spellID=45438,enabled=true}}))
+`));
+test('every sidebar section draws with visible, anchored controls',()=>run(`
+for _,tab in ipairs({'overview','mythic','raid','sets','timeline','notes','alerts','auras','assign','raidtools','players','display','profiles','settings','diag'})do
+ env.click('tab:'..tab);env.assertLayout();assert(ns.UIState.tab==tab)
+end
+env.click('tab:sets');env.click('sets-scope:raid');env.input('set-name','Raid from Defensives');env.input('new-spell','22812');env.click('add-spell');env.click('save-set')
+assert(next(ns.ScopePresets(ns.Active(),'raid',104)))
+env.click('tab:timeline');env.click('tl-new');assert(ns.UIState.tab=='raid'and ns.UIState.timed)
+env.click('top:display');assert(ns.UIState.tab=='display');env.click('header-profile');assert(ns.UIState.tab=='profiles')
+env.click('tab:settings');env.select('ui:anim','Off');assert(ns.UIPrefs().anim=='off'and ns.Anim.mode=='off')
+`));
+test('/ndp opens sections and old slash aliases keep working',()=>run(`
+assert(SLASH_NDP1=='/ndp' and SLASH_NDP2=='/nwhdp' and SLASH_NDP4=='/pztkr')
+SlashCmdList.NDP('notes');assert(ns.UIState.tab=='notes')
+SlashCmdList.NDP('tl');assert(ns.UIState.tab=='timeline')
+SlashCmdList.NDP('');assert(not ns.WorkspaceWindow:IsShown());SlashCmdList.NDP('');assert(ns.WorkspaceWindow:IsShown())
+SlashCmdList.NDP('anim reduced');assert(ns.Anim.mode=='reduced')
+SlashCmdList.NDP('wipe confirm');assert(NaowhDefensivePlannerDB,'wipe ran without the first confirmation step')
 `));

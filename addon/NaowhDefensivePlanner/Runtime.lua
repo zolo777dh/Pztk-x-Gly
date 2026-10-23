@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.4.0"
+ns.version = "0.5.0"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -24,6 +24,29 @@ end
 function ns.Active()
     local store = ns.Store and ns.Store()
     return store and store.profiles[store.active]
+end
+-- Class of each catalog specialization, read from its name ("Guardian Druid").
+local classNames = { ["Death Knight"]="DEATHKNIGHT", ["Demon Hunter"]="DEMONHUNTER", Druid="DRUID", Evoker="EVOKER", Hunter="HUNTER", Mage="MAGE", Monk="MONK", Paladin="PALADIN", Priest="PRIEST", Rogue="ROGUE", Shaman="SHAMAN", Warlock="WARLOCK", Warrior="WARRIOR" }
+function ns.SpecClass(spec)
+    local label = ns.Catalog and ns.Catalog.specs[tonumber(spec)]
+    if type(label) ~= "string" then return nil end
+    for name, class in pairs(classNames) do if label:sub(-#name - 1) == " " .. name then return class end end
+end
+function ns.PlayerClass()
+    if not UnitClass then return nil end
+    local _, class = UnitClass("player")
+    return ns.Plain(class, "string") and class or nil
+end
+-- Sets and reminders are edited only for the specializations of the logged-in class.
+function ns.CanEditSpec(spec)
+    local class, own = ns.SpecClass(spec), ns.PlayerClass()
+    return not class or not own or class == own
+end
+function ns.OwnSpecs()
+    local out = {}
+    for id in pairs(ns.Catalog.specs) do if ns.CanEditSpec(id) then out[#out + 1] = id end end
+    table.sort(out)
+    return out
 end
 function ns.Spec()
     local get = GetSpecialization or (C_SpecializationInfo and C_SpecializationInfo.GetSpecialization)

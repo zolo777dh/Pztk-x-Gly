@@ -102,7 +102,9 @@ function ns.Display(display)
     for i,icon in ipairs(r.icons)do if i<=count then local _,texture=Spell(spells[i]);icon:SetSize(iconSize,iconSize);icon:ClearAllPoints();icon:SetPoint("LEFT",8+(i-1)*(iconSize+4),0);icon:SetTexture(texture or 134400);icon:Show()else icon:Hide()end end
     r.text:ClearAllPoints();r.text:SetPoint("TOPLEFT",r,"TOPLEFT",count>0 and (10+(iconSize+4)*count)or 10,-8);r.text:SetPoint("RIGHT",r,"RIGHT",-8,0);r.text:SetText(text)
     if settings.showText==false then r.text:Hide()else r.text:Show()end
-    if settings.textSize then local font,_,flags=r.text:GetFont();if type(font)=="string"then r.text:SetFont(font,settings.textSize,flags or"")end end
+    -- Same typeface as the window; the size setting still applies.
+    local font,size,flags=r.text:GetFont();if ns.Widgets then font=ns.Widgets.Font(true)end
+    if type(font)=="string"then r.text:SetFont(font,tonumber(settings.textSize)or size or 16,flags or"")end
     local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5));r.expires=GetTime()+dur;if display.type=="circle"then r.swipe:SetCooldown(GetTime(),dur);r.swipe:Show()else r.swipe:Hide()end;r.bar:SetMinMaxValues(0,dur);r.bar:SetValue(dur);r:Show()
     if settings.showBar==false then r.bar:Hide()else r.bar:Show()end
     r.glows={}
@@ -114,4 +116,27 @@ function ns.Display(display)
     end
     r:SetScript("OnUpdate",function(self)local left=self.expires-GetTime();if left<=0 then for i,v in ipairs(active)do if v==self then Release(i);Arrange();break end end else self.timer:SetText(string.format("%.1f",left));self.bar:SetValue(left)end end)
     active[#active+1]=r;Arrange()
+    if ns.Anim then ns.Anim.Burst(r,count>0 and r.icons[1]or nil)end
+end
+-- Movable anchor showing where reminders appear. Dragging it saves the position to the profile.
+local anchor
+function ns.AnchorsUnlocked()return anchor~=nil and anchor:IsShown()end
+function ns.ToggleAnchors()
+    if not anchor then
+        anchor=CreateFrame("Frame",nil,UIParent,"BackdropTemplate");anchor:SetSize(340,60);anchor:SetFrameStrata("DIALOG");anchor:SetMovable(true);anchor:EnableMouse(true);anchor:RegisterForDrag("LeftButton")
+        anchor:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+        anchor:SetBackdropColor(0.07,0.09,0.15,0.85);anchor:SetBackdropBorderColor(0.2,0.76,0.65,1)
+        anchor.text=anchor:CreateFontString(nil,"OVERLAY","GameFontHighlight");anchor.text:SetPoint("CENTER");anchor.text:SetText("Naowh Defensive Planner\n"..(ns.L and ns.L("Drag to move reminders")or"Drag to move reminders"))
+        anchor:SetScript("OnDragStart",function(self)self:StartMoving()end)
+        anchor:SetScript("OnDragStop",function(self)
+            self:StopMovingOrSizing();local x,y=self:GetCenter();local ux,uy=UIParent:GetCenter()
+            if not(x and ux)then return end
+            local ok,error=ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="CENTER",relPoint="CENTER",x=math.floor(x-ux+0.5),y=math.floor(y-uy+0.5)}end)
+            if not ok then ns.Print(error)end;if ns.RefreshWorkspace then ns.RefreshWorkspace()end
+        end)
+        anchor:Hide()
+    end
+    if anchor:IsShown()then anchor:Hide();return false end
+    local p=type((ns.Settings and ns.Settings()or{}).pos)=="table"and ns.Settings().pos or{}
+    anchor:ClearAllPoints();anchor:SetPoint("CENTER",UIParent,"CENTER",p.x or 0,p.y or 100);anchor:Show();return true
 end

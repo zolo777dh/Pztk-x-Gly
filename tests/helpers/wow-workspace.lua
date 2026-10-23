@@ -1,5 +1,5 @@
 unpack=unpack or table.unpack
-local env={frames={},time=100,combat=false,spec=104,version='12.1.5',map=2813,difficulty=8,instance='party',shown={}}
+local env={frames={},time=100,combat=false,spec=104,class='DRUID',version='12.1.5',map=2813,difficulty=8,instance='party',shown={}}
 local methods={}
 local function node(kind,parent)
  local f={kind=kind,parent=parent,shown=true,scripts={},events={},w=0,h=0};env.frames[#env.frames+1]=f
@@ -48,9 +48,17 @@ end
 function methods:GetScrollChild()return self.scrollChild end
 function methods:SetVerticalScroll(v)self.scroll=v end
 function methods:GetVerticalScroll()return self.scroll or 0 end
-function methods:CreateTexture()return node('Texture',self)end
-function methods:CreateFontString()return node('Text',self)end
+function methods:CreateTexture(_,layer,_,sub)local t=node('Texture',self);t.layer=layer;t.sublevel=sub or 0;return t end
+function methods:CreateFontString(_,layer)local t=node('Text',self);t.layer=layer or'OVERLAY';return t end
 function methods:SetTexture(texture)self.texture=texture end
+function methods:SetVertexColor(r,g,b,a)self.vertex={r,g,b,a or 1}end
+function methods:SetTexCoord(a,b,c,d)self.coords={a,b,c,d}end
+function methods:SetDrawLayer(layer,sub)self.layer=layer;self.sublevel=sub or 0 end
+function methods:SetBlendMode(mode)self.blend=mode end
+function methods:SetAlpha(a)self.alpha=a end
+function methods:SetJustifyH(j)self.justify=j end
+function methods:SetWordWrap(v)self.wrap=v end
+function methods:GetParent()return self.parent end
 function methods:SetColorTexture(r,g,b,a)self.background={r,g,b,a}end
 function methods:Click()assert(self.scripts.OnClick,'Control has no click handler');self.scripts.OnClick(self)end
 function methods:SetFocus()self.focus=true end
@@ -63,7 +71,7 @@ function GetSpecializationInfo()return env.spec end
 function InCombatLockdown()return env.combat end
 function GetInstanceInfo()return 'Test',env.instance,env.difficulty,nil,nil,nil,nil,env.map end
 function UnitGroupRolesAssigned()return 'TANK'end
-function UnitClass()return 'Druid','DRUID'end
+function UnitClass()return 'Class',env.class end
 function UnitName()return 'Tester'end
 function UnitFullName()return 'Tester','Realm'end
 function PlaySoundFile()end

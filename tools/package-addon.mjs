@@ -4,7 +4,8 @@ import {createHash} from 'node:crypto';
 import {zipCompatible} from '../core/archives.mjs';
 export async function packageAddon(root,destination){
  const files={},source=path.join(root,'addon','NaowhDefensivePlanner');
- async function collect(dir,prefix=''){for(const item of await fs.readdir(dir,{withFileTypes:true})){const full=path.join(dir,item.name),relative=prefix+item.name;if(item.isDirectory())await collect(full,relative+'/');else if(item.isFile())files['NaowhDefensivePlanner/'+relative]=await fs.readFile(full);else throw Error('Unexpected addon package entry');}}
+ // A user's own licensed Media/Fonts/Naowh.ttf is never redistributed.
+ async function collect(dir,prefix=''){for(const item of await fs.readdir(dir,{withFileTypes:true})){const full=path.join(dir,item.name),relative=prefix+item.name;if(item.isDirectory())await collect(full,relative+'/');else if(item.isFile()&&!(prefix==='Media/Fonts/'&&/^naowh\.ttf$/i.test(item.name)))files['NaowhDefensivePlanner/'+relative]=await fs.readFile(full);else throw Error('Unexpected addon package entry');}}
  await collect(source);
  const version=files['NaowhDefensivePlanner/NaowhDefensivePlanner.toc'].toString('utf8').match(/^## Version:\s*(\d+\.\d+\.\d+)\s*$/m)?.[1];if(!version)throw Error('Missing addon version');
  // Follow the actual TOC/XML load graph, including Lua files. A repeated load
