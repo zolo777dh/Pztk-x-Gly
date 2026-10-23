@@ -39,8 +39,13 @@ recipient filters and difficulty filters can be retained. Save explicitly.
 PROFILES
 Create, copy, rename, delete, select, import or export a profile inside the game.
 PZTK1 is the native combined M+ / raid export. Imports create a separate profile.
-Direct imports also accept unlicensed NSRPACK2 and current full !NSRT:Profile:
-or !NSRT:EncounterAlert: exports. Review the migration report in the string box.
+Direct imports also accept unlicensed NSRPACK2 and current !NSRT:Profile: or
+!NSRT:EncounterAlert: exports (full, single alert or group). Review the migration
+report in the string box. NSRT glow units glow those players' raid frames next to
+the reminder. Negative phase-1 times become "Before pull (countdown)" reminders:
+they start from a /countdown or boss-mod pull timer, and the boss is the nearest
+planned boss among the Encounter Journal pins on your map (/pztkr debug shows it).
+Profiles using either feature need Puzatik Reminders 0.3.3.
 Original migration strings and reports stay locally in SavedVariables. Unavailable
 conditions, displays and source engines are reported; they are not guessed.
 Account-licensed NSR strings remain managed in NSR. Licenses are not bypassed.

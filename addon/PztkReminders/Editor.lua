@@ -59,7 +59,7 @@ function ns.EditProfile(callback)
     local ok,result=pcall(function()
         Editable();local current=assert(ns.Active(),"Create or import a profile first")
         local copy=ns.Clone(current);Prepare(copy.data);local value=callback(copy.data,copy)
-        copy.minimumAddon="0.3.0";assert(ns.Validate(copy),"The change contains unsupported profile data")
+        copy.minimumAddon=ns.MinimumAddon(copy.data);assert(ns.Validate(copy),"The change contains unsupported profile data")
         if ns.Encode then local encoded,error=ns.Encode(copy);assert(encoded,error)end
         ns.Store().profiles[ns.Store().active]=copy;Changed();return value
     end)
@@ -70,7 +70,7 @@ function ns.CreateProfile(name,copy)
     local ok,result=pcall(function()
         Editable();name=Name(name);local store=ns.Store();assert(not store.profiles[name],"A profile with this name already exists")
         local p=copy and ns.Clone(assert(ns.Active(),"No profile to copy"))or{format=1,addon="PztkReminders",client=ns.Client(),data={settings={enabled=true,showIcon=true,showText=true,voiceOn=false},presets={},activePreset={},abilityBindings={},integrationRules={},raidReminders={}}}
-        p.name=name;p.minimumAddon="0.3.0";Prepare(p.data);store.profiles[name]=p;store.active=name;Changed();return name
+        p.name=name;p.minimumAddon=ns.MinimumAddon(p.data);Prepare(p.data);store.profiles[name]=p;store.active=name;Changed();return name
     end);if ok then return result end;return nil,tostring(result)
 end
 function ns.SelectProfile(name)
@@ -190,6 +190,9 @@ function ns.SaveRule(ctx,form,reference)
         local display={type=dynamic and"icon"or(form.action or"text"),text=tostring(form.text or""),dur=duration,sound=tostring(form.sound or""),tts=form.tts==true}
         if display.type=="icon"and not dynamic then display.spellID=Integer(form.displaySpellID,"display spell ID")end
         if display.type=="raidframeGlow"then display.glowTarget=Name(form.glowTarget)end
+        -- Extra raid-frame glows (NSRT glowunit) have no in-game field yet; keep them across edits.
+        local previous=reference and reference.section=="raidReminders"and type(reference.entry.display)=="table"and reference.entry.display
+        if previous and display.type~="raidframeGlow"then display.glowTargets=ns.Clone(previous.glowTargets);display.glowColor=ns.Clone(previous.glowColor)end
         local key=reference and reference.section~="abilityBindings"and reference.key or ns.UID("reminder")
         if ctx.kind=="trash"then
             assert(dynamic,"Trash timer reminders use a defensive set");local map=Integer(ctx.map,"instance map ID");local spell=Integer(ctx.spell,"mechanic spell ID")
@@ -198,9 +201,9 @@ function ns.SaveRule(ctx,form,reference)
             local e=ns.Clone(old);e.name=Name(form.name);e.enabled=form.enabled~=false;e.content="mythic";e.preset=form.preset;e.display=display;e.difficulties={[8]=true};e.trigger={type="exboss",mapID=map,spellID=spell,timeleft=lead};e.catalog={npcID=ctx.npc,groupId=ctx.group}
             data.integrationRules[spec][key]=e
         else
-            local encounter=Integer(ctx.encounter,"encounter ID");local triggerType=form.trigger or"bwtimer";assert(({pull=true,stage=true,bwtimer=true,bwmsg=true})[triggerType],"Choose a trigger")
+            local encounter=Integer(ctx.encounter,"encounter ID");local triggerType=form.trigger or"bwtimer";assert(({pull=true,prepull=true,stage=true,bwtimer=true,bwmsg=true})[triggerType],"Choose a trigger")
             if scope=="mythic"then assert(triggerType=="bwtimer"or triggerType=="bwmsg","M+ reminders bind to a mechanic")end
-            local trigger={type=triggerType,leadTime=lead,delay=Number(form.delay or 0,"delay",0,7200),counterGroups=ns.ParseCounter(form.counter)}
+            local trigger={type=triggerType,leadTime=lead,delay=triggerType=="prepull"and Number(form.delay,"seconds before pull",0.1,3600)or Number(form.delay or 0,"delay",0,7200),counterGroups=ns.ParseCounter(form.counter)}
             if triggerType=="stage"then trigger.stage=Number(form.phase or 1,"phase",1,100)end
             if triggerType=="bwtimer"or triggerType=="bwmsg"then trigger.spellID=Integer(ctx.spell,"mechanic spell ID")end
             local target

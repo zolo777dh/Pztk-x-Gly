@@ -25,6 +25,9 @@ function ns.Diagnostics()
     lines[#lines+1]="Conflict: "..(ns.Conflict()or "none")
     lines[#lines+1]="Profile present: "..(ns.Active()and "yes"or "no")
     lines[#lines+1]="Encounter / difficulty / map: "..tostring(ns.encounter).." / "..tostring(ns.difficulty).." / "..tostring(ns.map)
+    local pull,status=ns.pullEncounter,ns.pullStatus
+    if pull==nil and status==nil then pull,status=ns.PullEncounter()end
+    lines[#lines+1]="Pre-pull encounter: "..(pull and tostring(pull)or "none ("..tostring(status)..")")
     if ns.AuraSoundStatus then lines[#lines+1]="Aura sounds: "..ns.AuraSoundStatus()end
     return table.concat(lines,"\n")
 end
@@ -41,9 +44,13 @@ SlashCmdList.PZTKREMINDERS=function(message)
 end
 local events=CreateFrame("Frame")
 for _,event in ipairs({"ADDON_LOADED","PLAYER_ENTERING_WORLD","ENCOUNTER_START","ENCOUNTER_END","PLAYER_REGEN_ENABLED","PLAYER_SPECIALIZATION_CHANGED","PLAYER_LOGOUT"})do events:RegisterEvent(event)end
+-- Countdown events may be missing on some clients; pre-pull reminders then stay idle.
+for _,event in ipairs({"START_PLAYER_COUNTDOWN","CANCEL_PLAYER_COUNTDOWN"})do pcall(events.RegisterEvent,events,event)end
 events:SetScript("OnEvent",function(_,event,a,b,c)
     if event=="PLAYER_LOGOUT"then if ns.SaveWorkspaceDrafts then ns.SaveWorkspaceDrafts()end;return
     elseif event=="ENCOUNTER_START"then ns.RefreshContext();ns.Begin(a,c,ns.map)
+    elseif event=="START_PLAYER_COUNTDOWN"then ns.Countdown(b)
+    elseif event=="CANCEL_PLAYER_COUNTDOWN"then ns.Countdown(nil)
     elseif event=="ENCOUNTER_END"then ns.Reset()
     elseif event=="PLAYER_REGEN_ENABLED"then ns.Cancel("trash:")
     else

@@ -16,3 +16,15 @@ test('current private unlicensed NSR input imports through the published-format 
  if(!process.env.DOCTOR_NSR_MIGRATION_INPUT)return;const input=await fs.readFile(process.env.DOCTOR_NSR_MIGRATION_INPUT,'utf8'),source=codec.decode(input),custom=Object.values(source.data.customReminders||{}).flatMap(Object.values).length;
  const out=await run(t,input,`local name,error,report=ns.Import(input);assert(name,error);assert(report.converted==${custom});local ok,error=ns.EditProfile(function(data)data.settings.showIcon=true end);assert(ok,error)`);if(out)assert.equal(Object.keys(out.data.scopePresets.mythic).length,40);
 });
+test('native in-game NSRT importer accepts single-alert and group exports, glow units and pre-pull times',async t=>{
+ const alert={enabled:true,DisplayType:'Icon',spellID:22812,text:'Pot',dur:3,timers:[-5,20],phase:1,glowunit:'Tankadin Healbot glowunit',glowColors:[0,1,0,1],loadConditions:{}};
+ const single=new NsrtCodec().encode({type:'EncounterAlert',payload:{version:1,type:'single_alert',alertType:'user',encID:3379,diffID:16,alertKey:'pot',data:alert},numericKeys:[]});
+ const out=await run(t,single,`local name,error,report=ns.Import(input);assert(name,error);assert(report.converted==2,report.converted);local pre,pull
+  for _,e in pairs(ns.Active().data.raidReminders[3379])do if e.trigger.type=='prepull'then pre=e else pull=e end end
+  assert(pre and pre.trigger.delay==5 and pre.trigger.leadTime==3 and pre.display.dur==3);assert(pull and pull.trigger.type=='pull'and pull.trigger.delay==20)
+  assert(#pre.display.glowTargets==2 and pre.display.glowTargets[1]=='Tankadin'and pre.display.glowColor[2]==1);assert(ns.Active().minimumAddon=='0.3.3')
+  assert(ns.EditProfile(function(data)data.settings.voiceOn=false end));assert(ns.Active().minimumAddon=='0.3.3')`);
+ if(out){const rs=Object.values(out.data.raidReminders['3379']);assert.equal(out.minimumAddon,'0.3.3');assert.ok(rs.some(r=>r.trigger.type==='prepull'&&r.trigger.delay===5));}
+ const group=new NsrtCodec().encode({type:'EncounterAlert',payload:{version:1,type:'alert_group',groupName:'G',groupEncID:3379,diffID:15,encounterAlerts:{3379:{15:{a:{DisplayType:'Text',text:'Soak',timers:[30],phase:1}},16:{b:{DisplayType:'Text',text:'Other',timers:[40],phase:1}}}}},numericKeys:[]});
+ await run(t,group,`local name,error,report=ns.Import(input);assert(name,error);assert(report.converted==1);local _,e=next(ns.Active().data.raidReminders[3379]);assert(e.difficulties[15]and e.display.text=='Soak');assert(ns.Active().minimumAddon=='0.3.0')`);
+});

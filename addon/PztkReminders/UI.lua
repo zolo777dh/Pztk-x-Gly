@@ -160,7 +160,7 @@ local function DrawInspector(parent,ctx)
     W.Toggle(content,"Enabled",form.enabled,8,y,325,function(v)form.enabled=v end,"rule:enabled");y=y+35
     if ctx.kind~="trash"then
         local triggers={{value="bwtimer",label="Mechanic countdown"},{value="bwmsg",label="Mechanic message"}}
-        if ctx.scope=="raid"then triggers[#triggers+1]={value="pull",label="Time from pull"};triggers[#triggers+1]={value="stage",label="Time from phase"}end
+        if ctx.scope=="raid"then triggers[#triggers+1]={value="pull",label="Time from pull"};triggers[#triggers+1]={value="prepull",label="Before pull (countdown)"};triggers[#triggers+1]={value="stage",label="Time from phase"}end
         select("TRIGGER","trigger",triggers);y=y+57
         local actions={{value="defensive",label="Defensive priority set"},{value="icon",label="Spell icon"},{value="text",label="Text"},{value="bar",label="Countdown bar"},{value="circle",label="Circle"},{value="chat",label="Sound only"},{value="raidframeGlow",label="Player frame glow"}}
         select("ACTION","action",actions);y=y+57
@@ -168,7 +168,7 @@ local function DrawInspector(parent,ctx)
     if form.action=="defensive"then
         local sets=rowsOptions(ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec));table.insert(sets,1,{value="",label="Choose defensive set..."});select("DEFENSIVE SET","preset",sets);y=y+57
     elseif form.action=="icon"then field("DISPLAY SPELL ID","displaySpellID");y=y+57 end
-    if form.trigger=="pull"or form.trigger=="stage"then field("SECONDS FROM ANCHOR","delay");y=y+57;if form.trigger=="stage"then field("PHASE","phase");y=y+57 end
+    if form.trigger=="pull"or form.trigger=="stage"or form.trigger=="prepull"then field(form.trigger=="prepull"and"SECONDS BEFORE PULL"or"SECONDS FROM ANCHOR","delay");y=y+57;if form.trigger=="stage"then field("PHASE","phase");y=y+57 end
     elseif ctx.kind~="trash"then field("DELAY AFTER EVENT (SECONDS)","delay");y=y+57 end
     field("WARN BEFORE (SECONDS)","leadTime");y=y+57
     end
