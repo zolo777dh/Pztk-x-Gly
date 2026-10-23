@@ -56,6 +56,25 @@ function ns.DefensiveDisplay(spells,base,bindingSound)
     return display
 end
 
+-- "Already covered" (NSR coveredSkip): no call-out while a defensive of the set is active on you
+-- or was cast within coveredCastWindow seconds. Aura or cast data the game hides counts as not covered.
+local lastCast={}
+-- Fed by UNIT_SPELLCAST_SUCCEEDED for the player (Main.lua).
+function ns.NoteCast(spell)if ns.Plain(spell,"number")then lastCast[spell]=GetTime()end end
+function ns.Covered(preset)
+    local settings=ns.Settings()
+    if settings.coveredSkip~=true or settings.coveredSkipDefaultOn==false or type(preset)~="table"then return false end
+    local window=tonumber(settings.coveredCastWindow)or 3
+    for _,spell in ipairs(preset.list or{})do
+        if lastCast[spell]and GetTime()-lastCast[spell]<=window then return true,spell end
+        if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
+            local ok,aura=pcall(C_UnitAuras.GetPlayerAuraBySpellID,spell)
+            if ok and ns.Plain(aura,"table")then return true,spell end
+        end
+    end
+    return false
+end
+
 function ns.RenderDefensive(binding, trash)
     local profile,spec=ns.Active(),ns.Spec()
     if not ns.Enabled()or not spec or binding.enabled==false then return end
@@ -77,6 +96,7 @@ function ns.RenderDefensive(binding, trash)
         if settings.voiceOn==false then custom.tts=false end
         if ns.Display then ns.Display(custom)end;return
     end
+    if ns.Covered(preset)then return end
     local spells=ns.Pick(preset)
     if #spells==0 then
         local external=binding.external==true or(settings.fallbackOn==true and binding.external~=false)

@@ -151,8 +151,9 @@ ExwindCore, EXBOSS-Locale and its required EXBOSS-LocaleBase dependency.
 LIMITS
 No combat or active-encounter editing. No automatic ability presses. Native aura
 sounds need the corresponding public game API. Several source behaviors remain
-unavailable (cdmGlow, coveredSkip, coveredSkipDefaultOn, coveredCastWindow); imports
-retain and report them. QoL, Ready Check, group management, nickname engines and
+unavailable; imports retain and report them. Dungeon reminders run in every
+dungeon difficulty (Normal, Heroic, Mythic, Mythic+, Timewalking). "Already
+covered" (Settings) skips a call-out while a defensive of the set is up. QoL, Ready Check, group management, nickname engines and
 pace-comparison modules are outside this reminder addon. No live WoW test was
 available in the build environment. Notes sync, boss alert lists, aura
 tracking, assignments, break timers, invites and nicknames from NSR / NSRT are being

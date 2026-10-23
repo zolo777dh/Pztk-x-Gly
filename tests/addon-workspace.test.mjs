@@ -116,12 +116,14 @@ assert(ns.ScopePresets(ns.Active(),'mythic',104)[key].name=='M+ personal');local
 env.combat=true;local result,error=ns.SaveSet('raid',104,rkey,'Not saved',{});assert(not result and error:find('combat'));env.combat=false
 local before=#env.frames;for i=1,12 do env.click('tab:mythic');env.click('mode:sets');env.click('tab:raid');env.click('mode:sets')end;assert(#env.frames-before<120,'UI redraw is leaking frames')
 `));
-test('saved mechanic bindings dispatch the correct content-scoped set and trash rules require Mythic+',()=>run(`
+test('saved mechanic bindings dispatch the correct content-scoped set and trash rules fire in every dungeon difficulty',()=>run(`
 local m=assert(ns.SaveSet('mythic',104,nil,'Dungeon set',{{spellID=22812,enabled=true}}));local r=assert(ns.SaveSet('raid',104,nil,'Raid set',{{spellID=61336,enabled=true}}))
 local ctx={scope='mythic',spec=104,map=2813,npc=236071,group=2813,kind='trash',spell=1216529,difficulty=8}
 local key=assert(ns.SaveRule(ctx,{name='Shield Bash defensive',action='defensive',preset=m,leadTime=2,duration=4}));ns.map=2813;ns.difficulty=8;ns.instanceType='party';ns.Trash(1216529,5,'cast');env.advance(3);assert(#env.shown==1 and env.shown[1].spellID==22812 and env.shown[1].text=='Barkskin')
-ns.difficulty=2;ns.Trash(1216529,5,'heroic');env.advance(3);assert(#env.shown==1)
-ns.difficulty=16;ns.instanceType='raid';ns.RenderDefensive({defensive={specID=104,preset=r,scope='raid'},display={}});assert(env.shown[2].spellID==61336 and env.shown[2].text=='Survival Instincts')
+ns.difficulty=2;ns.Trash(1216529,5,'heroic');env.advance(3);assert(#env.shown==2 and env.shown[2].spellID==22812)
+ns.difficulty=23;ns.Trash(1216529,5,'mythic0');env.advance(3);assert(#env.shown==3)
+ns.difficulty=16;ns.instanceType='raid';ns.Trash(1216529,5,'raid');env.advance(3);assert(#env.shown==3,'Dungeon trash must not fire in a raid')
+ns.RenderDefensive({defensive={specID=104,preset=r,scope='raid'},display={}});assert(env.shown[4].spellID==61336 and env.shown[4].text=='Survival Instincts')
 local result,error=ns.DeleteSet('mythic',104,m);assert(not result and error:find('assigned'))
 `));
 test('raid UI authors pull and phase reminders, preserves recipients and exports the edited profile',()=>run(`
