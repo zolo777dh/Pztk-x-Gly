@@ -506,7 +506,10 @@ end
 local function setCount(content)local n=0;for _ in pairs(ns.ScopePresets(ns.Active(),content,state.spec))do n=n+1 end;return n end
 local function providerName()
     local p=ns.ProviderStatus and ns.ProviderStatus()or{}
-    return p.BigWigs and"BigWigs"or p.DBM and"DBM"or nil,p.EXBoss
+    local chosen=ns.Settings and ns.Settings().bossSource
+    -- Without a boss mod the built-in raid timers run, so the source is never empty.
+    if chosen=="ndp"or not p.BigWigs and not p.DBM then return L("NDP timers"),p.EXBoss end
+    return p.BigWigs and"BigWigs"or"DBM",p.EXBoss
 end
 local function openGroup(content,g)
     state.tab=content;loadView();state.group=g.id;state.mode="mechanics";state.entity=nil;state.ability=nil;state.form=nil;state.ruleKey=nil;state.timed=false;Refresh()
@@ -565,7 +568,7 @@ local function DrawSettings(parent)
     local reminders=W.Card(parent,0,top,cw,268,L("Reminders"))
     local flags={{"Enable reminders","enabled",reminders},{"Show spell icons","showIcon",reminders},{"Show reminder text","showText",reminders},{"Glow the called spell on your bars","cdmGlow",reminders},{"Call external if nothing is ready","fallbackOn",reminders}}
     for i,f in ipairs(flags)do local value=s[f[2]];if value==nil then value=f[2]~="fallbackOn"end;W.Toggle(f[3],L(f[1]),value,12,34+(i-1)*30,cw-24,function(v)s[f[2]]=v end,"setting:"..f[2])end
-    W.Select(reminders,L("Boss mod source"),{{value="bigwigs",label="BigWigs / LittleWigs"},{value="dbm",label="DBM"}},s.bossSource or"bigwigs",12,190,cw-24,function(v)s.bossSource=v end,"setting:bossSource")
+    W.Select(reminders,L("Boss mod source"),{{value="auto",label=L("Automatic")},{value="ndp",label=L("Built-in raid timers")},{value="bigwigs",label="BigWigs / LittleWigs"},{value="dbm",label="DBM"}},s.bossSource or"auto",12,190,cw-24,function(v)s.bossSource=v end,"setting:bossSource")
     local look=W.Card(parent,col,top,cw,268,L("Reminder look"))
     local fields={{"Icon size","iconSize",42},{"Text size","textSize",14},{"Voice volume","voiceVol",100},{"X position","x",0},{"Y position","y",100}}
     local row=0

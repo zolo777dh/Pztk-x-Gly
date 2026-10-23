@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.6.8 — in-game editor and reminder engine
+Naowh Defensive Planner 0.6.9 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -108,6 +108,12 @@ MYTHIC+
 4. Save reminder. Test is a display preview; check the actual trigger in game.
 M+ is restricted to Mythic+ difficulty. ExBoss supplies trash countdowns;
 BigWigs/LittleWigs or DBM supplies boss messages and bars.
+Built-in raid timers: without BigWigs or DBM the addon runs its own boss timers
+for the ten raid bosses of the current tier, read from the game's encounter
+timeline from the pull. They feed the same "Boss mod timer bar" and "Boss mod
+message" triggers. Settings > Boss mod source: Automatic (a connected boss mod
+first, otherwise built-in), Built-in raid timers (always), BigWigs or DBM.
+Add timers (small adds) are not included. Not yet checked on live pulls.
 
 RAIDS
 Select raid, boss and Heroic or Mythic explicitly. Raid defensive sets are separate
@@ -169,7 +175,7 @@ boss ability.
 Boss timeline: each pull records when your boss mod announced the boss abilities.
 The kill (or the longest pull) is kept, and the Timeline page shows it as a
 "Boss" lane. Click an ability icon to start a reminder at that time. You need one
-pull with BigWigs or DBM before the lane appears.
+pull with BigWigs, DBM or the built-in raid timers before the lane appears.
 Note timers: lines like {time:1:30} Soak - Name in the shared or personal note
 show as reminders on the pull. Who can be a name, {everyone}, class:, spec:,
 role:, group: or type:melee / type:ranged. Turn them off or set how early they
