@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.6.10 — in-game editor and reminder engine
+Naowh Defensive Planner 0.6.11 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -176,6 +176,9 @@ Expected boss timeline: every raid boss shows a "Boss (exp.)" lane with its
 abilities at their usual times before you pull. Left-click an ability to plan that
 cast: Defensive set, Note (your own text, e.g. Stack in middle), Every cast, or
 Timed here. A recorded pull replaces the expected times.
+Zoom and scroll: Ctrl + mouse wheel zooms the timeline (30 s to 10 min), the
+wheel alone or the slider under the axis moves it from 30 s before the pull to
+the end of the fight. The - / + and 1m / 2m / 4m buttons do the same.
 Boss timeline: each pull records when your boss mod announced the boss abilities.
 The kill (or the longest pull) is kept, and the Timeline page shows it as a
 "Boss" lane. Click an ability icon to start a reminder at that time. You need one
