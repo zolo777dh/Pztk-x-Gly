@@ -2,29 +2,26 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import luaparse from 'luaparse';
 import { walk,readSource,sha } from './files.mjs';
+import { checkApi,definedGlobals,rules as apiRules } from './api-check.mjs';
 export const profiles={retail:{name:'Retail',build:'12.1.5.70448',interface:120105},forever:{name:'Forever',build:'1.60.1.70425',interface:16001}};
 export function parseLua(text){return luaparse.parse(Buffer.from(text.replace(/^\uFEFF/,''),'utf8').toString('latin1'),{luaVersion:'5.1',locations:true,scope:true,encodingMode:'pseudo-latin1'});}
-const legacy={GetSpellInfo:'Review C_Spell.GetSpellInfo: it returns a table, so migrating requires checking every return value.',GetSpellCooldown:'Review C_Spell.GetSpellCooldown and its table fields; a textual rename is insufficient.',GetSpellCharges:'Review C_Spell.GetSpellCharges and its table fields.',GetItemSpell:'Review C_Item.GetItemSpell for the target client.'};
 export async function analyze(project,profile='retail'){
   const started=Date.now();const files=await walk(project.root);const issues=[];let luaCount=0;
   const add=(severity,kind,title,file,line,detail,extra={})=>issues.push({id:sha([kind,file,line,detail].join(':')).slice(0,16),severity,kind,title,file,line,detail,...extra});
-  const texts=new Map();const modules=[];
+  const texts=new Map();const modules=[];const asts=new Map();
   for(const file of files){const source=await readSource(project.root,file);texts.set(file,source.text);
     if(file.endsWith('.toc')){
       const ver=source.text.match(/^##\s*Version:\s*(.+)/m)?.[1]?.trim();const display=source.text.match(/^##\s*Title:\s*(.+)/m)?.[1]?.replace(/\|c[\da-f]{8}|\|r/gi,'').trim();
       modules.push({name:display||path.basename(file,'.toc'),file,version:ver||'Unknown'});
       const declared=source.text.match(/^##\s*Interface:\s*(.+)/m)?.[1];
-      if(declared&&!declared.split(/[, ]+/).map(Number).includes(profiles[profile].interface))add('warning','interface','Client interface needs review',file,1,`TOC declares ${declared.trim()}; selected target is ${profiles[profile].build} (Interface ${profiles[profile].interface}). This alone does not prove runtime incompatibility.`);
+      const versions=declared?declared.split(/[, ]+/).map(Number).filter(Boolean):[];
+      if(profile==='retail'&&versions.length&&versions.every(v=>v<120000))add('error','interface','Addon will not load on Retail',file,1,`TOC declares ${declared.trim()}. Since 12.0.0 the Retail client does not load addons below Interface 120000. Add ${profiles.retail.interface} to the ## Interface line.`,{confidence:'Confirmed: Patch 12.0.0 load rule'});
+      else if(declared&&!versions.includes(profiles[profile].interface))add('warning','interface','Client interface needs review',file,1,`TOC declares ${declared.trim()}; selected target is ${profiles[profile].build} (Interface ${profiles[profile].interface}). This alone does not prove runtime incompatibility.`);
     }
-    if(file.endsWith('.lua')){luaCount++;try{parseLua(source.text);}catch(e){add('error','syntax','Lua syntax error',file,e.line||1,e.message);}
-      // These are migration candidates, not an exhaustive build-specific API catalog.
-      if(profile==='retail')for(const [symbol,detail]of Object.entries(legacy)){
-        let ast;try{ast=parseLua(source.text);}catch{continue;}
-        function visit(n){if(!n||typeof n!=='object')return;if(n.type==='CallExpression'&&n.base?.type==='Identifier'&&n.base.name===symbol&&!n.base.isLocal)add('warning','api','Legacy API call: '+symbol,file,n.loc.start.line,detail+' Confirm availability against the exact build. This rule is advisory.',{confidence:'Review required'});for(const v of Object.values(n))if(Array.isArray(v))v.forEach(visit);else if(v&&typeof v==='object')visit(v);}
-        visit(ast);
-      }
-    }
+    if(file.endsWith('.lua')){luaCount++;try{asts.set(file,parseLua(source.text));}catch(e){add('error','syntax','Lua syntax error',file,e.line||1,e.message);}}
   }
+  // Retail API migration rules; the Forever client has its own API surface and no bundled rule set.
+  if(profile==='retail'){const projectGlobals=new Set();for(const ast of asts.values())for(const name of definedGlobals(ast))projectGlobals.add(name);for(const [file,ast] of asts)checkApi(ast,texts.get(file),file,add,{projectGlobals});}
   const checked=new Set();
   async function exactFile(relative){let current=project.root;for(const part of relative.split('/')){if(!part||part==='.')continue;const entries=await fs.readdir(current);if(!entries.includes(part))return false;current=path.join(current,part);}return (await fs.stat(current)).isFile();}
   async function resolveRef(owner,ref,line){
@@ -38,7 +35,7 @@ export async function analyze(project,profile='retail'){
   async function xml(file){if(checked.has(file))return;checked.add(file);const text=await fs.readFile(path.join(project.root,file),'utf8');const clean=text.replace(/<!--[\s\S]*?-->/g,s=>s.replace(/[^\n]/g,' '));for(const m of clean.matchAll(/<(?:Script|Include)\s+file\s*=\s*["']([^"']+)["']/g))await resolveRef(file,m[1],clean.slice(0,m.index).split('\n').length);}
   for(const [file,text] of texts)if(file.endsWith('.toc')){for(const [i,line] of text.split(/\r?\n/).entries()){const entry=line.trim();if(entry&&!entry.startsWith('#'))await resolveRef(file,entry.split(' [')[0],i+1);}}
   issues.sort((a,b)=>({error:0,warning:1,info:2}[a.severity]-{error:0,warning:1,info:2}[b.severity])||a.file.localeCompare(b.file)||a.line-b.line);
-  return {issues,files,modules,luaCount,duration:Date.now()-started,scannedAt:new Date().toISOString(),profile,apiCoverage:'Advisory migration rules only. A complete API database for these builds is not yet bundled.'};
+  return {issues,files,modules,luaCount,duration:Date.now()-started,scannedAt:new Date().toISOString(),profile,apiCoverage:profile==='retail'?`Retail rules from Blizzard UI source ${apiRules.build} (${Object.keys(apiRules.globals).length} functions, ${Object.keys(apiRules.events).length} events, ${Object.keys(apiRules.secret).length} secret-value APIs). Static checks only; test in game.`:'No bundled API rules for this client.'};
 }
 export function parseErrors(text,files){
   if(typeof text!=='string'||text.length>5e6)throw Error('Error log exceeds 5 MB');

@@ -1,0 +1,490 @@
+{
+ "build": "12.1.5.70529",
+ "sources": [
+  "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes",
+  "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes",
+  "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes",
+  "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes",
+  "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes",
+  "https://warcraft.wiki.gg/wiki/Secret_Values"
+ ],
+ "globals": {
+  "GetMouseFocus": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "GetMouseFoci",
+   "removedIn": "11.0.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_11.0.0/API_changes",
+   "note": "GetMouseFoci returns a table of frames; use the first entry."
+  },
+  "SendAddonMessage": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ChatInfo.SendAddonMessage",
+   "removedIn": "8.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_8.0.1/API_changes"
+  },
+  "RegisterAddonMessagePrefix": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ChatInfo.RegisterAddonMessagePrefix",
+   "removedIn": "8.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_8.0.1/API_changes"
+  },
+  "IsAddonMessagePrefixRegistered": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ChatInfo.IsAddonMessagePrefixRegistered",
+   "removedIn": "8.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_8.0.1/API_changes"
+  },
+  "GetRegisteredAddonMessagePrefixes": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ChatInfo.GetRegisteredAddonMessagePrefixes",
+   "removedIn": "8.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_8.0.1/API_changes"
+  },
+  "BNSetAFK": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_BattleNet.SetAFK",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "BNSetDND": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_BattleNet.SetDND",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "GuildRosterSetOfficerNote": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_GuildInfo.SetNote",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes",
+   "note": "Check the replacement's arguments; they changed."
+  },
+  "GuildRosterSetPublicNote": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_GuildInfo.SetNote",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes",
+   "note": "Check the replacement's arguments; they changed."
+  },
+  "C_NamePlate.GetTargetClampingInsets": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "C_NamePlate.SetTargetClampingInsets": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "C_CombatAudioAlert.GetSpeakerVolume": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "C_CombatAudioAlert.SetSpeakerVolume": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "C_HousingPhotoSharing.BeginAuthorizationFlow": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.BeginAuthorizationFlow",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.ClearAuthorization": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.ClearAuthorization",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.CompleteAuthorizationFlow": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.CompleteAuthorizationFlow",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.GetCropRatio": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.GetCropRatio",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.GetPhotoSharingAuthURL": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.GetPhotoSharingAuthURL",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.IsAuthorized": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.IsAuthorized",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.IsEnabled": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.IsEnabled",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.SetScreenshotPreviewTexture": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.SetScreenshotPreviewTexture",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.TakePhoto": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.TakePhoto",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.UploadPhotoToService": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.UploadPhotoToService",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "GetMaxCombatRatingBonus": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_NamePlateManager.SetNamePlateHitTestFrame": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_DurationUtil.GetCurrentTime": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "C_Scenario.GetScenarioIconInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "C_HousingLayout.IsDraggingStairwell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "C_Minimap.GetObjectIconTextureCoords": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "C_PvP.JoinRandomTrainingGround": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "CanSurrenderArena": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "SetTableSecurityOption": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "C_UnitAuras.TriggerPrivateAuraShowDispelType": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "C_Ping.GetContextualPingTypeForUnit": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "C_RecruitAFriend.IsEnabled": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "UIParentLoadAddOn": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "LoadAddOnWithErrorHandling",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "MouseIsOver": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "InputUtil.IsMouseOver",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "CanAccessObject": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "frame:CanBeAccessedInContext()",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "GetContainerItemInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerItemInfo",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes",
+   "note": "C_Container.GetContainerItemInfo returns a table."
+  },
+  "GetContainerNumSlots": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerNumSlots",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetContainerItemLink": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerItemLink",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetContainerNumFreeSlots": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerNumFreeSlots",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetContainerItemID": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerItemID",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetContainerItemCooldown": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerItemCooldown",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetContainerFreeSlots": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerFreeSlots",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "UseContainerItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.UseContainerItem",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "PickupContainerItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.PickupContainerItem",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "EasyMenu": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "MenuUtil.CreateContextMenu",
+   "removedIn": "11.0.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_11.0.0/API_changes"
+  },
+  "InterfaceOptions_AddCategory": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "Settings.RegisterCanvasLayoutCategory",
+   "removedIn": "11.0.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_11.0.0/API_changes",
+   "note": "Register the panel with Settings.RegisterCanvasLayoutCategory, then Settings.RegisterAddOnCategory."
+  },
+  "InterfaceOptionsFrame_OpenToCategory": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "Settings.OpenToCategory",
+   "removedIn": "11.0.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_11.0.0/API_changes"
+  },
+  "getglobal": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "_G[name]",
+   "deprecatedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "setglobal": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "_G[name] = value",
+   "deprecatedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  }
+ },
+ "methods": {
+  "SetBlipTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetCorpsePOIArrowTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetIconTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetPOIArrowTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetPlayerTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetStaticPOIArrowTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetPreventSecretValues": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "FrameScriptObject",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "SendCommMessage": {
+   "group": "lockdown",
+   "severity": "info",
+   "owner": "AceComm-3.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  }
+ },
+ "lockdown": {
+  "C_ChatInfo.SendAddonMessage": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "C_ChatInfo.SendAddonMessageLogged": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "C_ChatInfo.SendChatMessage": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "SendChatMessage": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "C_BattleNet.SendGameData": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "BNSendGameData": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  }
+ },
+ "events": {
+  "COMBAT_LOG_EVENT_UNFILTERED": {
+   "group": "combatlog",
+   "severity": "error",
+   "removedIn": "12.0.0",
+   "replacement": "",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "COMBAT_LOG_EVENT": {
+   "group": "combatlog",
+   "severity": "error",
+   "removedIn": "12.0.0",
+   "replacement": "",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  }
+ },
+ "eventReplacements": {
+  "LEARNED_SPELL_IN_TAB": "LEARNED_SPELL_IN_SKILL_LINE"
+ }
+}

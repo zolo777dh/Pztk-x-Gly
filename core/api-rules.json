@@ -1,0 +1,4154 @@
+{
+ "generatedAt": "2026-10-23",
+ "build": "12.1.5.70529",
+ "sources": [
+  "Blizzard UI source 12.1.5.70529 (Blizzard_APIDocumentationGenerated, Blizzard_Deprecated*)",
+  "History tags 10.0.2, 10.0.7, 10.1.0, 10.1.5, 10.1.7, 10.2.0, 10.2.5, 10.2.6, 10.2.7, 11.0.0, 11.0.2, 11.0.5, 11.0.7, 11.1.0, 11.1.5, 11.1.7, 11.2.0, 11.2.5, 11.2.7, 12.0.0, 12.0.1, 12.0.5, 12.0.7",
+  "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes",
+  "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes",
+  "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes",
+  "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes",
+  "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes",
+  "https://warcraft.wiki.gg/wiki/Secret_Values"
+ ],
+ "globals": {
+  "AcceptSockets": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.AcceptSockets",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "ActionBindsItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.ActionBindsItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "ActionButton_HideOverlayGlow": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "ActionButtonSpellAlertManager:HideAlert",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_1_7.lua until 11.2.7"
+  },
+  "ActionButton_ShowOverlayGlow": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "ActionButtonSpellAlertManager:ShowAlert",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_1_7.lua until 11.2.7"
+  },
+  "ActionHasRange": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.HasRangeRequirements",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ArenaEnemyDropDown_Initialize": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated_ArenaUI/Deprecated_ArenaUI.lua until 10.2.7"
+  },
+  "ArenaEnemyPetDropDown_Initialize": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated_ArenaUI/Deprecated_ArenaUI.lua until 10.2.7"
+  },
+  "BindEnchant": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.BindEnchant",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "Blizzard_CombatLog_BitToBraceCode": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "CombatLogUtil.GetRaidTargetBraceCode",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "BNGetFriendInviteInfo": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_BattleNet.GetFriendInviteInfo",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedBattleNet/Deprecated_BattleNet.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "BNInviteFriend": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_BattleNet.InviteFriend",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedBattleNet/Deprecated_BattleNet.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "BNSendGameData": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_BattleNet.SendGameData",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedBattleNet/Deprecated_BattleNet.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "BNSendVerifiedBattleTagInvite": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_BattleNet.SendVerifiedBattleNetFriendInvite",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedBattleNet/Deprecated_BattleNet.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "BNSendWhisper": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_BattleNet.SendWhisper",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedBattleNet/Deprecated_BattleNet.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "BNSetAFK": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_BattleNet.SetAFK",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "BNSetCustomMessage": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_BattleNet.SetCustomMessage",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedBattleNet/Deprecated_BattleNet.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "BNSetDND": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_BattleNet.SetDND",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "C_ActionBar.GetActionLossOfControlCooldown": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetActionLossOfControlCooldownInfo",
+   "deprecatedIn": "12.0.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_ChallengeMode.GetCompletionInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ChallengeMode.GetChallengeCompletionInfo",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_5.lua until 11.2.7"
+  },
+  "C_ClickBindings.GetStringFromModifiers": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "GetStringFromModifiers",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_7.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_ClickBindings.MakeModifiers": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "MakeModifiers",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_7.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_CombatAudioAlert.GetSpeakerVolume": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "C_CombatAudioAlert.SetSpeakerVolume": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "C_DurationUtil.GetCurrentTime": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "C_DyeColor.GetDyeColorForItem": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_DyeColor.GetDyeColorsForItem",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_1_0.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_DyeColor.GetDyeColorForItemLocation": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_DyeColor.GetDyeColorsForItemLocation",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_1_0.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_Housing.IsInsideOwnHouse": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Housing.IsInsideOwnedHouse",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_1_0.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_HousingCatalog.CanDestroyEntry": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "12.0.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_5.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_HousingCatalog.GetFeaturedDecor": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_HousingCatalog.GetFeaturedSmallProducts",
+   "deprecatedIn": "12.0.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_5.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_HousingLayout.GetNumFloors": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_HousingLayout.GetHighestOccupiedFloorIndex",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_1_0.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_HousingLayout.IsDraggingStairwell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "C_HousingPhotoSharing.BeginAuthorizationFlow": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.BeginAuthorizationFlow",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.ClearAuthorization": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.ClearAuthorization",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.CompleteAuthorizationFlow": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.CompleteAuthorizationFlow",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.GetCropRatio": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.GetCropRatio",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.GetPhotoSharingAuthURL": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.GetPhotoSharingAuthURL",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.IsAuthorized": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.IsAuthorized",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.IsEnabled": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.IsEnabled",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.SetScreenshotPreviewTexture": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.SetScreenshotPreviewTexture",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.TakePhoto": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.TakePhoto",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_HousingPhotoSharing.UploadPhotoToService": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PhotoSharing.UploadPhotoToService",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_LFGInfo.IsPremadeGroupEnabled": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_LFGList.IsPremadeGroupFinderEnabled",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedLFG/Deprecated_LFG.lua until 12.0.7"
+  },
+  "C_LFGList.GetSearchResultMemberInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_LFGList.GetSearchResultPlayerInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedLFG/Deprecated_LFG.lua until 12.0.7"
+  },
+  "C_Minimap.GetObjectIconTextureCoords": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "C_MythicPlus.IsWeeklyRewardAvailable": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_5.lua until 11.2.7"
+  },
+  "C_NamePlate.GetTargetClampingInsets": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "C_NamePlate.SetTargetClampingInsets": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "C_NamePlateManager.SetNamePlateHitTestFrame": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "C_Ping.GetContextualPingTypeForUnit": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "C_PvP.JoinRandomTrainingGround": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "C_QuestLog.IsLegendaryQuest": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_QuestInfoSystem.GetQuestClassification",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_7.lua until 11.2.7"
+  },
+  "C_QuestLog.IsQuestRepeatableType": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_QuestLog.IsWorldQuest",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_7.lua until 11.2.7"
+  },
+  "C_RecruitAFriend.IsEnabled": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "C_Scenario.GetScenarioIconInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "C_Spell.GetMawPowerBorderAtlasBySpellID": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.GetMawPowerRarityInfoBySpellID",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_7.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_Spell.GetSpellLossOfControlCooldown": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.GetSpellLossOfControlCooldownInfo",
+   "deprecatedIn": "12.0.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellScript/Deprecated_SpellScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_SpellBook.GetDeadlyDebuffInfo": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.GetDeadlyDebuffInfo",
+   "deprecatedIn": "11.0.0",
+   "source": "Shim in AddOns/Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_SpellBook.GetOverrideSpell": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.GetOverrideSpell",
+   "deprecatedIn": "11.0.0",
+   "source": "Shim in AddOns/Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_SpellBook.GetSpellBookItemLossOfControlCooldown": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpellBook.GetSpellBookItemLossOfControlCooldownInfo",
+   "deprecatedIn": "12.0.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_1.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_SpellBook.GetSpellInfo": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.GetSpellInfo",
+   "deprecatedIn": "11.0.0",
+   "source": "Shim in AddOns/Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_SpellBook.GetSpellLinkFromSpellID": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.GetSpellLink",
+   "deprecatedIn": "11.0.0",
+   "source": "Shim in AddOns/Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_SpellBook.IsSpellDisabled": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.IsSpellDisabled",
+   "deprecatedIn": "11.0.0",
+   "source": "Shim in AddOns/Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_SuperTrack.GetNextWaypointForMap": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Navigation.GetNextWaypointForMap",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_1_0.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_TaskQuest.GetQuestsForPlayerByMapID": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_TaskQuest.GetQuestsOnMap",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_5.lua until 11.2.7"
+  },
+  "C_TaskQuest.GetUIWidgetSetIDFromQuestID": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_6.lua until 11.0.0"
+  },
+  "C_TradeSkillUI.GetRecipeRepeatCount": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_TradeSkillUI.GetRemainingRecasts",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_0_0.lua until 11.0.0"
+  },
+  "C_UnitAuras.AddPrivateAuraAppliedSound": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_UnitAuras.AddAuraSound",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Shared/Deprecated_12_1_0.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_UnitAuras.RemovePrivateAuraAppliedSound": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_UnitAuras.RemoveAuraSound",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Shared/Deprecated_12_1_0.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "C_UnitAuras.TriggerPrivateAuraShowDispelType": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "CanAccessObject": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "frame:CanBeAccessedInContext()",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "CancelEmote": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ChatInfo.CancelEmote",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CancelItemTempEnchantment": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PaperDollInfo.CancelTemporaryEnchantment",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Shared/Deprecated_12_1_0.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CanSurrenderArena": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "ChangeActionBarPage": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.SetActionBarPage",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "Chat_AddSystemMessage": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.AddSystemMessage",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "Chat_GetChannelColor": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetChannelColor",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "Chat_GetChannelShortcutName": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetChannelShortcutName",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "Chat_GetChatCategory": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetChatCategory",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "Chat_GetChatFrame": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetChatFrame",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "Chat_GetColoredChatName": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetColoredChatName",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "Chat_GetCommunitiesChannel": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetCommunitiesChannel",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "Chat_GetCommunitiesChannelColor": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetCommunitiesChannelColor",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "Chat_GetCommunitiesChannelName": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetCommunitiesChannelName",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "Chat_ShouldColorChatByClass": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ShouldColorChatByClass",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_ActivateChat": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ActivateChat",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_AddHistory": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameEditBoxMixin.AddHistory",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_ChooseBoxForSend": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ChooseBoxForSend",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_ClearChat": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameEditBoxMixin.ClearChat",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_DeactivateChat": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DeactivateChat",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_DoesCurrentChannelTargetMatch": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameEditBoxMixin.DoesCurrentChannelTargetMatch",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_ExtractChannel": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_ExtractTellTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_FocusActiveWindow": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.FocusActiveWindow",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_GetActiveChatType": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetActiveChatType",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_GetActiveWindow": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetActiveWindow",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_GetChannelTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_GetLastActiveWindow": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetLastActiveWindow",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_GetLastTellTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetLastTellTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_GetLastToldTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetLastToldTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_GetNextTellTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetNextTellTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_HandleChatType": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_HasStickyFocus": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.HasStickyFocus",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_InsertLink": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.InsertLink",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_LinkItem": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.LinkItem",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_ParseText": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_ResetChatType": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameEditBoxMixin.ResetChatType",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_ResetChatTypeToSticky": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_SendText": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_SetDeactivated": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameEditBoxMixin.Deactivate",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_SetLastActiveWindow": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.SetLastActiveWindow",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_SetLastTellTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.SetLastTellTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_SetLastToldTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.SetLastToldTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_TryInsertChatLink": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.TryInsertChatLink",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_TryInsertQuestLinkForQuestID": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.TryInsertQuestLinkForQuestID",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatEdit_UpdateHeader": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameEditBoxMixin.UpdateHeader",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_AddCommunitiesChannel": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.AddCommunitiesChannel",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_AddMessage": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.AddMessage",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_AddMessageEventFilter": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.AddMessageEventFilter",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_AddMessageGroup": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.AddMessageGroup",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_AddPrivateMessageTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.AddPrivateMessageTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_AddSingleMessageType": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.AddSingleMessageType",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_CanAddChannel": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.CanAddChannel",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_CanChatGroupPerformExpressionExpansion": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.CanChatGroupPerformExpressionExpansion",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ChatPageDown": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ChatPageDown",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ChatPageUp": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ChatPageUp",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ClearChatFocusOverride": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ClearChatFocusOverride",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ContainsChannel": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.ContainsChannel",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ContainsMessageGroup": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.ContainsMessageGroup",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplayChatHelp": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplayChatHelp",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplayGameTime": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplayGameTime",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplayGMOTD": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplayGMOTD",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplayHelpText": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplayHelpText",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplayHelpTextSimple": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplayHelpTextSimple",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplayMacroHelpText": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplayMacroHelpText",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplaySystemMessage": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplaySystemMessage",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplaySystemMessageInCurrent": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplaySystemMessageInCurrent",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplaySystemMessageInPrimary": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplaySystemMessageInPrimary",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplayTimePlayed": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplayTimePlayed",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_DisplayUsageError": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.DisplayUsageError",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ExcludePrivateMessageTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.ExcludePrivateMessageTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_GetChatFocusOverride": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetChatFocusOverride",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_GetCommunitiesChannelLocalID": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetCommunitiesChannelLocalID",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_GetCommunityAndStreamFromChannel": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetCommunityAndStreamFromChannel",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_GetCommunityAndStreamName": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetCommunityAndStreamName",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_GetDefaultChatTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.GetDefaultChatTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_GetFullChannelInfo": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetFullChannelInfo",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_GetMobileEmbeddedTexture": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetMobileEmbeddedTexture",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_OpenChat": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.OpenChat",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ReceiveAllPrivateMessages": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.ReceiveAllPrivateMessages",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_RegisterForChannels": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.RegisterForChannels",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_RegisterForMessages": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.RegisterForMessages",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_RemoveAllChannels": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.RemoveAllChannels",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_RemoveAllMessageGroups": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.RemoveAllMessageGroups",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_RemoveChannel": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.RemoveChannel",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_RemoveCommunitiesChannel": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.RemoveCommunitiesChannel",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_RemoveExcludePrivateMessageTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.RemoveExcludePrivateMessageTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_RemoveMessageEventFilter": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.RemoveMessageEventFilter",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_RemoveMessageGroup": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.RemoveMessageGroup",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_RemovePrivateMessageTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.RemovePrivateMessageTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ReplyTell": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ReplyTell",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ReplyTell2": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ReplyTell2",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ResolveChannelName": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ResolveChannelName",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ResolvePrefixedChannelName": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ResolvePrefixedChannelName",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ScrollDown": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ScrollDown",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ScrollToBottom": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ScrollToBottom",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_ScrollUp": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.ScrollUp",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_SendTell": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.SendTell",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_SendTellWithMessage": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.SendTellWithMessage",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_SetChatFocusOverride": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.SetChatFocusOverride",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_TimeBreakDown": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.TimeBreakDown",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_TruncateToMaxLength": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.TruncateToMaxLength",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_UnregisterAllMessageGroups": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.UnregisterAllMessageGroups",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_UpdateChatFrames": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.UpdateChatFrames",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_UpdateColorByID": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.UpdateColorByID",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ChatFrame_UpdateDefaultChatTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameMixin.UpdateDefaultChatTarget",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ClickSocketButton": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.ClickSocketButton",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "ClosePetStables": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_StableInfo.ClosePetStables",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "CloseSocketInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.CloseSocketInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "CombatLog_Color_ColorArrayByEventType": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "CombatLogUtil.GetColorByEventType",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_Color_ColorArrayBySchool": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "CombatLogUtil.GetColorBySchool",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_Color_ColorArrayByUnitType": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "CombatLogUtil.GetColorByUnitType",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_Color_ColorStringByEventType": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_Color_ColorStringBySchool": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_Color_ColorStringByUnitType": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_Color_FloatToText": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_Color_HighlightColorArray": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "CombatLogUtil.HighlightColor",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_Object_IsA": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_CombatLog.DoesObjectMatchFilter",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_String_DamageResultString": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "CombatLogUtil.GenerateDamageResultString",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_String_GetIcon": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "CombatLogUtil.GetUnitIcon",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_String_PowerType": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "CombatLogUtil.GetPowerTypeString",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLog_String_SchoolString": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "CombatLogUtil.GetSpellSchoolString",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLogAddFilter": {
+   "group": "combatlog",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua points to C_CombatLog.AddEventFilter, which moved to the secure environment"
+  },
+  "CombatLogClearEntries": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_CombatLog.ClearEntries",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLogGetCurrentEntry": {
+   "group": "combatlog",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua points to C_CombatLog.GetCurrentEntryInfo, which moved to the secure environment"
+  },
+  "CombatLogGetCurrentEventInfo": {
+   "group": "combatlog",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua points to C_CombatLog.GetCurrentEventInfo, which moved to the secure environment"
+  },
+  "CombatLogGetNumEntries": {
+   "group": "combatlog",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua points to C_CombatLog.GetEntryCount, which moved to the secure environment"
+  },
+  "CombatLogGetRetentionTime": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_CombatLog.GetEntryRetentionTime",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLogResetFilter": {
+   "group": "combatlog",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua points to C_CombatLog.ClearEventFilters, which moved to the secure environment"
+  },
+  "CombatLogSetRetentionTime": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_CombatLog.SetEntryRetentionTime",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "CombatLogShowCurrentEntry": {
+   "group": "combatlog",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua points to C_CombatLog.ShouldShowCurrentEntry, which moved to the secure environment"
+  },
+  "CombatTextSetActiveUnit": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_CombatText.SetActiveUnit",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ConfirmBindOnUse": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.ConfirmBindOnUse",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "ConfirmNoRefundOnUse": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.ConfirmNoRefundOnUse",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "ConfirmOnUse": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.ConfirmOnUse",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "ConfirmReadyCheck": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PartyInfo.ConfirmReadyCheck",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedPartyInfo/Deprecated_PartyInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ConsolePrint": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Log.LogMessage",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_1_5.lua until 11.2.7"
+  },
+  "CursorCanGoInSlot": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PaperDollInfo.CanCursorCanGoInSlot",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_0_0.lua until 11.0.0"
+  },
+  "DeathRecap_GetEvents": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_DeathRecap.GetRecapEvents",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "DeathRecap_HasEvents": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_DeathRecap.HasRecapEvents",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "DemoteAssistant": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PartyInfo.DemoteAssistant",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedPartyInfo/Deprecated_PartyInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "DisableAddOn": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.DisableAddOn",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "DisableAllAddOns": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.DisableAllAddOns",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "DisableSpellAutocast": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.SetSpellAutoCastEnabled",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "DoEmote": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ChatInfo.PerformEmote",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "DoesItemContainSpec": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.DoesItemContainSpec",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "DoesSpellExist": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.DoesSpellExist",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "DoReadyCheck": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PartyInfo.DoReadyCheck",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedPartyInfo/Deprecated_PartyInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "DropItemOnUnit": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.DropItemOnUnit",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "EasyMenu": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "MenuUtil.CreateContextMenu",
+   "removedIn": "11.0.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_11.0.0/API_changes"
+  },
+  "EnableAddOn": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.EnableAddOn",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "EnableAllAddOns": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.EnableAllAddOns",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "EnableSpellAutocast": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.SetSpellAutoCastEnabled",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "EndBoundTradeable": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.EndBoundTradeable",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "EndRefund": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.EndRefund",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "EquipItemByName": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.EquipItemByName",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "EquipmentManager_UnpackLocation": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "EquipmentManager_GetLocationData",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_2_0.lua until 11.2.7"
+  },
+  "FillLocalizedClassList": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_5.lua until 11.0.0"
+  },
+  "FindBaseSpellByID": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpellBook.FindBaseSpellByID",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellBook/Deprecated_SpellBook.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "FindFlyoutSlotBySpellID": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpellBook.FindFlyoutSlotBySpellID",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellBook/Deprecated_SpellBook.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "FindSpellOverrideByID": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpellBook.FindSpellOverrideByID",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellBook/Deprecated_SpellBook.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "FrameXML_Debug": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_6.lua until 11.0.0"
+  },
+  "GetActionAutocast": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetActionAutocast",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetActionBarPage": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetActionBarPage",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetActionCharges": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetActionCharges",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetActionCooldown": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetActionCooldown",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetActionCount": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetActionUseCount",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetActionLossOfControlCooldown": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetActionText": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetActionText",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetActionTexture": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetActionTexture",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetActiveSpecGroup": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpecializationInfo.GetActiveSpecGroup",
+   "deprecatedIn": "11.2.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpecialization/Deprecated_Specialization_Standard.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetAddOnDependencies": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.GetAddOnDependencies",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "GetAddOnEnableState": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "GetAddOnInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.GetAddOnInfo",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "GetAddOnMetadata": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.GetAddOnMetadata",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_1_0.lua until 11.0.0"
+  },
+  "GetAddOnOptionalDependencies": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.GetAddOnOptionalDependencies",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "GetAutoCompletePresenceID": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_AutoComplete.GetAutoCompletePresenceID",
+   "deprecatedIn": "12.0.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedAutoComplete/Deprecated_AutoComplete.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetAutoCompleteRealms": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_AutoComplete.GetAutoCompleteRealms",
+   "deprecatedIn": "12.0.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedAutoComplete/Deprecated_AutoComplete.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetAutoCompleteResults": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_AutoComplete.GetAutoCompleteResults",
+   "deprecatedIn": "12.0.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedAutoComplete/Deprecated_AutoComplete.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetBackgroundTexCoordsForRole": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "GetTexCoordsByGrid",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_1_5.lua until 11.0.0"
+  },
+  "GetBattlefieldScore": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PvP.GetScoreInfo",
+   "deprecatedIn": "12.0.1",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_1.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetBattlefieldStatData": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PvP.GetScoreInfo",
+   "deprecatedIn": "12.0.1",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_1.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetBonusBarIndex": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetBonusBarIndex",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetBonusBarOffset": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetBonusBarOffset",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetChatTimestampFormat": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.GetTimestampFormat",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetClassIDFromSpecID": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_SpecializationInfo.GetClassIDFromSpecID",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_1_5.lua until 11.0.0"
+  },
+  "GetCoinIcon": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_CurrencyInfo.GetCoinIcon",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedCurrencyScript/Deprecated_CurrencyScript.lua until 12.0.7"
+  },
+  "GetCoinText": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_CurrencyInfo.GetCoinText",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedCurrencyScript/Deprecated_CurrencyScript.lua until 12.0.7"
+  },
+  "GetCoinTextureString": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_CurrencyInfo.GetCoinTextureString",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedCurrencyScript/Deprecated_CurrencyScript.lua until 12.0.7"
+  },
+  "GetContainerFreeSlots": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerFreeSlots",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetContainerItemCooldown": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerItemCooldown",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetContainerItemID": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerItemID",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetContainerItemInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerItemInfo",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes",
+   "note": "C_Container.GetContainerItemInfo returns a table."
+  },
+  "GetContainerItemLink": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerItemLink",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetContainerNumFreeSlots": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerNumFreeSlots",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetContainerNumSlots": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.GetContainerNumSlots",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "GetCurrentCombatTextEventInfo": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_CombatText.GetCurrentEventInfo",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetCVarInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_CVar.GetCVarInfo",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "GetDeathRecapLink": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_DeathRecap.GetRecapLink",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedCombatLog/Deprecated_CombatLog.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetDetailedItemLevelInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetDetailedItemLevelInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetExistingSocketInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.GetExistingSocketInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "GetExistingSocketLink": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.GetExistingSocketLink",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "GetExtraBarIndex": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetExtraBarIndex",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "getglobal": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "_G[name]",
+   "deprecatedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "GetGuildInfoText": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.GetInfoText",
+   "deprecatedIn": "12.0.1",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetGuildRosterMOTD": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.GetMOTD",
+   "deprecatedIn": "12.0.1",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetInspectSpecialization": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpecializationInfo.GetInspectSpecialization",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Shared/Deprecated_12_1_0.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetInventorySlotInfo": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PaperDollInfo.GetInventorySlotInfo",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Deprecated_PaperDoll/Deprecated_PaperDoll.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetItemChildInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemChildInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemClassInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemClassInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemCooldown": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemCooldown",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemCount": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemCount",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemCreationContext": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemCreationContext",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemFamily": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemFamily",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemGem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemGem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemIcon": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemIconByID",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemInfoInstant": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemInfoInstant",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemInventorySlotInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemInventorySlotInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemQualityColor": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemQualityColor",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemSetInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemSetInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemSpecInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemSpecInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemSpell",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemStatDelta": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemStatDelta",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_5.lua until 11.0.0"
+  },
+  "GetItemStats": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemStats",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_5.lua until 11.0.0"
+  },
+  "GetItemSubClassInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemSubClassInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetItemUniqueness": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetItemUniqueness",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "GetMawPowerLinkBySpellID": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetMawPowerLinkBySpellID",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_6.lua until 11.0.0"
+  },
+  "GetMaxCombatRatingBonus": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.5",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes"
+  },
+  "GetMaxSpellStartRecoveryOffset": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.GetSpellQueueWindow",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellScript/Deprecated_SpellScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetMerchantCurrencies": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_MerchantFrame.GetMerchantCurrencies",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_7.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetMerchantItemInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_MerchantFrame.GetItemInfo",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_5.lua until 11.2.7"
+  },
+  "GetMouseFocus": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "GetMouseFoci",
+   "removedIn": "11.0.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_11.0.0/API_changes",
+   "note": "GetMouseFoci returns a table of frames; use the first entry."
+  },
+  "GetMultiCastBarIndex": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetMultiCastBarIndex",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetNewSocketInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.GetNewSocketInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "GetNewSocketLink": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.GetNewSocketLink",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "GetNumAddOns": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.GetNumAddOns",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "GetNumSockets": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.GetNumSockets",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "GetNumSpecializationsForClassID": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpecializationInfo.GetNumSpecializationsForClassID",
+   "deprecatedIn": "11.0.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpecialization/Deprecated_Specialization_Standard.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetNumSpellTabs": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_SpellBook.GetNumSpellBookSkillLines",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_0.lua until 11.0.0"
+  },
+  "GetOverrideBarIndex": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetOverrideBarIndex",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetOverrideBarSkin": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetOverrideBarSkin",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetPetTalentTree": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PetInfo.GetPetTalentTree",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedPetInfo/Deprecated_PetInfo.lua until 12.0.7"
+  },
+  "GetRegisteredAddonMessagePrefixes": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ChatInfo.GetRegisteredAddonMessagePrefixes",
+   "removedIn": "8.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_8.0.1/API_changes"
+  },
+  "GetSchoolString": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.GetSchoolString",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellScript/Deprecated_SpellScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetSetBonusesForSpecializationByItemID": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.GetSetBonusesForSpecializationByItemID",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_5.lua until 11.0.0"
+  },
+  "GetSocketItemBoundTradeable": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.GetSocketItemBoundTradeable",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "GetSocketItemInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.GetSocketItemInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "GetSocketItemRefundable": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.GetSocketItemRefundable",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "GetSocketTypes": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.GetSocketTypes",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "GetSpecialization": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpecializationInfo.GetSpecialization",
+   "deprecatedIn": "11.2.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpecialization/Deprecated_Specialization_Standard.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetSpecializationInfo": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpecializationInfo.GetSpecializationInfo",
+   "deprecatedIn": "11.2.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpecialization/Deprecated_Specialization_Standard.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetSpecializationMasterySpells": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpecializationInfo.GetSpecializationMasterySpells",
+   "deprecatedIn": "11.2.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpecialization/Deprecated_Specialization_Standard.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetSpellAutocast": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellAutoCast",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetSpellAvailableLevel": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellLevelLearned",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetSpellBookItemInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_SpellBook.GetSpellBookItemType",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetSpellBookItemName": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_SpellBook.GetSpellBookItemName",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_0.lua until 11.0.0"
+  },
+  "GetSpellBookItemTexture": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_SpellBook.GetSpellBookItemTexture",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetSpellCharges": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellCharges",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_0.lua until 11.0.0"
+  },
+  "GetSpellCooldown": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellCooldown",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_0.lua until 11.0.0"
+  },
+  "GetSpellCount": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellCastCount",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_0.lua until 11.0.0"
+  },
+  "GetSpellDescription": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellDescription",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_0.lua until 11.0.0"
+  },
+  "GetSpellInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellInfo",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_0.lua until 11.0.0"
+  },
+  "GetSpellLevelLearned": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellLevelLearned",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetSpellLink": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellLink",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetSpellLossOfControlCooldown": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetSpellPowerCost": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellPowerCost",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetSpellQueueWindow": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.GetSpellQueueWindow",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellScript/Deprecated_SpellScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetSpellRank": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellSkillLineAbilityRank",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetSpellSubtext": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellSubtext",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetSpellTabInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_SpellBook.GetSpellBookSkillLineInfo",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_0.lua until 11.0.0"
+  },
+  "GetSpellTexture": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellTexture",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_0.lua until 11.0.0"
+  },
+  "GetSpellTradeSkillLink": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.GetSpellTradeSkillLink",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "GetStablePetFoodTypes": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_StableInfo.GetStablePetFoodTypes",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "GetStablePetInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_StableInfo.GetStablePetInfo",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "GetTalentInfo": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpecializationInfo.GetTalentInfo",
+   "deprecatedIn": "11.2.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpecialization/Deprecated_Specialization_Standard.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetTempShapeshiftBarIndex": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetTempShapeshiftBarIndex",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetTexCoordsForRole": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "GetTexCoordsByGrid",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_1_5.lua until 11.0.0"
+  },
+  "GetTexCoordsForRoleSmall": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_1_5.lua until 11.0.0"
+  },
+  "GetTexCoordsForRoleSmallCircle": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_1_5.lua until 11.0.0"
+  },
+  "GetTimeToWellRested": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_5.lua until 11.0.0"
+  },
+  "GetVehicleBarIndex": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.GetVehicleBarIndex",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetWeaponEnchantInfo": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PaperDollInfo.GetTemporaryEnchantmentInfo",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Shared/Deprecated_12_1_0.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GetZonePVPInfo": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PvP.GetZonePVPInfo",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedPvpScript/Deprecated_PvpScript.lua until 12.0.7"
+  },
+  "GuildDemote": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.Demote",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GuildDisband": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.Disband",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GuildInvite": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.Invite",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GuildLeave": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.Leave",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GuildPromote": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.Promote",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GuildRosterSetOfficerNote": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_GuildInfo.SetNote",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes",
+   "note": "Check the replacement's arguments; they changed."
+  },
+  "GuildRosterSetPublicNote": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_GuildInfo.SetNote",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes",
+   "note": "Check the replacement's arguments; they changed."
+  },
+  "GuildSetLeader": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.SetLeader",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GuildSetMOTD": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.SetMOTD",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "GuildUninvite": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.Uninvite",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "HasAction": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.HasAction",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "HasBonusActionBar": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.HasBonusActionBar",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "HasBoundGemProposed": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.HasBoundGemProposed",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemSocketInfo/Deprecated_ItemSocketInfo.lua until 12.0.7"
+  },
+  "HasExtraActionBar": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.HasExtraActionBar",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "HasOverrideActionBar": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.HasOverrideActionBar",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "HasPetSpells": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_SpellBook.HasPetSpells",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "HasTempShapeshiftActionBar": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.HasTempShapeshiftActionBar",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "HasVehicleActionBar": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.HasVehicleActionBar",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "HideTextStatusBarText": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "InterfaceOptions_AddCategory": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "Settings.RegisterCanvasLayoutCategory",
+   "removedIn": "11.0.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_11.0.0/API_changes",
+   "note": "Register the panel with Settings.RegisterCanvasLayoutCategory, then Settings.RegisterAddOnCategory."
+  },
+  "InterfaceOptionsFrame_OpenToCategory": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "Settings.OpenToCategory",
+   "removedIn": "11.0.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_11.0.0/API_changes"
+  },
+  "IsActionInRange": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.IsActionInRange",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsActiveQuestLegendary": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_7.lua until 11.2.7"
+  },
+  "IsAddOnLoaded": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.IsAddOnLoaded",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "IsAddOnLoadOnDemand": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.IsAddOnLoadOnDemand",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "IsAddonMessagePrefixRegistered": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ChatInfo.IsAddonMessagePrefixRegistered",
+   "removedIn": "8.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_8.0.1/API_changes"
+  },
+  "IsAddonVersionCheckEnabled": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.IsAddonVersionCheckEnabled",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "IsArtifactPowerItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsArtifactPowerItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsArtifactRelicItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ItemSocketInfo.IsArtifactRelicItem",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_2_5.lua until 11.2.7"
+  },
+  "IsAtStableMaster": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_StableInfo.IsAtStableMaster",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "IsAttackAction": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.IsAttackAction",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsAttackSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsAutoAttackSpell",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "IsAutoRepeatAction": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.IsAutoRepeatAction",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsAutoRepeatSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsAutoRepeatSpell",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "IsConsumableAction": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.IsConsumableAction",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsConsumableItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsConsumableItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsCorruptedItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsCorruptedItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsCosmeticItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsCosmeticItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsCurrentAction": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.IsCurrentAction",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsCurrentItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsCurrentItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsCurrentSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsCurrentSpell",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "IsDressableItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsEncounterInProgress": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_InstanceEncounter.IsEncounterInProgress",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedInstanceEncounter/Deprecated_InstanceEncounter.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsEncounterLimitingResurrections": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_InstanceEncounter.IsEncounterLimitingResurrections",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedInstanceEncounter/Deprecated_InstanceEncounter.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsEncounterSuppressingRelease": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_InstanceEncounter.IsEncounterSuppressingRelease",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedInstanceEncounter/Deprecated_InstanceEncounter.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsEquippableItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsEquippableItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsEquippedAction": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.IsEquippedAction",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsEquippedItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsEquippedItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsEquippedItemType": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsEquippedItemType",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsGUIDInGroup": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PartyInfo.IsGUIDInGroup",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedPartyInfo/Deprecated_PartyInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsHarmfulItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsHarmfulItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsHarmfulSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsSpellHarmful",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "IsHelpfulItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsHelpfulItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsHelpfulSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsSpellHelpful",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "IsItemAction": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.IsItemAction",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsItemInRange": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsItemInRange",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsPassiveSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsSpellPassive",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "IsPlayerSpell": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpellBook.IsSpellKnown",
+   "deprecatedIn": "11.2.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellBook/Deprecated_SpellBook.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsPossessBarVisible": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.IsPossessBarVisible",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsPressHoldReleaseSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsPressHoldReleaseSpell",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "IsPvpTalentSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsPvPTalentSpell",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "IsRecognizedName": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_AutoComplete.IsRecognizedName",
+   "deprecatedIn": "12.0.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedAutoComplete/Deprecated_AutoComplete.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsSpellInRange": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsSpellInRange",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "IsSpellKnown": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpellBook.IsSpellInSpellBook",
+   "deprecatedIn": "11.2.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellBook/Deprecated_SpellBook.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsSpellKnownOrOverridesKnown": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_SpellBook.IsSpellInSpellBook",
+   "deprecatedIn": "11.2.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellBook/Deprecated_SpellBook.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsSpellOverlayed": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_SpellActivationOverlay.IsSpellOverlayed",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_2_0.lua until 11.2.7"
+  },
+  "IsStackableAction": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.IsStackableAction",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsSubZonePVPPOI": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PvP.IsSubZonePVPPOI",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedPvpScript/Deprecated_PvpScript.lua until 12.0.7"
+  },
+  "IsTalentSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsClassTalentSpell",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "IsUsableAction": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.IsUsableAction",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "IsUsableItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.IsUsableItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "IsUsableSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.IsSpellUsable",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_0.lua until 11.0.0"
+  },
+  "ItemHasRange": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.ItemHasRange",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "LoadAddOn": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.LoadAddOn",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "MenuUtil.HideTooltip": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "MenuUtil.HideTooltipEx",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_7.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "MenuUtil.ShowTooltip": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "MenuUtil.ShowTooltipEx",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_7.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "MouseIsOver": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "InputUtil.IsMouseOver",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "OptionsListButton_OnClick": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "10.0.2",
+   "source": "Shim in AddOns/Blizzard_FrameXML/DeprecatedTemplates.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "OptionsListButton_OnEnter": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "IsTruncated",
+   "deprecatedIn": "10.0.2",
+   "source": "Shim in AddOns/Blizzard_FrameXML/DeprecatedTemplates.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "OptionsListButton_OnLeave": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "Hide",
+   "deprecatedIn": "10.0.2",
+   "source": "Shim in AddOns/Blizzard_FrameXML/DeprecatedTemplates.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "OptionsListButton_OnLoad": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "GetHighlightTexture",
+   "deprecatedIn": "10.0.2",
+   "source": "Shim in AddOns/Blizzard_FrameXML/DeprecatedTemplates.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "OptionsListButtonToggle_OnClick": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "GetParent",
+   "deprecatedIn": "10.0.2",
+   "source": "Shim in AddOns/Blizzard_FrameXML/DeprecatedTemplates.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "PetAbandon": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PetInfo.PetAbandon",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "PetAssistMode": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PetInfo.PetAssistMode",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedPetInfo/Deprecated_PetInfo.lua until 12.0.7"
+  },
+  "PetCanBeRenamed": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "PetRename": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PetInfo.PetRename",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "PickupContainerItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.PickupContainerItem",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "PickupItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.PickupItem",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "PickupSpell": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.PickupSpell",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "PickupSpellBookItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_SpellBook.PickupSpellBookItem",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "PickupStablePet": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_StableInfo.PickupStablePet",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "PickupTradeMoney": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_TradeInfo.PickupTradeMoney",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedTradeInfo/Deprecated_TradeInfo.lua until 12.0.7"
+  },
+  "PlayVocalErrorSoundID": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Sound.PlayVocalErrorSound",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedSoundScript/Deprecated_SoundScript.lua until 12.0.7"
+  },
+  "PromoteToAssistant": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PartyInfo.PromoteToAssistant",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedPartyInfo/Deprecated_PartyInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "PromoteToLeader": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PartyInfo.PromoteToLeader",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedPartyInfo/Deprecated_PartyInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "QuestUtil.IsFrequencyRecurring": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_7.lua until 11.2.7"
+  },
+  "QuestUtil.ShouldQuestIconsUseCampaignAppearance": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_QuestInfoSystem.GetQuestClassification",
+   "removedIn": "12.0.0",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_11_0_7.lua until 11.2.7"
+  },
+  "RaidNotice_AddMessage": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "RaidWarningUtil.AddMessage",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedRaidWarning/Deprecated_RaidWarning.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "RaidNotice_Clear": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedRaidWarning/Deprecated_RaidWarning.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "RaidNotice_FadeInit": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "FadingFrame_OnLoad",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedRaidWarning/Deprecated_RaidWarning.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "RaidNotice_UpdateSlot": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "FadingFrame_SetTextScaling",
+   "deprecatedIn": "12.1.5",
+   "source": "Shim in AddOns/Blizzard_DeprecatedRaidWarning/Deprecated_RaidWarning.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "RegisterAddonMessagePrefix": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ChatInfo.RegisterAddonMessagePrefix",
+   "removedIn": "8.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_8.0.1/API_changes"
+  },
+  "ReplaceEnchant": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.ReplaceEnchant",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "ReplaceTradeEnchant": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.ReplaceTradeEnchant",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "ReplaceTradeskillEnchant": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.ReplaceTradeskillEnchant",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  },
+  "ResetAddOns": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.ResetAddOns",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "ResetDisabledAddOns": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.ResetDisabledAddOns",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "SaveAddOns": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.SaveAddOns",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "SendAddonMessage": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_ChatInfo.SendAddonMessage",
+   "removedIn": "8.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_8.0.1/API_changes"
+  },
+  "SendChatMessage": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ChatInfo.SendChatMessage",
+   "deprecatedIn": "11.2.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "SetActionUIButton": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_ActionBar.RegisterActionUIButton",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedActionBar/Deprecated_ActionBar.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "SetAddonVersionCheck": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_AddOns.SetAddonVersionCheck",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "SetEveryoneIsAssistant": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PartyInfo.SetEveryoneIsAssistant",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedPartyInfo/Deprecated_PartyInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "setglobal": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "_G[name] = value",
+   "deprecatedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "SetGuildInfoText": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_GuildInfo.SetInfoText",
+   "deprecatedIn": "12.0.1",
+   "source": "Shim in AddOns/Blizzard_DeprecatedGuildScript/Deprecated_GuildScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "SetPetSlot": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_StableInfo.SetPetSlot",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "SetPortraitToTexture": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_0.lua until 11.0.0"
+  },
+  "SetPVP": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PvP.SetPVP",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedPvpScript/Deprecated_PvpScript.lua until 12.0.7"
+  },
+  "SetTableSecurityOption": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "SetTextStatusBarText": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "SetTextStatusBarTextPrefix": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "SetTextStatusBarTextZeroText": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "ShowBossFrameWhenUninteractable": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "UnitIsVisible",
+   "deprecatedIn": "11.2.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedUnitScript/Deprecated_UnitScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "ShowTextStatusBarText": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "SpellGetVisibilityInfo": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.GetVisibilityInfo",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellScript/Deprecated_SpellScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "SpellHasRange": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.SpellHasRange",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "SpellIsPriorityAura": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.IsPriorityAura",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellScript/Deprecated_SpellScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "SpellIsSelfBuff": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.IsSelfBuff",
+   "deprecatedIn": "12.0.0",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellScript/Deprecated_SpellScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "SubstituteChatMessageBeforeSend": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "ChatFrameUtil.SubstituteChatMessageBeforeSend",
+   "deprecatedIn": "11.2.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedChatInfo/Deprecated_ChatFrame.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "TargetSpellReplacesBonusTree": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_Spell.TargetSpellReplacesBonusTree",
+   "deprecatedIn": "10.2.6",
+   "source": "Shim in AddOns/Blizzard_DeprecatedSpellScript/Deprecated_SpellScript.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "TextStatusBar_Initialize": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "TextStatusBar_OnEvent": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "TextStatusBar_OnMinMaxChanged": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "TextStatusBar_OnValueChanged": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "TextStatusBar_UpdateTextString": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "TextStatusBar_UpdateTextStringWithValues": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_7.lua until 11.0.0"
+  },
+  "TogglePVP": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_PvP.TogglePVP",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedPvpScript/Deprecated_PvpScript.lua until 12.0.7"
+  },
+  "ToggleSpellAutocast": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Spell.ToggleSpellAutoCast",
+   "removedIn": "11.0.0",
+   "source": "Blizzard_Deprecated/11_0_0_SpellBookAPITransitionGuide.lua"
+  },
+  "UIParentLoadAddOn": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "LoadAddOnWithErrorHandling",
+   "removedIn": "12.1.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.1.0/API_changes"
+  },
+  "UninviteUnit": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "C_PartyInfo.UninviteUnit",
+   "deprecatedIn": "12.0.7",
+   "source": "Shim in AddOns/Blizzard_DeprecatedPartyInfo/Deprecated_PartyInfo.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "UnitAura": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_UnitAuras.GetAuraDataByIndex",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_5.lua until 11.0.0"
+  },
+  "UnitAuraBySlot": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_UnitAuras.GetAuraDataBySlot",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_5.lua until 11.0.0"
+  },
+  "UnitAuraSlots": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_UnitAuras.GetAuraSlots",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_5.lua until 11.0.0"
+  },
+  "UnitBuff": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_UnitAuras.GetBuffDataByIndex",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_5.lua until 11.0.0"
+  },
+  "UnitDebuff": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_UnitAuras.GetDebuffDataByIndex",
+   "removedIn": "11.0.2",
+   "source": "Shim in Interface/AddOns/Blizzard_Deprecated/Deprecated_10_2_5.lua until 11.0.0"
+  },
+  "UnitIsSpellTarget": {
+   "group": "deprecated",
+   "severity": "warning",
+   "replacement": "PlayerIsSpellTarget",
+   "deprecatedIn": "12.0.1",
+   "source": "Shim in AddOns/Blizzard_Deprecated/Mainline/Deprecated_12_0_1.lua (loads only while loadDeprecationFallbacks is on)"
+  },
+  "UseContainerItem": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Container.UseContainerItem",
+   "removedIn": "10.0.2",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_10.0.2/API_changes"
+  },
+  "UseItemByName": {
+   "group": "removed",
+   "severity": "error",
+   "replacement": "C_Item.UseItemByName",
+   "removedIn": "12.1",
+   "source": "Shim in Interface/AddOns/Blizzard_DeprecatedItemScript/Deprecated_ItemScript.lua until 12.0.7"
+  }
+ },
+ "events": {
+  "AUCTION_HOUSE_PURCHASE_DELIVERY_DELAY_UPDATE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.1.5",
+   "replacement": ""
+  },
+  "BATTLETAG_INVITE_SHOW": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "12.1",
+   "replacement": ""
+  },
+  "CATALOG_SHOP_PMT_IMAGE_DOWNLOADED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "12.0.5",
+   "replacement": ""
+  },
+  "CHAT_MSG_ENCOUNTER_EVENT": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "12.0.1",
+   "replacement": ""
+  },
+  "COLLECTABLE_ENTRY_UPDATE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.1.5",
+   "replacement": ""
+  },
+  "COMBAT_LOG_EVENT": {
+   "group": "combatlog",
+   "severity": "error",
+   "removedIn": "12.0.0",
+   "replacement": "",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "COMBAT_LOG_EVENT_UNFILTERED": {
+   "group": "combatlog",
+   "severity": "error",
+   "removedIn": "12.0.0",
+   "replacement": "",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "EXECUTE_CHAT_LINE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.2.0",
+   "replacement": ""
+  },
+  "GAME_ENVIRONMENT_SWITCHED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.1.5",
+   "replacement": ""
+  },
+  "GLUE_CONSOLE_LOG": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.1.0",
+   "replacement": ""
+  },
+  "HOUSING_CATALOG_SEARCHER_RELEASED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "12.0.0",
+   "replacement": ""
+  },
+  "HOUSING_DECOR_NUDGE_STATUS_CHANGED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "12.0.0",
+   "replacement": ""
+  },
+  "HOUSING_LAYOUT_NUM_FLOORS_CHANGED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "12.1",
+   "replacement": ""
+  },
+  "KNOWLEDGE_BASE_ARTICLE_LOAD_FAILURE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "KNOWLEDGE_BASE_ARTICLE_LOAD_SUCCESS": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "KNOWLEDGE_BASE_QUERY_LOAD_FAILURE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "KNOWLEDGE_BASE_QUERY_LOAD_SUCCESS": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "KNOWLEDGE_BASE_SERVER_MESSAGE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "KNOWLEDGE_BASE_SETUP_LOAD_FAILURE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "KNOWLEDGE_BASE_SETUP_LOAD_SUCCESS": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "KNOWLEDGE_BASE_SYSTEM_MOTD_UPDATED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "LEARNED_SPELL_IN_TAB": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "12.0.0",
+   "replacement": "LEARNED_SPELL_IN_SKILL_LINE"
+  },
+  "LOOT_HISTORY_AUTO_SHOW": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.1.0",
+   "replacement": ""
+  },
+  "LOOT_HISTORY_FULL_UPDATE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.1.0",
+   "replacement": ""
+  },
+  "LOOT_HISTORY_ROLL_CHANGED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.1.0",
+   "replacement": ""
+  },
+  "LOOT_HISTORY_ROLL_COMPLETE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.1.0",
+   "replacement": ""
+  },
+  "MAJOR_FACTION_RENOWN_CATCH_UP_STATE_UPDATE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.0",
+   "replacement": ""
+  },
+  "PET_STABLE_UPDATE_PAPERDOLL": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.2.7",
+   "replacement": ""
+  },
+  "PLAYERBANKBAGSLOTS_CHANGED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.2.0",
+   "replacement": ""
+  },
+  "PLAYERREAGENTBANKSLOTS_CHANGED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.2.0",
+   "replacement": ""
+  },
+  "PVP_ROLE_POPUP_JOINED_MATCH": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.1.0",
+   "replacement": ""
+  },
+  "REAGENTBANK_PURCHASED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.2.0",
+   "replacement": ""
+  },
+  "REAGENTBANK_UPDATE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.2.0",
+   "replacement": ""
+  },
+  "RESEARCH_ARTIFACT_HISTORY_READY": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.1.5",
+   "replacement": ""
+  },
+  "RETURNING_PLAYER_PROMPT": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "12.0.0",
+   "replacement": ""
+  },
+  "SCRAPPING_MACHINE_ITEM_REMOVED_OR_CANCELLED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.2.7",
+   "replacement": ""
+  },
+  "SHOW_DELVES_DISPLAY_UI": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "12.0.0",
+   "replacement": ""
+  },
+  "SOCIAL_ITEM_RECEIVED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "TWITTER_LINK_RESULT": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "TWITTER_POST_RESULT": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "TWITTER_STATUS_UPDATE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.5",
+   "replacement": ""
+  },
+  "UPDATE_TRADESKILL_CAST_COMPLETE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.1.7",
+   "replacement": ""
+  },
+  "UPDATE_TRADESKILL_RECAST": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.1.7",
+   "replacement": ""
+  },
+  "VOID_DEPOSIT_WARNING": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.2.0",
+   "replacement": ""
+  },
+  "VOID_STORAGE_CONTENTS_UPDATE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.2.0",
+   "replacement": ""
+  },
+  "VOID_STORAGE_DEPOSIT_UPDATE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.2.0",
+   "replacement": ""
+  },
+  "VOID_STORAGE_UPDATE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.2.0",
+   "replacement": ""
+  },
+  "VOID_TRANSFER_DONE": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.2.0",
+   "replacement": ""
+  },
+  "VOID_TRANSFER_SUCCESS": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.2.0",
+   "replacement": ""
+  },
+  "WEAR_EQUIPMENT_SET": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "10.0.7",
+   "replacement": ""
+  },
+  "WORLD_LOOT_OBJECT_SWAP_INVENTORY_TYPE_UPDATED": {
+   "group": "event",
+   "severity": "error",
+   "removedIn": "11.0.7",
+   "replacement": ""
+  }
+ },
+ "methods": {
+  "SetBlipTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetCorpsePOIArrowTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetIconTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetPOIArrowTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetPlayerTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetStaticPOIArrowTexture": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "Minimap",
+   "removedIn": "12.0.7",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.7/API_changes"
+  },
+  "SetPreventSecretValues": {
+   "group": "method",
+   "severity": "warning",
+   "owner": "FrameScriptObject",
+   "removedIn": "12.0.1",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.1/API_changes"
+  },
+  "SendCommMessage": {
+   "group": "lockdown",
+   "severity": "info",
+   "owner": "AceComm-3.0",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  }
+ },
+ "secret": {
+  "C_ActionBar.GetActionCharges": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_ActionBar.GetActionCooldown": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_ActionBar.GetActionDisplayCount": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_ActionBar.GetActionLossOfControlCooldownInfo": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_ActionBar.GetActionUseCount": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_CombatText.GetCurrentEventInfo": [
+   "SecretReturns"
+  ],
+  "C_DamageMeter.GetCombatSessionFromID": [
+   "SecretWhenInCombat"
+  ],
+  "C_DamageMeter.GetCombatSessionFromType": [
+   "SecretWhenInCombat"
+  ],
+  "C_DamageMeter.GetCombatSessionSourceFromID": [
+   "SecretWhenInCombat"
+  ],
+  "C_DamageMeter.GetCombatSessionSourceFromType": [
+   "SecretWhenInCombat"
+  ],
+  "C_PvP.GetArenaOpponentSpec": [
+   "SecretReturns"
+  ],
+  "C_Spell.GetLastCategoryCooldownSource": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_Spell.GetSpellCastCount": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_Spell.GetSpellCharges": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_Spell.GetSpellCooldown": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_Spell.GetSpellDisplayCount": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_Spell.GetSpellLossOfControlCooldownInfo": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_Spell.GetSpellMaxCumulativeAuraApplications": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_SpellBook.GetSpellBookItemCastCount": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_SpellBook.GetSpellBookItemCharges": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_SpellBook.GetSpellBookItemCooldown": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_SpellBook.GetSpellBookItemLossOfControlCooldownInfo": [
+   "SecretWhenCooldownsRestricted"
+  ],
+  "C_SpellDiminish.ShouldTrackSpellDiminishCategory": [
+   "SecretReturns"
+  ],
+  "C_TooltipInfo.GetUnitAura": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_TooltipInfo.GetUnitAuraByAuraInstanceID": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_TooltipInfo.GetUnitBuff": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_TooltipInfo.GetUnitBuffByAuraInstanceID": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_TooltipInfo.GetUnitDebuff": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_TooltipInfo.GetUnitDebuffByAuraInstanceID": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.DoesAuraHaveExpirationTime": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetAuraApplicationDisplayCount": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetAuraBaseDuration": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetAuraCasterGUID": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetAuraDataByAuraInstanceID": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetAuraDataByIndex": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetAuraDataBySlot": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetAuraDataBySpellName": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetAuraDispelTypeColor": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetBuffDataByIndex": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetDebuffDataByIndex": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetPlayerAuraBySpellID": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetRefreshCarryOverDuration": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetRefreshExtendedDuration": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "C_UnitAuras.GetUnitAuraBySpellID": [
+   "SecretWhenUnitAuraRestricted"
+  ],
+  "ClosestGameObjectPosition": [
+   "SecretReturns"
+  ],
+  "ClosestUnitPosition": [
+   "SecretReturns"
+  ],
+  "GetComboPoints": [
+   "SecretWhenUnitPowerRestricted"
+  ],
+  "GetRaidTargetIndex": [
+   "SecretReturns"
+  ],
+  "GetUnitChargedPowerPoints": [
+   "SecretWhenUnitPowerRestricted"
+  ],
+  "GetUnitEmpowerHoldAtMaxTime": [
+   "SecretWhenUnitSpellCastRestricted"
+  ],
+  "GetUnitEmpowerMinHoldTime": [
+   "SecretWhenUnitSpellCastRestricted"
+  ],
+  "GetUnitEmpowerStageDuration": [
+   "SecretWhenUnitSpellCastRestricted"
+  ],
+  "PlayerIsSpellTarget": [
+   "SecretReturns"
+  ],
+  "UnitCastingDuration": [
+   "SecretReturns"
+  ],
+  "UnitCastingInfo": [
+   "SecretWhenUnitSpellCastRestricted"
+  ],
+  "UnitChannelInfo": [
+   "SecretWhenUnitSpellCastRestricted"
+  ],
+  "UnitDetailedThreatSituation": [
+   "SecretWhenUnitThreatValuesRestricted"
+  ],
+  "UnitGetIncomingHeals": [
+   "SecretReturns"
+  ],
+  "UnitGetTotalAbsorbs": [
+   "SecretReturns"
+  ],
+  "UnitGetTotalHealAbsorbs": [
+   "SecretReturns"
+  ],
+  "UnitHealth": [
+   "SecretReturns"
+  ],
+  "UnitHealthMax": [
+   "SecretWhenUnitHealthMaxRestricted"
+  ],
+  "UnitHealthMissing": [
+   "SecretReturns"
+  ],
+  "UnitHealthPercent": [
+   "SecretReturns"
+  ],
+  "UnitInRange": [
+   "SecretReturns"
+  ],
+  "UnitPartialPower": [
+   "SecretWhenUnitPowerRestricted"
+  ],
+  "UnitPercentHealthFromGUID": [
+   "SecretReturns"
+  ],
+  "UnitPower": [
+   "SecretWhenUnitPowerRestricted"
+  ],
+  "UnitPowerBarTimerInfo": [
+   "SecretReturns"
+  ],
+  "UnitPowerMax": [
+   "SecretWhenUnitPowerMaxRestricted"
+  ],
+  "UnitPowerMissing": [
+   "SecretWhenUnitPowerRestricted"
+  ],
+  "UnitPowerPercent": [
+   "SecretWhenUnitPowerRestricted"
+  ],
+  "UnitSpellTargetClass": [
+   "SecretReturns"
+  ],
+  "UnitSpellTargetName": [
+   "SecretReturns"
+  ],
+  "UnitThreatPercentageOfLead": [
+   "SecretWhenUnitThreatValuesRestricted"
+  ]
+ },
+ "lockdown": {
+  "C_ChatInfo.SendAddonMessage": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "C_ChatInfo.SendAddonMessageLogged": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "C_ChatInfo.SendChatMessage": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "SendChatMessage": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "C_BattleNet.SendGameData": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  },
+  "BNSendGameData": {
+   "group": "lockdown",
+   "severity": "info",
+   "source": "https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes"
+  }
+ }
+}
