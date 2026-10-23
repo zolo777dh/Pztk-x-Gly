@@ -1,0 +1,65 @@
+-- Group messages between Naowh Defensive Planner users: notes, break timers, nicknames, version checks.
+-- Long payloads are split into chunks and sent from a small queue that waits out the game's throttle.
+local _,ns=...
+local PREFIX="NDP"
+local queue,parts,serial,ticker={},{},0,nil
+ns.CommHandlers={}
+local function registered()
+    return C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix and pcall(C_ChatInfo.RegisterAddonMessagePrefix,PREFIX)
+end
+function ns.GroupChannel()
+    if IsInGroup and LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)and not(IsInGroup(LE_PARTY_CATEGORY_HOME))then return"INSTANCE_CHAT"end
+    if IsInRaid and IsInRaid()then return"RAID"end
+    if IsInGroup and IsInGroup()then return"PARTY"end
+end
+local function pump()
+    local item=queue[1]
+    if not item then if ticker then ticker:Cancel();ticker=nil end;return end
+    if not(C_ChatInfo and C_ChatInfo.SendAddonMessage)then for k in pairs(queue)do queue[k]=nil end;return end
+    local ok,result=pcall(C_ChatInfo.SendAddonMessage,PREFIX,item.text,item.channel,item.target)
+    -- Throttled or restricted (combat in instances): keep the chunk and try again on the next tick.
+    local throttled=Enum and Enum.SendAddonMessageResult and(result==Enum.SendAddonMessageResult.AddonMessageThrottle or result==Enum.SendAddonMessageResult.ChannelThrottle or result==Enum.SendAddonMessageResult.GeneralError)
+    item.tries=(item.tries or 0)+1
+    if not ok or not throttled or item.tries>100 then table.remove(queue,1)end
+end
+-- Sends text of any length to the group (or one player with channel "WHISPER").
+function ns.Send(kind,text,channel,target)
+    channel=channel or ns.GroupChannel();if not channel or not registered()then return false end
+    text=tostring(text or"");serial=serial%9999+1
+    local size=200;local count=math.max(1,math.ceil(#text/size))
+    for i=1,count do queue[#queue+1]={text=kind.."\t"..serial.."\t"..i.."\t"..count.."\t"..text:sub((i-1)*size+1,i*size),channel=channel,target=target}end
+    pump()
+    if queue[1]and not ticker and C_Timer and C_Timer.NewTicker then ticker=C_Timer.NewTicker(0.3,pump)end
+    return true
+end
+function ns.ShortName(name)
+    if type(name)~="string"then return nil end
+    if Ambiguate then local ok,short=pcall(Ambiguate,name,"none");if ok and type(short)=="string"then return short end end
+    return(name:match("^([^%-]+)"))
+end
+-- Leader or assistant of the current group, by short name.
+function ns.GroupAuthority(name)
+    name=ns.ShortName(name);if not name then return false end
+    if IsInRaid and IsInRaid()and GetRaidRosterInfo then
+        for i=1,40 do local who,rank=GetRaidRosterInfo(i);if ns.ShortName(who)==name then return(tonumber(rank)or 0)>=1 end end
+        return false
+    end
+    for _,unit in ipairs({"player","party1","party2","party3","party4"})do
+        if UnitExists and UnitExists(unit)and ns.ShortName(UnitName(unit))==name then return UnitIsGroupLeader and UnitIsGroupLeader(unit)==true end
+    end
+    return false
+end
+local events=CreateFrame("Frame")
+events:RegisterEvent("CHAT_MSG_ADDON")
+events:SetScript("OnEvent",function(_,_,prefix,text,channel,sender)
+    if prefix~=PREFIX or type(text)~="string"then return end
+    local me=UnitName and UnitName("player");if ns.ShortName(sender)==me then return end
+    local kind,id,i,count,chunk=text:match("^(%w+)\t(%d+)\t(%d+)\t(%d+)\t(.*)$")
+    if not kind then return end
+    i,count=tonumber(i),tonumber(count);if count>200 then return end
+    local key=tostring(sender)..":"..id;local p=parts[key]or{n=0};parts[key]=p
+    if not p[i]then p[i]=chunk;p.n=p.n+1 end
+    if p.n<count then return end
+    parts[key]=nil;local handler=ns.CommHandlers[kind]
+    if handler then pcall(handler,table.concat(p,"",1,count),ns.ShortName(sender),channel)end
+end)

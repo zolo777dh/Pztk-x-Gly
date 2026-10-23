@@ -7,7 +7,7 @@ import fengari from 'fengari';
 import {unzipSync} from 'fflate';
 import {packageAddon} from '../tools/package-addon.mjs';
 import {parseLua} from '../core/analyzer.mjs';
-const files=['Runtime.lua','Locale.lua','Catalog.lua','Profiles.lua','Display.lua','RuleRuntime.lua','AuraSounds.lua','Providers.lua','Editor.lua','Import.lua','Widgets.lua','Anim.lua','UI.lua','Main.lua'];
+const files=['Runtime.lua','Locale.lua','Catalog.lua','Profiles.lua','Display.lua','RuleRuntime.lua','AuraSounds.lua','Providers.lua','Editor.lua','Import.lua','Widgets.lua','UI.lua','Comms.lua','Debuffs.lua','Notes.lua','Players.lua','RaidTools.lua','Alerts.lua','Main.lua'];
 const sources=await Promise.all(files.map(f=>fs.readFile('addon/NaowhDefensivePlanner/'+f,'utf8')));
 test('standalone addon bundle contains valid runtime, complete loader dependencies, codecs, media and no NSR/NSRT runtime',async t=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-addon-zip-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const archive=await packageAddon(process.cwd(),dir),entries=unzipSync(await fs.readFile(archive));for(const [i,f]of files.entries()){assert.ok(entries['NaowhDefensivePlanner/'+f]);parseLua(sources[i]);}assert.ok(entries['NaowhDefensivePlanner/Libs/LibSerialize.lua']);assert.ok(entries['NaowhDefensivePlanner/Media/Voice/use-a-defensive.ogg']);assert.ok(entries['NaowhDefensivePlanner/BUILD-SOURCES.json']);assert.ok(!Object.keys(entries).some(k=>k.startsWith('NaowhSmartReminders/')||k.startsWith('NorthernSkyRaidTools/')));
@@ -77,6 +77,18 @@ ns.Display({type='nameplateGlow',text='Nameplate',glowTarget='Tester'})
 assert(glowStarts[1].frame==unitFrame and glowStarts[2].frame==unitFrame and glowStarts[1].key~=glowStarts[2].key)
 assert(glowStarts[3].frame==plate and plateQueries==1);ns.HideDisplays();assert(#glowStops==3)
 for _,stop in ipairs(glowStops)do assert(type(stop.key)=='string'and stop.key:find('NaowhDefensivePlanner:',1,true)==1)end
+-- Only the called spell glows on the player's own Cooldown Manager / action bar, then stops.
+local function button(spell)return {IsVisible=function()return true end,GetSpellID=function()return spell end}end
+local called,other,bar=button(22812),button(61336),{IsVisible=function()return true end,action=7}
+EssentialCooldownViewer={GetItemFrames=function()return {called,other}end};ActionButton1=bar
+function GetActionInfo(slot)if slot==7 then return 'spell',22812 end end
+local procStarts,procStops={},{}
+libs['LibCustomGlow-1.0'].ProcGlow_Start=function(f,o)procStarts[#procStarts+1]={frame=f,key=o.key}end
+libs['LibCustomGlow-1.0'].ProcGlow_Stop=function(f,key)procStops[#procStops+1]=f end
+ns.Display({type='defensive',spells={22812},text='Barkskin',dur=5})
+assert(#procStarts==2 and procStarts[1].frame==called and procStarts[2].frame==bar)
+ns.HideDisplays();assert(#procStops==2)
+EssentialCooldownViewer=nil;ActionButton1=nil
 -- Exercise the actual lifecycle event callback, then reopen in the other client.
 local eventFrame
 for _,f in ipairs(frames)do if f._events and f._events.PLAYER_ENTERING_WORLD then eventFrame=f end end

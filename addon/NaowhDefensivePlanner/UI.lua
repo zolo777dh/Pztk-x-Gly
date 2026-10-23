@@ -7,12 +7,12 @@ local L=ns.L
 local state={tab="mythic",mode="mechanics",difficulty=15,filter="",setRows={},form={}}
 ns.UIState=state
 local window,body,header,status
-local Refresh
+local Refresh,openCallout,DrawCallout
 local WIDTH,HEIGHT,SIDEBAR,TOP=1120,720,176,60
 -- UI drafts are local SavedVariables, separate from the active runtime profile.
 -- Navigation never commits a partial reminder or silently throws its inputs away.
 local workspace,owner,profileName
-local viewFields={"mode","difficulty","group","entity","ability","ruleKey","timed","form","reference","context","ruleDrafts","setKey","setRows","setName","setDrafts","newSpell","settings","settingFields","manual","profileName","importText","confirmDelete","confirmCopy","scrolls","setScope","tlGroup","tlBoss","tlDifficulty"}
+local viewFields={"mode","difficulty","group","entity","ability","ruleKey","timed","form","reference","context","ruleDrafts","setKey","setRows","setName","setDrafts","newSpell","settings","settingFields","manual","profileName","importText","confirmDelete","confirmCopy","scrolls","setScope","tlGroup","tlBoss","tlDifficulty","callout","drafts"}
 local formKeys={"name","leadTime","delay","phase","counter","duration","text","displaySpellID","player","glowTarget"}
 local specTabs={mythic=true,raid=true,sets=true,timeline=true}
 local function viewKey()return state.tab..":"..tostring(specTabs[state.tab]and state.spec or"general")end
@@ -31,8 +31,14 @@ local function capture()
             if state.form then state.form[key:sub(6)]=c:GetText()end
         elseif key:match("^setting:")and c.GetObjectType and c:GetObjectType()=="EditBox"then
             state.settingFields=state.settingFields or{};state.settingFields[key:sub(9)]=c:GetText()
+        elseif key:match("^callout:")and state.callout and c.GetObjectType and c:GetObjectType()=="EditBox"then
+            state.callout.form[key:sub(9)]=c:GetText()
         elseif key:match("^manual:")and c.GetObjectType and c:GetObjectType()=="EditBox"then
             state.manual=state.manual or{};state.manual[key:sub(8)]=c:GetText()
+        elseif state.drafts and c.GetObjectType and c:GetObjectType()=="EditBox"then
+            -- Page files keep their unsaved inputs in state.drafts[page][field], keyed page:field.
+            local page,field=key:match("^(%w+):(.+)$")
+            if page and type(state.drafts[page])=="table"then state.drafts[page][field]=c:GetText()end
         end
     end
     state.scrolls=state.scrolls or{}
@@ -57,7 +63,7 @@ local function loadView()
     local saved=workspace.views[viewKey()]or{}
     for _,key in ipairs(viewFields)do state[key]=ns.Clone(saved[key])end
     state.mode=state.mode or"mechanics";state.difficulty=state.difficulty or 15;state.setRows=state.setRows or{}
-    state.ruleDrafts=state.ruleDrafts or{};state.setDrafts=state.setDrafts or{};state.scrolls=state.scrolls or{}
+    state.ruleDrafts=state.ruleDrafts or{};state.setDrafts=state.setDrafts or{};state.scrolls=state.scrolls or{};state.drafts=state.drafts or{}
 end
 local function ensureWorkspace()
     local store=ns.Store()
@@ -152,7 +158,8 @@ local function ModeSwitch(parent)
     if state.tab=="sets"then
         W.Segmented(parent,{{value="mythic",label="Mythic+"},{value="raid",label=L("Raid")}},scope(),620,0,300,function(v)state.setScope=v;state.setKey=nil;state.setName=nil;state.setRows={};Refresh()end,"sets-scope");return
     end
-    W.Segmented(parent,{{value="mechanics",label=L("Mechanics")},{value="sets",label=L("Defensive sets")}},state.mode=="sets"and"sets"or"mechanics",620,0,300,function(v)state.mode=v;Refresh()end,"mode")
+    local mode=(state.mode=="sets"or state.mode=="debuffs")and state.mode or"mechanics"
+    W.Segmented(parent,{{value="mechanics",label=L("Mechanics")},{value="sets",label=L("Defensive sets")},{value="debuffs",label=L("Debuffs")}},mode,530,0,390,function(v)state.mode=v;Refresh()end,"mode")
 end
 local function setRowsAdd(spell)
     for _,r in ipairs(state.setRows)do if r.spellID==spell then notify("Ability already exists",true);return end end
@@ -162,6 +169,42 @@ local function knownSpell(spell)
     local known=C_SpellBook and(C_SpellBook.IsSpellKnownOrInSpellBook or C_SpellBook.IsSpellKnown)or IsPlayerSpell
     if not known then return false end
     local ok,value=pcall(known,spell);return ok and ns.Plain(value,"boolean")and value
+end
+-- Sounds offered wherever a reminder can play a file instead of speech.
+local soundOptions={{value="voice:use-a-defensive",label="Use a defensive"},{value="voice:move-out",label="Move out"},{value="voice:dispel-me",label="Dispel me"},{value="voice:stoneform-preview",label="Stoneform (voice)"},{value="voice:shadowmeld-preview",label="Shadowmeld (voice)"}}
+ns.SoundOptions=soundOptions
+function openCallout(spell)
+    local data=ns.Active()and ns.Active().data or{}
+    if spell=="external"then local s=ns.Settings();state.callout={spell="external",form={text=data.voiceNone or"",audio=s.externalAudio~=false,chat=s.externalChat==true}};return end
+    local o=ns.Get(data.calloutOptions,spell)or{}
+    state.callout={spell=spell,form={label=o.label or"",spoken=ns.Get(data.callouts,spell)or"",speak=o.speak~=false,sound=o.sound or"voice:use-a-defensive",audio=o.audio~=false}}
+end
+-- NSR-style call-out editor for one ability, or for the external step.
+function DrawCallout(panel)
+    local c=state.callout;local f=c.form;local external=c.spell=="external"
+    local function collect()for _,k in ipairs({"label","spoken","text"})do local box=ns.UIControls["callout:"..k];if box then f[k]=box:GetText()end end end
+    W.Heading(panel,external and L("Call for an external")or(L("Call-out")..": "..name(c.spell)),16,324,636)
+    if external then
+        W.Field(panel,L("PHRASE ON SCREEN AND SPOKEN"),f.text,16,346,636,"callout:text")
+        W.Toggle(panel,L("Speak it"),f.audio,16,398,180,function(v)f.audio=v end,"callout:audio")
+        W.Toggle(panel,L("Say EXTERNAL! in group chat"),f.chat,220,398,260,function(v)f.chat=v end,"callout:chat")
+    else
+        W.Field(panel,L("TEXT ON SCREEN · BLANK = SPELL NAME"),f.label,16,346,300,"callout:label")
+        if f.speak then W.Field(panel,L("SPOKEN TEXT · BLANK = TEXT ON SCREEN"),f.spoken,330,346,322,"callout:spoken")
+        else W.Select(panel,L("SOUND INSTEAD OF SPEECH"),soundOptions,f.sound,330,346,322,function(v)collect();f.sound=v;Refresh()end,"callout:sound")end
+        W.Toggle(panel,L("Audio"),f.audio,16,398,140,function(v)f.audio=v end,"callout:audio")
+        W.Toggle(panel,L("Speak text"),f.speak,180,398,160,function(v)collect();f.speak=v;Refresh()end,"callout:speak")
+    end
+    W.Button(panel,L("Hear it"),16,426,110,function()collect()
+        if external then ns.Speak(f.text~=""and f.text or L("Call external"))
+        elseif f.speak then ns.Speak(f.spoken~=""and f.spoken or f.label~=""and f.label or name(c.spell))
+        else local path=ns.SoundPath(f.sound);if path and PlaySoundFile then PlaySoundFile(path,"Master")end end
+        notify(L("Playing the call-out; nothing is saved yet"))end,false,"callout-hear",{glyph="play"})
+    W.Button(panel,L("Cancel"),400,426,110,function()state.callout=nil;Refresh()end,false,"callout-cancel",{align="CENTER"})
+    W.Button(panel,L("Save call-out"),518,426,134,function()collect()
+        local ok,err
+        if external then ok,err=ns.SaveExternalCallout({text=f.text,audio=f.audio,chat=f.chat})else ok,err=ns.SaveCallout(c.spell,f)end
+        if ok then state.callout=nil end;done(ok,err,L("Call-out saved"))end,true,"callout-save",{kind="primary",align="CENTER"})
 end
 local function DrawSets(parent)
     ContentHeader(parent,scope()=="mythic"and L("Mythic+ defensive sets")or L("Raid defensive sets"),(ns.Catalog.specs[state.spec]or"").." · "..L("The first ready ability wins; Together abilities are called as one."))
@@ -199,8 +242,16 @@ local function DrawSets(parent)
         W.Button(r,"",470,7,30,function()if i>1 then state.setRows[i],state.setRows[i-1]=state.setRows[i-1],state.setRows[i]end;state.setName=read("set-name");Refresh()end,false,"set-up:"..i,{h=28,glyph="up",tooltip=L("Move up")})
         W.Button(r,"",504,7,30,function()if i<#state.setRows then state.setRows[i],state.setRows[i+1]=state.setRows[i+1],state.setRows[i]end;state.setName=read("set-name");Refresh()end,false,"set-down:"..i,{h=28,glyph="chevron",tooltip=L("Move down")})
         W.Button(r,"",544,7,30,function()table.remove(state.setRows,i);state.setName=read("set-name");Refresh()end,false,"set-remove:"..i,{h=28,kind="danger",glyph="trash",tooltip=L("Remove")})
-    end;content:SetHeight(math.max(1,#state.setRows*46))
+        W.Button(r,"",580,7,30,function()state.setName=read("set-name");openCallout(row.spellID);Refresh()end,state.callout and state.callout.spell==row.spellID,"set-callout:"..i,{h=28,glyph="settings",tooltip=L("Text, voice and sound of this ability")})
+    end
+    -- Last step, like NSR: call for an external when nothing of yours is ready.
+    local settings=ns.Settings();local ey=#state.setRows*46;local er=W.Panel(content,0,ey,620,42,C.raised,C.line,8)
+    W.Glyph(er,"warning",12,13,16,C.warning);W.Label(er,L("Last: call for an external"),40,7,220,12);W.Label(er,ns.Active()and ns.Active().data.voiceNone or L("Call external"),40,24,220,10,C.muted)
+    W.Toggle(er,L("On"),settings.fallbackOn==true,270,9,64,function(v)state.setName=read("set-name");done(ns.SaveExternalCallout({on=v}),nil,v and L("External call on")or L("External call off"))end,"set-external-on")
+    W.Button(er,"",580,7,30,function()state.setName=read("set-name");openCallout("external");Refresh()end,state.callout and state.callout.spell=="external","set-external",{h=28,glyph="settings",tooltip=L("Phrase, voice and chat line")})
+    content:SetHeight(math.max(1,#state.setRows*46+46))
     if #state.setRows==0 then W.Label(content,L("Add defensives from your spellbook below, or enter a spell ID."),12,14,560,12,C.muted)end
+    if state.callout then DrawCallout(panel)else
     W.Heading(panel,L("Add from your spellbook"),16,324,636)
     local x=16;local ids={};for id in pairs(ns.Catalog.spellNames)do if knownSpell(id)then ids[#ids+1]=id end end;table.sort(ids)
     local inSet={};for _,r in ipairs(state.setRows)do inSet[r.spellID]=true end
@@ -211,8 +262,9 @@ local function DrawSets(parent)
     if shown==0 then W.Label(panel,L("No known catalog defensives to suggest for this character."),16,356,600,12,C.muted)end
     W.Field(panel,L("Or add by spell ID"),state.newSpell or"",16,392,210,"new-spell")
     W.Button(panel,L("Add ability"),236,408,120,function()local spell=tonumber(read("new-spell"));if not spell or spell<1 or spell%1~=0 then notify("Enter a positive integer spell ID",true);return end;setRowsAdd(spell)end,false,"add-spell")
+    end
     W.Button(parent,L("Delete set"),252,566,116,function()local key=state.setKey;local a,b=ns.DeleteSet(scope(),state.spec,key);if a then state.setDrafts[draftKey(key)]=nil;chooseSet(nil,true)end;done(a,b,"Set deleted")end,false,"delete-set",{kind="danger"})
-    W.Button(parent,L("Test set"),600,566,120,function()local preset={list={},together={},disabled={}};for _,r in ipairs(state.setRows)do preset.list[#preset.list+1]=r.spellID;if r.together then preset.together[r.spellID]=true end;if not r.enabled then preset.disabled[r.spellID]=true end end;local spells=ns.Pick(preset);if #spells==0 then for _,r in ipairs(state.setRows)do if r.enabled then spells={r.spellID};break end end end;ns.Display({type="icon",spells=spells,text="Set preview",dur=4});notify("Preview only; no encounter trigger was fired")end,false,"test-set")
+    W.Button(parent,L("Test set"),600,566,120,function()local preset={list={},together={},disabled={}};for _,r in ipairs(state.setRows)do preset.list[#preset.list+1]=r.spellID;if r.together then preset.together[r.spellID]=true end;if not r.enabled then preset.disabled[r.spellID]=true end end;local spells=ns.Pick(preset);if #spells==0 then for _,r in ipairs(state.setRows)do if r.enabled then spells={r.spellID};break end end end;if #spells==0 then notify(L("Turn on at least one ability to test the set"),true)return end;local shown=ns.DefensiveDisplay(spells,{dur=4});ns.Display(shown);notify(L("Preview")..": "..shown.text..(ns.Settings().voiceOn==false and L(" · voice is off in Display")or L(" · no encounter trigger was fired")),ns.Settings().voiceOn==false)end,false,"test-set")
     W.Button(parent,L("Save set"),730,566,190,function()local oldKey=state.setKey;local a,b=ns.SaveSet(scope(),state.spec,oldKey,read("set-name"),state.setRows);if a then state.setDrafts[draftKey(oldKey)]=nil;state.setKey=a;state.setName=read("set-name")end;done(a,b,"Defensive set saved")end,true,"save-set",{kind="primary",align="CENTER"})
 end
 local function InitialForm(ctx,reference)
@@ -458,7 +510,6 @@ local function UIPrefs()local store=ns.Store();store.ui=store.ui or{};return sto
 ns.UIPrefs=UIPrefs
 local function ApplyPrefs()
     local p=UIPrefs();W.SetTheme(p.theme);W.SetFont(p.font)
-    if ns.Anim then ns.Anim.SetMode(p.anim or"full")end
 end
 ns.ApplyUIPrefs=ApplyPrefs
 local function DrawSettings(parent)
@@ -467,8 +518,8 @@ local function DrawSettings(parent)
     W.Button(parent,L("Show a sample"),740,0,180,function()ns.Display({type="icon",spellID=22812,text=L("Use a defensive"),dur=4,tts=s.voiceOn});notify(L("Preview uses currently saved settings"))end,false,"preview-display",{align="CENTER",border=C.accent})
     local col,top,cw=304,40,296
     local reminders=W.Card(parent,0,top,cw,268,L("Reminders"))
-    local flags={{"Enable reminders","enabled",reminders},{"Show spell icons","showIcon",reminders},{"Show reminder text","showText",reminders},{"Show duration bar","showBar",reminders},{"Call external if nothing is ready","fallbackOn",reminders}}
-    for i,f in ipairs(flags)do local value=s[f[2]];if value==nil then value=f[2]~="voiceOn"and f[2]~="fallbackOn"end;W.Toggle(f[3],L(f[1]),value,12,34+(i-1)*30,cw-24,function(v)s[f[2]]=v end,"setting:"..f[2])end
+    local flags={{"Enable reminders","enabled",reminders},{"Show spell icons","showIcon",reminders},{"Show reminder text","showText",reminders},{"Glow the called spell on your bars","cdmGlow",reminders},{"Call external if nothing is ready","fallbackOn",reminders}}
+    for i,f in ipairs(flags)do local value=s[f[2]];if value==nil then value=f[2]~="fallbackOn"end;W.Toggle(f[3],L(f[1]),value,12,34+(i-1)*30,cw-24,function(v)s[f[2]]=v end,"setting:"..f[2])end
     W.Select(reminders,L("Boss mod source"),{{value="bigwigs",label="BigWigs / LittleWigs"},{value="dbm",label="DBM"}},s.bossSource or"bigwigs",12,190,cw-24,function(v)s.bossSource=v end,"setting:bossSource")
     local look=W.Card(parent,col,top,cw,268,L("Reminder look"))
     local fields={{"Icon size","iconSize",42},{"Text size","textSize",14},{"Voice volume","voiceVol",100},{"X position","x",0},{"Y position","y",100}}
@@ -479,15 +530,12 @@ local function DrawSettings(parent)
     end end
     W.Label(look,L("Position is relative to the screen center. The Display page lets you drag the anchor."),12,214,cw-24,11,C.muted)
     local sound=W.Card(parent,col*2,top,cw-8,268,L("Sound and voice"))
-    W.Toggle(sound,L("Enable text to speech"),s.voiceOn==true,12,34,cw-32,function(v)s.voiceOn=v end,"setting:voiceOn")
+    W.Toggle(sound,L("Speak reminders"),s.voiceOn~=false,12,34,cw-32,function(v)s.voiceOn=v end,"setting:voiceOn")
     W.Label(sound,L("Voice volume"),12,78,170,13);W.Input(sound,state.settingFields.voiceVol or s.voiceVol or 100,cw-110,70,90,"setting:voiceVol")
     W.Label(sound,L("Boss mechanics require matching provider messages/timers. ExBoss supplies trash countdowns. Readiness uses public game APIs."),12,118,cw-32,11,C.muted)
     -- Local window preferences.
     local prefs=UIPrefs()
-    local anim=W.Card(parent,0,top+280,cw,232,L("Animations"))
-    W.Select(anim,L("Mode"),{{value="full",label=L("Full")},{value="reduced",label=L("Reduced")},{value="off",label=L("Off")}},prefs.anim or"full",12,34,cw-24,function(v)prefs.anim=v;ApplyPrefs();Refresh()end,"ui:anim")
-    W.Label(anim,L("Full: living background at 60 fps, particles, trails, glow, logo shine and a burst on each reminder. Reduced keeps only the glow. Animations run only while the window or a reminder is shown."),12,90,cw-24,11,C.muted)
-    local window_=W.Card(parent,col,top+280,cw,232,L("Window"))
+    local window_=W.Card(parent,0,top+280,cw,232,L("Window"))
     W.Select(window_,L("Theme"),{{value="mockup",label=L("Like the mockup")},{value="logo",label=L("Logo blue")}},prefs.theme or"mockup",12,34,cw-24,function(v)prefs.theme=v;ApplyPrefs();Refresh()end,"ui:theme")
     W.Select(window_,L("Font"),{{value="urw",label="URW Gothic"},{value="naowh",label=L("Naowh.ttf (your own file)")},{value="game",label=L("Game font")}},prefs.font or"urw",12,86,cw-24,function(v)prefs.font=v;ApplyPrefs();Refresh()end,"ui:font")
     W.Label(window_,L("Naowh.ttf is not shipped: put your own copy in Media/Fonts and restart the game."),12,142,cw-24,11,C.muted)
@@ -570,15 +618,7 @@ local function DrawTimeline(parent)
     end end
 end
 ---------------------------------------------------------------------------
--- Raid sections from Northern Sky Raid Tools and Naowh Smart Reminders. Real tools first, then what is planned.
-local planned={
-    notes={"Notes","Shared, personal and tank notes with {time:} lines, phases and spell icons, sent to the raid.",{"Shared note with raid sync","Personal and tank notes","Reminders from MRT notes","Note displays on screen with countdown"}},
-    alerts={"Boss alerts","Season encounter alerts: icons, text, bars, sounds and voice per ability.",{"Alert list per boss with on/off","Custom text, sound and voice","Test any alert","Share alerts with the raid"}},
-    auras={"Auras","Debuff and buff tracking with frame glows and sounds.",{"Aura tracking on raid frames","Private aura sounds (available now: see below)","Glow and sound per aura","Stack thresholds"}},
-    assign={"Assignments","Who soaks, kicks and dispels: assignments from the note to each player.",{"Soak and interrupt groups","Dispel order","Personal callouts from assignments","Import from the note"}},
-    raidtools={"Raid tools","Ready check, pull and break timers, invites and group arrangement.",{"Break timer (/ndp break)","Invite by note or guild rank","Arrange groups by note","Cooldown check before pull"}},
-    players={"Players","Nicknames, addon versions and the current group.",{"Nicknames shared with the raid","Addon and note version check","Missing addon warning"}},
-}
+-- Group roster for the Players, Raid tools and Diagnostics pages.
 local function Roster()
     local out={};local raid=IsInRaid and IsInRaid();local count=GetNumGroupMembers and GetNumGroupMembers()or 0
     if type(count)~="number"or count==0 then count=1 end
@@ -593,42 +633,16 @@ ns.Roster=Roster
 local function classColor(class)
     local c=class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class];if c then return{c.r,c.g,c.b,1}end;return C.text
 end
-local function DrawPlanned(parent,id)
-    local p=planned[id];ContentHeader(parent,L(p[1]),L(p[2]))
-    local left=W.Card(parent,0,56,454,536,L("Available now"))
-    local right=W.Card(parent,466,56,454,536,L("Next stage"))
-    local y=36
-    for _,line in ipairs(p[3])do
-        local row=W.Panel(right,12,y,430,34,C.raised,C.clear,8);W.Glyph(row,"clock",10,9,16,C.warning);W.Label(row,L(line),34,10,384,13,C.soft);y=y+40
-    end
-    W.Label(right,L("These parts of Naowh Smart Reminders and Northern Sky Raid Tools are being rebuilt in our own code. Their original code is not copied."),12,y+6,430,11,C.muted)
-    y=36
-    if id=="auras"then
-        W.Label(left,L("Private aura sounds")..": "..tostring(ns.AuraSoundStatus and ns.AuraSoundStatus()or"-"),12,y,430,13);y=y+28
-        W.Label(left,L("Sounds for imported NSRT private auras play automatically when the aura is applied to you."),12,y,430,12,C.muted)
-    elseif id=="players"or id=="assign"then
-        local roster=Roster()
-        W.Label(left,L("Current group").." · "..#roster,12,y,430,13,C.text,true);y=y+26
-        for i,r in ipairs(roster)do if i<=20 then
-            local x=12+((i-1)%2)*216;local row=W.Panel(left,x,y+math.floor((i-1)/2)*36,208,30,C.raised,C.clear,8)
-            W.Dot(row,10,11,classColor(r.class));W.Label(row,r.name,26,8,176,13,classColor(r.class))
-        end end
-    elseif id=="raidtools"then
-        W.Button(left,L("Ready check"),12,y,206,function()if DoReadyCheck then DoReadyCheck()end end,false,"rt-ready",{glyph="check"})
-        W.Button(left,L("Pull timer 10 s"),230,y,212,function()if C_PartyInfo and C_PartyInfo.DoCountdown then C_PartyInfo.DoCountdown(10)end end,false,"rt-pull",{glyph="play"})
-        W.Label(left,L("Ready check and pull timer use the game's own raid tools and need lead or assist."),12,y+44,430,12,C.muted)
-    elseif id=="notes"or id=="alerts"then
-        W.Label(left,L("Encounter-time reminders from NSRT notes and EncounterAlerts are already imported on the Profiles page and play during the fight."),12,y,430,12,C.soft)
-        W.Button(left,L("Open profiles"),12,y+52,180,function()state.tab="profiles";loadView();Refresh()end,false,"go-profiles",{glyph="profiles"})
-    end
-end
 ---------------------------------------------------------------------------
 local function DrawDisplay(parent)
     ContentHeader(parent,L("Display"),L("Where reminders appear and how they look. Drag the anchor to move them."))
     local s=ns.Settings();local pos=type(s.pos)=="table"and s.pos or{}
     local preview=W.Card(parent,0,56,600,300,L("Preview"))
     local stage=W.Panel(preview,12,34,576,254,C.background,C.line,8)
-    local sample=W.Panel(stage,138,96,300,62,C.panel,C.accent,8);W.Icon(sample,22812,8,8,46);W.Label(sample,L("Use a defensive"),64,12,220,16,C.text,true);W.Bar(sample,64,42,220,0.6,C.accent,4)
+    -- Same look as the in-game reminder: icons and the call-out, no panel.
+    local size=math.max(24,math.min(64,tonumber(s.iconSize)or 42))
+    W.Texture(stage,W.SpellTexture(22812),120,104,size,size):SetTexCoord(0.07,0.93,0.07,0.93);W.Texture(stage,W.SpellTexture(61336),120+size+4,104,size,size):SetTexCoord(0.07,0.93,0.07,0.93)
+    W.Label(stage,"Barkskin and Survival Instincts",120+2*(size+4)+6,104+size/2-10,320,math.max(10,math.min(28,tonumber(s.textSize)or 18)),C.text,true)
     W.Label(stage,"x "..tostring(pos.x or 0).." · y "..tostring(pos.y or 100),10,232,300,11,C.faint)
     local actions=W.Card(parent,612,56,308,300,L("Anchors"))
     W.Button(actions,ns.AnchorsUnlocked and ns.AnchorsUnlocked()and L("Lock anchor")or L("Unlock anchor"),12,34,284,function()if ns.ToggleAnchors then ns.ToggleAnchors()end;Refresh()end,false,"display-anchor",{glyph="anchor"})
@@ -636,13 +650,14 @@ local function DrawDisplay(parent)
     W.Button(actions,L("Reset position"),12,110,284,function()done(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="CENTER",relPoint="CENTER",x=0,y=100}end),nil,L("Position reset"))end,false,"display-reset",{glyph="reset",kind="outline"})
     W.Label(actions,L("Size, text and bar options are on the Settings page. /ndp anchors toggles the anchor too."),12,154,284,11,C.muted)
     local tips=W.Card(parent,0,368,920,224,L("What a reminder shows"))
-    local rows={{"Spell icons in priority order",s.showIcon~=false},{"Reminder text",s.showText~=false},{"Duration bar",s.showBar~=false},{"Text to speech",s.voiceOn==true},{"Burst animation",(UIPrefs().anim or"full")=="full"}}
+    local rows={{"Spell icons in priority order",s.showIcon~=false},{"Reminder text",s.showText~=false},{"Spoken spell names",s.voiceOn~=false},{"Glow on your Cooldown Manager / action bar",s.cdmGlow~=false}}
     for i,r in ipairs(rows)do local y=34+(i-1)*34;W.Dot(tips,14,y+4,r[2]and C.ok or C.faint);W.Label(tips,L(r[1]),30,y,400,13,r[2]and C.text or C.muted)end
 end
 ---------------------------------------------------------------------------
 local commands={{"/ndp","open or close the window"},{"/ndp status","state and combat source"},{"/ndp test","test a defensive reminder"},{"/ndp diag","diagnostics report"},{"/ndp sets · mythic · raid","open a section"},
-    {"/ndp tl","timeline"},{"/ndp notes · alerts · auras","raid sections"},{"/ndp anchors","move the reminder anchor"},{"/ndp pull 10","pull timer"},{"/ndp rc","ready check"},
-    {"/ndp roster","copy the group roster"},{"/ndp export","export the active profile"},{"/ndp anim full · reduced · off","animation mode"},{"/ndp wipe","reset all data (asks to confirm)"},{"/ndp help","this list"}}
+    {"/ndp notes · alerts","raid sections"},{"/ndp debuffs","debuff alerts (Mythic+ / Raids)"},{"/ndp note","show or hide the note frame"},{"/ndp clear · pclear","take the shared / personal note off"},{"/ndp anchors","move the reminder anchor"},
+    {"/ndp pull 10 · rc","pull timer, ready check"},{"/ndp break 10","break timer (0 ends it)"},{"/ndp inv · arrange","guild invites, arrange groups"},{"/ndp promote","give assist from your list"},
+    {"/ndp nick Name","set your nickname"},{"/ndp versions","addon version check"},{"/ndp roster · export","roster, export the profile"},{"/ndp wipe","reset all data (asks to confirm)"}}
 ns.CommandHelp=commands
 local function DrawDiagnostics(parent)
     W.Label(parent,L("Diagnostics"),0,0,200,20,C.text,true)
@@ -651,7 +666,7 @@ local function DrawDiagnostics(parent)
         local w=#chip[1]*7+34;local c=W.Panel(parent,x,0,w,26,C.panel,C.line,13);W.Dot(c,10,9,chip[2]and C.ok or C.faint);W.Label(c,chip[1],24,7,w-28,12);x=x+w+6
     end
     local cmds=W.Card(parent,0,40,360,552,L("Commands · /ndp help"))
-    for i,c in ipairs(commands)do local y=34+(i-1)*33;W.Label(cmds,c[1],12,y,150,12,C.accent,true);W.Label(cmds,L(c[2]),164,y,184,12,C.soft)end
+    for i,c in ipairs(commands)do local y=34+(i-1)*29;W.Label(cmds,c[1],12,y,150,12,C.accent,true);W.Label(cmds,L(c[2]),164,y,184,12,C.soft)end
     local log=W.Card(parent,372,40,548,552,L("Report"))
     local panel=W.Panel(log,12,34,524,460,C.background,C.line,8);local scroll=W.Frame("ScrollFrame",nil,panel);scroll:SetPoint("TOPLEFT",10,-10);scroll:SetSize(500,440)
     local text=W.Frame("EditBox",nil,scroll);text:SetMultiLine(true);text:SetFont(W.Font(false),12,"");text:SetTextColor(unpack(C.soft));text:SetWidth(496);text:SetHeight(440);text:SetAutoFocus(false);text:SetMaxLetters(130000)
@@ -663,7 +678,7 @@ end
 ---------------------------------------------------------------------------
 local nav={
     {"Planner",{{"overview","Overview","overview"},{"mythic","Mythic+","mythic"},{"raid","Raids","raid"},{"sets","Defensives","sets"},{"timeline","Timeline","clock"}}},
-    {"Raid",{{"notes","Notes","notes"},{"alerts","Boss alerts","alerts"},{"auras","Auras","auras"},{"assign","Assignments","assign"},{"raidtools","Raid tools","raidtools"},{"players","Players","players"}}},
+    {"Raid",{{"notes","Notes","notes"},{"alerts","Boss alerts","alerts"},{"assign","Assignments","assign"},{"raidtools","Raid tools","raidtools"},{"players","Players","players"}}},
     {"System",{{"display","Display","display"},{"profiles","Profiles","profiles"},{"settings","Settings","settings"},{"diag","Diagnostics","diag"}}},
 }
 local function go(tab)if state.tab~=tab then state.tab=tab;loadView()end;Refresh()end
@@ -692,6 +707,8 @@ local function DrawHeader()
     W.Dot(header,978,26,source and C.ok or C.warning);W.Label(header,source or L("No boss mod"),990,23,82,12,source and C.muted or C.warning):SetWordWrap(false)
     W.Button(header,"",1074,14,32,function()window:Hide();if W.popup then W.popup:Hide()end end,false,"close",{kind="ghost",h=32,glyph="close",tooltip=L("Close (Esc)")})
 end
+-- Pages in their own files (Notes, Debuffs, Raid tools...) register here and draw with the same kit.
+ns.ExtraPages={}
 local function DrawSidebar()
     W.Rect(header,1,TOP,SIDEBAR-1,HEIGHT-TOP-12,C.sidebar,"BACKGROUND");W.Shape(header,1,HEIGHT-24,SIDEBAR-1,23,9,C.sidebar,"BACKGROUND");W.Rect(header,SIDEBAR-12,HEIGHT-24,12,23,C.sidebar,"BACKGROUND")
     W.Rect(header,SIDEBAR,TOP,1,HEIGHT-TOP-1,C.line)
@@ -717,13 +734,12 @@ Refresh=function()
     DrawHeader();DrawSidebar()
     body=W.Frame("Frame",nil,window);body:SetPoint("TOPLEFT",SIDEBAR+16,-(TOP+14));body:SetSize(920,600);body.surface=C.background
     if state.tab=="mythic"or state.tab=="raid"then
-        if state.mode=="sets"then DrawSets(body)elseif state.mode=="manual"then DrawManual(body)else DrawMechanics(body)end
+        if state.mode=="sets"then DrawSets(body)elseif state.mode=="manual"then DrawManual(body)elseif state.mode=="debuffs"and ns.DrawDebuffs then ns.DrawDebuffs(body)else DrawMechanics(body)end
     elseif state.tab=="sets"then DrawSets(body)
     elseif pages[state.tab]then pages[state.tab](body)
-    elseif planned[state.tab]then DrawPlanned(body,state.tab)
+    elseif ns.ExtraPages[state.tab]then ns.ExtraPages[state.tab](body)
     else state.tab="overview";DrawOverview(body)end
     W.Finish();saveView();notify(state.message or L("Drafts stay when you navigate. Save explicitly to activate changes."),state.error)
-    if ns.Anim then ns.Anim.Layout(window,header)end
 end
 function ns.RefreshWorkspace()if window and window:IsShown()then capture();saveView();Refresh()end end
 function ns.OpenWorkspace(tab)
@@ -737,7 +753,6 @@ function ns.OpenWorkspace(tab)
         window:SetScript("OnHide",function()capture();saveView();if W.popup then W.popup:Hide()end end)
         status=W.Label(window,"",SIDEBAR+16,HEIGHT-22,WIDTH-SIDEBAR-40,11,C.muted)
         ns.WorkspaceWindow=window
-        if ns.Anim then ns.Anim.Attach(window)end
     end
     if not ns.Active()then
         if not(InCombatLockdown and InCombatLockdown())then ns.CreateProfile("Default",false)end
@@ -746,9 +761,14 @@ function ns.OpenWorkspace(tab)
     -- The window always follows the logged-in specialization.
     local current=ns.Spec()
     if current and current~=state.spec and ns.CanEditSpec(current)then saveView();state.spec=current;loadView()end
-    if tab and(pages[tab]or planned[tab]or tab=="mythic"or tab=="raid"or tab=="sets")and tab~=state.tab then saveView();state.tab=tab;loadView()end
+    -- Debuff alerts live in the Mythic+ and Raids sections, next to Mechanics and Defensive sets.
+    local debuffs=tab=="debuffs";if debuffs then tab=state.tab=="raid"and"raid"or"mythic"end
+    if tab and(pages[tab]or ns.ExtraPages[tab]or tab=="mythic"or tab=="raid"or tab=="sets")and tab~=state.tab then saveView();state.tab=tab;loadView()end
+    if debuffs then state.mode="debuffs"end
     Refresh();window:Show()
 end
 function ns.ShowDiagnostics()
     ns.OpenWorkspace();state.tab="diag";loadView();state.diagText=ns.Diagnostics();Refresh()
 end
+-- Helpers shared with the page files loaded after this one.
+ns.UIKit={state=state,notify=notify,done=done,go=go,read=read,name=name,header=ContentHeader,loadView=loadView,classColor=classColor,roster=Roster,modeSwitch=ModeSwitch,refresh=function()Refresh()end}

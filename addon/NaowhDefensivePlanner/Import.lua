@@ -77,7 +77,7 @@ local function NSR(input)
         end)
         if not success then issue(report,tostring(enc).."/"..tostring(key),tostring(error))end
     end end
-    for _,key in ipairs({"cdmGlow","coveredSkip","coveredSkipDefaultOn","coveredCastWindow"})do if data.settings and data.settings[key]then issue(report,"settings/"..key,"Setting retained; this behavior is not implemented")end end
+    for _,key in ipairs({"coveredSkip","coveredSkipDefaultOn","coveredCastWindow"})do if data.settings and data.settings[key]then issue(report,"settings/"..key,"Setting retained; this behavior is not implemented")end end
     for spec,rules in pairs(data.integrationRules or{})do for key,r in pairs(rules)do
         
         if r.trigger and r.trigger.type~="exboss"and r.trigger.type~="auraSound"then rules[key]=nil;issue(report,spec.."/"..key,"Unsupported integration trigger")
