@@ -84,6 +84,11 @@ test('secret values in comparisons and arithmetic',async()=>{
   assert.equal(aware.find(i=>i.rule==='secret').severity,'info');
 });
 
+test('Object.prototype names never match a rule',async()=>{
+  const issues=await scan({'Main.lua':'local t = {}\nif key == "__proto__" or key == "constructor" then end\nlocal s = t:toString()\nlocal h = hasOwnProperty\n'});
+  assert.deepEqual(issues.filter(i=>i.kind==='api'),[]);
+});
+
 test('TOC below 120000 does not load on Retail',async()=>{
   const issues=await scan({'Test.toc':'## Interface: 110207\nMain.lua\n','Main.lua':''});
   assert.equal(find(issues,'Addon will not load on Retail')[0].severity,'error');
