@@ -3,7 +3,9 @@ local _,ns=...
 local function Native(name,data)return{format=1,addon="PztkReminders",client=ns.Client(),minimumAddon=ns.MinimumAddon(data),name=tostring(name or"Imported profile"):sub(1,120),data=data}end
 local function Report(kind)return{source=kind,converted=0,issues={}}end
 local function issue(report,key,reason)report.issues[#report.issues+1]=tostring(key)..": "..reason end
+-- Accepts the URL-safe (NSRT) and the standard (Timeline Reminders) alphabet.
 local function Base64(input)
+    input=input:gsub("%+","-"):gsub("/","_")
     assert(input:match("^[A-Za-z0-9_=%-]+$")and #input%4~=1,"Invalid NSRT encoding")
     local alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";local lookup={};for i=1,#alphabet do lookup[alphabet:sub(i,i)]=i-1 end
     local out,cache,bits={},0,0
@@ -174,13 +176,127 @@ local function NSRT(input)
     for key,value in pairs(source.sharedData or{})do if key~="EncounterAlerts"and type(value)=="table"and next(value)then issue(report,key,"Retained in the local source archive; not migrated by this reminder adapter")end end
     return Native(source.profileName or"NSRT raid profile",data),report
 end
+---------------------------------------------------------------------------
+-- Timeline Reminders (!TR2: CBOR, !TR: LibSerialize): one string per boss and difficulty,
+-- difficulty 1 = Heroic, 2 = Mythic. A reminder's time is when it ends, from the pull or from
+-- an event; it shows for its duration before that. Only the published format is read.
+local classSpecs,meleeSpecs=ns.ClassSpecs,ns.MeleeSpecs
+local spellEvents={SPELL_CAST_START=true,SPELL_CAST_SUCCESS=true,SPELL_AURA_APPLIED=true,SPELL_AURA_REMOVED=true,UNIT_SPELLCAST_START=true,UNIT_SPELLCAST_SUCCEEDED=true}
+local function TrChunks(input)
+    local out={}
+    for prefix,body in input:gmatch("(!TR2?:)([^!]+)")do
+        local data
+        if prefix=="!TR2:"then
+            local api=C_EncodingUtil
+            if api and api.DecodeBase64 and api.DecompressString and api.DeserializeCBOR and Enum and Enum.CompressionMethod then
+                local ok,v=pcall(function()return api.DeserializeCBOR(api.DecompressString(api.DecodeBase64(body,Enum.Base64Variant and Enum.Base64Variant.Standard),Enum.CompressionMethod.Deflate))end)
+                if ok then data=v end
+            end
+            data=data or ns.ReadCBOR(Uncompress(Base64(body)))
+        else
+            local ok,v=LibStub("LibSerialize"):Deserialize(Uncompress(LibStub("LibDeflate"):DecodeForPrint(body)));assert(ok,"Invalid Timeline Reminders string");data=v
+        end
+        assert(type(data)=="table"and type(data.r)=="table","Invalid Timeline Reminders string")
+        out[#out+1]=data
+    end
+    assert(#out>0,"Paste a Timeline Reminders export (!TR2: or !TR:)")
+    return out
+end
+local function TrTarget(load)
+    load=type(load)=="table"and load or{type="ALL"}
+    local t=load.type
+    if t==nil or t=="ALL"then return{all=true}end
+    if t=="NAME"then assert(type(load.name)=="string"and load.name~="","Reminder for a player without a name");return{names={[load.name]=true}}end
+    if t=="ROLE"then assert(({TANK=true,HEALER=true,DAMAGER=true})[load.role],"Unknown role");return{roles={[load.role]=true}}end
+    if t=="GROUP"then local g=tonumber(load.group);assert(g and g>=1 and g<=8,"Unknown raid group");return{subgroups={[g]=true}}end
+    if t=="CLASS_SPEC"then
+        local specs=classSpecs[load.class];assert(specs,"Unknown class "..tostring(load.class))
+        local index=tonumber(load.spec)
+        if index then assert(specs[index],"Unknown specialization");return{specs={[specs[index]]=true}}end
+        return{classes={[load.class]=true}}
+    end
+    if t=="POSITION"then
+        local melee=load.position=="MELEE";local specs={}
+        for _,list in pairs(classSpecs)do for _,id in ipairs(list)do if(meleeSpecs[id]~=nil)==melee then specs[id]=true end end end
+        return{specs=specs,matchAny=true},"Melee / ranged became a list of specializations"
+    end
+    error("Unsupported recipient type "..tostring(t))
+end
+local function TrColor(c,alpha)
+    if type(c)~="table"then return nil end
+    local r,g,b=tonumber(c.r),tonumber(c.g),tonumber(c.b)
+    if not(r and g and b)then return nil end
+    local function clamp(v)return math.max(0,math.min(1,v))end
+    return{clamp(r),clamp(g),clamp(b),alpha or 1}
+end
+function ns.TimelineRemindersImport(input)
+    local report=Report("Timeline Reminders");local data={presets={},activePreset={},raidReminders={},settings={enabled=true,voiceOn=true}}
+    local dungeon={};for _,g in ipairs(ns.Catalog.dungeons or{})do for _,n in ipairs(g.npcs or g.bosses or{})do if n.encounterId then dungeon[n.encounterId]=true end end end
+    for _,chunk in ipairs(TrChunks(input))do
+        local enc=tonumber(chunk.id);local diff=tonumber(chunk.d)
+        for key,r in pairs(chunk.r)do
+            local path=tostring(enc or"?").."/"..tostring(diff or"?").."/"..tostring(key)
+            local ok,err=pcall(function()
+                assert(enc and enc>0,"Export has no boss; export it from the boss timeline")
+                assert(diff==1 or diff==2,"Only Heroic and Mythic timelines are imported")
+                assert(type(r)=="table"and type(r.trigger)=="table"and type(r.display)=="table","Not a reminder")
+                local tr,dp=r.trigger,r.display
+                local time=tonumber(tr.time);assert(time and time>0 and time<=7200,"Time must be after the pull or event")
+                local duration=math.max(0.1,math.min(120,tonumber(tr.duration)or 8))
+                local trigger,warn
+                local rel=type(tr.relativeTo)=="table"and tr.relativeTo or nil
+                if not rel then trigger={type="pull",delay=time,leadTime=math.min(duration,time)}
+                elseif spellEvents[rel.event]and tonumber(rel.value)then
+                    local count=tonumber(rel.count)
+                    -- Boss mod messages fire the reminder after delay seconds; it then shows for its duration.
+                    trigger={type="bwmsg",spellID=math.floor(tonumber(rel.value)),delay=math.max(0,time-duration),counterGroups=count and count>=1 and{{{op="=",value=math.floor(count)}}}or nil}
+                    warn="Started from the boss mod message of spell "..math.floor(tonumber(rel.value))..(count and(" #"..math.floor(count))or"")..", not from the combat log event; check the timing in game"
+                else error("Relative to "..tostring(rel.event).." is not supported (needs a boss mod spell)")end
+                local region=({TEXT="text",ICON="icon",BAR="bar",CIRCLE="circle"})[dp.region]or(dp.type=="SPELL"and"icon"or"text")
+                local spell=dp.type=="SPELL"and tonumber(dp.spellID)and tonumber(dp.spellID)>0 and math.floor(tonumber(dp.spellID))or nil
+                if region=="icon"then assert(spell,"Icon reminder without a spell")end
+                local text=dp.type=="SPELL"and(type(dp.spellText)=="string"and dp.spellText or"")or(type(dp.text)=="string"and dp.text or"")
+                local target,note=TrTarget(r.load)
+                local display={type=region,text=text:sub(1,500),spellID=spell,dur=math.min(duration,time),tts=false}
+                display.textColor=TrColor(dp.color)
+                if region=="bar"then display.barColor=TrColor(dp.color)
+                    local ticks={};for _,t in ipairs(type(dp.ticks)=="table"and dp.ticks or{})do t=tonumber(t);if t and t>0 and t<=120 and #ticks<20 then ticks[#ticks+1]=t end end
+                    display.ticks=ticks[1]and ticks or nil
+                end
+                local linger=tonumber(tr.linger);if linger and linger>0 then display.sticky=math.min(60,linger)end
+                if type(r.tts)=="table"and r.tts.enabled then display.tts=true;if type(r.tts.alias)=="string"and r.tts.alias~=""then display.ttsText=r.tts.alias:sub(1,200)end end
+                if type(r.sound)=="table"and r.sound.enabled and type(r.sound.file)=="string"then
+                    if r.sound.file:lower():find("addons[\\/]timelinereminders")then issue(report,path,"Sound from the Timeline Reminders folder was left out")
+                    else display.sound=r.sound.file:sub(1,300)end
+                end
+                if type(r.countdown)=="table"and r.countdown.enabled then display.countdown=true;issue(report,path,"Spoken countdown became seconds shown after the text")end
+                if type(r.glow)=="table"and r.glow.enabled and type(r.glow.names)=="table"then
+                    local names={};for _,n in ipairs(r.glow.names)do if type(n)=="string"and n~=""and #n<=100 and #names<40 then names[#names+1]=n end end
+                    if names[1]then display.glowTargets=names;display.glowColor=TrColor(r.glow.color)end
+                end
+                local mythicPlus=dungeon[enc]
+                local e={name=(text~=""and text or spell and("Spell "..spell)or"Timeline reminder"):sub(1,120),enabled=true,content=mythicPlus and"mythic"or"raid",
+                    difficulties={[mythicPlus and 8 or(diff==2 and 16 or 15)]=true},trigger=trigger,target=target,display=display,pztkMigration={source="TimelineReminders",key=tostring(key)}}
+                data.raidReminders[enc]=data.raidReminders[enc]or{}
+                data.raidReminders[enc][ns.UID("tr")]=e;report.converted=report.converted+1
+                if warn then issue(report,path,warn)end
+                if note then issue(report,path,note)end
+                if text:find("{")then issue(report,path,"Text has {} tags from Timeline Reminders; check how it reads")end
+            end)
+            if not ok then issue(report,path,tostring(err):gsub("^.-:%d+: ",""))end
+        end
+    end
+    assert(report.converted>0,"No supported reminders. "..table.concat(report.issues,"; "):sub(1,400))
+    return Native("Timeline Reminders",data),report
+end
 function ns.DecodeImport(text)
     local ok,p,report=pcall(function()
         assert(type(text)=="string","Paste a profile string");local input=text:gsub("%s+","");assert(#input<=130000,"Import string exceeds 130 KB")
         if input:sub(1,6)=="PZTK1:"then local value,error=ns.Decode(input);assert(value,error);return value end
         if input:sub(1,9)=="NSRPACK2:"then return NSR(input)end
         if input:sub(1,6)=="!NSRT:"then return NSRT(input)end
-        error("Expected PZTK1, NSRPACK2 or an !NSRT export")
+        if input:sub(1,5)=="!TR2:"or input:sub(1,4)=="!TR:"then return ns.TimelineRemindersImport(input)end
+        error("Expected PZTK1, NSRPACK2, an !NSRT or a Timeline Reminders export")
     end)
     if not ok then return nil,tostring(p)end
     if not ns.Validate(p)then return nil,"The imported profile contains unsupported data"end

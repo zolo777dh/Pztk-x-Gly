@@ -47,7 +47,7 @@ SLASH_NDP5="/puzatik"
 function NaowhDefensivePlanner_OnAddonCompartmentClick()ns.Open()end
 local sections={sets="sets",defensives="sets",mythic="mythic",["m+"]="mythic",raid="raid",raids="raid",overview="overview",tl="timeline",timeline="timeline",
     notes="notes",reminders="notes",r="notes",preminders="notes",pr="notes",alerts="alerts",auras="debuffs",debuffs="debuffs",assign="assign",assignments="assign",
-    tools="raidtools",raidtools="raidtools",rt="raidtools",players="players",nicks="players",display="display",profiles="profiles",settings="settings",config="settings"}
+    tools="raidtools",raidtools="raidtools",rt="raidtools",players="players",qol="qol",combat="combat",interrupts="combat",kicks="combat",pace="combat",nicks="players",display="display",profiles="profiles",settings="settings",config="settings"}
 -- Commands from the old addons that are not rebuilt yet: say so instead of silently opening the window.
 local planned={bosses=true,keys=true,trace=true,observed=true,cds=true,calls=true,cd=true,invite=true}
 local function help()
@@ -97,13 +97,13 @@ for _,event in ipairs({"ADDON_LOADED","PLAYER_ENTERING_WORLD","ENCOUNTER_START",
 -- Countdown events may be missing on some clients; pre-pull reminders then stay idle.
 for _,event in ipairs({"START_PLAYER_COUNTDOWN","CANCEL_PLAYER_COUNTDOWN"})do pcall(events.RegisterEvent,events,event)end
 pcall(events.RegisterUnitEvent or events.RegisterEvent,events,"UNIT_SPELLCAST_SUCCEEDED","player")
-events:SetScript("OnEvent",function(_,event,a,b,c)
-    if event=="UNIT_SPELLCAST_SUCCEEDED"then if a=="player"and ns.NoteCast then ns.NoteCast(c)end;return end
+events:SetScript("OnEvent",function(_,event,a,b,c,d,e)
+    if event=="UNIT_SPELLCAST_SUCCEEDED"then if a=="player"then if ns.NoteCast then ns.NoteCast(c)end;if ns.HideSpell then ns.HideSpell(c)end end;return end
     if event=="PLAYER_LOGOUT"then if ns.SaveWorkspaceDrafts then ns.SaveWorkspaceDrafts()end;return
     elseif event=="ENCOUNTER_START"then ns.RefreshContext();ns.Begin(a,c,ns.map)
     elseif event=="START_PLAYER_COUNTDOWN"then ns.Countdown(b)
     elseif event=="CANCEL_PLAYER_COUNTDOWN"then ns.Countdown(nil)
-    elseif event=="ENCOUNTER_END"then ns.Reset()
+    elseif event=="ENCOUNTER_END"then if ns.FinishRecording then ns.FinishRecording(e==1)end;ns.Reset()
     elseif event=="PLAYER_REGEN_ENABLED"then ns.Cancel("trash:")
     else
         if event=="PLAYER_SPECIALIZATION_CHANGED"and a~="player"then return end

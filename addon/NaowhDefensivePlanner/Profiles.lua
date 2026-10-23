@@ -187,6 +187,12 @@ function ns.Validate(profile)
             if display.tts~=nil and type(display.tts)~="boolean"then return false end
             if display.glowTargets~=nil and not Sequence(display.glowTargets,1,40,function(v)return type(v)=="string"and #v>0 and #v<=100 end)then return false end
             if display.glowColor~=nil and not Sequence(display.glowColor,4,4,function(v)return Number(v,0,1)end)then return false end
+            -- NSRT-style look: text and bar colours, bar ticks, sticky time and the countdown switch.
+            for _,key in ipairs({"textColor","barColor"})do if display[key]~=nil and not Sequence(display[key],4,4,function(v)return Number(v,0,1)end)then return false end end
+            if display.ticks~=nil and not Sequence(display.ticks,0,20,function(v)return Number(v,0,120)end)then return false end
+            if not Number(display.sticky,0,60,true)then return false end
+            for _,key in ipairs({"hideTimer","countdown","hideOnUse"})do if display[key]~=nil and type(display[key])~="boolean"then return false end end
+            if not Number(display.voiceCountdown,0,10,true)then return false end
             if entry.target and type(entry.target) ~= "table" then return false end
             for _,key in ipairs({"all","matchAny"})do if entry.target and entry.target[key]~=nil and type(entry.target[key])~="boolean"then return false end end
             for _, key in ipairs({"roles","specs","classes","names","subgroups"}) do if entry.target and entry.target[key] and not Flags(entry.target[key]) then return false end end
@@ -194,14 +200,20 @@ function ns.Validate(profile)
     end
     return true
 end
--- Pre-pull countdowns and multi-frame glows need 0.3.3; everything else the in-game editor writes needs 0.3.0.
+-- Hide on use and spoken countdowns need 0.6.7; NSRT-style colours, ticks, sticky time and
+-- countdowns need 0.6.5; pre-pull countdowns and
+-- multi-frame glows need 0.3.3; everything else the in-game editor writes needs 0.3.0.
+local lookKeys={"textColor","barColor","ticks","sticky","hideTimer","countdown"}
 function ns.MinimumAddon(data)
+    local need="0.3.0"
     for _,entries in pairs(type(data)=="table"and type(data.raidReminders)=="table"and data.raidReminders or{})do
         for _,e in pairs(type(entries)=="table"and entries or{})do
-            if type(e)=="table"and(type(e.trigger)=="table"and e.trigger.type=="prepull"or type(e.display)=="table"and(e.display.glowTargets~=nil or e.display.glowColor~=nil))then return "0.3.3"end
+            if type(e)=="table"and type(e.display)=="table"and(e.display.hideOnUse~=nil or e.display.voiceCountdown~=nil)then return "0.6.7"end
+            if type(e)=="table"and type(e.display)=="table"then for _,key in ipairs(lookKeys)do if e.display[key]~=nil then need="0.6.5"end end end
+            if need=="0.3.0"and type(e)=="table"and(type(e.trigger)=="table"and e.trigger.type=="prepull"or type(e.display)=="table"and(e.display.glowTargets~=nil or e.display.glowColor~=nil))then need="0.3.3"end
         end
     end
-    return "0.3.0"
+    return need
 end
 function ns.Decode(input)
     if type(input) ~= "string" then return nil, "Paste a PZTK1 string" end

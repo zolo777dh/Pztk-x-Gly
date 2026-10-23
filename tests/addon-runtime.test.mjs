@@ -99,3 +99,77 @@ test('addon validation accepts the new fields and refuses malformed ones',()=>{
   local _,err=NS.Decode("PZTK1:"..ld:EncodeForPrint(ld:CompressDeflate(ser:Serialize(p))));assert(err:match("9%.0%.0"),err)
  `);
 });
+
+test('NSRT-style look: colours, ticks, sticky time and timers validate, gate the version and draw',()=>{
+ runLua(`
+  local function profile(display)return{format=1,addon="PztkReminders",name="t",client="retail",data={raidReminders={[1]={a={trigger={type="pull",delay=10},display=display}}}}}end
+  local look={type="bar",dur=8,textColor={1,1,0,1},barColor={1,0,0,1},ticks={2,5},sticky=3,hideTimer=false,countdown=true}
+  assert(NS.Validate(profile(look)))
+  assert(NS.MinimumAddon(profile(look).data)=="0.6.5")
+  assert(NS.MinimumAddon(profile({type="text"}).data)=="0.3.0")
+  assert(not NS.Validate(profile({type="bar",ticks={130}})),"tick past 120 s")
+  assert(not NS.Validate(profile({type="bar",sticky=61})),"sticky past 60 s")
+  assert(not NS.Validate(profile({type="text",countdown="yes"})),"non-boolean countdown")
+  assert(not NS.Validate(profile({type="text",textColor={1,2,0,1}})),"colour out of range")
+  -- A bar redraws from one ticker, and sticky time keeps it up after the countdown.
+  local tickers={}
+  C_Timer.NewTicker=function(_,fn)local t={fn=fn};function t:Cancel()self.cancelled=true end;tickers[#tickers+1]=t;return t end
+  NS.Display({type="bar",spellID=1,text="Soak",dur=8,sticky=3,ticks={2,5}})
+  assert(#tickers==1,"one ticker for the bar")
+  NS.Display({type="text",text="Plain",dur=8})
+  assert(#tickers==1,"plain text has no ticker")
+  T.Advance(8.5);assert(not tickers[1].cancelled,"still shown in sticky time")
+  T.Advance(3);assert(tickers[1].cancelled,"released after sticky time")
+ `);
+});
+
+test('reminder editor turns look fields into display settings',()=>{
+ runLua(`
+  local d=NS.ApplyLook({type="bar"},{showTimer=false,sticky="2",ticks="10, 3",textColor="yellow",barColor="red",glowNames="Tankadin Healbot",glowColor="blue"})
+  assert(d.hideTimer==true and d.sticky==2 and d.ticks[1]==3 and d.ticks[2]==10)
+  assert(d.textColor[2]==0.85 and d.barColor[1]==1 and d.glowTargets[2]=="Healbot" and d.glowColor[3]==1)
+  local t=NS.ApplyLook({type="text"},{showTimer=true,sticky="",textColor="imported",glowNames=""},{textColor={0.1,0.2,0.3,1}})
+  assert(t.countdown==true and t.sticky==nil and t.textColor[1]==0.1 and t.glowTargets==nil and t.ticks==nil)
+  assert(NS.LookColorKey({1,0.85,0.1,1})=="yellow" and NS.LookColorKey({0.1,0.2,0.3,1})=="imported" and NS.LookColorKey(nil)=="")
+  assert(not pcall(NS.ApplyLook,{type="bar"},{ticks="5, 500"}),"tick limit")
+  assert(not pcall(NS.ApplyLook,{type="text"},{textColor="pink"}),"unknown colour")
+ `);
+});
+
+test('Timeline Reminders features: note timers, hide on use, spoken countdown, recorded boss timeline',()=>{
+ runLua(`
+  assert(NS.CreateProfile("Raid plan",false))
+  local said={};C_VoiceChat={GetTtsVoices=function()return{{voiceID=1}}end,SpeakText=function(_,text)said[#said+1]=text end}
+  -- Note lines in the common raid note format.
+  local text=table.concat({
+   "{time:0:20} Soak - Healbot {text}Soak now{/text}  Tankadin {spell:871}",
+   "{time:1:05,p2} {everyone} {spell:22812}@Tankadin,Other",
+   "{time:0:08,SCS:1249262:2} role:healer {text}Heal{/text}",
+   "{time:0:30} type:melee {text}Melee move{/text}  group:3 {text}G3{/text}  spec:druid:4 {text}Tree{/text}",
+   "plain line without a timer"},"\\n")
+  local list=NS.ParseNoteTimers(text,"healbot",nil,6);local by={};local n=0
+  for _,e in pairs(list)do n=n+1;by[e.display.text~=""and e.display.text or tostring(e.display.spellID)]=e end
+  assert(n==6,"six reminders for this character: "..n)
+  assert(by["Soak now"].trigger.type=="pull"and by["Soak now"].trigger.delay==20 and by["Soak now"].trigger.leadTime==6)
+  assert(not by["871"],"another player's line is skipped")
+  local p2=by["22812"];assert(p2.trigger.type=="stage"and p2.trigger.stage==2 and p2.trigger.delay==65 and p2.display.glowTargets[2]=="Other")
+  local h=by["Heal"];assert(h.trigger.type=="bwmsg"and h.trigger.spellID==1249262 and h.trigger.delay==2 and h.trigger.counterGroups[1][1].value==2 and h.target.roles.HEALER)
+  assert(by["Melee move"].target.matchAny and by["Melee move"].target.specs[71]and by.G3.target.subgroups[3]and by.Tree.target.specs[105])
+  -- They fire on the pull without being saved in a profile.
+  local shown={};local display=NS.Display;NS.Display=function(d)shown[#shown+1]=d end
+  NS.Notes().live={name="Plan",text="{time:0:20} Healbot {text}Soak now{/text}"}
+  NS.Begin(3176,16,2900);T.Advance(14.5);assert(#shown==1 and shown[1].text=="Soak now",#shown)
+  NS.Notes().cfg.timers=false;NS.Begin(3176,16,2900);T.Advance(30);assert(#shown==1,"note timers can be switched off")
+  NS.Display=display
+  -- Hide on use and spoken countdown.
+  NS.Display({type="icon",spellID=871,dur=8,hideOnUse=true,tts=false})
+  assert(NS.HideSpell(871)and not NS.HideSpell(871))
+  said={};NS.Display({type="text",text="Go",dur=5,voiceCountdown=3});T.Advance(5)
+  assert(table.concat(said,",")=="3,2,1",table.concat(said,","))
+  -- Boss timeline recorded from boss mod timers during a pull; the longer pull or the kill is kept.
+  NS.Begin(3176,16,2900);NS.Mechanic(1249262,10,"bar1");NS.Mechanic(1249262,9.8,"bar1");T.Advance(20);NS.Mechanic(1250000,nil,"msg")
+  assert(NS.FinishRecording(false))
+  local tl=NS.RecordedTimeline(3176,16);assert(#tl.events==2 and tl.events[1][1]==10 and tl.events[2][1]==20)
+  NS.Begin(3176,16,2900);NS.Mechanic(1,5,"x");assert(not NS.FinishRecording(false),"a shorter wipe does not replace it")
+ `);
+});

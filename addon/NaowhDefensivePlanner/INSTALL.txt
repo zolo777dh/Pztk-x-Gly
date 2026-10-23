@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.6.0 — in-game editor and reminder engine
+Naowh Defensive Planner 0.6.7 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -22,7 +22,7 @@ Use /ndp or the minimap addon compartment menu (/nwhdp, /pztkr and /puzatik stil
 work). The window follows the design mockup: a top bar with the logo, search
 (type, then press Enter), timeline / anchor / roster buttons, your specialization,
 profile and boss mod status; a sidebar grouped as Planner (Overview, Mythic+, Raids,
-Timeline), Raid (Notes, Raid tools, Players) and System (Profiles, Settings,
+Timeline), Raid (Notes, Raid tools, Players, Quality of life, Combat tools) and System (Profiles, Settings,
 Diagnostics). Mythic+ and Raids each switch between Mechanics, Defensive sets and
 Debuffs.
 
@@ -116,6 +116,69 @@ mechanic or create a timed reminder from pull / phase. Actions include a chosen
 spell icon, text, countdown, circle, sound and a supported player-frame glow.
 Recipients can be the selected spec, role, player or everyone. Imported combined
 recipient filters and difficulty filters can be retained. Save explicitly.
+Non-defensive reminders have a LOOK section, like NSRT Encounter Alerts: text
+colour, a countdown bar with its own colour and ticks (seconds left, e.g. 5, 10),
+a custom icon spell ID for bars and circles, Show seconds left (bars and circles
+hide their timer when it is off, text and icons add the seconds after the text),
+Stay after timer (sticky seconds after the countdown ends) and Also glow players
+(raid frames of the listed names, with a glow colour). Profiles that use these
+need addon 0.6.5. Defensive call-outs keep the plain icons and names look.
+
+QUALITY OF LIFE (/ndp qol)
+A movable text display (font size, outline, Unlock and preview) shows short notices:
+Gateway usable (when you carry a Gateway Control Shard), boss resetting / has reset
+after a wipe, Loot the boss after a raid kill, and a Soulwell, Feast, Cauldron or
+repair bot put down by the group (recognised by the English spell name, out of
+combat). Ready check lists what you miss: raid buffs a class in the group can give,
+a Vantus rune in raids, flask, food and durability under 30%; Check me now runs it
+at once. Convenience: spell IDs in tooltips, auto-repair (optionally from the guild
+bank) and accepting group invites from guild members. Options that are off register
+no events.
+
+RAID TOOLS ADDITIONS
+Sorting: Default arrangement, Split groups (two halves with the same roles) and
+Split evens/odds; Abort sorting stops it. Assistants: promote guild officers up to
+a chosen rank, always promote everyone, automatically or now. Break timer: show the
+bar, a sound at the end, print the time left each minute, unlock and preview to
+move the bar, announce in group chat.
+
+COMBAT TOOLS (/ndp combat)
+Interrupt display: a kick order (typed, or the "Kick:" line of the shared note) with
+the player to kick now and the next one coloured, number and name font sizes, width,
+and a movable frame. It moves on when a listed player interrupts (your own casts
+always count; the game may hide other players' casts in combat), and starts over
+after combat or at a pull. Next kicker / Start over move it by hand.
+Pace comparison: during raid pulls the boss health is sampled every few seconds
+and the text display shows +/- percent against your best pull of that boss and
+difficulty (the kill, or the lowest wipe). If the game hides boss health, it says so.
+Private auras: big icons of your own private auras (and the other tank's, as tank),
+drawn by the game into slots you can size and move.
+
+TIMELINE TOOLS
+Boss timeline: each pull records when your boss mod announced the boss abilities.
+The kill (or the longest pull) is kept, and the Timeline page shows it as a
+"Boss" lane. Click an ability icon to start a reminder at that time. You need one
+pull with BigWigs or DBM before the lane appears.
+Note timers: lines like {time:1:30} Soak - Name in the shared or personal note
+show as reminders on the pull. Who can be a name, {everyone}, class:, spec:,
+role:, group: or type:melee / type:ranged. Turn them off or set how early they
+show (4-10 seconds) on the Notes page.
+Reminder card: "Melee or ranged" recipients, "Hide when I cast the spell" (icon,
+bar and circle) and "Spoken countdown" (3, 2, 1 at the end of the timer).
+Send to group (Timeline page, leader or assist) shares the plan for that boss and
+difficulty. Received reminders are kept under the sender's name.
+
+TIMELINE REMINDERS IMPORT
+Profiles > Import profile reads Timeline Reminders exports (!TR2:, and the older
+!TR:). Paste one or several lines; each is one boss and difficulty (Heroic or
+Mythic; dungeon bosses become Mythic+ reminders). Reminders timed from the pull
+keep their time and duration. Reminders timed from a spell event (cast start,
+cast success, aura applied/removed) start from the boss mod message of that
+spell and its count, so check those timings in game. Reminders timed from a unit
+death, yell or emote are listed in the report and not imported. Text, icon, bar
+and circle looks, colour, ticks, linger (stay after timer), text to speech, glow
+names and recipients (everyone, name, role, class/spec, group; melee/ranged as a
+list of specs) are kept. Sounds from the Timeline Reminders folder are left out.
 
 PROFILES
 Create, copy, rename, delete, select, import or export a profile inside the game.

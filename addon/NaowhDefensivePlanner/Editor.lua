@@ -213,6 +213,53 @@ function ns.RuleOptions(ctx)
     end
     table.sort(rows,function(a,b)return tostring(a.entry.name or a.key)<tostring(b.entry.name or b.key)end);return rows
 end
+-- NSRT-style look for reminder text, bars and player glows. Colours come from a short palette;
+-- a colour imported from another addon stays as it is until another one is picked.
+ns.LookColors={
+    {value="",label="Default"},{value="white",label="White",color={1,1,1,1}},{value="yellow",label="Yellow",color={1,0.85,0.1,1}},
+    {value="orange",label="Orange",color={1,0.55,0.1,1}},{value="red",label="Red",color={1,0.2,0.2,1}},{value="green",label="Green",color={0.3,0.9,0.3,1}},
+    {value="blue",label="Blue",color={0.25,0.6,1,1}},{value="purple",label="Purple",color={0.7,0.4,1,1}},
+}
+function ns.LookColorKey(color)
+    if type(color)~="table"then return""end
+    for _,o in ipairs(ns.LookColors)do local c=o.color;if c and c[1]==color[1]and c[2]==color[2]and c[3]==color[3]then return o.value end end
+    return"imported"
+end
+local function LookColor(key,previous)
+    if key==nil or key==""then return nil end
+    if key=="imported"then return ns.Clone(previous)end
+    for _,o in ipairs(ns.LookColors)do if o.value==key then return ns.Clone(o.color)end end
+    error("Choose a colour from the list")
+end
+function ns.ParseTicks(text)
+    if text==nil or tostring(text):match("^%s*$")then return nil end
+    local ticks={}
+    for token in tostring(text):gmatch("[^,%s]+")do ticks[#ticks+1]=Number(token,"bar tick seconds",0.1,120)end
+    assert(#ticks<=20,"Use at most 20 bar ticks");table.sort(ticks);return ticks
+end
+function ns.ParseGlowNames(text)
+    local names={}
+    for token in tostring(text or""):gmatch("[^,%s]+")do assert(#token<=100,"Player names are at most 100 characters");names[#names+1]=token end
+    assert(#names<=40,"Glow at most 40 players");return names[1]and names or nil
+end
+-- Adds the look fields from the reminder editor to a display table. previous is the saved display, if any.
+function ns.ApplyLook(display,form,previous)
+    previous=previous or{}
+    local timed=display.type=="bar"or display.type=="circle"
+    if form.showTimer~=nil then
+        if timed then display.hideTimer=not form.showTimer or nil elseif display.type~="chat"then display.countdown=form.showTimer or nil end
+    end
+    local sticky=form.sticky;if sticky~=nil and not tostring(sticky):match("^%s*$")then sticky=Number(sticky,"sticky seconds",0,60);display.sticky=sticky>0 and sticky or nil end
+    if display.type=="bar"then display.ticks=ns.ParseTicks(form.ticks);display.barColor=LookColor(form.barColor,previous.barColor)end
+    if display.type~="chat"then display.textColor=LookColor(form.textColor,previous.textColor)end
+    if form.hideOnUse~=nil then display.hideOnUse=(form.hideOnUse==true and display.spellID~=nil)or nil end
+    if form.voiceCountdown~=nil then local v=tonumber(form.voiceCountdown)or 0;assert(v>=0 and v<=10,"Choose a spoken countdown");display.voiceCountdown=v>0 and v or nil end
+    if form.glowNames~=nil then
+        display.glowTargets=ns.ParseGlowNames(form.glowNames)
+        display.glowColor=display.glowTargets and LookColor(form.glowColor,previous.glowColor)or nil
+    end
+    return display
+end
 function ns.ParseCounter(text)
     if not text or text:match("^%s*$")then return nil end
     assert(#text<=200,"Counter expression is too long");local groups={}
@@ -236,10 +283,13 @@ function ns.SaveRule(ctx,form,reference)
         local duration=Number(form.duration or 4,"duration",0.1,120);local lead=Number(form.leadTime or 2,"lead time",0,120)
         local display={type=dynamic and"icon"or(form.action or"text"),text=tostring(form.text or""),dur=duration,sound=tostring(form.sound or""),tts=form.tts==true}
         if display.type=="icon"and not dynamic then display.spellID=Integer(form.displaySpellID,"display spell ID")end
+        -- Bars and circles take an optional custom icon; blank uses the mechanic's own icon.
+        if(display.type=="bar"or display.type=="circle")then local id=tostring(form.displaySpellID or""):match("^%s*(.-)%s*$");display.spellID=id~=""and Integer(id,"display spell ID")or ctx.spell end
         if display.type=="raidframeGlow"then display.glowTarget=Name(form.glowTarget)end
-        -- Extra raid-frame glows (NSRT glowunit) have no in-game field yet; keep them across edits.
-        local previous=reference and reference.section=="raidReminders"and type(reference.entry.display)=="table"and reference.entry.display
-        if previous and display.type~="raidframeGlow"then display.glowTargets=ns.Clone(previous.glowTargets);display.glowColor=ns.Clone(previous.glowColor)end
+        local previous=reference and reference.section~="abilityBindings"and type(reference.entry.display)=="table"and reference.entry.display
+        -- Extra raid-frame glows (NSRT glowunit) are kept across edits when the editor did not show them.
+        if previous and form.glowNames==nil and display.type~="raidframeGlow"then display.glowTargets=ns.Clone(previous.glowTargets);display.glowColor=ns.Clone(previous.glowColor)end
+        if not dynamic then ns.ApplyLook(display,form,previous)end
         local key=reference and reference.section~="abilityBindings"and reference.key or ns.UID("reminder")
         if ctx.kind=="trash"then
             assert(dynamic,"Trash timer reminders use a defensive set");local map=Integer(ctx.map,"instance map ID");local spell=Integer(ctx.spell,"mechanic spell ID")
@@ -257,6 +307,7 @@ function ns.SaveRule(ctx,form,reference)
             if dynamic or form.recipient=="spec"then target={specs={[spec]=true}}
             elseif form.recipient=="role"then assert(({TANK=true,HEALER=true,DAMAGER=true})[form.role],"Choose a role");target={roles={[form.role]=true}}
             elseif form.recipient=="player"then target={names={[Name(form.player)]=true}}
+            elseif form.recipient=="position"then assert(form.role=="MELEE"or form.role=="RANGED","Choose melee or ranged");target={specs=ns.PositionSpecs(form.role=="MELEE")}
             elseif form.recipient=="preserve"then target=reference and ns.Clone(reference.entry.target);assert(target,"No imported recipient filter")
             else target={all=true}end
             local diff=scope=="mythic"and 8 or Integer(ctx.difficulty,"raid difficulty");assert(diff==8 or diff==15 or diff==16,"Choose Mythic+, Heroic or Mythic")
