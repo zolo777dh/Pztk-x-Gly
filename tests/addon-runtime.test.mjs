@@ -22,7 +22,7 @@ function runLua(body,globals={}){
  run(fs.readFileSync(path.join(root,'tests','helpers','wow-runtime.lua'),'utf8'),'stubs');
  // Real libraries register through the real LibStub; glow/frame libraries stay stubbed.
  run(`local stub=_G.LibStub;_G.LibStub=nil;${fs.readFileSync(path.join(addon,'Libs','LibStub.lua'),'utf8')}\nlocal real=_G.LibStub;_G.LibStub=setmetatable({},{__call=function(_,name,silent)return stub(name)or real(name,silent)end,__index=real})`,'LibStub');
- // LibDeflate's bit arithmetic needs Lua 5.1; under fengari, PZTK1 bodies travel as hex of the inflated bytes instead.
+ // LibDeflate's bit arithmetic needs Lua 5.1; under fengari, PZTK1 bodies travel as hex and !NDP1: bodies as Base64 of the inflated bytes instead.
  run(`LibStub:NewLibrary("LibDeflate",1)`,'LibDeflate');run(`local ld=LibStub("LibDeflate")
   function ld:DecodeForPrint(s)return (s:gsub("..",function(h)return string.char(tonumber(h,16))end))end
   function ld:EncodeForPrint(s)return (s:gsub(".",function(c)return string.format("%02x",c:byte())end))end
@@ -44,7 +44,7 @@ async function exportFor(alerts){
  const text=new NsrtCodec().encode({type:'EncounterAlert',payload:{version:1,type:'alerts',encounterAlerts:alerts},numericKeys:[]});
  const {view:after}=await service.handle('reminders.migrateNsrt',{id:view.id,revision:view.revision,text});
  const exported=(await service.handle('reminders.export',{id:after.id,revision:after.revision})).text;
- return 'PZTK1:'+inflateRawSync(decodePrint(exported.slice(6))).toString('hex');
+ return '!NDP1:'+inflateRawSync(Buffer.from(exported.slice(6),'base64')).toString('base64');
 }
 const alert=extra=>({name:'Pot',text:'Pot',enabled:true,IsAlert:true,DisplayType:'Text',dur:3,phase:1,timers:[-5],loadConditions:{},...extra});
 

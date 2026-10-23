@@ -302,7 +302,8 @@ function ns.SaveRule(ctx,form,reference)
             if scope=="mythic"then assert(triggerType=="bwtimer"or triggerType=="bwmsg","M+ reminders bind to a mechanic")end
             local trigger={type=triggerType,leadTime=lead,delay=triggerType=="prepull"and Number(form.delay,"seconds before pull",0.1,3600)or Number(form.delay or 0,"delay",0,7200),counterGroups=ns.ParseCounter(form.counter)}
             if triggerType=="stage"then trigger.stage=Number(form.phase or 1,"phase",1,100)end
-            if triggerType=="bwtimer"or triggerType=="bwmsg"then trigger.spellID=Integer(ctx.spell,"mechanic spell ID")end
+            local spell=ctx.spell or tonumber(form.triggerSpell)
+            if triggerType=="bwtimer"or triggerType=="bwmsg"then trigger.spellID=Integer(spell,"boss ability spell ID")end
             local target
             if dynamic or form.recipient=="spec"then target={specs={[spec]=true}}
             elseif form.recipient=="role"then assert(({TANK=true,HEALER=true,DAMAGER=true})[form.role],"Choose a role");target={roles={[form.role]=true}}
@@ -313,7 +314,7 @@ function ns.SaveRule(ctx,form,reference)
             local diff=scope=="mythic"and 8 or Integer(ctx.difficulty,"raid difficulty");assert(diff==8 or diff==15 or diff==16,"Choose Mythic+, Heroic or Mythic")
             local entry=ns.Clone(reference and reference.section=="raidReminders"and reference.entry or{});entry.name=Name(form.name);entry.enabled=form.enabled~=false;entry.content=scope;entry.trigger=trigger;entry.target=target;entry.display=display
             entry.difficulties=form.preserveDifficulties and entry.difficulties or{[diff]=true}
-            entry.defensive=dynamic and{specID=spec,preset=form.preset,scope=scope}or nil;entry.catalog={npcID=ctx.npc,groupId=ctx.group,abilityID=ctx.spell}
+            entry.defensive=dynamic and{specID=spec,preset=form.preset,scope=scope}or nil;entry.catalog={npcID=ctx.npc,groupId=ctx.group,abilityID=trigger.spellID or ctx.spell}
             data.raidReminders=data.raidReminders or{};data.raidReminders[encounter]=ns.Get(data.raidReminders,encounter)or{};data.raidReminders[encounter][key]=entry
             if reference and reference.section=="abilityBindings"then ns.Get(ns.Get(data.abilityBindings,spec),encounter)[ctx.spell]=nil end
         end

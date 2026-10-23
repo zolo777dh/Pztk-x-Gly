@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
@@ -333,4 +333,29 @@ local got=0;for k,e in pairs(ns.Active().data.raidReminders[enc])do if tostring(
 assert(got==1,'stored under sender');assert(ns.ReceiveReminders(sent[2],'Leader')==1);got=0;for k in pairs(ns.Active().data.raidReminders[enc])do if tostring(k):match('^recv:')then got=got+1 end end;assert(got==1,'a resend replaces')
 assert(ns.SendReminders(enc,15)==1,'received reminders are not sent on')
 end
+`));
+test('one !NDP1: string carries every profile, Mythic+ and raid data, and imports them all',()=>run(`
+assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
+assert(ns.CreateProfile('Second',true))
+local p=ns.Active();p.data.raidReminders[3379]={x={name='Float',enabled=true,content='raid',difficulties={[16]=true},trigger={type='pull',delay=12.5,leadTime=1.25},target={all=true},display={type='text',text='Négatif',dur=4,ticks={5,10}}}}
+local text,err=ns.Export();assert(text,err);assert(text:sub(1,6)=='!NDP1:','native prefix')
+env.click('tab:profiles');env.click('tab:profiles');env.click('profile-export');assert(ns.UIControls['profile-string']:GetText():sub(1,6)=='!NDP1:')
+env.click('profile-export-active');assert(ns.UIControls['profile-string']:GetText():sub(1,6)=='!NDP1:')
+if LibStub('LibDeflate').DecompressDeflate then
+  local bundle=assert(ns.DecodeProfiles(text));assert(#bundle.profiles==2 and bundle.active=='Second')
+  local before=0;for _ in pairs(ns.Store().profiles)do before=before+1 end
+  local name,e2,_,count=ns.Import(text);assert(name,e2);assert(count==2,'both profiles imported')
+  local after=0;for _ in pairs(ns.Store().profiles)do after=after+1 end;assert(after==before+2)
+  local r=ns.Active().data.raidReminders[3379].x;assert(name=='Second 2'and r.trigger.delay==12.5 and r.trigger.leadTime==1.25 and r.display.text=='Négatif'and r.display.ticks[2]==10,'values survive')
+  assert(not ns.DecodeProfiles('!NDP1:AAAA'),'garbage refused')
+end
+`));
+test('the timeline shows mechanic reminders and authors boss mod timers and messages for a chosen ability',()=>run(`
+env.click('tab:raid');env.click('new-timed');env.input('rule:name','Soak');env.select('rule:trigger','Boss mod message')
+assert(ns.UIControls['rule:triggerSpell'],'boss ability picker');env.click('save-rule')
+local enc,found;for e,es in pairs(ns.Active().data.raidReminders)do for k,v in pairs(es)do if v.name=='Soak'then enc,found=e,v end end end
+assert(found and found.trigger.type=='bwmsg'and found.trigger.spellID,'message reminder bound to an ability')
+ns.Store().timelines={[ns.Client()..':'..enc..':15']={events={{20,found.trigger.spellID},{80,found.trigger.spellID}},length=120}}
+env.click('tab:timeline');local marks=0;for k in pairs(ns.UIControls)do if k:match('^tl%-mech:')then marks=marks+1 end end;assert(marks==2,'two casts on the Mechanics lane, got '..marks)
+local key;for k in pairs(ns.UIControls)do if k:match('^tl%-mech:')then key=k end end;env.click(key);assert(ns.UIState.tab=='raid'and ns.UIState.reference and ns.UIState.reference.entry.name=='Soak','marker opens the reminder')
 `));

@@ -39,7 +39,7 @@ test('native Lua accepts and roundtrips migrated profiles, including the private
  dofile(${JSON.stringify(addon+'/Libs/LibStub.lua')});dofile(${JSON.stringify(addon+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(addon+'/Libs/LibDeflate.lua')})
  local ns={};function GetBuildInfo()return '12.1.5','70448','',120105 end
  assert(loadfile(${JSON.stringify(addon+'/Runtime.lua')}))('NaowhDefensivePlanner',ns)
- assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('NaowhDefensivePlanner',ns)
+ assert(loadfile(${JSON.stringify(addon+'/Codec.lua')}))('NaowhDefensivePlanner',ns);assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('NaowhDefensivePlanner',ns)
  local f=assert(io.open(${JSON.stringify(file)},'rb'));local input=f:read('*a');f:close();local p,e=ns.Decode(input);assert(p,e)
  local name,error=ns.Import(input);assert(name,error);local output=assert(ns.Export());assert(ns.Decode(output));local aura,trash,timed=0,0,0
  for _,rules in pairs(p.data.integrationRules)do for _,r in pairs(rules)do if r.trigger.type=='auraSound'then aura=aura+1 else trash=trash+1 end end end

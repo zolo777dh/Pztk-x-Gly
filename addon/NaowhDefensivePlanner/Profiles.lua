@@ -218,6 +218,11 @@ end
 function ns.Decode(input)
     if type(input) ~= "string" then return nil, "Paste a PZTK1 string" end
     input = input:gsub("%s+", "")
+    if ns.IsNativeExport and ns.IsNativeExport(input) then
+        local bundle,error=ns.DecodeProfiles(input);if not bundle then return nil,error end
+        for _,p in ipairs(bundle.profiles)do if p.name==bundle.active then return p end end
+        return bundle.profiles[1]
+    end
     if input:sub(1,6) ~= "PZTK1:" or #input > 130000 then return nil, "Expected PZTK1 string under 130 KB" end
     local ld, ser = LibStub("LibDeflate"), LibStub("LibSerialize")
     local bytes = ld:DecodeForPrint(input:sub(7))
@@ -238,29 +243,46 @@ function ns.Decode(input)
     if not ok or not ns.Validate(profile) then return nil, "Unsupported profile data" end
     return profile
 end
+-- Adds every profile of an import; same names get a number. The bundle's active profile
+-- (or the first one) becomes active.
 function ns.Import(input)
     if (InCombatLockdown and InCombatLockdown())or ns.encounter then return nil,"Import after combat and the encounter"end
-    local profile, error, report
-    if ns.DecodeImport then profile,error,report=ns.DecodeImport(input)else profile,error=ns.Decode(input)end
-    if not profile then return nil, error end
-    if profile.client ~= ns.Client() then return nil, "Profile belongs to " .. profile.client .. "; use the matching game client" end
+    local profiles, error, report, active
+    if ns.DecodeImport then profiles,error,report,active=ns.DecodeImport(input)else local p;p,error=ns.Decode(input);profiles=p and{p}end
+    if not profiles then return nil, error end
+    for _,profile in ipairs(profiles)do
+        if profile.client ~= ns.Client() then return nil, "Profile belongs to " .. tostring(profile.client) .. "; use the matching game client" end
+    end
     local store = ns.Store()
-    local name, index = profile.name, 2
-    while store.profiles[name] do name = profile.name .. " " .. index; index = index+1 end
-    profile.name = name; store.profiles[name] = profile; store.active = name
-    if report then store.importReports=store.importReports or{};store.importReports[name]=report;store.migrationSources=store.migrationSources or{};store.migrationSources[name]=input end
+    local selected
+    for i,profile in ipairs(profiles)do
+        local base=tostring(profile.name or"Imported profile")
+        local name, index = base, 2
+        while store.profiles[name] do name = base .. " " .. index; index = index+1 end
+        profile.name = name; store.profiles[name] = profile
+        if i==1 or base==active then selected=name end
+    end
+    store.active = selected
+    if report then store.importReports=store.importReports or{};store.importReports[selected]=report;store.migrationSources=store.migrationSources or{};store.migrationSources[selected]=input end
     ns.Reset()
-    return name,nil,report
+    return selected,nil,report,#profiles
 end
+-- One profile as an !NDP1: string (Codec.lua).
 function ns.Encode(profile)
     if not profile or not ns.Validate(profile)then return nil,"Invalid profile data"end
-    local raw = LibStub("LibSerialize"):Serialize(profile)
-    local ld = LibStub("LibDeflate")
-    local encoded="PZTK1:" .. ld:EncodeForPrint(ld:CompressDeflate(raw))
-    if #encoded>130000 then return nil,"Profile exceeds the 130 KB export limit. Reduce its content before saving."end
-    return encoded
+    return ns.EncodeProfiles({profile},profile.name)
 end
-
+local function Sorted()
+    local store=ns.Store();local list={}
+    for name,p in pairs(store.profiles or{})do if p.client==nil or p.client==ns.Client()then list[#list+1]=p end end
+    table.sort(list,function(a,b)if(a.name==store.active)~=(b.name==store.active)then return a.name==store.active end;return tostring(a.name)<tostring(b.name)end)
+    return list
+end
+-- Every profile of this game client in one string, Mythic+ and raids included.
 function ns.Export()
+    local list=Sorted();if #list==0 then return nil,"No profiles to export"end
+    return ns.EncodeProfiles(list,ns.Store().active)
+end
+function ns.ExportActive()
     local profile=ns.Active();if not profile then return nil,"No active profile"end;return ns.Encode(profile)
 end

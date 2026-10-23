@@ -1,53 +1,9 @@
--- Independent, bounded data-only import adapters. Native exports always use PZTK1.
+-- Independent, bounded data-only import adapters for other addons' strings. Native exports use !NDP1: (Codec.lua).
 local _,ns=...
 local function Native(name,data)return{format=1,addon="PztkReminders",client=ns.Client(),minimumAddon=ns.MinimumAddon(data),name=tostring(name or"Imported profile"):sub(1,120),data=data}end
 local function Report(kind)return{source=kind,converted=0,issues={}}end
 local function issue(report,key,reason)report.issues[#report.issues+1]=tostring(key)..": "..reason end
--- Accepts the URL-safe (NSRT) and the standard (Timeline Reminders) alphabet.
-local function Base64(input)
-    input=input:gsub("%+","-"):gsub("/","_")
-    assert(input:match("^[A-Za-z0-9_=%-]+$")and #input%4~=1,"Invalid NSRT encoding")
-    local alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";local lookup={};for i=1,#alphabet do lookup[alphabet:sub(i,i)]=i-1 end
-    local out,cache,bits={},0,0
-    for i=1,#input do local ch=input:sub(i,i);if ch~="="then local v=lookup[ch];assert(v,"Invalid NSRT encoding");cache=cache*64+v;bits=bits+6;if bits>=8 then bits=bits-8;local byte=math.floor(cache/2^bits);out[#out+1]=string.char(byte);cache=cache%2^bits end end end
-    return table.concat(out)
-end
-function ns.ReadCBOR(bytes)
-    assert(type(bytes)=="string"and #bytes<=4000000,"CBOR size limit exceeded")
-    local at,count=1,0
-    local function take(n)assert(n>=0 and at+n<=#bytes+1,"Truncated CBOR");local s=bytes:sub(at,at+n-1);at=at+n;return s end
-    local function uint(n)local value=0;for byte in take(n):gmatch(".")do value=value*256+byte:byte()end;assert(value<=9007199254740991,"CBOR integer exceeds safe precision");return value end
-    local function argument(ai)if ai<24 then return ai elseif ai==24 then return uint(1)elseif ai==25 then return uint(2)elseif ai==26 then return uint(4)elseif ai==27 then return uint(8)elseif ai==31 then return -1 end;error("Invalid CBOR argument")end
-    local function float(n)
-        local raw=take(n);local first,second=raw:byte(1,2);local sign=first>=128 and -1 or 1;local exponent,mantissa,bits,bias
-        if n==2 then exponent=math.floor((first%128)/4);mantissa=(first%4)*256+second;bits=10;bias=15
-        elseif n==4 then exponent=(first%128)*2+math.floor(second/128);mantissa=second%128;for i=3,4 do mantissa=mantissa*256+raw:byte(i)end;bits=23;bias=127
-        else exponent=(first%128)*16+math.floor(second/16);mantissa=second%16;for i=3,8 do mantissa=mantissa*256+raw:byte(i)end;bits=52;bias=1023 end
-        assert(exponent~=bias*2+1,"Non-finite CBOR number")
-        if exponent==0 then return sign*2^(1-bias)*(mantissa/2^bits)end
-        return sign*2^(exponent-bias)*(1+mantissa/2^bits)
-    end
-    local item
-    item=function(depth)
-        count=count+1;assert(depth<=32 and count<=300000,"CBOR structure limit exceeded")
-        local h=uint(1);local major,ai=math.floor(h/32),h%32
-        if major==7 then if ai==20 then return false elseif ai==21 then return true elseif ai==22 then return nil elseif ai==25 then return float(2)elseif ai==26 then return float(4)elseif ai==27 then return float(8)end;error("Unsupported CBOR value")end
-        local n=argument(ai)
-        if major==0 or major==1 then assert(n>=0,"Invalid CBOR integer");return major==0 and n or -1-n end
-        if major==2 or major==3 then assert(n>=0,"Indefinite CBOR strings are unsupported");return take(n)end
-        if major==4 or major==5 then
-            local value,seen={},{};local i=0
-            while n<0 and bytes:byte(at)~=255 or n>=0 and i<n do
-                i=i+1;local key=major==4 and i or item(depth+1)
-                assert((type(key)=="string"or type(key)=="number")and not seen[key]and key~="__proto__"and key~="constructor"and key~="prototype","Invalid or duplicate CBOR key");seen[key]=true
-                value[key]=item(depth+1)
-            end
-            if n<0 then assert(take(1):byte()==255,"Invalid CBOR break")end;return value
-        end
-        error("Unsupported CBOR type or tag")
-    end
-    local value=item(0);assert(at==#bytes+1,"Trailing CBOR data");return value
-end
+local Base64=ns.Base64Decode
 local function Uncompress(bytes)local raw=bytes and LibStub("LibDeflate"):DecompressDeflate(bytes);assert(raw and #raw<=4000000,"Invalid compression or expanded size limit exceeded");return raw end
 local function NSR(input)
     assert(not input:find(":LIC1:",1,true),"Account-licensed packs must be managed in NSR. Licenses are not removed or bypassed.")
@@ -289,19 +245,24 @@ function ns.TimelineRemindersImport(input)
     assert(report.converted>0,"No supported reminders. "..table.concat(report.issues,"; "):sub(1,400))
     return Native("Timeline Reminders",data),report
 end
+-- Returns a list of profiles, the migration report (other addons' strings) and the name of
+-- the profile to select.
 function ns.DecodeImport(text)
     local ok,p,report=pcall(function()
-        assert(type(text)=="string","Paste a profile string");local input=text:gsub("%s+","");assert(#input<=130000,"Import string exceeds 130 KB")
+        assert(type(text)=="string","Paste a profile string");local input=text:gsub("%s+","")
+        if ns.IsNativeExport(input)then local bundle,error=ns.DecodeProfiles(input);assert(bundle,error);return bundle end
+        assert(#input<=130000,"Import string exceeds 130 KB")
         if input:sub(1,6)=="PZTK1:"then local value,error=ns.Decode(input);assert(value,error);return value end
         if input:sub(1,9)=="NSRPACK2:"then return NSR(input)end
         if input:sub(1,6)=="!NSRT:"then return NSRT(input)end
         if input:sub(1,5)=="!TR2:"or input:sub(1,4)=="!TR:"then return ns.TimelineRemindersImport(input)end
-        error("Expected PZTK1, NSRPACK2, an !NSRT or a Timeline Reminders export")
+        error("Expected a "..ns.ExportPrefix.." string (older PZTK1, NSRPACK2, !NSRT and Timeline Reminders strings are read too)")
     end)
-    if not ok then return nil,tostring(p)end
+    if not ok then return nil,(tostring(p):gsub("^.-:%d+: ",""))end
+    if p.v==1 and p.profiles then return p.profiles,nil,nil,p.active end
     if not ns.Validate(p)then return nil,"The imported profile contains unsupported data"end
     local encoded,error=ns.Encode(p);if not encoded then return nil,error end
-    return p,nil,report
+    return {p},nil,report,p.name
 end
 function ns.ImportReportText(report)
     if not report then return "Profile imported without migration."end
