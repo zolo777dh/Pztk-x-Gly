@@ -16,7 +16,7 @@ local viewFields={"mode","difficulty","group","entity","ability","ruleKey","time
 local formKeys={"name","leadTime","delay","phase","counter","duration","text","displaySpellID","player","glowTarget"}
 local specTabs={mythic=true,raid=true,sets=true,timeline=true}
 local function viewKey()return state.tab..":"..tostring(specTabs[state.tab]and state.spec or"general")end
-local function scope()return state.tab=="raid"and"raid"or state.tab=="sets"and(state.setScope or"mythic")or"mythic"end
+local function scope()return state.tab=="raid"and"raid"or"mythic"end
 local function draftKey(key)return scope()..":"..tostring(key or"new")end
 local function ruleKey(ctx,key)
     return table.concat({ctx.scope,tostring(ctx.spec),tostring(ctx.map),tostring(ctx.npc),tostring(ctx.encounter),tostring(ctx.difficulty),tostring(ctx.spell or"timed"),tostring(key or"new")},":")
@@ -155,9 +155,6 @@ local function ContentHeader(parent,title,subtitle)
     W.Label(parent,title,0,0,600,20,C.text,true);W.Label(parent,subtitle,0,29,600,12,C.muted)
 end
 local function ModeSwitch(parent)
-    if state.tab=="sets"then
-        W.Segmented(parent,{{value="mythic",label="Mythic+"},{value="raid",label=L("Raid")}},scope(),620,0,300,function(v)state.setScope=v;state.setKey=nil;state.setName=nil;state.setRows={};Refresh()end,"sets-scope");return
-    end
     local mode=(state.mode=="sets"or state.mode=="debuffs")and state.mode or"mechanics"
     W.Segmented(parent,{{value="mechanics",label=L("Mechanics")},{value="sets",label=L("Defensive sets")},{value="debuffs",label=L("Debuffs")}},mode,530,0,390,function(v)state.mode=v;Refresh()end,"mode")
 end
@@ -503,7 +500,7 @@ local function DrawOverview(parent)
         W.Button(row,L("Open"),364,3,64,function()openGroup("raid",g)end,false,"overview:raid:"..tostring(g.id),{kind="ghost",h=28,align="CENTER"}).label:SetTextColor(unpack(C.accent))
         y=y+40;if y>400 then break end
     end
-    local tips={{L("Display anchors"),"display"},{L("Notes and alerts"),"notes"},{L("Diagnostics and /ndp commands"),"diag"}}
+    local tips={{L("Reminder look and anchor"),"settings"},{L("Notes"),"notes"},{L("Diagnostics and /ndp commands"),"diag"}}
     y=math.max(y+6,260)
     for _,t in ipairs(tips)do if y<=404 then
         local row=W.Panel(right,10,y,434,34,C.raised,C.clear,8);W.Dot(row,10,13,C.muted);W.Label(row,t[1],26,10,300,13,C.soft)
@@ -534,7 +531,9 @@ local function DrawSettings(parent)
         local v=(f[2]=="x"or f[2]=="y")and s.pos and s.pos[f[2]]or s[f[2]];local y=34+row*36;row=row+1
         W.Label(look,L(f[1]),12,y+8,170,13);W.Input(look,state.settingFields[f[2]]or v or f[3],cw-102,y,90,"setting:"..f[2])
     end end
-    W.Label(look,L("Position is relative to the screen center. The Display page lets you drag the anchor."),12,214,cw-24,11,C.muted)
+    W.Button(look,ns.AnchorsUnlocked and ns.AnchorsUnlocked()and L("Lock anchor")or L("Unlock anchor"),12,178,132,function()if ns.ToggleAnchors then ns.ToggleAnchors()end;Refresh()end,false,"display-anchor",{h=28,align="CENTER"})
+    W.Button(look,L("Reset position"),152,178,132,function()done(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="LEFT",relPoint="CENTER",x=-170,y=100}end),nil,L("Position reset"))end,false,"display-reset",{kind="outline",h=28,align="CENTER"})
+    W.Label(look,L("Position is relative to the screen center; unlock the anchor to drag it."),12,220,cw-24,11,C.muted)
     local sound=W.Card(parent,col*2,top,cw-8,268,L("Sound and voice"))
     W.Toggle(sound,L("Speak reminders"),s.voiceOn~=false,12,34,cw-32,function(v)s.voiceOn=v end,"setting:voiceOn")
     W.Label(sound,L("Voice volume"),12,78,170,13);W.Input(sound,state.settingFields.voiceVol or s.voiceVol or 100,cw-110,70,90,"setting:voiceVol")
@@ -645,28 +644,8 @@ local function classColor(class)
     local c=class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class];if c then return{c.r,c.g,c.b,1}end;return C.text
 end
 ---------------------------------------------------------------------------
-local function DrawDisplay(parent)
-    ContentHeader(parent,L("Display"),L("Where reminders appear and how they look. Drag the anchor to move them."))
-    local s=ns.Settings();local pos=type(s.pos)=="table"and s.pos or{}
-    local preview=W.Card(parent,0,56,600,300,L("Preview"))
-    local stage=W.Panel(preview,12,34,576,254,C.background,C.line,8)
-    -- Same look as the in-game reminder: icons and the call-out, no panel.
-    local size=math.max(24,math.min(64,tonumber(s.iconSize)or 42))
-    W.Texture(stage,W.SpellTexture(22812),120,104,size,size):SetTexCoord(0.07,0.93,0.07,0.93);W.Texture(stage,W.SpellTexture(61336),120+size+4,104,size,size):SetTexCoord(0.07,0.93,0.07,0.93)
-    W.Label(stage,"Barkskin and Survival Instincts",120+2*(size+4)+6,104+size/2-10,320,math.max(10,math.min(28,tonumber(s.textSize)or 18)),C.text,true)
-    W.Label(stage,"x "..tostring(pos.x or 0).." · y "..tostring(pos.y or 100),10,232,300,11,C.faint)
-    local actions=W.Card(parent,612,56,308,300,L("Anchors"))
-    W.Button(actions,ns.AnchorsUnlocked and ns.AnchorsUnlocked()and L("Lock anchor")or L("Unlock anchor"),12,34,284,function()if ns.ToggleAnchors then ns.ToggleAnchors()end;Refresh()end,false,"display-anchor",{glyph="anchor"})
-    W.Button(actions,L("Show a sample"),12,72,284,function()ns.Display({type="icon",spellID=22812,text=L("Use a defensive"),dur=4});notify(L("Preview uses currently saved settings"))end,false,"display-preview",{glyph="play"})
-    W.Button(actions,L("Reset position"),12,110,284,function()done(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="CENTER",relPoint="CENTER",x=0,y=100}end),nil,L("Position reset"))end,false,"display-reset",{glyph="reset",kind="outline"})
-    W.Label(actions,L("Size, text and bar options are on the Settings page. /ndp anchors toggles the anchor too."),12,154,284,11,C.muted)
-    local tips=W.Card(parent,0,368,920,224,L("What a reminder shows"))
-    local rows={{"Spell icons in priority order",s.showIcon~=false},{"Reminder text",s.showText~=false},{"Spoken spell names",s.voiceOn~=false},{"Glow on your Cooldown Manager / action bar",s.cdmGlow~=false}}
-    for i,r in ipairs(rows)do local y=34+(i-1)*34;W.Dot(tips,14,y+4,r[2]and C.ok or C.faint);W.Label(tips,L(r[1]),30,y,400,13,r[2]and C.text or C.muted)end
-end
----------------------------------------------------------------------------
 local commands={{"/ndp","open or close the window"},{"/ndp status","state and combat source"},{"/ndp test","test a defensive reminder"},{"/ndp diag","diagnostics report"},{"/ndp sets · mythic · raid","open a section"},
-    {"/ndp notes · alerts","raid sections"},{"/ndp debuffs","debuff alerts (Mythic+ / Raids)"},{"/ndp note","show or hide the note frame"},{"/ndp clear · pclear","take the shared / personal note off"},{"/ndp anchors","move the reminder anchor"},
+    {"/ndp notes · tools · players","raid sections"},{"/ndp debuffs","debuff alerts (Mythic+ / Raids)"},{"/ndp note","show or hide the note frame"},{"/ndp clear · pclear","take the shared / personal note off"},{"/ndp anchors","move the reminder anchor"},
     {"/ndp pull 10 · rc","pull timer, ready check"},{"/ndp break 10","break timer (0 ends it)"},{"/ndp inv · arrange","guild invites, arrange groups"},{"/ndp promote","give assist from your list"},
     {"/ndp nick Name","set your nickname"},{"/ndp versions","addon version check"},{"/ndp roster · export","roster, export the profile"},{"/ndp wipe","reset all data (asks to confirm)"}}
 ns.CommandHelp=commands
@@ -688,9 +667,9 @@ local function DrawDiagnostics(parent)
 end
 ---------------------------------------------------------------------------
 local nav={
-    {"Planner",{{"overview","Overview","overview"},{"mythic","Mythic+","mythic"},{"raid","Raids","raid"},{"sets","Defensives","sets"},{"timeline","Timeline","clock"}}},
-    {"Raid",{{"notes","Notes","notes"},{"alerts","Boss alerts","alerts"},{"assign","Assignments","assign"},{"raidtools","Raid tools","raidtools"},{"players","Players","players"}}},
-    {"System",{{"display","Display","display"},{"profiles","Profiles","profiles"},{"settings","Settings","settings"},{"diag","Diagnostics","diag"}}},
+    {"Planner",{{"overview","Overview","overview"},{"mythic","Mythic+","mythic"},{"raid","Raids","raid"},{"timeline","Timeline","clock"}}},
+    {"Raid",{{"notes","Notes","notes"},{"raidtools","Raid tools","raidtools"},{"players","Players","players"}}},
+    {"System",{{"profiles","Profiles","profiles"},{"settings","Settings","settings"},{"diag","Diagnostics","diag"}}},
 }
 local function go(tab)if state.tab~=tab then state.tab=tab;loadView()end;Refresh()end
 local function DrawHeader()
@@ -706,7 +685,7 @@ local function DrawHeader()
     search:SetScript("OnEnterPressed",function(self)state.filter=self:GetText():match("^%s*(.-)%s*$");self:ClearFocus();if state.tab~="mythic"and state.tab~="raid"then state.tab="mythic";loadView()end;state.mode="mechanics";state.form=nil;state.ruleKey=nil;Refresh()end)
     if(state.filter or"")~=""then W.Button(header,"",462,18,24,function()state.filter="";state.form=nil;Refresh()end,false,"search-clear",{kind="ghost",h=24,glyph="close",tooltip=L("Clear search")});enter:Hide()end
     W.IconButton(header,"clock",506,13,function()go("timeline")end,"top:timeline",L("Timeline"))
-    W.IconButton(header,"anchor",544,13,function()go("display")end,"top:display",L("Preview and anchors"))
+    W.IconButton(header,"anchor",544,13,function()if ns.ToggleAnchors then ns.ToggleAnchors()end;Refresh()end,"top:display",L("Unlock or lock the reminder anchor"))
     W.IconButton(header,"export",582,13,function()state.tab="diag";loadView();local lines={};for _,r in ipairs(Roster())do lines[#lines+1]=r.name end;state.diagText=table.concat(lines,"\n");Refresh()end,"top:roster",L("Export group roster"))
     -- Current specialization only: sets of other specs and classes are never shown.
     local spec=ns.Catalog.specs[state.spec]or L("Specialization");local icon=specInfo(state.spec)
@@ -735,7 +714,7 @@ local function DrawSidebar()
     W.Label(header,"v"..ns.version.." · "..ns.Client(),18,HEIGHT-44,SIDEBAR-28,11,C.faint)
     W.Label(header,"/ndp - "..L("open the window"),18,HEIGHT-28,SIDEBAR-28,11,C.faint)
 end
-local pages={overview=DrawOverview,profiles=DrawProfiles,settings=DrawSettings,timeline=DrawTimeline,display=DrawDisplay,diag=DrawDiagnostics}
+local pages={overview=DrawOverview,profiles=DrawProfiles,settings=DrawSettings,timeline=DrawTimeline,diag=DrawDiagnostics}
 Refresh=function()
     if not window then return end
     ensureWorkspace()
@@ -746,7 +725,6 @@ Refresh=function()
     body=W.Frame("Frame",nil,window);body:SetPoint("TOPLEFT",SIDEBAR+16,-(TOP+14));body:SetSize(920,600);body.surface=C.background
     if state.tab=="mythic"or state.tab=="raid"then
         if state.mode=="sets"then DrawSets(body)elseif state.mode=="manual"then DrawManual(body)elseif state.mode=="debuffs"and ns.DrawDebuffs then ns.DrawDebuffs(body)else DrawMechanics(body)end
-    elseif state.tab=="sets"then DrawSets(body)
     elseif pages[state.tab]then pages[state.tab](body)
     elseif ns.ExtraPages[state.tab]then ns.ExtraPages[state.tab](body)
     else state.tab="overview";DrawOverview(body)end
@@ -772,10 +750,13 @@ function ns.OpenWorkspace(tab)
     -- The window always follows the logged-in specialization.
     local current=ns.Spec()
     if current and current~=state.spec and ns.CanEditSpec(current)then saveView();state.spec=current;loadView()end
-    -- Debuff alerts live in the Mythic+ and Raids sections, next to Mechanics and Defensive sets.
-    local debuffs=tab=="debuffs";if debuffs then tab=state.tab=="raid"and"raid"or"mythic"end
-    if tab and(pages[tab]or ns.ExtraPages[tab]or tab=="mythic"or tab=="raid"or tab=="sets")and tab~=state.tab then saveView();state.tab=tab;loadView()end
-    if debuffs then state.mode="debuffs"end
+    -- Old section names lead to where their content lives now: defensive sets and debuffs are switches
+    -- inside Mythic+ and Raids, the anchor is on Settings, assignments are on Notes.
+    local mode=(tab=="sets"or tab=="debuffs")and tab or nil
+    if mode or tab=="alerts"then tab=state.tab=="raid"and"raid"or"mythic"end
+    if tab=="display"then tab="settings"elseif tab=="assign"then tab="notes"end
+    if tab and(pages[tab]or ns.ExtraPages[tab]or tab=="mythic"or tab=="raid")and tab~=state.tab then saveView();state.tab=tab;loadView()end
+    if mode then state.mode=mode end
     Refresh();window:Show()
 end
 function ns.ShowDiagnostics()

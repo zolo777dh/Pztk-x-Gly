@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','Alerts','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
@@ -7,7 +7,7 @@ async function run(body){const script=`local env=(function()\n${harness}\nend)()
 
 test('a defensive call-out keeps its own screen text, spoken phrase or sound, and the external step its phrase and chat line',()=>run(`
 local spoken={};C_VoiceChat={GetTtsVoices=function()return{{voiceID=1}}end,SpeakText=function(_,text)spoken[#spoken+1]=text end}
-env.click('tab:sets');env.input('set-name','Bear');env.input('new-spell','22812');env.click('add-spell');env.input('new-spell','61336');env.click('add-spell');env.click('save-set')
+env.click('tab:mythic');env.click('mode:sets');env.input('set-name','Bear');env.input('new-spell','22812');env.click('add-spell');env.input('new-spell','61336');env.click('add-spell');env.click('save-set')
 env.click('set-callout:1');env.input('callout:label','BARK');env.input('callout:spoken','bark now');env.click('callout-hear');assert(spoken[#spoken]=='bark now')
 env.click('callout-save');local data=ns.Active().data;assert(data.calloutOptions[22812].label=='BARK'and data.callouts[22812]=='bark now')
 local label,phrase,audio=ns.Callout(22812);assert(label=='BARK'and phrase=='bark now'and audio)
@@ -46,7 +46,7 @@ env.click('tab:notes');env.click('note-new');env.input('note:name','Boss plan');
 local n=ns.Notes();local id=next(n.shared);assert(n.shared[id].name=='Boss plan')
 env.click('note-load');assert(n.live and n.live.name=='Boss plan')
 local lines=ns.MyNoteLines();assert(#lines==1 and lines[1]:find('Soak 1',1,true))
-env.click('tab:assign');env.click('assign-test');assert(env.shown[#env.shown].text:find('Soak 1',1,true))
+env.click('assign-test');assert(env.shown[#env.shown].text:find('Soak 1',1,true))
 env.click('tab:notes');env.click('note-show');assert(n.cfg.show==true);env.click('note-unlock');assert(n.cfg.unlocked==true);env.click('note-outside');env.click('note-assign');assert(n.cfg.assignOnPull==false)
 env.click('note-unload');assert(n.live==nil)
 env.click('note-kind:personal');env.click('note-new');env.input('note:name','Mine');env.input('note:text','Tester: wall at 1:30');env.click('note-load')
@@ -79,16 +79,6 @@ env.click('rt-autopromote');env.click('rt-guildonly');env.click('rt-break-announ
 local ok,err=ns.ArrangeGroups();assert(not ok and err:find('raid',1,true))
 ns.Command('break 0');ns.Command('arrange');ns.Command('inv');ns.Command('versions');assert(ns.UIState.tab=='players')
 `));
-test('boss alerts list every reminder with on/off, test and a jump to its editor',()=>run(`
-assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
-env.click('tab:raid');env.click('new-timed');env.input('rule:name','Pull wall');env.input('rule:delay','20');env.click('save-rule')
-env.click('tab:alerts');local items=ns.AllAlerts(104,'all');assert(#items==1)
-local it=items[1];local id=it.section..':'..tostring(it.encounter)..':'..tostring(it.key)
-env.click('alert-on:'..id);assert(ns.AllAlerts(104,'all')[1].entry.enabled==false)
-env.click('alert-test:'..id);assert(#env.shown>0)
-env.click('alerts-scope:mythic');assert(#ns.AllAlerts(104,'mythic')==0)
-env.click('alerts-scope:all');env.click('alert-edit:'..id);assert(ns.UIState.tab=='raid'and ns.UIState.timed and ns.UIState.ruleKey==it.key)
-`));
 test('mouse wheel scrolls a list from anywhere over it, including its buttons and long text boxes',()=>run(`
 for i=1,30 do assert(ns.SaveNote('shared',nil,{name='Note '..i,text='x'}))end
 env.click('tab:notes');local s=ns.UIScrolls['notes:list'];s.GetVerticalScrollRange=function()return 900 end
@@ -96,7 +86,7 @@ local row;for k,c in pairs(ns.UIControls)do if k:match('^note:note_')then row=c;
 assert(row.scripts.OnMouseWheel,'list buttons pass the wheel on');row.scripts.OnMouseWheel(row,-1);assert(s:GetVerticalScroll()==48)
 row.scripts.OnMouseWheel(row,1);assert(s:GetVerticalScroll()==0)
 env.click('note-new');local text=ns.UIControls['note:text'];assert(text.scripts.OnMouseWheel,'note text scrolls with the wheel')
-env.click('tab:overview');local b=ns.UIControls['overview:go:display'];assert(not b.scripts.OnMouseWheel)
+env.click('tab:overview');local b=ns.UIControls['overview:go:settings'];assert(not b.scripts.OnMouseWheel)
 `));
 test('every control on every page responds when clicked',()=>run(`
 local calls=0
@@ -121,7 +111,7 @@ assert(ns.SaveSet('mythic',104,nil,'Magic',{{spellID=22812},{spellID=61336}}));a
 env.click('tab:raid');env.click('new-timed');env.input('rule:name','Pull wall');env.input('rule:delay','20');env.click('save-rule')
 assert(ns.AddRacialDebuffs(104,'stoneform'));assert(ns.AddRacialDebuffs(104,'stoneform','raid'))
 assert(ns.SaveNote('shared',nil,{name='Plan',text='Soak 1: Tester'}));assert(ns.SetNickname('Friend','Fr'))
-local tabs={'overview','mythic','raid','sets','timeline','mythic/sets','mythic/debuffs','raid/debuffs','notes','alerts','assign','raidtools','players','display','profiles','settings','diag'}
+local tabs={'overview','mythic','raid','timeline','mythic/sets','raid/sets','mythic/debuffs','raid/debuffs','notes','raidtools','players','profiles','settings','diag'}
 local dead,errors,total={},{},0
 -- 'mythic/debuffs' opens the Mythic+ section on its Debuffs switch; plain 'mythic' on Mechanics.
 local function open(tab)local t,m=tab:match('^(%w+)/?(%w*)$');env.click('tab:'..t);if t=='mythic'or t=='raid'then local c=ns.UIControls['mode:'..(m~=''and m or'mechanics')];if c then c:Click()end end end
@@ -176,13 +166,13 @@ ns.UIControls['ui:theme']:Click();assert(menu.shown);menu.rows[1]:Click();assert
 `));
 test('Test set speaks the chosen ability, not a set preview line',()=>run(`
 local spoken={};C_VoiceChat={GetTtsVoices=function()return{{voiceID=1}}end,SpeakText=function(_,text)spoken[#spoken+1]=text end}
-env.click('tab:sets');env.input('set-name','Bear');env.input('new-spell','22812');env.click('add-spell');env.click('save-set')
+env.click('tab:mythic');env.click('mode:sets');env.input('set-name','Bear');env.input('new-spell','22812');env.click('add-spell');env.click('save-set')
 local n=#env.shown;env.click('test-set');local d=env.shown[#env.shown];assert(#env.shown==n+1)
 assert(not d.text:find('preview',1,true),d.text);assert(d.text==ns.SpellLabel(22812),d.text);assert(d.tts~=false and d.ttsText==ns.SpellLabel(22812),tostring(d.tts)..' '..tostring(d.ttsText))
 env.click('set-callout:1');env.input('callout:spoken','bark now');env.click('callout-save');env.click('test-set');assert(env.shown[#env.shown].ttsText=='bark now')
 `));
 test('a spell dragged from the spellbook onto the set is added to it',()=>run(`
-env.click('tab:sets');env.input('set-name','Drag')
+env.click('tab:mythic');env.click('mode:sets');env.input('set-name','Drag')
 local targets={};for _,f in ipairs(env.frames)do if f.dropTarget and f:IsVisible()then targets[#targets+1]=f end end;assert(#targets>=3,#targets)
 local cursor;GetCursorInfo=function()if cursor then return unpack(cursor)end end;ClearCursor=function()cursor=nil end
 cursor={'spell',12,'spell',22812};targets[1].scripts.OnReceiveDrag(targets[1]);assert(cursor==nil and #ns.UIState.setRows==1 and ns.UIState.setRows[1].spellID==22812)
@@ -218,4 +208,19 @@ now=106;ns.RenderDefensive(binding);assert(#env.shown==n+1,'Cast window did not 
 C_UnitAuras={GetPlayerAuraBySpellID=function(id)if id==22812 then return{spellId=22812}end end};n=#env.shown;ns.RenderDefensive(binding);assert(#env.shown==n,'Active aura did not count')
 local hidden={};C_UnitAuras={GetPlayerAuraBySpellID=function()return hidden end};issecretvalue=function(v)return v==hidden end;n=#env.shown;ns.RenderDefensive(binding);assert(#env.shown==n+1,'Hidden aura data must not skip')
 issecretvalue=nil;env.input('setting:coveredCastWindow','99');env.click('save-settings');assert(ns.UIState.error)
+`));
+test('racial readiness events are only watched while a racial voice is registered',()=>run(`
+local f;for _,x in ipairs(env.frames)do if x.events.SPELLS_CHANGED and x.events.PLAYER_DEAD then f=x end end;assert(f)
+assert(not f.events.SPELL_UPDATE_COOLDOWN and not f.events.SPELL_UPDATE_USABLE,'Cooldown events must stay off with no racial voice')
+`));
+test('reminders grow right from a fixed left edge and the unlocked anchor is a sample icon at that spot',()=>run(`
+assert(ns.EditProfile(function(d)d.settings.pos={point='CENTER',relPoint='CENTER',x=363,y=-65}end))
+local x,y=ns.ReminderOrigin();assert(x==193 and y==-65,'old centered positions keep their left edge')
+assert(ns.ToggleAnchors());local a;for _,f in ipairs(env.frames)do if f.icon and f.scripts.OnDragStop then a=f end end;assert(a)
+assert(a.point.point=='LEFT'and a.point.relativePoint=='CENTER'and a.point.x==193 and a.point.y==-65,'anchor icon is not at the reminder origin')
+assert(a.w==(ns.Settings().iconSize or 42)and a.w==a.h,'anchor must be one icon')
+a.GetLeft=function()return 1000 end;a.GetCenter=function()return 1010,600 end;UIParent.GetCenter=function()return 960,540 end
+a.scripts.OnDragStop(a);local p=ns.Settings().pos;assert(p.point=='LEFT'and p.x==40 and p.y==60)
+x,y=ns.ReminderOrigin();assert(x==40 and y==60)
+assert(not ns.ToggleAnchors())
 `));

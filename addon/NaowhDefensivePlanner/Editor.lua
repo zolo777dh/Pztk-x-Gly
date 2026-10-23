@@ -370,14 +370,3 @@ function ns.CopyDebuffRules(from,to)
         return added
     end)
 end
--- On/off switch for any saved reminder, from the Boss alerts list. Turning off keeps every setting.
-function ns.SetReminderEnabled(section,spec,encounter,key,on)
-    return ns.EditProfile(function(data)
-        local entry
-        if section=="raidReminders"then entry=ns.Get(ns.Get(data.raidReminders,encounter),key)
-            if entry and entry.defensive then OwnSpec(entry.defensive.specID)end
-        elseif section=="abilityBindings"then entry=ns.Get(ns.Get(ns.Get(data.abilityBindings,OwnSpec(spec)),encounter),key)
-        else entry=ns.Get(ns.Get(data.integrationRules,OwnSpec(spec)),key)end
-        assert(entry,"Reminder not found");entry.enabled=on==true;return key
-    end)
-end

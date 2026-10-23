@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','Alerts','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
@@ -189,13 +189,14 @@ assert(ns.UIState.spec==105,'Window did not follow the spec change')
 env.class='MAGE';env.spec=62;ns.Open();assert(ns.UIState.spec==62);assert(ns.SaveSet('mythic',62,nil,'Mage set',{{spellID=45438,enabled=true}}))
 `));
 test('every sidebar section draws with visible, anchored controls',()=>run(`
-for _,tab in ipairs({'overview','mythic','raid','sets','timeline','notes','alerts','assign','raidtools','players','display','profiles','settings','diag'})do
+for _,tab in ipairs({'overview','mythic','raid','timeline','notes','raidtools','players','profiles','settings','diag'})do
  env.click('tab:'..tab);env.assertLayout();assert(ns.UIState.tab==tab)
 end
-env.click('tab:sets');env.click('sets-scope:raid');env.input('set-name','Raid from Defensives');env.input('new-spell','22812');env.click('add-spell');env.click('save-set')
+env.click('tab:raid');env.click('mode:sets');env.input('set-name','Raid from Defensives');env.input('new-spell','22812');env.click('add-spell');env.click('save-set')
 assert(next(ns.ScopePresets(ns.Active(),'raid',104)))
 env.click('tab:timeline');env.click('tl-new');assert(ns.UIState.tab=='raid'and ns.UIState.timed)
-env.click('top:display');assert(ns.UIState.tab=='display');env.click('header-profile');assert(ns.UIState.tab=='profiles')
+for _,old in ipairs({'alerts','assign','display','sets'})do assert(ns.UIControls['tab:'..old]==nil,old..' must not be a sidebar section')end
+env.click('top:display');assert(ns.AnchorsUnlocked());env.click('top:display');assert(not ns.AnchorsUnlocked());env.click('header-profile');assert(ns.UIState.tab=='profiles')
 env.click('tab:settings');env.select('ui:theme','Logo blue');assert(ns.UIPrefs().theme=='logo')
 `));
 test('/ndp opens sections and old slash aliases keep working',()=>run(`
