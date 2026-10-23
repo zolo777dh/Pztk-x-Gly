@@ -59,9 +59,27 @@ function W.AttachScrollChild(scroll,child)
     local level=scroll.GetFrameLevel and scroll:GetFrameLevel();if type(level)=="number"then child:SetFrameLevel(level+1)end
     child:Show()
 end
+-- Controls inside a scroll list pass the mouse wheel on to it, so the list scrolls wherever the pointer is.
+local function scrollAbove(frame)
+    local cursor=frame
+    for _=1,30 do
+        if not cursor then return nil end
+        if cursor.wheelScroll then return cursor.wheelScroll end
+        if cursor.wheelHandler or(cursor.GetObjectType and cursor:GetObjectType()=="ScrollFrame")then return cursor end
+        cursor=cursor.GetParent and cursor:GetParent()or nil
+    end
+end
+local function forwardWheel(f,parent)
+    if f.EnableMouseWheel==nil then return end
+    if scrollAbove(parent)then
+        f:EnableMouseWheel(true)
+        f:SetScript("OnMouseWheel",function(self,delta)local s=scrollAbove(self:GetParent());if s and s.wheelHandler then s.wheelHandler(s,delta)end end)
+    else f:EnableMouseWheel(false)end
+end
+W.ForwardWheel=forwardWheel
 local resetScripts={"OnClick","OnEnter","OnLeave","OnEscapePressed","OnEnterPressed","OnTextChanged","OnKeyDown","OnUpdate","OnEditFocusGained","OnEditFocusLost","OnMouseWheel","OnVerticalScroll","OnScrollRangeChanged"}
 function W.Frame(kind,unused,parent,template)
-    if not W.building then return CreateFrame(kind,nil,parent,template)end
+    if not W.building then local f=CreateFrame(kind,nil,parent,template);if kind=="Button"or kind=="EditBox"then forwardWheel(f,parent)end;return f end
     -- A ScrollFrame retains its scroll child. Never recycle that child into a
     -- different parent while the old ScrollFrame still owns it.
     local pools=framePools[parent];if not pools then pools={};framePools[parent]=pools end
@@ -71,6 +89,7 @@ function W.Frame(kind,unused,parent,template)
         for _,event in ipairs(resetScripts)do if f:HasScript(event)then f:SetScript(event,nil)end end
     end
     f.surface=nil;f.rest=nil
+    if kind=="Button"or kind=="EditBox"then forwardWheel(f,parent)end
     local level=parent and parent.GetFrameLevel and parent:GetFrameLevel();if type(level)=="number"then f:SetFrameLevel(level+1)end
     f:Show();return f
 end
@@ -249,7 +268,16 @@ function W.Input(parent,value,x,y,w,key,multiline,opts)
     local surround=W.Panel(parent,x,y,w,h,W.colors.background,W.colors.line,opts.radius or 6)
     local pad=opts.glyph and 32 or 10
     if opts.glyph then W.Glyph(surround,opts.glyph,11,(h-15)/2,15,W.colors.muted)end
-    local input=W.Frame("EditBox",nil,surround);input:SetPoint("TOPLEFT",pad,multiline and-8 or-(h-18)/2);input:SetSize(w-pad-10,multiline and h-16 or 18);editFont(input,12);input:SetTextColor(unpack(W.colors.text))
+    local holder=surround
+    if multiline then
+        -- Long text scrolls with the mouse wheel inside the box.
+        local scroll=W.Frame("ScrollFrame",nil,surround);scroll:SetPoint("TOPLEFT",pad,-8);scroll:SetSize(w-pad-14,h-16)
+        local child=W.Frame("Frame",nil,scroll);child:SetSize(w-pad-14,h-16);W.AttachScrollChild(scroll,child);child.wheelScroll=scroll;W.Wheel(scroll,surround,w-6,8,h-16);holder=child
+    end
+    local input=W.Frame("EditBox",nil,holder);input:SetPoint("TOPLEFT",multiline and 0 or pad,multiline and 0 or-(h-18)/2);input:SetSize(w-pad-(multiline and 14 or 10),multiline and h-16 or 18);editFont(input,12);input:SetTextColor(unpack(W.colors.text))
+    if multiline then input:SetScript("OnTextChanged",function(self)
+        if self.GetNumLines then local ok,n=pcall(self.GetNumLines,self);if ok and type(n)=="number"then local height=math.max(h-16,n*15+8);self:SetHeight(height);holder:SetHeight(height);local sf=holder:GetParent();if sf and sf.UpdateScrollChildRect then sf:UpdateScrollChildRect()end end end
+    end)end
     input:SetAutoFocus(false);input:SetMaxLetters(multiline and 130000 or 500);input:SetMultiLine(multiline==true);input:SetText(tostring(value or""))
     input:SetScript("OnEscapePressed",function(self)self:ClearFocus()end)
     input:SetScript("OnEditFocusGained",function()surround.SetColors(nil,W.colors.accent)end)
@@ -261,7 +289,7 @@ function W.Field(parent,title,value,x,y,w,key)
 end
 function W.Toggle(parent,title,value,x,y,w,callback,key)
     local b=W.Frame("Button",nil,parent);b:SetPoint("TOPLEFT",x,-y);b:SetSize(w,24);b.value=value==true
-    local text=W.Label(b,title,0,5,w-40,13,W.colors.text);text:SetWordWrap(false)
+    local text=W.Label(b,title,0,5,math.max(1,w-40),13,W.colors.text);text:SetWordWrap(false)
     local track=shape(b,w-30,3,30,18,9,W.colors.line,"BORDER")
     local knob=Texture(b,"ARTWORK");knob:SetTexture(DISC);knob:SetSize(14,14);knob:SetVertexColor(unpack(W.colors.dark))
     local function paint()track.Paint(b.value and W.colors.accent or W.colors.line);knob:ClearAllPoints();knob:SetPoint("TOPLEFT",b,"TOPLEFT",b.value and w-16 or w-28,-5)end;paint()
@@ -286,10 +314,12 @@ local function wheel(scroll,thumbParent,x,top,h)
         thumb:Show();thumb:ClearAllPoints();thumb:SetHeight(size);thumb:SetPoint("TOPLEFT",thumbParent,"TOPLEFT",x,-(top+offset))
     end
     scroll:EnableMouseWheel(true)
-    scroll:SetScript("OnMouseWheel",function(self,delta)
+    scroll.wheelHandler=function(self,delta)
         local range=self.GetVerticalScrollRange and self:GetVerticalScrollRange()or 0;if type(range)~="number"then range=0 end
         self:SetVerticalScroll(math.max(0,math.min(range,(self:GetVerticalScroll()or 0)-delta*48)))
-    end)
+        if self.UpdateThumb then self.UpdateThumb()end
+    end
+    scroll:SetScript("OnMouseWheel",scroll.wheelHandler)
     scroll:SetScript("OnVerticalScroll",update);scroll:SetScript("OnScrollRangeChanged",update)
     scroll.UpdateThumb=update;update()
 end
@@ -297,7 +327,7 @@ W.Wheel=wheel
 function W.Scroll(parent,x,y,w,h,key,color)
     local panel=W.Panel(parent,x,y,w,h,color,W.colors.line,10)
     local s=W.Frame("ScrollFrame",nil,panel);s:SetPoint("TOPLEFT",4,-4);s:SetSize(w-14,h-8)
-    local child=W.Frame("Frame",nil,s);child:SetSize(w-16,1);W.AttachScrollChild(s,child);child.surface=panel.surface
+    local child=W.Frame("Frame",nil,s);child:SetSize(w-16,1);W.AttachScrollChild(s,child);child.surface=panel.surface;child.wheelScroll=s
     wheel(s,panel,w-7,6,h-12)
     if key then ns.UIScrolls[key]=s end;s:SetVerticalScroll(key and W.scrollPositions and W.scrollPositions[key]or 0);return child,s,panel
 end
@@ -311,7 +341,7 @@ function W.Select(parent,title,options,value,x,y,w,callback,key,opts)
         if not p then
             p=W.Panel(UIParent,0,0,w,300,W.colors.panel,W.colors.lineStrong,8);p:SetFrameStrata("TOOLTIP");p:SetClampedToScreen(true);p.rows={};p.boxes={[w..":300"]={fill=p.fill,edge=p.edge}}
             p.scroll=CreateFrame("ScrollFrame",nil,p);p.scroll:SetPoint("TOPLEFT",4,-4)
-            p.child=CreateFrame("Frame",nil,p.scroll);W.AttachScrollChild(p.scroll,p.child);W.menu=p
+            p.child=CreateFrame("Frame",nil,p.scroll);W.AttachScrollChild(p.scroll,p.child);p.child.wheelScroll=p.scroll;W.menu=p
             wheel(p.scroll,p,0,6,288)
         end
         p:ClearAllPoints();local height=math.min(300,#options*28+8);local bottom=b.GetBottom and b:GetBottom()

@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.5.1 — in-game editor and reminder engine
+Naowh Defensive Planner 0.6.0 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -35,15 +35,20 @@ COMMANDS
 /ndp                      open or close the window
 /ndp help                 list of commands
 /ndp status | test | diag  state, test reminder, diagnostics report
-/ndp sets | mythic | raid | tl | notes | alerts | auras | display | settings
+/ndp sets | mythic | raid | tl | notes | alerts | debuffs | display | settings
                           open a section
+/ndp note                 show or hide the note frame
+/ndp clear | pclear       take the shared / personal note off
 /ndp anchors              unlock / lock the draggable reminder anchor
 /ndp pull 10 | rc         pull timer, ready check (needs lead or assist)
+/ndp break 10             break timer for the group (0 ends it)
+/ndp inv | arrange        invite guild members, arrange raid groups
+/ndp promote              give assist to the names on the Raid tools list
+/ndp nick Name | versions set your nickname, check the group's addon versions
 /ndp roster | export      copy the group roster, export the active profile
 /ndp wipe                 reset all data (asks for /ndp wipe confirm)
-Former NSR (/nutank) and NSRT (/ns, /nsrt) commands are /ndp subcommands. Those
-whose features are not rebuilt yet (break, invite, arrange, notes sync, cds...)
-answer that they are planned instead of doing nothing.
+Former NSR (/nutank) and NSRT (/ns, /nsrt) commands are /ndp subcommands. The few
+that are not rebuilt (bosses, keys, trace, observed, cds, calls, invite by note) say so.
 
 LOOK AND FONT
 The interface text is English. URW Gothic (Book / Demi) ships with the addon. The
@@ -58,6 +63,23 @@ A reminder is the spell icons in priority order plus their names, for example
 (text to speech) unless Settings > Sound > Speak reminders is off. The called spell
 glows on your Cooldown Manager and on Blizzard, Bartender, ElvUI or Dominos action
 buttons; Settings > Reminders > Glow the called spell on your bars turns it off.
+On the Defensives page the gear of each ability sets its own text on screen, the
+spoken phrase or a sound instead of speech, and whether it speaks at all; Hear it
+plays it first. The last row, Call for an external, has its own phrase, voice and
+an optional EXTERNAL! line in group chat.
+
+RAID PAGES
+Notes: shared notes (Load & send gives them to the group; leader or assistant only)
+and personal notes, shown in a movable frame. Lines with your name or nickname are
+your assignments and can pop up on pull (Assignments page).
+Boss alerts: every reminder for your spec with on/off, Test and Edit.
+Debuffs: a sound or racial voice when a debuff is applied, stacks or falls off.
+"Add racial debuffs" fills in the season dungeon debuffs that Stoneform or
+Shadowmeld can clear; the voice plays only while the racial is ready.
+Raid tools: ready check, pull and break timers, invite on whisper keyword, guild
+invites by rank, group arrangement, automatic assistants.
+Players: nicknames shared with the group and an addon version check.
+Lists and long text scroll with the mouse wheel.
 
 Navigation preserves your selected encounter, specialization, defensive-set draft,
 reminder fields, settings draft and scroll position. Drafts are saved locally on

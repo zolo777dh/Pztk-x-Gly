@@ -56,21 +56,47 @@ function ns.RenderDefensive(binding, trash)
     local spells=ns.Pick(preset)
     if #spells==0 then
         local external=binding.external==true or(settings.fallbackOn==true and binding.external~=false)
-        if external and ns.Display then ns.Display({type="text",text=data.voiceNone or settings.voiceNone or "Call external",dur=settings.lingerSec or 4,tts=settings.voiceOn==true})end
+        if external then ns.CallExternal()end
         return
     end
     local display=Copy(binding.display)
     display.type="icon"
     display.spells,display.spellID=spells,spells[1]
     display.dur=display.dur or settings.lingerSec or 5
-    local callouts,labels={},{}
-    for _,spell in ipairs(spells)do local label=(ns.SpellLabel and ns.SpellLabel(spell))or("Spell "..spell);labels[#labels+1]=label;callouts[#callouts+1]=ns.Get(data.callouts,spell)or label end
-    local spoken=table.concat(callouts," and ");local label=table.concat(labels," and ")
+    -- Each ability has its own text, spoken phrase, voice switch or sound (Defensives page, gear button).
+    local spoken,labels,sound={},{},nil
+    for _,spell in ipairs(spells)do
+        local label,phrase,audio,own=ns.Callout(spell)
+        labels[#labels+1]=label
+        if audio then if phrase then spoken[#spoken+1]=phrase elseif own and not sound then sound=own end end
+    end
+    local label=table.concat(labels," and ")
     if not display.text or display.text==""then display.text=label
     elseif not display.text:find(label,1,true)then display.text=display.text.."\n"..label end
-    display.ttsText=display.ttsText or spoken
+    display.ttsText=display.ttsText or table.concat(spoken," and ")
     if display.tts==nil then display.tts=settings.voiceOn~=false end
-    if settings.voiceOn==false then display.tts=false end
-    display.sound=display.sound or binding.sound or(settings.soundOn and settings.soundKey)
+    if settings.voiceOn==false or display.ttsText==""then display.tts=false end
+    display.sound=display.sound or binding.sound or sound or(settings.soundOn and settings.soundKey)
     if ns.Display then ns.Display(display)end
+end
+
+-- Text on screen, spoken phrase (nil when the ability uses a sound), voice switch and sound of one ability.
+function ns.Callout(spell)
+    local data=ns.Active()and ns.Active().data or{}
+    local o=ns.Get(data.calloutOptions,spell)or{}
+    local name=(ns.SpellLabel and ns.SpellLabel(spell))or("Spell "..spell)
+    local label=type(o.label)=="string"and o.label~=""and o.label or name
+    local phrase=nil;if o.speak~=false then phrase=ns.Get(data.callouts,spell)or label end
+    return label,phrase,o.audio~=false,o.speak==false and o.sound or nil
+end
+-- Fallback when no own defensive is ready: text, voice and an optional EXTERNAL! line in group chat.
+local lastChat=0
+function ns.CallExternal(preview)
+    local data=ns.Active()and ns.Active().data or{};local settings=ns.Settings()
+    local text=data.voiceNone or settings.voiceNone or"Call external"
+    if ns.Display then ns.Display({type="text",text=text,dur=settings.lingerSec or 4,tts=settings.voiceOn~=false and settings.externalAudio~=false})end
+    if settings.externalChat and not preview and SendChatMessage and GetTime()-lastChat>=3 then
+        local channel=IsInRaid and IsInRaid()and"RAID"or IsInGroup and IsInGroup()and"PARTY"or nil
+        if channel then lastChat=GetTime();pcall(SendChatMessage,"EXTERNAL!",channel)end
+    end
 end

@@ -125,6 +125,15 @@ local function Glow(wanted,kind,key,color)
         if started then return frame end
     end
 end
+-- Text to speech through the game's own voices. Used by reminders and by "Hear it" buttons.
+function ns.Speak(text)
+    if type(text)~="string"or text==""or not(C_VoiceChat and C_VoiceChat.GetTtsVoices and C_VoiceChat.SpeakText)then return false end
+    local settings=ns.Settings and ns.Settings()or{}
+    local ok,voices=pcall(C_VoiceChat.GetTtsVoices)
+    if not ok or type(voices)~="table"or not voices[1]then return false end
+    local voice=voices[1].voiceID;for _,v in ipairs(voices)do if v.voiceID==settings.voiceID then voice=v.voiceID end end
+    return(pcall(C_VoiceChat.SpeakText,voice,text,0,tonumber(settings.voiceVol)or 100,false))
+end
 function ns.Display(display)
     local settings=ns.Settings and ns.Settings()or{}
     local text=type(display.text)=="string" and display.text or ""
@@ -134,13 +143,7 @@ function ns.Display(display)
     if sound then pcall(PlaySoundFile,sound,"Master")end
     -- Spoken call-out: the reminder text (spell names for defensives) unless voice is turned off.
     local speak=display.tts;if speak==nil then speak=#spells>0 end
-    if speak and settings.voiceOn~=false and C_VoiceChat and C_VoiceChat.GetTtsVoices and C_VoiceChat.SpeakText then
-        local ok,voices=pcall(C_VoiceChat.GetTtsVoices);local spoken=display.ttsText and display.ttsText~="" and display.ttsText or text
-        if ok and voices and voices[1] and spoken~="" then
-            local voice=voices[1].voiceID;for _,v in ipairs(voices)do if v.voiceID==settings.voiceID then voice=v.voiceID end end
-            pcall(C_VoiceChat.SpeakText,voice,spoken,0,tonumber(settings.voiceVol)or 100,false)
-        end
-    end
+    if speak and settings.voiceOn~=false then ns.Speak(display.ttsText and display.ttsText~="" and display.ttsText or text)end
     if display.type=="chat"then if text~=""then ns.Print(text)end;return end
     if #active>=6 then Release(1)end
     local r=Region();local count=(display.type=="text"or settings.showIcon==false)and 0 or math.min(6,#spells);if display.type=="circle"and count==0 and settings.showIcon~=false then count=1;spells={display.spellID or 0}end

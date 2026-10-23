@@ -279,3 +279,98 @@ function ns.DeleteRule(ctx,reference)
         end
     end)
 end
+-- One ability's call-out: text on screen, spoken phrase or a sound, and its voice switch.
+function ns.SaveCallout(spell,form)
+    return ns.EditProfile(function(data)
+        spell=Integer(spell,"spell ID");data.callouts=data.callouts or{};data.calloutOptions=data.calloutOptions or{}
+        local label=tostring(form.label or""):match("^%s*(.-)%s*$");local spoken=tostring(form.spoken or""):match("^%s*(.-)%s*$")
+        assert(#label<=200 and #spoken<=200,"Use at most 200 characters")
+        local o={label=label~=""and label or nil};if form.audio==false then o.audio=false end
+        if form.speak==false then
+            assert(ns.SoundPath(form.sound),"Choose a sound, or turn Speak text back on");o.speak=false;o.sound=form.sound
+        end
+        data.callouts[spell]=nil;data.callouts[tostring(spell)]=nil
+        if form.speak~=false and spoken~=""then data.callouts[spell]=spoken end
+        data.calloutOptions[spell]=nil;data.calloutOptions[tostring(spell)]=nil
+        if next(o)then data.calloutOptions[spell]=o end
+        return spell
+    end)
+end
+-- The fallback step: its phrase, voice and the EXTERNAL! chat line.
+function ns.SaveExternalCallout(form)
+    return ns.EditProfile(function(data)
+        local text=tostring(form.text or""):match("^%s*(.-)%s*$");assert(#text<=200,"Use at most 200 characters")
+        data.voiceNone=text~=""and text or nil;data.settings=data.settings or{}
+        if form.on~=nil then data.settings.fallbackOn=form.on==true end
+        if form.audio~=nil then data.settings.externalAudio=form.audio==true end
+        if form.chat~=nil then data.settings.externalChat=form.chat==true end
+        return true
+    end)
+end
+---------------------------------------------------------------------------
+-- Debuff alerts: a sound or racial voice when an aura is applied, stacks or falls off.
+local auraEvents={Added=true,ApplicationsIncreased=true,Removed=true}
+function ns.DebuffRules(spec)
+    local data=ns.Active()and ns.Active().data or{};local out={}
+    for key,rule in pairs(ns.Get(data.integrationRules,spec)or{})do if rule.trigger and rule.trigger.type=="auraSound"then out[#out+1]={key=key,rule=ns.Clone(rule)}end end
+    table.sort(out,function(a,b)return tostring(a.rule.name or"")<tostring(b.rule.name or"")end);return out
+end
+function ns.SaveDebuffRule(spec,key,form)
+    return ns.EditProfile(function(data)
+        spec=OwnSpec(Integer(spec,"specialization"))
+        local spell=Integer(form.spellID,"debuff spell ID");local map=Integer(form.mapID or 0,"instance ID",0)
+        assert(auraEvents[form.event],"Choose when the sound plays");assert(form.unit=="player"or form.unit=="party","Choose whose debuff to watch")
+        assert(ns.SoundPath(form.sound),"Choose a sound")
+        if (form.sound=="voice:stoneform-ready"or form.sound=="voice:shadowmeld-ready")then assert(form.unit=="player","Racial voices need Unit: Me")end
+        data.integrationRules=data.integrationRules or{};data.integrationRules[spec]=ns.Get(data.integrationRules,spec)or{}
+        key=key or ns.UID("debuff")
+        local name=tostring(form.name or""):match("^%s*(.-)%s*$");if name==""then name=(ns.SpellLabel and ns.SpellLabel(spell))or("Debuff "..spell)end
+        data.integrationRules[spec][key]={name=Name(name),enabled=form.enabled~=false,trigger={type="auraSound",mapID=map,spellID=spell,auraEvent=form.event,target=form.unit},display={sound=form.sound}}
+        return key
+    end)
+end
+function ns.SetDebuffEnabled(spec,key,on)
+    return ns.EditProfile(function(data)spec=OwnSpec(Integer(spec,"specialization"));local rule=assert(ns.Get(ns.Get(data.integrationRules,spec),key),"Debuff alert not found");rule.enabled=on==true;return key end)
+end
+function ns.DeleteDebuffRule(spec,key)
+    return ns.EditProfile(function(data)spec=OwnSpec(Integer(spec,"specialization"));local rules=ns.Get(data.integrationRules,spec);assert(rules and ns.Get(rules,key),"Debuff alert not found");rules[key]=nil;return true end)
+end
+-- Adds the bundled racial list (Stoneform / Shadowmeld). Debuffs already watched on the same instance are kept.
+function ns.AddRacialDebuffs(spec,racial)
+    return ns.EditProfile(function(data)
+        spec=OwnSpec(Integer(spec,"specialization"));local voice=assert(({stoneform="voice:stoneform-ready",shadowmeld="voice:shadowmeld-ready"})[racial],"Choose a racial")
+        data.integrationRules=data.integrationRules or{};data.integrationRules[spec]=ns.Get(data.integrationRules,spec)or{}
+        local rules=data.integrationRules[spec];local have={};local added=0
+        for _,r in pairs(rules)do local t=r.trigger or{};if t.type=="auraSound"then have[t.mapID..":"..t.spellID]=true end end
+        for _,d in ipairs(ns.RacialDebuffs or{})do for _,e in ipairs(d.list)do
+            if e[3]==racial and not have[d.mapID..":"..e[1]]then
+                rules[ns.UID("debuff")]={name=e[2],enabled=true,trigger={type="auraSound",mapID=d.mapID,spellID=e[1],auraEvent="Added",target="player"},display={sound=voice}};added=added+1
+            end
+        end end
+        return added
+    end)
+end
+-- Additive copy of debuff alerts from another specialization of the same class.
+function ns.CopyDebuffRules(from,to)
+    return ns.EditProfile(function(data)
+        from=OwnSpec(Integer(from,"specialization"));to=OwnSpec(Integer(to,"specialization"));assert(from~=to,"Choose another specialization")
+        data.integrationRules=data.integrationRules or{};data.integrationRules[to]=ns.Get(data.integrationRules,to)or{}
+        local have={};for _,r in pairs(data.integrationRules[to])do local t=r.trigger or{};if t.type=="auraSound"then have[t.mapID..":"..t.spellID..":"..t.auraEvent]=true end end
+        local added=0
+        for _,r in pairs(ns.Get(data.integrationRules,from)or{})do local t=r.trigger or{}
+            if t.type=="auraSound"and not have[t.mapID..":"..t.spellID..":"..t.auraEvent]then data.integrationRules[to][ns.UID("debuff")]=ns.Clone(r);added=added+1 end
+        end
+        return added
+    end)
+end
+-- On/off switch for any saved reminder, from the Boss alerts list. Turning off keeps every setting.
+function ns.SetReminderEnabled(section,spec,encounter,key,on)
+    return ns.EditProfile(function(data)
+        local entry
+        if section=="raidReminders"then entry=ns.Get(ns.Get(data.raidReminders,encounter),key)
+            if entry and entry.defensive then OwnSpec(entry.defensive.specID)end
+        elseif section=="abilityBindings"then entry=ns.Get(ns.Get(ns.Get(data.abilityBindings,OwnSpec(spec)),encounter),key)
+        else entry=ns.Get(ns.Get(data.integrationRules,OwnSpec(spec)),key)end
+        assert(entry,"Reminder not found");entry.enabled=on==true;return key
+    end)
+end

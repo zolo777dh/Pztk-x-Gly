@@ -65,7 +65,7 @@ end
 local function Settings(s)
     if s==nil then return true end
     if type(s)~="table"then return false end
-    for _,key in ipairs({"enabled","voiceOn","soundOn","fallbackOn","showIcon","showText","showBar","cdmGlow"})do if s[key]~=nil and type(s[key])~="boolean"then return false end end
+    for _,key in ipairs({"enabled","voiceOn","soundOn","fallbackOn","showIcon","showText","showBar","cdmGlow","externalAudio","externalChat"})do if s[key]~=nil and type(s[key])~="boolean"then return false end end
     for _,range in ipairs({{"voiceVol",0,100},{"iconSize",8,256},{"textSize",6,80},{"leadTime",0,120},{"lingerSec",0.1,120}})do if not Number(s[range[1]],range[2],range[3],true)then return false end end
     for _,key in ipairs({"soundKey","voiceNone","textSide","bossSource"})do if s[key]~=nil and type(s[key])~="string"then return false end end
     if s.pos~=nil then
@@ -116,6 +116,15 @@ function ns.Validate(profile)
     end
     for _, key in ipairs({"presets","activePreset","abilityBindings","integrationRules","raidReminders","callouts","settings"}) do if profile.data[key] ~= nil and type(profile.data[key]) ~= "table" then return false end end
     for _,value in pairs(profile.data.callouts or{})do if type(value)~="string"then return false end end
+    -- Per-ability call-out options: text shown on screen, voice on/off, a sound instead of speech.
+    if profile.data.calloutOptions~=nil then
+        if type(profile.data.calloutOptions)~="table"then return false end
+        for spell,o in pairs(profile.data.calloutOptions)do
+            if not ID(tonumber(spell))or type(o)~="table"then return false end
+            for _,key in ipairs({"label","sound"})do if o[key]~=nil and(type(o[key])~="string"or #o[key]>200)then return false end end
+            for _,key in ipairs({"audio","speak"})do if o[key]~=nil and type(o[key])~="boolean"then return false end end
+        end
+    end
     if profile.data.voiceNone~=nil and type(profile.data.voiceNone)~="string"then return false end
     if not Number(profile.data.leadTime,0,120,true)then return false end
     for _, presets in pairs(profile.data.presets or {})do

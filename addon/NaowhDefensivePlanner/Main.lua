@@ -46,10 +46,10 @@ SLASH_NDP5="/puzatik"
 -- Entry in the minimap addon compartment menu (declared in the TOC).
 function NaowhDefensivePlanner_OnAddonCompartmentClick()ns.Open()end
 local sections={sets="sets",defensives="sets",mythic="mythic",["m+"]="mythic",raid="raid",raids="raid",overview="overview",tl="timeline",timeline="timeline",
-    notes="notes",note="notes",pnotes="notes",anote="notes",pnote="notes",tnote="notes",alerts="alerts",auras="auras",assign="assign",assignments="assign",
+    notes="notes",reminders="notes",r="notes",preminders="notes",pr="notes",alerts="alerts",auras="debuffs",debuffs="debuffs",assign="assign",assignments="assign",
     tools="raidtools",raidtools="raidtools",rt="raidtools",players="players",nicks="players",display="display",profiles="profiles",settings="settings",config="settings"}
 -- Commands from the old addons that are not rebuilt yet: say so instead of silently opening the window.
-local planned={bosses=true,keys=true,trace=true,observed=true,cds=true,calls=true,clear=true,pclear=true,cd=true,["break"]=true,brb=true,invite=true,inv=true,arrange=true}
+local planned={bosses=true,keys=true,trace=true,observed=true,cds=true,calls=true,cd=true,invite=true}
 local function help()
     ns.Print("Commands:")
     for _,c in ipairs(ns.CommandHelp or{})do print("  |cff33c3a6"..c[1].."|r - "..c[2])end
@@ -77,8 +77,18 @@ function ns.Command(message)
     elseif command=="wipe"then
         if rest:lower()=="confirm"and wipeAsked then NaowhDefensivePlannerDB=nil;ns.Print("All data removed. Reloading.");if ReloadUI then ReloadUI()end
         else wipeAsked=true;ns.Print("This removes every profile and setting on all clients. Type /ndp wipe confirm to continue.")end
+    elseif command=="note"or command=="n"or command=="anote"or command=="an"or command=="pnote"or command=="pn"or command=="snote"or command=="sn"or command=="tnote"or command=="tn"then
+        ns.Print(ns.ToggleNoteDisplay()and"Note frame on."or"Note frame off.")
+    elseif command=="clear"or command=="c"then local ok,err=ns.UnloadNote("shared",true);ns.Print(ok and"Shared note cleared."or err)
+    elseif command=="pclear"or command=="pc"then ns.UnloadNote("personal");ns.Print("Personal note cleared.")
+    elseif command=="break"or command=="brb"then local ok,err=ns.StartBreak(tonumber(rest)or 10);if not ok then ns.Print(err)end
+    elseif command=="inv"then local n,err=ns.InviteGuild();ns.Print(n and(n.." guild invites sent.")or err)
+    elseif command=="arrange"then local ok,err=ns.ArrangeGroups();ns.Print(ok and"Arranging groups."or err)
+    elseif command=="promote"then local n,err=ns.PromoteAssistants();ns.Print(n and(n.." players promoted.")or err)
+    elseif command=="nick"or command=="nickname"then local ok,err=ns.SetMyNickname(rest);ns.Print(ok and("Nickname: "..(rest~=""and rest or"none"))or err)
+    elseif command=="versions"or command=="vc"then ns.CheckVersions();ns.OpenWorkspace("players")
     elseif sections[command]then ns.OpenWorkspace(sections[command])
-    elseif planned[command]then ns.Print("/ndp "..command.." is planned for the next stage (Northern Sky Raid Tools features).")
+    elseif planned[command]then ns.Print("/ndp "..command.." is not rebuilt yet; see the Diagnostics page for what is available.")
     else ns.Print("Unknown command: "..command..". Type /ndp help.")end
 end
 SlashCmdList.NDP=function(message)ns.Command(message)end
