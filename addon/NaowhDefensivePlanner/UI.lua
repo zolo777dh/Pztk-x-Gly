@@ -118,6 +118,13 @@ local function allowedAbilities(content,n)
         local allowed=true;if content=="raid"and a.difficulties then allowed=false;for _,d in ipairs(a.difficulties)do if d==(state.difficulty==15 and"heroic"or"mythic")then allowed=true end end end
         if allowed then out[#out+1]=a end
     end
+    -- Raid bosses also list every ability of their expected timeline, so each one can be bound.
+    local enc=content=="raid"and n and(n.encounterId or n.id)
+    local expected=enc and ns.ExpectedTimeline and ns.ExpectedTimeline(enc,state.difficulty)
+    if expected then
+        local seen={};for _,a in ipairs(out)do seen[a.id]=true end
+        for _,ev in ipairs(expected.events)do if not seen[ev[2]]then seen[ev[2]]=true;out[#out+1]={id=ev[2]}end end
+    end
     return out
 end
 local function timedRules(ctx)
@@ -274,8 +281,9 @@ local function InitialForm(ctx,reference)
     local e=reference and reference.entry or{};local t=e.trigger or{};local d=e.display or{}
     -- A new timed reminder opened from a recorded boss ability starts at that ability's time.
     local prefill=not reference and state.timedPrefill;state.timedPrefill=nil;local prefillSpell=not reference and state.timedSpell;state.timedSpell=nil
+    local prefillCounter=not reference and state.newCounter;local prefillAction=not reference and state.newAction;state.newCounter=nil;state.newAction=nil
     local dynamic=e.defensive
-    local action=dynamic and"defensive"or reference and reference.section=="raidReminders"and(d.type or"text")or"defensive"
+    local action=dynamic and"defensive"or reference and reference.section=="raidReminders"and(d.type or"text")or prefillAction or"defensive"
     local recipient="everyone";local player,role
     if e.target then
         local count=0;for k,v in pairs(e.target)do if type(v)=="table"and next(v)then count=count+1 end end
@@ -288,7 +296,7 @@ local function InitialForm(ctx,reference)
         elseif e.target.names then recipient="player";player=next(e.target.names)
         elseif not e.target.all then recipient="preserve"end
     end
-    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,counter=ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=(d.type=="bar"or d.type=="circle")and d.hideTimer~=true or d.countdown==true,sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
+    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=(d.type=="bar"or d.type=="circle")and d.hideTimer~=true or d.countdown==true,sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
 end
 local actionLabels={defensive="Defensive priority set",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
 local roleLabels={TANK="Tank",HEALER="Healer",DAMAGER="Damage"}
@@ -655,7 +663,8 @@ local function DrawTimeline(parent)
     local function open(key,at,spell)
         local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=not spell;state.ability=spell;state.ruleKey=key;state.form=nil;state.timedPrefill=at;Refresh()
     end
-    local recorded=ns.RecordedTimeline(ctx.encounter,state.tlDifficulty)
+    -- A recorded pull wins; otherwise the expected timeline of the boss is shown.
+    local recorded=ns.RecordedTimeline(ctx.encounter,state.tlDifficulty)or(ns.ExpectedTimeline and ns.ExpectedTimeline(ctx.encounter,state.tlDifficulty))
     local function occurrences(m)
         local out,count={},0;local t=m.r.entry.trigger or{}
         local want;for _,group in ipairs(type(t.counterGroups)=="table"and t.counterGroups or{})do for _,p in ipairs(group)do if p.op=="="then want=tonumber(p.value)end end end
@@ -665,7 +674,7 @@ local function DrawTimeline(parent)
     W.Button(parent,L("+ Timed reminder"),760,56,160,function()open(nil)end,false,"tl-new",{kind="outline",align="CENTER"})
     local card=W.Card(parent,0,100,920,300,n.name.." · "..(state.tlDifficulty==16 and L("Mythic")or L("Heroic")))
     local lanes={{key="pull",label=L("Pull")}};local maxT=300
-    if recorded then table.insert(lanes,1,{key="boss",label=L("Boss")});maxT=math.max(maxT,(tonumber(recorded.length)or 0)+10)end
+    if recorded then table.insert(lanes,1,{key="boss",label=recorded.expected and L("Boss (exp.)")or L("Boss")});maxT=math.max(maxT,(tonumber(recorded.length)or 0)+10)end
     if #mech>0 then lanes[#lanes+1]={key="mech",label=L("Mechanics")}end
     for _,r in ipairs(rules)do local t=r.entry.trigger;maxT=math.max(maxT,(tonumber(t.delay)or 0)+30)
         if t.type=="stage"then local found=false;for _,l in ipairs(lanes)do if l.key=="stage"..tostring(t.stage)then found=true end end;if not found then lanes[#lanes+1]={key="stage"..tostring(t.stage),label=L("Phase").." "..tostring(t.stage)}end end
@@ -679,10 +688,20 @@ local function DrawTimeline(parent)
             for j,ev in ipairs(recorded.events or{})do if j<=80 then
                 local x=x0+w*math.max(0,ev[1])/maxT
                 W.Icon(card,ev[2],x-9,y+11,18)
-                W.Button(card,"",x-9,y+11,18,function()state.timedSpell=ev[2];open(nil,ev[1])end,false,"tl-ability:"..j,{kind="ghost",h=18,tooltip=name(ev[2]).." · "..string.format("%d:%02d",math.floor(ev[1]/60),ev[1]%60)..L(" · click to add a reminder")})
+                local cast=0;for k=1,j do if recorded.events[k][2]==ev[2]then cast=cast+1 end end
+                W.Button(card,"",x-9,y+11,18,function()state.tlPick={spell=ev[2],at=ev[1],cast=cast,encounter=ctx.encounter,difficulty=state.tlDifficulty};Refresh()end,false,"tl-ability:"..j,{kind="ghost",h=18,tooltip=name(ev[2]).." #"..cast.." · "..string.format("%d:%02d",math.floor(ev[1]/60),ev[1]%60)..L(" · click to plan this cast")})
             end end
         end
         if lane.key=="mech"then
+            -- Without a recorded pull an ability has no time yet: its reminders wait at the
+            -- start of the lane, so the lane is never empty while reminders exist.
+            local waiting=0
+            for _,m in ipairs(mech)do if #occurrences(m)==0 and waiting<5 then
+                local x=x0+8+waiting*160;waiting=waiting+1
+                W.Icon(card,m.spell,x,y+11,18)
+                W.Button(card,"",x,y+11,18,function()open(m.r.key,nil,m.spell)end,false,"tl-mwait:"..tostring(m.r.key)..":"..m.spell,{kind="ghost",h=18,tooltip=(m.r.entry.name or name(m.spell))..L(" · placed after a recorded pull")})
+                W.Label(card,(m.r.entry.name or name(m.spell))..L(" · no time yet"),x+22,y+2,136,10,C.faint)
+            end end
             for _,m in ipairs(mech)do for j,at in ipairs(occurrences(m))do if j<=40 then
                 local x=x0+w*math.max(0,math.min(at,maxT))/maxT
                 W.Icon(card,m.spell,x-9,y+11,18)
@@ -702,14 +721,28 @@ local function DrawTimeline(parent)
     end
     local list=W.Card(parent,0,412,920,180,L("Reminders on this boss"))
     W.Button(list,L("Send to group"),752,6,156,function()local count,err=ns.SendReminders(ctx.encounter,state.tlDifficulty);done(count,err,(tonumber(count)or 0)..L(" reminders sent to the group"))end,false,"tl-send",{h=24,glyph="players"})
-    if not recorded then W.Label(list,L("Pull the boss once with BigWigs or DBM and its abilities appear on the timeline."),300,12,440,10,C.faint)end
+    if not recorded then W.Label(list,L("Pull the boss once (BigWigs, DBM or built-in timers) to place its abilities and their reminders in time."),300,12,440,10,C.faint)
+    elseif recorded.expected then W.Label(list,L("Expected times. A recorded pull replaces them."),300,12,440,10,C.faint)end
+    -- A clicked boss ability: bind a defensive set or write a note for that cast.
+    local pick=state.tlPick;if pick and(pick.encounter~=ctx.encounter or pick.difficulty~=state.tlDifficulty or not recorded)then pick=nil end
+    if pick then
+        local function plan(action,every)state.tlPick=nil;state.newAction=action;state.newCounter=not every and pick.cast or nil;local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=false;state.ability=pick.spell;state.ruleKey="new";state.form=nil;Refresh()end
+        W.Icon(list,pick.spell,12,148,20)
+        W.Label(list,name(pick.spell).." #"..pick.cast..string.format(" · %d:%02d",math.floor(pick.at/60),pick.at%60),38,152,250,11,C.text,true)
+        W.Button(list,L("Defensive set"),300,144,140,function()plan("defensive")end,false,"tl-pick-defensive",{kind="primary",align="CENTER",h=26})
+        W.Button(list,L("Note"),446,144,110,function()plan("text")end,false,"tl-pick-note",{align="CENTER",h=26})
+        W.Button(list,L("Every cast"),562,144,120,function()plan("text",true)end,false,"tl-pick-every",{align="CENTER",h=26,tooltip=L("A note for every cast of this ability")})
+        W.Button(list,L("Timed here"),688,144,110,function()state.tlPick=nil;state.timedSpell=pick.spell;open(nil,pick.at)end,false,"tl-pick-timed",{align="CENTER",h=26})
+        W.Button(list,L("Cancel"),804,144,104,function()state.tlPick=nil;Refresh()end,false,"tl-pick-cancel",{kind="ghost",align="CENTER",h=26})
+    end
     if #rules==0 and #mech==0 then W.Label(list,L("No reminders on this boss yet. Add one with + Timed reminder or on the Raids page."),12,36,700,12,C.muted)end
     local i=0
-    for _,r in ipairs(rules)do i=i+1;if i<=8 then
+    local rows=pick and 6 or 8
+    for _,r in ipairs(rules)do i=i+1;if i<=rows then
         local t=r.entry.trigger;local at=t.type=="prepull"and("-"..tostring(t.delay).."s")or t.type=="stage"and("P"..tostring(t.stage).." "..tostring(t.delay).."s")or(tostring(t.delay).."s")
         W.Button(list,at.."  ·  "..(r.entry.name or L("Timed reminder")),12+((i-1)%2)*452,32+math.floor((i-1)/2)*34,440,function()open(r.key)end,false,"tl-row:"..r.key,{kind="ghost",h=30,glyph="clock"})
     end end
-    for _,m in ipairs(mech)do i=i+1;if i<=8 then
+    for _,m in ipairs(mech)do i=i+1;if i<=rows then
         local label=name(m.spell)..(m.r.entry.name and("  ·  "..m.r.entry.name)or"")..(#occurrences(m)==0 and L("  ·  time after a recorded pull")or"")
         W.Button(list,label,12+((i-1)%2)*452,32+math.floor((i-1)/2)*34,440,function()open(m.r.key,nil,m.spell)end,false,"tl-mrow:"..tostring(m.r.key)..":"..m.spell,{kind="ghost",h=30,icon=m.spell})
     end end
