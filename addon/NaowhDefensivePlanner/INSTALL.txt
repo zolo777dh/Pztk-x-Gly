@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.6.9 — in-game editor and reminder engine
+Naowh Defensive Planner 0.6.10 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -172,6 +172,10 @@ The Mechanics lane shows reminders and defensive sets tied to boss abilities at
 the times those abilities happened on your recorded pull. + Timed reminder can
 also make a "Boss mod timer bar" or "Boss mod message" reminder for a chosen
 boss ability.
+Expected boss timeline: every raid boss shows a "Boss (exp.)" lane with its
+abilities at their usual times before you pull. Left-click an ability to plan that
+cast: Defensive set, Note (your own text, e.g. Stack in middle), Every cast, or
+Timed here. A recorded pull replaces the expected times.
 Boss timeline: each pull records when your boss mod announced the boss abilities.
 The kill (or the longest pull) is kept, and the Timeline page shows it as a
 "Boss" lane. Click an ability icon to start a reminder at that time. You need one
