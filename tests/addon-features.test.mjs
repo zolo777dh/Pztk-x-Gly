@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
@@ -111,7 +111,7 @@ assert(ns.SaveSet('mythic',104,nil,'Magic',{{spellID=22812},{spellID=61336}}));a
 env.click('tab:raid');env.click('new-timed');env.input('rule:name','Pull wall');env.input('rule:delay','20');env.click('save-rule')
 assert(ns.AddRacialDebuffs(104,'stoneform'));assert(ns.AddRacialDebuffs(104,'stoneform','raid'))
 assert(ns.SaveNote('shared',nil,{name='Plan',text='Soak 1: Tester'}));assert(ns.SetNickname('Friend','Fr'))
-local tabs={'overview','mythic','raid','timeline','mythic/sets','raid/sets','mythic/debuffs','raid/debuffs','notes','raidtools','players','profiles','settings','diag'}
+local tabs={'overview','mythic','raid','timeline','mythic/sets','raid/sets','mythic/debuffs','raid/debuffs','notes','raidtools','players','qol','combat','profiles','settings','diag'}
 local dead,errors,total={},{},0
 -- 'mythic/debuffs' opens the Mythic+ section on its Debuffs switch; plain 'mythic' on Mechanics.
 local function open(tab)local t,m=tab:match('^(%w+)/?(%w*)$');env.click('tab:'..t);if t=='mythic'or t=='raid'then local c=ns.UIControls['mode:'..(m~=''and m or'mechanics')];if c then c:Click()end end end
@@ -223,4 +223,85 @@ a.GetLeft=function()return 1000 end;a.GetCenter=function()return 1010,600 end;UI
 a.scripts.OnDragStop(a);local p=ns.Settings().pos;assert(p.point=='LEFT'and p.x==40 and p.y==60)
 x,y=ns.ReminderOrigin();assert(x==40 and y==60)
 assert(not ns.ToggleAnchors())
+`));
+
+test('quality of life: notices, ready check, consumables, gateway and events only while switched on',()=>run(`
+local function ticker(d,fn)local t={};local function arm()local x=C_Timer.NewTimer(d,function()if not t.cancelled then fn(t);if not t.cancelled then arm()end end end)end;function t:Cancel()self.cancelled=true end;arm();return t end;C_Timer.NewTicker=ticker
+local q=ns.QoL();assert(q.textSize==22 and q.gateway==false)
+local frame;for _,f in ipairs(env.frames)do if f.scripts.OnEvent and f.events and next(f.events)==nil then end end
+-- Nothing is listened to while every option is off.
+local function listening(event)for _,f in ipairs(env.frames)do if f.events[event]then return true end end end
+assert(not listening('READY_CHECK')and not listening('MERCHANT_SHOW'))
+env.click('tab:qol');env.click('qol:missingBuffs');env.click('qol:readyCheck');env.click('qol:autoRepair')
+assert(q.missingBuffs and q.readyCheck and q.autoRepair and listening('READY_CHECK')and listening('MERCHANT_SHOW'))
+-- Ready check: a mage is in the group and Arcane Intellect is missing; no flask, no food.
+C_Spell=C_Spell or{};C_Spell.GetSpellName=function(id)return({[1459]='Arcane Intellect',[21562]='Power Word: Fortitude'})[id]end
+local buffs={{name='Power Word: Fortitude',spellId=21562}}
+C_UnitAuras={GetAuraDataByIndex=function(_,i)return buffs[i]end}
+UnitClass=function(u)return 'Mage','MAGE'end;UnitExists=function()return true end
+local p=ns.ReadyCheckProblems();local text=table.concat(p,'|')
+assert(text:match('Missing: Arcane Intellect')and text:match('No flask')and text:match('Not well fed'),text)
+buffs[#buffs+1]={name='Arcane Intellect',spellId=1459};buffs[#buffs+1]={name='Flask of Tests'};buffs[#buffs+1]={name='Well Fed'}
+assert(#ns.ReadyCheckProblems()==0)
+-- Text display lines come and go with their timers.
+ns.Notice('x','Hello',2);assert(ns.NoticeText('x')=='Hello');env.advance(3);assert(ns.NoticeText('x')==nil)
+-- Consumables: recognised by spell name, out of combat, while switched on.
+env.click('qol:feast');assert(listening('UNIT_SPELLCAST_SUCCEEDED'))
+C_Spell.GetSpellName=function(id)return id==99 and 'Hearty Feast'or nil end
+for _,f in ipairs(env.frames)do if f.events.UNIT_SPELLCAST_SUCCEEDED and f.events.MERCHANT_SHOW then f.scripts.OnEvent(f,'UNIT_SPELLCAST_SUCCEEDED','party1','x',99)end end
+assert(ns.NoticeText('consumable')=='Feast is down (Tester)',tostring(ns.NoticeText('consumable')))
+-- Boss reset after a wipe, loot after a kill.
+env.click('qol:resetBoss');env.click('qol:loot');IsInRaid=function()return true end
+local busy=true;IsEncounterInProgress=function()return busy end
+for _,f in ipairs(env.frames)do if f.events.ENCOUNTER_END and f.events.LOOT_OPENED then f.scripts.OnEvent(f,'ENCOUNTER_END',1,'Boss',16,20,0);assert(ns.NoticeText('reset')=='Boss is resetting');busy=false;env.advance(1);assert(ns.NoticeText('reset')=='Boss has reset')
+ f.scripts.OnEvent(f,'ENCOUNTER_END',1,'Boss',16,20,1);assert(ns.NoticeText('loot')=='Loot the boss');f.scripts.OnEvent(f,'LOOT_OPENED');assert(ns.NoticeText('loot')==nil)end end
+`));
+
+test('raid tools: split and even/odd sorting balance roles, break bar options, abort',()=>run(`
+local roster={}
+for i=1,20 do roster[i]={name='P'..i,subgroup=1+math.floor((i-1)/5),class=i%2==0 and'WARRIOR'or'MAGE',role=i<=2 and'TANK'or i<=6 and'HEALER'or'DAMAGER'}end
+GetRaidRosterInfo=function(i)local r=roster[i];if r then return r.name,0,r.subgroup,80,'',r.class,'',true end end
+UnitGroupRolesAssigned=function(u)local r=roster[tonumber(u:match('%d+'))or 0];return r and r.role or'NONE'end
+SetRaidSubgroup=function(i,g)roster[i].subgroup=g end
+SwapRaidSubgroup=function(a,b)roster[a].subgroup,roster[b].subgroup=roster[b].subgroup,roster[a].subgroup end
+IsInRaid=function()return true end;InCombatLockdown=function()return false end
+ns.GroupAuthority=function()return true end
+assert(ns.ArrangeGroups('evenodd'));for i=1,60 do env.advance(0.3)end
+local tanks={}
+for _,r in ipairs(roster)do if r.role=='TANK'then tanks[#tanks+1]=r.subgroup%2 end end
+assert(tanks[1]~=tanks[2],'one tank in odd groups, one in even groups')
+assert(ns.ArrangeGroups('split'));for i=1,60 do env.advance(0.3)end
+local low=0;for _,r in ipairs(roster)do if r.role=='HEALER'and r.subgroup<=2 then low=low+1 end end
+assert(low==2,'healers split two and two: '..low)
+assert(not ns.AbortSorting());assert(not ns.ArrangeGroups('weird'))
+local cfg=ns.RaidToolsConfig();assert(cfg.breakShow and cfg.breakSound)
+env.click('tab:raidtools');env.click('rt-break-print');assert(cfg.breakPrint)
+env.click('rt-break-unlock');assert(cfg.breakUnlocked)
+`));
+
+test('combat tools: kick rotation moves on interrupts, pace keeps the best pull',()=>run(`
+local function ticker(d,fn)local t={};local function arm()local x=C_Timer.NewTimer(d,function()if not t.cancelled then fn(t);if not t.cancelled then arm()end end end)end;function t:Cancel()self.cancelled=true end;arm();return t end;C_Timer.NewTicker=ticker
+local c=ns.CombatConfig()
+env.click('tab:combat');env.input('kick:order','Alpha Bravo Charlie');env.click('kick-save');env.click('kick:enabled')
+assert(#ns.KickOrder()==3 and ns.KickIndex()==1)
+local frame;for _,f in ipairs(env.frames)do if f.events.UNIT_SPELLCAST_SUCCEEDED and f.events.PLAYER_REGEN_ENABLED then frame=f end end
+assert(frame,'listens for interrupts only while on')
+UnitName=function(u)return({raid1='Alpha',raid2='Bravo'})[u]end
+frame.scripts.OnEvent(frame,'UNIT_SPELLCAST_SUCCEEDED','raid1','x',12345);assert(ns.KickIndex()==1,'not an interrupt')
+frame.scripts.OnEvent(frame,'UNIT_SPELLCAST_SUCCEEDED','raid1','x',1766);assert(ns.KickIndex()==2)
+frame.scripts.OnEvent(frame,'UNIT_SPELLCAST_SUCCEEDED','raid2','x',2139);assert(ns.KickIndex()==3)
+frame.scripts.OnEvent(frame,'PLAYER_REGEN_ENABLED');assert(ns.KickIndex()==1)
+-- The note's Kick line can replace the typed order.
+ns.Notes().live={text='Soak: x\\nKick order: Delta Echo'};env.click('kick:fromNote');assert(ns.KickOrder()[1]=='Delta')
+-- Pace: the best pull is kept and compared at the same sample.
+env.click('pace:enabled')
+local hp=100;UnitExists=function(u)return u=='boss1'end;UnitHealth=function()return hp end;UnitHealthMax=function()return 100 end
+assert(ns.PaceStart(3001,16));hp=80;env.advance(5);hp=60;env.advance(5);ns.PaceEnd(false)
+assert(c.pace.history['3001-16'].lowest==60)
+ns.PaceStart(3001,16);hp=75;env.advance(5);assert(ns.NoticeText('pace'):match('%+5%.0%%'),ns.NoticeText('pace'));hp=70;env.advance(5);ns.PaceEnd(false)
+assert(c.pace.history['3001-16'].lowest==60,'worse pull does not replace the best')
+ns.PaceStart(3001,16);hp=50;env.advance(5);ns.PaceEnd(true);assert(c.pace.history['3001-16'].kill)
+-- Private aura slots are handed to the game.
+local anchors=0;C_UnitAuras={AddPrivateAuraAnchor=function(a)assert(a.unitToken=='player'and a.parent);anchors=anchors+1;return anchors end,RemovePrivateAuraAnchor=function()end}
+env.click('auras:enabled');assert(anchors==3)
 `));

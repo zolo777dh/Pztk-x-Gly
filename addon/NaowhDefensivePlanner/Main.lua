@@ -47,7 +47,7 @@ SLASH_NDP5="/puzatik"
 function NaowhDefensivePlanner_OnAddonCompartmentClick()ns.Open()end
 local sections={sets="sets",defensives="sets",mythic="mythic",["m+"]="mythic",raid="raid",raids="raid",overview="overview",tl="timeline",timeline="timeline",
     notes="notes",reminders="notes",r="notes",preminders="notes",pr="notes",alerts="alerts",auras="debuffs",debuffs="debuffs",assign="assign",assignments="assign",
-    tools="raidtools",raidtools="raidtools",rt="raidtools",players="players",nicks="players",display="display",profiles="profiles",settings="settings",config="settings"}
+    tools="raidtools",raidtools="raidtools",rt="raidtools",players="players",qol="qol",combat="combat",interrupts="combat",kicks="combat",pace="combat",nicks="players",display="display",profiles="profiles",settings="settings",config="settings"}
 -- Commands from the old addons that are not rebuilt yet: say so instead of silently opening the window.
 local planned={bosses=true,keys=true,trace=true,observed=true,cds=true,calls=true,cd=true,invite=true}
 local function help()

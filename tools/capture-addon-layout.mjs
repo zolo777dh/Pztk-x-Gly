@@ -3,7 +3,7 @@
 // vertex colors, draw layers, blend modes and the shipped fonts are emulated in Chromium.
 import fs from 'node:fs/promises';import path from 'node:path';import {execFileSync}from 'node:child_process';import {chromium}from 'playwright-core';
 const root=path.resolve('addon/NaowhDefensivePlanner'),out=path.resolve('test-results/addon-layout');await fs.mkdir(out,{recursive:true});const harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
-const sources=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','Main'];
+const sources=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'];
 const prefix=`strmatch=string.match;local env=(function()\n${harness}\nend)();local ns={};\n`+['Libs/LibStub.lua','Libs/LibSerialize.lua','Libs/LibDeflate.lua',...sources.map(x=>x+'.lua')].map(x=>x.startsWith('Libs/')?`dofile(${JSON.stringify(root+'/'+x)})`:`assert(loadfile(${JSON.stringify(root+'/'+x)}))('NaowhDefensivePlanner',ns)`).join('\n')+`\nns.Open();local m=assert(ns.SaveSet('mythic',104,nil,'Magic damage',{{spellID=22812,enabled=true},{spellID=61336,enabled=true},{spellID=200851,enabled=true}}));assert(ns.SaveSet('raid',104,nil,'Raid personal',{{spellID=22812,enabled=true},{spellID=61336,enabled=true}}));\n`;
 const scenarios={
  overview:`env.click('tab:overview')`,
@@ -16,7 +16,7 @@ const scenarios={
  debuffs:`assert(ns.AddRacialDebuffs(104,'stoneform'));assert(ns.AddRacialDebuffs(104,'shadowmeld'));env.click('tab:mythic');env.click('mode:debuffs');local r=ns.DebuffRules(104)[1];env.click('debuff:'..r.key)`,
  raiddebuffs:`assert(ns.AddRacialDebuffs(104,'stoneform','raid'));env.click('tab:raid');env.click('mode:debuffs')`,
  notes:`assert(ns.SaveNote('shared',nil,{name='Mythic plan',text='Soak 1: Tester Other\\nKick order: A B C'}));env.click('tab:notes');local id=next(ns.Notes().shared);env.click('note:'..id)`,
- raidtools:`env.click('tab:raidtools')`,players:`env.click('tab:players')`,profiles:`env.click('tab:profiles')`,settings:`env.click('tab:settings')`,diagnostics:`env.click('tab:diag')`};
+ raidtools:`env.click('tab:raidtools')`,qol:`env.click('tab:qol')`,combat:`env.click('tab:combat')`,players:`env.click('tab:players')`,profiles:`env.click('tab:profiles')`,settings:`env.click('tab:settings')`,diagnostics:`env.click('tab:diag')`};
 const serializer=`
 local function esc(s)return '"'..tostring(s):gsub('\\\\','\\\\\\\\'):gsub('"','\\\\"'):gsub('\\n','\\\\n'):gsub('\\r','\\\\r')..'"'end
 local function json(v)if type(v)=='string'then return esc(v)elseif type(v)=='number'then return tostring(v)elseif type(v)=='boolean'then return tostring(v)elseif type(v)=='table'then local p={};for k,x in pairs(v)do p[#p+1]=esc(k)..':'..json(x)end;return '{'..table.concat(p,',')..'}'else return 'null'end end
