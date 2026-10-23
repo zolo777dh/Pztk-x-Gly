@@ -97,15 +97,57 @@ function ns.SaveSet(scope,spec,key,name,rows)
         sets[key]=p;if not ns.Get(data.scopeActivePreset[scope],spec)then data.scopeActivePreset[scope][spec]=key end;return key
     end)
 end
-local function Referenced(data,scope,spec,key)
-    for _,b in pairs(ns.Get(data.integrationRules,spec)or{})do if scope=="mythic"and b.preset==key then return true end end
+local function References(data,scope,spec,key)
+    local count=0
+    for _,b in pairs(ns.Get(data.integrationRules,spec)or{})do if scope=="mythic"and b.preset==key then count=count+1 end end
     for encounter,entries in pairs(data.abilityBindings and ns.Get(data.abilityBindings,spec)or{})do
-        local kind=ns.EncounterScope(tonumber(encounter));if kind==scope or not kind then for _,b in pairs(entries)do if b.preset==key then return true end end end
+        local kind=ns.EncounterScope(tonumber(encounter));if kind==scope or not kind then for _,b in pairs(entries)do if b.preset==key then count=count+1 end end end
     end
     for enc,entries in pairs(data.raidReminders or{})do for _,e in pairs(entries)do
         local content=e.content or ns.EncounterScope(tonumber(enc))
-        if e.defensive and e.defensive.specID==spec and e.defensive.preset==key and(content==scope or not content)then return true end
+        if e.defensive and e.defensive.specID==spec and e.defensive.preset==key and(content==scope or not content)then count=count+1 end
     end end
+    return count
+end
+local function Referenced(data,scope,spec,key)return References(data,scope,spec,key)>0 end
+function ns.SetUses(scope,spec,key)
+    local p=ns.Active();if not p or not key then return 0 end;return References(p.data,scope,spec,key)
+end
+-- True when an entry belongs to exactly this specialization: its defensive set, or a lone spec recipient.
+local function SpecOwned(entry,spec)
+    if entry.defensive then return entry.defensive.specID==spec end
+    local t=entry.target;if type(t)~="table"or t.matchAny or t.all then return false end
+    for k,v in pairs(t)do if k~="specs"and type(v)=="table"and next(v)then return false end end
+    local only=nil;for id,on in pairs(t.specs or{})do if on then if only then return false end;only=tonumber(id)end end
+    return only==spec
+end
+-- Replaces the target specialization's sets and spec-owned reminders with copies of the source's.
+function ns.CopySpecSetup(from,to)
+    return ns.EditProfile(function(data)
+        from=Integer(from,"specialization");to=Integer(to,"specialization");assert(from~=to,"Choose another specialization")
+        assert(ns.Catalog.specs[from]and ns.Catalog.specs[to],"Unknown specialization")
+        local function put(t,value)if t then t[tostring(to)]=nil;t[to]=ns.Clone(value)end end
+        for _,scope in ipairs({"mythic","raid"})do
+            put(data.scopePresets[scope],ns.Get(data.scopePresets[scope],from)or{})
+            put(data.scopeActivePreset[scope],ns.Get(data.scopeActivePreset[scope],from))
+        end
+        data.integrationRules=data.integrationRules or{};put(data.integrationRules,ns.Get(data.integrationRules,from))
+        data.abilityBindings=data.abilityBindings or{};put(data.abilityBindings,ns.Get(data.abilityBindings,from))
+        for _,entries in pairs(data.raidReminders or{})do
+            local copies={}
+            for key,e in pairs(entries)do
+                if SpecOwned(e,to)then entries[key]=nil
+                elseif SpecOwned(e,from)then
+                    local c=ns.Clone(e)
+                    if c.defensive then c.defensive.specID=to end
+                    if c.target and c.target.specs then c.target.specs={[to]=true}end
+                    copies[#copies+1]=c
+                end
+            end
+            for _,c in ipairs(copies)do entries[ns.UID("reminder")]=c end
+        end
+        return to
+    end)
 end
 function ns.DeleteSet(scope,spec,key)
     return ns.EditProfile(function(data)spec=Integer(spec,"specialization");assert(key,"Choose a saved set first");assert(not Referenced(data,scope,spec,key),"This set is assigned to mechanics. Reassign them first.");local sets=ns.Get(data.scopePresets[scope],spec)or{};sets[key]=nil;if ns.Get(data.scopeActivePreset[scope],spec)==key then data.scopeActivePreset[scope][spec]=nil end end)

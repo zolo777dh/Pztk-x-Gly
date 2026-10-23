@@ -41,6 +41,8 @@ SLASH_NWHDP2="/naowhdp"
 -- Pre-0.4.0 commands keep working after the rename.
 SLASH_NWHDP3="/pztkr"
 SLASH_NWHDP4="/puzatik"
+-- Entry in the minimap addon compartment menu (declared in the TOC).
+function NaowhDefensivePlanner_OnAddonCompartmentClick()ns.Open()end
 SlashCmdList.NWHDP=function(message)
     if type(message)=="string"and message:lower():match("^%s*debug%s*$")then ns.ShowDiagnostics()else ns.Open()end
 end

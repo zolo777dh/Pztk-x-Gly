@@ -16,7 +16,9 @@ Disable NaowhSmartReminders, NorthernSkyRaidTools and TimelineReminders while
 using this addon. It pauses reminder dispatch if those engines are loaded.
 
 OPEN
-Use /nwhdp. The workspace has Mythic+, Raids, Profiles and Settings.
+Use /nwhdp or the minimap addon compartment menu. The sidebar has Overview,
+Mythic+, Raids, Profiles and Settings, with reminder counts. The header holds
+the specialization, boss mod status and a search box (type, then press Enter).
 Choose a specialization by name. All 40 current specialization labels are present.
 
 Navigation preserves your selected encounter, specialization, defensive-set draft,
@@ -26,13 +28,15 @@ Save set / Save reminder / Save settings activates the reviewed change. Exports
 include saved profile content; incomplete editor drafts stay local.
 
 MYTHIC+
-1. Open Defensive sets. Create a named set and add your defensive spell IDs.
-   Icons and names come from the client. Set priority with up/down arrows;
+1. Open Defensive sets. Create a named set; click known defensives under
+   "Add from your spellbook" or enter a spell ID. Set priority with ^ / v;
    Together combines checked abilities; On controls whether an ability is used.
+   "Copy this spec's setup to..." replaces another spec's sets and reminders.
 2. Open Mechanics. Select dungeon, NPC/boss and its ability.
-3. Choose the defensive set in Assignment and configure warning time.
-4. Display configures text, sound, duration and TTS. Conditions holds counters.
-5. Save reminder. Test is a display preview; check the actual trigger in game.
+3. In the reminder card choose the defensive set and the warning time (WHEN),
+   then text, sound, duration and TTS (SHOW). The preview and the summary line
+   show what will fire.
+4. Save reminder. Test is a display preview; check the actual trigger in game.
 M+ is restricted to Mythic+ difficulty. ExBoss supplies trash countdowns;
 BigWigs/LittleWigs or DBM supplies boss messages and bars.
 

@@ -18,7 +18,7 @@ assert(ns.UIControls['set-name']:GetText()=='Unfinished set');assert(#ns.ScopePr
 `));
 test('settings drafts survive a source dropdown, page changes and closing, then save exactly',()=>run(`
 env.click('tab:settings');env.input('setting:iconSize','57');env.input('setting:x','125');env.click('setting:voiceOn');env.select('setting:bossSource','DBM')
-assert(ns.UIControls['setting:bossSource'].label:GetText()=='DBM  v')
+assert(ns.UIControls['setting:bossSource'].label:GetText()=='DBM')
 env.click('tab:profiles');env.click('tab:settings');assert(ns.UIControls['setting:iconSize']:GetText()=='57');assert(ns.UIControls['setting:voiceOn'].value)
 ns.WorkspaceWindow:Hide();ns.Open();assert(ns.UIControls['setting:x']:GetText()=='125');env.click('save-settings')
 assert(ns.Settings().iconSize==57 and ns.Settings().pos.x==125 and ns.Settings().voiceOn and ns.Settings().bossSource=='dbm')
@@ -37,16 +37,16 @@ test('mechanic drafts keep exact inputs per ability, specialization and difficul
 local preset=assert(ns.SaveSet('mythic',104,nil,'Personal',{{spellID=22812,enabled=true}}))
 env.select('group','Murder Row');env.click('entity:236071');env.click('ability:1216529')
 env.input('rule:name','My trash shield');env.select('rule:preset','Personal');env.input('rule:leadTime','3.5')
-env.click('inspector:display');env.input('rule:text','Shield now');env.input('rule:duration','6')
+env.input('rule:text','Shield now');env.input('rule:duration','6')
 env.click('tab:raid');env.click('tab:mythic');assert(ns.UIState.entity==236071 and ns.UIState.ability==1216529)
-assert(ns.UIControls['rule:text']:GetText()=='Shield now');env.click('inspector:assignment');assert(ns.UIControls['rule:name']:GetText()=='My trash shield')
+assert(ns.UIControls['rule:text']:GetText()=='Shield now');assert(ns.UIControls['rule:name']:GetText()=='My trash shield')
 env.select('specialization','Restoration Shaman');env.click('mode:sets');env.input('set-name','Shaman draft')
 env.select('specialization','Guardian Druid');assert(ns.UIState.mode=='mechanics');assert(ns.UIControls['rule:leadTime']:GetText()=='3.5')
 env.click('save-rule');local key=ns.UIState.ruleKey;local e=ns.Get(ns.Active().data.integrationRules,104)[key]
 assert(e.name=='My trash shield'and e.preset==preset and e.trigger.timeleft==3.5 and e.display.text=='Shield now')
-env.click('tab:raid');env.click('new-timed');env.input('rule:name','Heroic draft');env.input('rule:delay','45');env.select('difficulty','Mythic')
-env.click('new-timed');env.input('rule:name','Mythic draft');env.select('difficulty','Heroic');env.click('new-timed');assert(ns.UIControls['rule:name']:GetText()=='Heroic draft')
-env.select('difficulty','Mythic');env.click('new-timed');assert(ns.UIControls['rule:name']:GetText()=='Mythic draft')
+env.click('tab:raid');env.click('new-timed');env.input('rule:name','Heroic draft');env.input('rule:delay','45');env.click('difficulty:16')
+env.click('new-timed');env.input('rule:name','Mythic draft');env.click('difficulty:15');env.click('new-timed');assert(ns.UIControls['rule:name']:GetText()=='Heroic draft')
+env.click('difficulty:16');env.click('new-timed');assert(ns.UIControls['rule:name']:GetText()=='Mythic draft')
 `));
 test('drafts and navigation survive a fresh addon load, remain profile-local and stay outside exports',()=>run(`
 env.click('mode:sets');env.input('set-name','Not active yet');env.input('new-spell','22812');env.click('add-spell')
@@ -92,8 +92,8 @@ assert(ns.UIState.error);assert(#ns.UIState.setRows==1);assert(next(ns.ScopePres
 env.click('tab:profiles');env.click('tab:mythic');assert(ns.UIControls['set-name']:GetText()=='');assert(#ns.UIState.setRows==1)
 env.input('set-name','Recovered');env.click('save-set');assert(not ns.UIState.error)
 env.click('tab:raid');env.click('new-timed');env.select('rule:trigger','Time from phase')
-ns.UIScrolls['inspector:assignment']:SetVerticalScroll(40);env.click('tab:settings');env.click('tab:raid')
-assert(ns.UIScrolls['inspector:assignment']:GetVerticalScroll()==40);env.assertLayout()
+ns.UIScrolls['inspector']:SetVerticalScroll(40);env.click('tab:settings');env.click('tab:raid')
+assert(ns.UIScrolls['inspector']:GetVerticalScroll()==40);env.assertLayout()
 `));
 test('all workspace pages and multiline inputs supply the flags required by EditBox:SetFont',()=>run(`
 local bad=CreateFrame('EditBox',nil,UIParent);local ok,error=pcall(bad.SetFont,bad,'Fonts/FRIZQT__.TTF',12);assert(not ok and error:find("bad argument #3"))
@@ -125,7 +125,7 @@ ns.difficulty=16;ns.instanceType='raid';ns.RenderDefensive({defensive={specID=10
 local result,error=ns.DeleteSet('mythic',104,m);assert(not result and error:find('assigned'))
 `));
 test('raid UI authors pull and phase reminders, preserves recipients and exports the edited profile',()=>run(`
-env.click('tab:raid');env.select('group','Midnight · Season 2');env.click('new-timed');env.input('rule:name','Raid movement');env.input('rule:delay','10');env.click('inspector:display');env.input('rule:text','Move now');env.click('inspector:filters');env.select('rule:recipient','Role');env.select('rule:role','Tank');env.click('save-rule')
+env.click('tab:raid');env.select('group','Midnight · Season 2');env.click('new-timed');env.input('rule:name','Raid movement');env.input('rule:delay','10');env.input('rule:text','Move now');env.select('rule:recipient','Role');env.select('rule:role','Tank');env.click('save-rule')
 local entries=ns.Get(ns.Active().data.raidReminders,3379);local key,e=next(entries);assert(e.trigger.type=='pull'and e.trigger.delay==10 and e.target.roles.TANK and e.content=='raid'and e.difficulties[15])
 ns.instanceType='raid';ns.Begin(3379,15,1);env.advance(7);assert(#env.shown==0);env.advance(1);assert(#env.shown==1 and env.shown[1].text=='Move now');ns.Reset()
 env.click('timed:'..key);env.select('rule:trigger','Time from phase');env.input('rule:phase','2');env.input('rule:delay','5');env.click('save-rule');e=ns.Get(ns.Active().data.raidReminders,3379)[key];assert(e.trigger.type=='stage'and e.trigger.stage==2)
@@ -152,4 +152,26 @@ assert(ns.SaveRule(ctx,{name='Boss defensive',action='defensive',preset=set,trig
 ns.instanceType='party';ns.Begin(3456,8,1);ns.Mechanic(1296050,nil,'boss');env.advance(0.1)
 assert(#env.shown==1 and #env.shown[1].spells==2 and env.shown[1].spells[1]==22812 and env.shown[1].spells[2]==61336)
 assert(env.shown[1].text=='Barkskin and Survival Instincts');ns.Reset();ns.instanceType='raid';ns.Begin(3456,16,1);ns.Mechanic(1296050,nil,'wrong-content');env.advance(1);assert(#env.shown==1)
+`));
+
+test('search narrows encounters and mechanics, and counts follow saved reminders',()=>run(`
+local set=assert(ns.SaveSet('mythic',104,nil,'Personal',{{spellID=22812,enabled=true}}))
+env.select('group','Murder Row');env.click('entity:236071');env.click('ability:1216529');env.select('rule:preset','Personal');env.click('save-rule')
+local group=ns.UIState.group;env.click('tab:overview');env.assertLayout();assert(ns.UIControls['tab:mythic'],'Sidebar is missing Mythic+')
+env.click('overview:mythic:'..group);assert(ns.UIState.tab=='mythic'and ns.UIState.mode=='mechanics')
+local search=ns.UIControls.search;search:SetText('Blood Sacrifice');search.scripts.OnEnterPressed(search)
+assert(ns.UIState.filter=='Blood Sacrifice');assert(ns.UIControls['ability:1306517'],'Search hit is missing');assert(not ns.UIControls['entity:236071'],'Non-matching encounter is still listed')
+env.click('search-clear');assert(ns.UIState.filter=='');env.select('group','Murder Row');assert(ns.UIControls['entity:236071'])
+`));
+test('suggested defensives add to the set and a spec setup copies onto another specialization',()=>run(`
+env.click('mode:sets');env.input('set-name','Copied set');env.click('suggest:22812');assert(#ns.UIState.setRows==1 and ns.UIState.setRows[1].spellID==22812)
+assert(not ns.UIControls['suggest:22812'],'A spell already in the set is still suggested');env.click('save-set');local key=ns.UIState.setKey
+local ctx={scope='mythic',spec=104,encounter=3456,npc=259445,kind='boss',spell=1296050,difficulty=8}
+assert(ns.SaveRule(ctx,{name='Boss defensive',action='defensive',preset=key,trigger='bwmsg',delay=0,leadTime=0,duration=4}))
+env.select('copy-spec','Copy setup to Restoration Shaman');env.click('copy-spec-confirm')
+assert(ns.ScopePresets(ns.Active(),'mythic',264)[key].name=='Copied set');local copies=0
+for _,e in pairs(ns.Get(ns.Active().data.raidReminders,3456))do if e.defensive and e.defensive.specID==264 then copies=copies+1 end end;assert(copies==1)
+env.select('copy-spec','Copy setup to Restoration Shaman');env.click('copy-spec-confirm');copies=0
+for _,e in pairs(ns.Get(ns.Active().data.raidReminders,3456))do if e.defensive and e.defensive.specID==264 then copies=copies+1 end end;assert(copies==1,'Copying twice duplicated reminders')
+assert(ns.SetUses('mythic',104,key)==1 and ns.SetUses('mythic',264,key)==1 and ns.SetUses('raid',104,key)==0)
 `));

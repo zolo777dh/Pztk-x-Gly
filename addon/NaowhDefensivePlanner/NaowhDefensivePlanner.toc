@@ -5,6 +5,8 @@
 ## Author: Pztk x Glyalith
 ## Version: 0.4.0
 ## SavedVariables: NaowhDefensivePlannerDB, PztkRemindersDB
+## IconTexture: Interface\AddOns\NaowhDefensivePlanner\Media\Logo
+## AddonCompartmentFunc: NaowhDefensivePlanner_OnAddonCompartmentClick
 ## OptionalDeps: BigWigs, DBM-Core, EXBoss
 Libs\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml

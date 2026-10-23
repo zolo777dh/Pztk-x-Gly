@@ -2,7 +2,7 @@
 
 Pztk x Glyalith is a Windows desktop app for planning profiles for **Naowh Defensive Planner**, a separate WoW addon that combines defensive priorities, raid assignments and timed encounter reminders. Addon maintenance and AI tools remain in the same desktop application.
 
-- **In-game workspace:** `/nwhdp` opens Mythic+, Raids, Profiles and Settings. Create and edit content-specific sets and mechanic / pull / phase reminders directly in WoW. Assignment, Display and Conditions keep related controls together.
+- **In-game workspace:** `/nwhdp` opens Overview, Mythic+, Raids, Profiles and Settings. Create and edit content-specific sets and mechanic / pull / phase reminders directly in WoW. Each reminder is one card (When / Who / Show) with a live preview; search and reminder counts help find encounters.
 - **Persistent editing:** switching pages, encounters, difficulty, specialization or profiles keeps unfinished inputs and navigation state. Drafts survive close and logout/reload in local SavedVariables; explicit Save activates a change. Drafts are separate from runtime profiles and are not included in exports.
 - **Independent content sets:** M+ and raid priorities are separate for every spec, with Together and disabled abilities. The first save copies legacy shared sets into independent collections.
 - **Direct in-game migration:** unlicensed NSRPACK2 and current NSRT Profile / EncounterAlert exports (full, single alert or group, including raid-frame glows and pre-pull countdown times) can be imported with a review report. Source strings and reports stay locally in SavedVariables. Native PZTK1 combines the configured content.
