@@ -8,9 +8,11 @@ end
 function ns.Enabled()
     return ns.Active()~=nil and ns.Settings().enabled~=false and not ns.Conflict()
 end
+-- Boss mod callbacks are ignored while the built-in timers run the pull.
 function ns.ProviderSelected(name)
     local source=ns.Settings().bossSource
-    return not source or source==name
+    if ns.BuiltinTimersActive and ns.BuiltinTimersActive()then return false end
+    return not source or source=="auto"or source==name
 end
 
 function ns.CounterMatches(groups, number)

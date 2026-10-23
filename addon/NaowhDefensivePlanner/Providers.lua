@@ -144,6 +144,7 @@ local function ObserveTrash(scheduler, id)
 end
 
 function ns.ResetProviders()
+    if ns.ResetBuiltinTimers then ns.ResetBuiltinTimers() end
     modules, trash = {}, {}
 end
 

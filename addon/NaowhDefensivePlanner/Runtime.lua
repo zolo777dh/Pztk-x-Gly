@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.6.8"
+ns.version = "0.6.9"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -184,6 +184,7 @@ function ns.Begin(encounter, difficulty, map)
     ns.noteEntries, ns.noteEncounter = ns.NoteTimerEntries and ns.NoteTimerEntries(difficulty) or {}, encounter
     ns.Anchor("pull"); ns.Anchor("stage", 1)
     if ns.ReplayProviderTimers then ns.ReplayProviderTimers(firstBars) end
+    if ns.StartBuiltinTimers then ns.StartBuiltinTimers() end
 end
 -- Pre-pull reminders run before ENCOUNTER_START, so the encounter comes from the
 -- Encounter Journal pins on the player's map: only bosses this profile plans
