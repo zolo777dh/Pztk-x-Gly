@@ -1,6 +1,6 @@
 -- Independent, bounded data-only import adapters. Native exports always use PZTK1.
 local _,ns=...
-local function Native(name,data)return{format=1,addon="PztkReminders",client=ns.Client(),minimumAddon="0.3.0",name=tostring(name or"Imported profile"):sub(1,120),data=data}end
+local function Native(name,data)return{format=1,addon="PztkReminders",client=ns.Client(),minimumAddon=ns.MinimumAddon(data),name=tostring(name or"Imported profile"):sub(1,120),data=data}end
 local function Report(kind)return{source=kind,converted=0,issues={}}end
 local function issue(report,key,reason)report.issues[#report.issues+1]=tostring(key)..": "..reason end
 local function Base64(input)
@@ -85,19 +85,54 @@ local function NSR(input)
     end end
     local p=Native(source.name,data);p.derivedFrom=ns.Clone(source.derivedFrom);p.author=source.author;return p,report
 end
+local function OnlyDifficulty(alerts,diff)
+    if diff==nil then return alerts end
+    local out={};for enc,diffs in pairs(alerts)do out[enc]={[diff]=type(diffs)=="table"and ns.Get(diffs,diff)or nil}end;return out
+end
+-- Every NSRT EncounterAlert export shape, normalised to EncounterAlerts[encounter][difficulty][key].
+local function NsrtAlerts(kind,source)
+    if kind=="Profile"then local alerts=source.sharedData and source.sharedData.EncounterAlerts;assert(type(alerts)=="table","This NSRT Profile has no shared EncounterAlerts");return alerts end
+    if source.type=="alerts"then
+        assert(type(source.encounterAlerts)=="table","This NSRT alerts export is empty")
+        if source.encID==nil then return OnlyDifficulty(source.encounterAlerts,source.diffID)end
+        local scoped=ns.Get(source.encounterAlerts,source.encID)
+        return OnlyDifficulty({[source.encID]=type(scoped)=="table"and scoped or source.encounterAlerts},source.diffID)
+    elseif source.type=="single_alert"then
+        assert(source.encID~=nil and source.diffID~=nil and type(source.data)=="table","This NSRT single alert export has no encounter, difficulty or alert data")
+        return {[source.encID]={[source.diffID]={[source.alertKey or"single_alert"]=source.data}}}
+    elseif source.type=="alert_group"then
+        local group=source.groupEncID~=nil and type(source.encounterAlerts)=="table"and ns.Get(source.encounterAlerts,source.groupEncID)
+        assert(type(group)=="table","This NSRT alert group export is empty")
+        return OnlyDifficulty({[source.groupEncID]=group},source.diffID)
+    end
+    error("Unsupported NSRT EncounterAlert export type "..tostring(source.type))
+end
+-- NSRT glowunit is a space-separated name string (a table in older saves); "glowunit" itself is a tag word NSRT drops.
+local function GlowNames(value)
+    local names,seen={},{}
+    local function add(name)if type(name)=="string"and name~=""and name~="glowunit"and not seen[name]then seen[name]=true;names[#names+1]=name end end
+    if type(value)=="string"then for name in value:gmatch("[^%s:,]+")do add(name)end
+    elseif type(value)=="table"then for _,name in ipairs(value)do add(name)end end
+    return names
+end
+local function GlowColor(value)
+    if type(value)~="table"then return end
+    local c={};for i=1,4 do local v=value[i];if i==4 and v==nil then v=1 end;if type(v)~="number"or v<0 or v>1 then return end;c[i]=v end;return c
+end
 local function NSRT(input)
-    local kind,encoded=input:match("^!NSRT:(%a+):(.+)$");assert(kind=="Profile"or kind=="EncounterAlert","Use a full NSRT Profile or EncounterAlert export")
+    local kind,encoded=input:match("^!NSRT:(%a+):(.+)$");assert(kind=="Profile"or kind=="EncounterAlert","Use an NSRT Profile or EncounterAlert export")
     local source=ns.ReadCBOR(Uncompress(Base64(encoded)));assert(type(source)=="table","Invalid NSRT payload")
-    local alerts=kind=="Profile"and source.sharedData and source.sharedData.EncounterAlerts or source.type=="alerts"and source.encounterAlerts
-    assert(type(alerts)=="table","Export a full NSRT profile or all encounter alerts")
+    local alerts=NsrtAlerts(kind,source)
     local report=Report("NSRT");local data={presets={},activePreset={},raidReminders={},settings={enabled=true,voiceOn=true}}
     local defaults=source.data and source.data.ReminderSettings or{}
     for enc,diffs in pairs(alerts)do for diff,entries in pairs(diffs)do for key,a in pairs(entries)do
         local path=tostring(enc).."/"..tostring(diff).."/"..tostring(key)
         local success,error=pcall(function()
             assert(tonumber(diff)==15 or tonumber(diff)==16,"Only Heroic and Mythic raid data is imported")
-            assert(not a.ReloeReminder and not a.isSpecialDisplay and not a.castDuration and not a.isTaunt and not a.glow and not a.Glow and not a.glowSettings,"Unsupported alert engine")
+            assert(not a.ReloeReminder and not a.isSpecialDisplay and not a.castDuration and not a.isTaunt,"Unsupported alert engine")
             local typeMap={Icon="icon",Text="text",Bar="bar",Circle="circle"};local display=typeMap[a.DisplayType]or(not a.DisplayType and(a.spellID and"icon"or"text"));assert(display,"Unsupported display type")
+            local glows=GlowNames(a.glowunit);assert(#glows<=40,"More than 40 glow targets");for _,name in ipairs(glows)do assert(#name<=100,"Glow target name is too long")end
+            local glowColor=#glows>0 and GlowColor(a.glowColors)or nil
             local lc=a.loadConditions or{}
             if next(lc.Difficulties or{})then assert(ns.Get(lc.Difficulties,diff),"Excluded by difficulty filter")end
             if next(lc.EncounterIDs or{})then assert(ns.Get(lc.EncounterIDs,enc),"Excluded by encounter filter")end
@@ -112,15 +147,22 @@ local function NSRT(input)
             local phases=a.phaseTimers
             if not phases or not next(phases)then phases={};if type(a.phase)=="table"then for _,p in ipairs(a.phase)do phases[p]=a.timers or{}end else phases[a.phase or 1]=a.timers or{}end end
             local staged={};local tts=a.TTS;if tts==nil then tts=defaults[a.spellID and"SpellTTS"or"TextTTS"]end;if tts==nil then tts=true end
+            local prepulls=0
             for phase,times in pairs(phases)do for _,time in ipairs(times)do
-                assert(tonumber(phase)and tonumber(phase)>0 and tonumber(phase)<=100 and type(time)=="number"and time>=0 and time<=7200,"Unsupported phase or time")
-                local e={name=tostring(a.name or key):sub(1,120),enabled=a.enabled~=false,content="raid",difficulties={[tonumber(diff)]=true},trigger={type=tonumber(phase)==1 and"pull"or"stage",stage=tonumber(phase)~=1 and tonumber(phase)or nil,delay=time,leadTime=math.min(duration,time)},target=ns.Clone(target),display={type=display,text=a.text or tostring(a.name or key),spellID=a.spellID,dur=math.max(0.1,math.min(duration,time>0 and time or duration)),tts=tts~=false and tts~="false",ttsText=type(tts)=="string"and tts~="true"and tts~="false"and tts or nil},pztkMigration={source="NSRT",key=key}}
-                staged[#staged+1]=e
+                -- Negative phase-1 times are NSRT pre-pull reminders, run from the pull countdown.
+                local prepull=type(time)=="number"and time<0
+                assert(not prepull or tonumber(phase)==1,"Negative time outside phase 1 (NSRT only runs pre-pull times in phase 1)")
+                assert(tonumber(phase)and tonumber(phase)>0 and tonumber(phase)<=100 and type(time)=="number"and time>=-3600 and time<=7200,"Unsupported phase or time")
+                local trigger=prepull and{type="prepull",delay=-time,leadTime=duration}or{type=tonumber(phase)==1 and"pull"or"stage",stage=tonumber(phase)~=1 and tonumber(phase)or nil,delay=time,leadTime=math.min(duration,time)}
+                local e={name=tostring(a.name or key):sub(1,120),enabled=a.enabled~=false,content="raid",difficulties={[tonumber(diff)]=true},trigger=trigger,target=ns.Clone(target),display={type=display,text=a.text or tostring(a.name or key),spellID=a.spellID,dur=prepull and duration or math.max(0.1,math.min(duration,time>0 and time or duration)),tts=tts~=false and tts~="false",ttsText=type(tts)=="string"and tts~="true"and tts~="false"and tts or nil,glowTargets=#glows>0 and ns.Clone(glows)or nil,glowColor=glowColor},pztkMigration={source="NSRT",key=key}}
+                staged[#staged+1]=e;if prepull then prepulls=prepulls+1 end
             end end
             assert(#staged>0,"No scheduled times")
             data.raidReminders[tonumber(enc)]=data.raidReminders[tonumber(enc)]or{}
             for _,e in ipairs(staged)do data.raidReminders[tonumber(enc)][ns.UID("nsrt")]=e;report.converted=report.converted+1 end
             if a.TTSTimer or(a.text and a.text:find("%%"))then issue(report,path,"Review countdown / text substitutions")end
+            if #glows>0 then issue(report,path,"Glow targets are literal character names or unit tokens; check nickname mappings")end
+            if prepulls>0 then issue(report,path,"Pre-pull reminder needs a pull countdown near the boss; check it in game")end
         end)
         if not success then issue(report,path,tostring(error))end
     end end end
@@ -134,7 +176,7 @@ function ns.DecodeImport(text)
         if input:sub(1,6)=="PZTK1:"then local value,error=ns.Decode(input);assert(value,error);return value end
         if input:sub(1,9)=="NSRPACK2:"then return NSR(input)end
         if input:sub(1,6)=="!NSRT:"then return NSRT(input)end
-        error("Expected PZTK1, NSRPACK2 or a full !NSRT profile")
+        error("Expected PZTK1, NSRPACK2 or an !NSRT export")
     end)
     if not ok then return nil,tostring(p)end
     if not ns.Validate(p)then return nil,"The imported profile contains unsupported data"end

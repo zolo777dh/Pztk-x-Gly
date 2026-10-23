@@ -35,7 +35,9 @@ local function Region()
 end
 local function Release(index)
     local r=table.remove(active,index);r:Hide();r:SetScript("OnUpdate",nil)
-    if r.glow and LibStub("LibCustomGlow-1.0",true) then pcall(LibStub("LibCustomGlow-1.0").PixelGlow_Stop,r.glow,r.glowKey);r.glow=nil end
+    local lcg=LibStub("LibCustomGlow-1.0",true)
+    for _,frame in ipairs(r.glows or {})do if lcg then pcall(lcg.PixelGlow_Stop,frame,r.glowKey)end end
+    r.glows=nil
     pool[#pool+1]=r
 end
 local function Arrange()
@@ -44,11 +46,13 @@ local function Arrange()
     for _,r in ipairs(active)do r:ClearAllPoints();r:SetPoint(p.point or"CENTER",UIParent,p.relPoint or"CENTER",p.x or 0,(p.y or 100)-offset);offset=offset+(r.height or 60)+6 end
 end
 function ns.HideDisplays()for i=#active,1,-1 do Release(i)end end
-local function Glow(display,key)
-    local wanted=display.glowTarget
-    if not wanted then return end
-    local lgf=LibStub("LibGetFrame-1.0",true)
-    local unit
+local function GlowUnit(wanted)
+    if not ns.Plain(wanted,"string")or wanted==""then return end
+    if wanted=="player"or wanted:match("^raid%d+$")or wanted:match("^party%d+$")then
+        local exists=UnitExists(wanted)
+        if ns.Plain(exists,"boolean")and exists then return wanted end
+        return
+    end
     for i=0,40 do
         local token=i==0 and "player" or ((IsInRaid and IsInRaid()) and "raid"..i or "party"..i)
         if UnitExists(token) then
@@ -56,17 +60,27 @@ local function Glow(display,key)
             if UnitFullName then name,realm=UnitFullName(token) end
             if ns.Plain(name)and ns.Plain(realm)then
                 name=name or UnitName(token)
-                if ns.Plain(name,"string")and (name==wanted or (ns.Plain(realm,"string")and name.."-"..realm:gsub("%s+","")==wanted))then unit=token;break end
+                if ns.Plain(name,"string")and (name==wanted or (ns.Plain(realm,"string")and name.."-"..realm:gsub("%s+","")==wanted))then return token end
             end
         end
     end
+end
+local function GlowColor(color)
+    if type(color)~="table"then return end
+    local c={}
+    for i=1,4 do local v=color[i];if v==nil and i==4 then v=1 end;if type(v)~="number"or v<0 or v>1 then return end;c[i]=v end
+    return c
+end
+local function Glow(wanted,kind,key,color)
+    local unit=GlowUnit(wanted)
+    local lgf=LibStub("LibGetFrame-1.0",true)
     local ok,frame
-    if unit and display.type=="nameplateGlow"and C_NamePlate and C_NamePlate.GetNamePlateForUnit then
+    if unit and kind=="nameplateGlow"and C_NamePlate and C_NamePlate.GetNamePlateForUnit then
         ok,frame=pcall(C_NamePlate.GetNamePlateForUnit,unit)
         if ok and frame then frame=frame.UnitFrame or frame end
     elseif unit and lgf then ok,frame=pcall(lgf.GetUnitFrame,unit)end
     if ok and frame and LibStub("LibCustomGlow-1.0",true) then
-        local started=pcall(LibStub("LibCustomGlow-1.0").PixelGlow_Start,frame,{1,0.75,0,1},8,0.25,nil,2,0,0,false,key)
+        local started=pcall(LibStub("LibCustomGlow-1.0").PixelGlow_Start,frame,color or {1,0.75,0,1},8,0.25,nil,2,0,0,false,key)
         if started then return frame end
     end
 end
@@ -91,7 +105,13 @@ function ns.Display(display)
     if settings.textSize then local font,_,flags=r.text:GetFont();if type(font)=="string"then r.text:SetFont(font,settings.textSize,flags or"")end end
     local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5));r.expires=GetTime()+dur;if display.type=="circle"then r.swipe:SetCooldown(GetTime(),dur);r.swipe:Show()else r.swipe:Hide()end;r.bar:SetMinMaxValues(0,dur);r.bar:SetValue(dur);r:Show()
     if settings.showBar==false then r.bar:Hide()else r.bar:Show()end
-    if display.type=="raidframeGlow"or display.type=="nameplateGlow"then r.glow=Glow(display,r.glowKey);if not r.glow then ns.Print("Glow target frame unavailable; showing the reminder instead.")end end
+    r.glows={}
+    if display.type=="raidframeGlow"or display.type=="nameplateGlow"then local frame=Glow(display.glowTarget,display.type,r.glowKey);if frame then r.glows[1]=frame else ns.Print("Glow target frame unavailable; showing the reminder instead.")end end
+    -- NSRT glowunit: extra raid frames glow alongside any display type.
+    if type(display.glowTargets)=="table"then
+        local color=GlowColor(display.glowColor)
+        for _,name in ipairs(display.glowTargets)do local frame=Glow(name,"raidframeGlow",r.glowKey,color);if frame then r.glows[#r.glows+1]=frame end end
+    end
     r:SetScript("OnUpdate",function(self)local left=self.expires-GetTime();if left<=0 then for i,v in ipairs(active)do if v==self then Release(i);Arrange();break end end else self.timer:SetText(string.format("%.1f",left));self.bar:SetValue(left)end end)
     active[#active+1]=r;Arrange()
 end

@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.PztkReminders = ns
-ns.version = "0.3.2"
+ns.version = "0.3.3"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -100,10 +100,10 @@ function ns.Schedule(key, delay, callback)
     end)
     ns.timers[key] = timer
 end
-function ns.Fire(entry)
+function ns.Fire(entry, display)
     if (ns.ContentMatches and not ns.ContentMatches(entry))or (ns.Enabled and not ns.Enabled()) or ns.Conflict() or entry.enabled == false or not ns.Difficulty(entry) or not ns.Target(entry.target) then return end
     if entry.defensive and ns.RenderDefensive then return ns.RenderDefensive(entry)end
-    if ns.Display then ns.Display(entry.display or {}) end
+    if ns.Display then ns.Display(display or entry.display or {}) end
 end
 function ns.Reset()
     ns.Cancel(); ns.generation = ns.generation + 1; ns.occurrences = {}; ns.encounter = nil; ns.phase = nil
@@ -130,6 +130,82 @@ function ns.Begin(encounter, difficulty, map)
     ns.Reset(); ns.encounter, ns.difficulty, ns.map, ns.phase = encounter, difficulty, map, 1
     ns.Anchor("pull"); ns.Anchor("stage", 1)
     if ns.ReplayProviderTimers then ns.ReplayProviderTimers(firstBars) end
+end
+-- Pre-pull reminders run before ENCOUNTER_START, so the encounter comes from the
+-- Encounter Journal pins on the player's map: only bosses this profile plans
+-- pre-pull reminders for, nearest first when the map position is readable.
+function ns.PullEncounter()
+    local profile = ns.Active()
+    if not profile then return nil, "no active profile" end
+    local wanted = {}
+    for encounter, entries in pairs(profile.data.raidReminders or {}) do
+        for _, entry in pairs(entries) do
+            if type(entry) == "table" and type(entry.trigger) == "table" and entry.trigger.type == "prepull" and entry.enabled ~= false then
+                if tonumber(encounter) then wanted[tonumber(encounter)] = true end
+                break
+            end
+        end
+    end
+    if not next(wanted) then return nil, "no pre-pull reminders in this profile" end
+    if not (C_Map and C_Map.GetBestMapForUnit and C_EncounterJournal and C_EncounterJournal.GetEncountersOnMap and EJ_GetEncounterInfo) then return nil, "Encounter Journal map API unavailable" end
+    local ok, uiMap = pcall(C_Map.GetBestMapForUnit, "player")
+    if not ok or not ns.Plain(uiMap, "number") then return nil, "current map unknown" end
+    local pins
+    ok, pins = pcall(C_EncounterJournal.GetEncountersOnMap, uiMap)
+    if not ok or not ns.Plain(pins, "table") then return nil, "no bosses on map " .. uiMap end
+    local px, py
+    if C_Map.GetPlayerMapPosition then
+        local found, position = pcall(C_Map.GetPlayerMapPosition, uiMap, "player")
+        if found and ns.Plain(position, "table") and position.GetXY then
+            local x, y = position:GetXY()
+            if ns.Plain(x, "number") and ns.Plain(y, "number") then px, py = x, y end
+        end
+    end
+    local best, bestDistance, count = nil, nil, 0
+    for _, pin in ipairs(pins) do
+        if ns.Plain(pin, "table") and ns.Plain(pin.encounterID, "number") then
+            local found, _, _, _, _, _, _, encounter = pcall(EJ_GetEncounterInfo, pin.encounterID)
+            if found and ns.Plain(encounter, "number") and wanted[encounter] then
+                count = count + 1
+                local distance = 0
+                if px and ns.Plain(pin.mapX, "number") and ns.Plain(pin.mapY, "number") then distance = (pin.mapX - px) ^ 2 + (pin.mapY - py) ^ 2 end
+                if not best or distance < bestDistance then best, bestDistance = encounter, distance end
+            end
+        end
+    end
+    if not best then return nil, "no planned boss on map " .. uiMap end
+    if count > 1 and not px then return nil, "several planned bosses on map " .. uiMap .. " and no player position" end
+    return best
+end
+function ns.Countdown(remaining)
+    ns.Cancel("prepull:")
+    ns.pullEncounter, ns.pullStatus = nil, nil
+    if not ns.Plain(remaining, "number") or remaining <= 0 or ns.encounter or ns.Conflict() then return end
+    if ns.Enabled and not ns.Enabled() then return end
+    if ns.RefreshContext then ns.RefreshContext() end
+    local encounter, status = ns.PullEncounter()
+    ns.pullEncounter, ns.pullStatus = encounter, status
+    if not encounter then return end
+    local pullAt = GetTime() + remaining
+    for key, entry in pairs(ns.Get(ns.Active().data.raidReminders, encounter) or {}) do
+        local trigger = type(entry) == "table" and entry.trigger or {}
+        local before, lead = tonumber(trigger.delay) or 0, tonumber(trigger.leadTime) or 0
+        if trigger.type == "prepull" and before > 0 and remaining > before then
+            ns.Schedule("prepull:" .. tostring(key), math.max(0, remaining - before - lead), function()
+                -- A countdown shorter than the lead time shows the reminder at once, for the time that is left.
+                local left = pullAt - before - GetTime()
+                if left <= 0 then return end
+                local display = entry.display or {}
+                if lead > 0 then
+                    local copy = {}
+                    for k, v in pairs(display) do copy[k] = v end
+                    copy.dur = math.min(tonumber(display.dur) or 5, left)
+                    display = copy
+                end
+                ns.Fire(entry, display)
+            end)
+        end
+    end
 end
 function ns.Phase(phase)
     if not ns.Plain(phase, "number") or phase == ns.phase or not ns.encounter then return end

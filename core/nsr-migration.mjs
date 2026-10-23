@@ -31,7 +31,7 @@ export function migrateNsrData(source){
   if(type==='exboss')counts.exboss++;else if(type==='auraSound')counts.auraSound++;
   else{delete rules[key];issue('integrationRules',key,'Unsupported trigger '+String(type),spec);}
  }
- for(const [enc,entries]of Object.entries(data.raidReminders||{}))for(const [key,e]of Object.entries(entries))if(!['pull','stage','bwtimer','bwmsg'].includes(e.trigger?.type)||!['icon','text','bar','circle','chat','raidframeGlow','nameplateGlow'].includes(e.display?.type)){delete entries[key];issue('raidReminders',enc+'/'+key,'Unsupported trigger or display');}
+ for(const [enc,entries]of Object.entries(data.raidReminders||{}))for(const [key,e]of Object.entries(entries))if(!['pull','prepull','stage','bwtimer','bwmsg'].includes(e.trigger?.type)||!['icon','text','bar','circle','chat','raidframeGlow','nameplateGlow'].includes(e.display?.type)){delete entries[key];issue('raidReminders',enc+'/'+key,'Unsupported trigger or display');}
  data.raidReminders||={};
  const convertedPaths=[];
  for(const [enc,entries]of Object.entries(source.customReminders||{}))for(const [key,r]of Object.entries(entries)){

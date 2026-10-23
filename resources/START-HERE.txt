@@ -17,8 +17,10 @@ A defensive callout shows the selected defensive icon(s) and text. Together grou
 and priority order are editable. Test previews the display; verify triggers in game.
 
 Profiles manages creation, copies, rename/delete, selection and PZTK1 import/export.
-Direct NSRPACK2 and full current NSRT Profile/EncounterAlert imports are supported
-with review reports. Licensed NSR packs stay managed in NSR. Source strings remain
+Direct NSRPACK2 and current NSRT Profile/EncounterAlert imports (full, single
+alert or group) are supported with review reports. NSRT glow units and pre-pull
+times import as raid-frame glows and "Before pull (countdown)" reminders; these
+need addon 0.3.3 and an in-game check. Licensed NSR packs stay managed in NSR. Source strings remain
 local. One native PZTK1 string combines configured M+ and raid content.
 Old shared presets split into independent copies on first editor save.
 The desktop preserves both collections and imports HTML/JSON into chosen content.

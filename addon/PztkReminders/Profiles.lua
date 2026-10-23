@@ -33,6 +33,21 @@ local function Flags(t)
     for _,v in pairs(t)do if type(v) ~= "boolean" then return false end end
     return true
 end
+local function Sequence(t,min,max,valid)
+    if type(t)~="table"then return false end
+    local count=0
+    for key,value in pairs(t)do count=count+1;if type(key)~="number"or key%1~=0 or key<1 or not valid(value)then return false end end
+    if count<min or count>max then return false end
+    for i=1,count do if t[i]==nil then return false end end
+    return true
+end
+local function Newer(required,current)
+    local a,b={},{}
+    for n in required:gmatch("%d+")do a[#a+1]=tonumber(n)end
+    for n in current:gmatch("%d+")do b[#b+1]=tonumber(n)end
+    for i=1,math.max(#a,#b)do if (a[i]or 0)~=(b[i]or 0)then return (a[i]or 0)>(b[i]or 0)end end
+    return false
+end
 local function Binding(b)
     if type(b)~="table" or (b.enabled~=nil and type(b.enabled)~="boolean") or (b.preset~=nil and type(b.preset)~="string") or not Number(b.leadTime,-120,120,true) then return false end
     if b.sound~=nil and type(b.sound)~="string" then return false end
@@ -146,7 +161,8 @@ function ns.Validate(profile)
                     end
                 end
             end
-            if trigger.type ~= "pull" and trigger.type ~= "stage" and trigger.type ~= "bwtimer" and trigger.type ~= "bwmsg" then return false end
+            if trigger.type ~= "pull" and trigger.type ~= "prepull" and trigger.type ~= "stage" and trigger.type ~= "bwtimer" and trigger.type ~= "bwmsg" then return false end
+            if trigger.type=="prepull"and not Number(trigger.delay,0.1,3600)then return false end
             if not Number(trigger.delay,0,7200,true)or not Number(trigger.leadTime,0,120,true)or not Number(trigger.stage,0.01,100,true)then return false end
             if (trigger.type=="bwtimer"or trigger.type=="bwmsg")and not ID(trigger.spellID)then return false end
             if trigger.type=="stage"and not trigger.stage then return false end
@@ -156,12 +172,23 @@ function ns.Validate(profile)
             if not types[display.type]or not Number(display.dur,0.1,120,true)or (display.spellID and not ID(display.spellID))then return false end
             for _,key in ipairs({"text","sound","ttsText","glowTarget"})do if display[key]~=nil and type(display[key])~="string"then return false end end
             if display.tts~=nil and type(display.tts)~="boolean"then return false end
+            if display.glowTargets~=nil and not Sequence(display.glowTargets,1,40,function(v)return type(v)=="string"and #v>0 and #v<=100 end)then return false end
+            if display.glowColor~=nil and not Sequence(display.glowColor,4,4,function(v)return Number(v,0,1)end)then return false end
             if entry.target and type(entry.target) ~= "table" then return false end
             for _,key in ipairs({"all","matchAny"})do if entry.target and entry.target[key]~=nil and type(entry.target[key])~="boolean"then return false end end
             for _, key in ipairs({"roles","specs","classes","names","subgroups"}) do if entry.target and entry.target[key] and not Flags(entry.target[key]) then return false end end
         end
     end
     return true
+end
+-- Pre-pull countdowns and multi-frame glows need 0.3.3; everything else the in-game editor writes needs 0.3.0.
+function ns.MinimumAddon(data)
+    for _,entries in pairs(type(data)=="table"and type(data.raidReminders)=="table"and data.raidReminders or{})do
+        for _,e in pairs(type(entries)=="table"and entries or{})do
+            if type(e)=="table"and(type(e.trigger)=="table"and e.trigger.type=="prepull"or type(e.display)=="table"and(e.display.glowTargets~=nil or e.display.glowColor~=nil))then return "0.3.3"end
+        end
+    end
+    return "0.3.0"
 end
 function ns.Decode(input)
     if type(input) ~= "string" then return nil, "Paste a PZTK1 string" end
@@ -182,6 +209,7 @@ function ns.Decode(input)
             end end
         end end
     end
+    if ok and type(profile)=="table"and type(profile.minimumAddon)=="string"and type(ns.version)=="string"and Newer(profile.minimumAddon,ns.version)then return nil,"This profile needs Pztk Reminders "..profile.minimumAddon.." or newer" end
     if not ok or not ns.Validate(profile) then return nil, "Unsupported profile data" end
     return profile
 end
