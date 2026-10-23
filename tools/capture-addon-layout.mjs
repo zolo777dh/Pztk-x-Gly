@@ -11,7 +11,7 @@ const scenarios={
  sets:`env.click('tab:mythic');env.click('mode:sets')`,
  raid:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Personal defensive');env.select('rule:action','Defensive priority set');env.select('rule:preset','Raid personal');env.input('rule:delay','45');env.click('save-rule')`,
  raidbar:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Soak');env.select('rule:action','Countdown bar');env.select('rule:barColor','Red');env.input('rule:ticks','3, 6');local f=ns.UIControls['rule:glowNames'];assert(f)`,
- timeline:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Pull wall');env.input('rule:delay','20');env.click('save-rule');env.click('new-timed');env.input('rule:name','Big add');env.input('rule:delay','95');env.click('save-rule');env.click('tab:timeline')`,
+ timeline:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Pull wall');env.input('rule:delay','20');env.click('save-rule');env.click('new-timed');env.input('rule:name','Big add');env.input('rule:delay','95');env.click('save-rule');local enc=next(ns.Active().data.raidReminders);ns.Store().timelines={[ns.Client()..':'..enc..':15']={events={{12,22812},{42,61336},{90,22812},{130,61336}},length=180}};env.click('tab:timeline')`,
  callout:`env.click('tab:mythic');env.click('mode:sets');env.click('set-callout:1')`,
  debuffs:`assert(ns.AddRacialDebuffs(104,'stoneform'));assert(ns.AddRacialDebuffs(104,'shadowmeld'));env.click('tab:mythic');env.click('mode:debuffs');local r=ns.DebuffRules(104)[1];env.click('debuff:'..r.key)`,
  raiddebuffs:`assert(ns.AddRacialDebuffs(104,'stoneform','raid'));env.click('tab:raid');env.click('mode:debuffs')`,

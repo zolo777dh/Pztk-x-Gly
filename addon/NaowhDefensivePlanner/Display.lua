@@ -34,7 +34,7 @@ local function Region()
     -- Countdown bar (NSRT "Bar" alerts): drains from right to left, ticks mark seconds left.
     r.bar=CreateFrame("StatusBar",nil,r);r.bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar");r.bar:SetMinMaxValues(0,1);r.bar:Hide()
     r.bar.bg=r.bar:CreateTexture(nil,"BACKGROUND");r.bar.bg:SetAllPoints();r.bar.bg:SetColorTexture(0,0,0,0.55)
-    r.ticks={};r.ticker=false
+    r.ticks={};r.ticker=false;r.voice=false;r.hideSpells=false
     r.clock=r:CreateFontString(nil,"OVERLAY","GameFontNormalLarge");r.clock:SetJustifyH("RIGHT");r.clock:SetShadowColor(0,0,0,1);r.clock:SetShadowOffset(1,-1);r.clock:Hide()
     return r
 end
@@ -84,6 +84,7 @@ end
 local function Release(index)
     local r=table.remove(active,index);r:Hide();r:SetScript("OnUpdate",nil);if r.timer then r.timer:Cancel();r.timer=nil end
     if r.ticker then r.ticker:Cancel();r.ticker=false end
+    for _,t in ipairs(r.voice or{})do t:Cancel()end;r.voice=false;r.hideSpells=false
     r.bar:Hide();r.clock:Hide();for _,t in ipairs(r.ticks)do t:Hide()end
     for _,frame in ipairs(r.glows or {})do StopGlow(frame,r.glowKey)end
     r.glows=nil
@@ -229,9 +230,23 @@ function ns.Display(display)
     end
     -- One timer per reminder instead of a per-frame OnUpdate.
     local function expire()for i,v in ipairs(active)do if v==r then Release(i);Arrange();break end end end
+    -- Spoken countdown: the last seconds are read out by the game's text to speech.
+    local voice=math.min(10,math.floor(tonumber(display.voiceCountdown)or 0))
+    if voice>0 and settings.voiceOn~=false and C_Timer and C_Timer.NewTimer then
+        r.voice={};for i=math.min(voice,math.floor(dur)),1,-1 do r.voice[#r.voice+1]=C_Timer.NewTimer(dur-i,function()ns.Speak(tostring(i))end)end
+    end
+    -- Hide on use: casting one of the shown spells takes the reminder off.
+    if display.hideOnUse and count>0 then r.hideSpells={};for i=1,count do if type(spells[i])=="number"then r.hideSpells[spells[i]]=true end end end
     -- Sticky time keeps the reminder up after its countdown runs out.
     if C_Timer and C_Timer.NewTimer then r.timer=C_Timer.NewTimer(dur+sticky,expire)else r.expires=GetTime()+dur+sticky;r:SetScript("OnUpdate",function(self)if GetTime()>=self.expires then expire()end end)end
     active[#active+1]=r;Arrange()
+end
+function ns.HideSpell(spell)
+    if not ns.Plain(spell,"number")then return false end
+    local hidden=false
+    for i=#active,1,-1 do local r=active[i];if r.hideSpells and r.hideSpells[spell]then Release(i);hidden=true end end
+    if hidden then Arrange()end
+    return hidden
 end
 -- Movable anchor: a sample icon exactly where a reminder's first icon appears. Dragging it saves the position.
 local anchor

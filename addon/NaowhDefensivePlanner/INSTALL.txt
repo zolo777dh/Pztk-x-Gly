@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.6.6 — in-game editor and reminder engine
+Naowh Defensive Planner 0.6.7 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -153,6 +153,32 @@ and the text display shows +/- percent against your best pull of that boss and
 difficulty (the kill, or the lowest wipe). If the game hides boss health, it says so.
 Private auras: big icons of your own private auras (and the other tank's, as tank),
 drawn by the game into slots you can size and move.
+
+TIMELINE TOOLS
+Boss timeline: each pull records when your boss mod announced the boss abilities.
+The kill (or the longest pull) is kept, and the Timeline page shows it as a
+"Boss" lane. Click an ability icon to start a reminder at that time. You need one
+pull with BigWigs or DBM before the lane appears.
+Note timers: lines like {time:1:30} Soak - Name in the shared or personal note
+show as reminders on the pull. Who can be a name, {everyone}, class:, spec:,
+role:, group: or type:melee / type:ranged. Turn them off or set how early they
+show (4-10 seconds) on the Notes page.
+Reminder card: "Melee or ranged" recipients, "Hide when I cast the spell" (icon,
+bar and circle) and "Spoken countdown" (3, 2, 1 at the end of the timer).
+Send to group (Timeline page, leader or assist) shares the plan for that boss and
+difficulty. Received reminders are kept under the sender's name.
+
+TIMELINE REMINDERS IMPORT
+Profiles > Import profile reads Timeline Reminders exports (!TR2:, and the older
+!TR:). Paste one or several lines; each is one boss and difficulty (Heroic or
+Mythic; dungeon bosses become Mythic+ reminders). Reminders timed from the pull
+keep their time and duration. Reminders timed from a spell event (cast start,
+cast success, aura applied/removed) start from the boss mod message of that
+spell and its count, so check those timings in game. Reminders timed from a unit
+death, yell or emote are listed in the report and not imported. Text, icon, bar
+and circle looks, colour, ticks, linger (stay after timer), text to speech, glow
+names and recipients (everyone, name, role, class/spec, group; melee/ranged as a
+list of specs) are kept. Sounds from the Timeline Reminders folder are left out.
 
 PROFILES
 Create, copy, rename, delete, select, import or export a profile inside the game.

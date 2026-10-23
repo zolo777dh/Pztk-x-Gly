@@ -135,3 +135,41 @@ test('reminder editor turns look fields into display settings',()=>{
   assert(not pcall(NS.ApplyLook,{type="text"},{textColor="pink"}),"unknown colour")
  `);
 });
+
+test('Timeline Reminders features: note timers, hide on use, spoken countdown, recorded boss timeline',()=>{
+ runLua(`
+  assert(NS.CreateProfile("Raid plan",false))
+  local said={};C_VoiceChat={GetTtsVoices=function()return{{voiceID=1}}end,SpeakText=function(_,text)said[#said+1]=text end}
+  -- Note lines in the common raid note format.
+  local text=table.concat({
+   "{time:0:20} Soak - Healbot {text}Soak now{/text}  Tankadin {spell:871}",
+   "{time:1:05,p2} {everyone} {spell:22812}@Tankadin,Other",
+   "{time:0:08,SCS:1249262:2} role:healer {text}Heal{/text}",
+   "{time:0:30} type:melee {text}Melee move{/text}  group:3 {text}G3{/text}  spec:druid:4 {text}Tree{/text}",
+   "plain line without a timer"},"\\n")
+  local list=NS.ParseNoteTimers(text,"healbot",nil,6);local by={};local n=0
+  for _,e in pairs(list)do n=n+1;by[e.display.text~=""and e.display.text or tostring(e.display.spellID)]=e end
+  assert(n==6,"six reminders for this character: "..n)
+  assert(by["Soak now"].trigger.type=="pull"and by["Soak now"].trigger.delay==20 and by["Soak now"].trigger.leadTime==6)
+  assert(not by["871"],"another player's line is skipped")
+  local p2=by["22812"];assert(p2.trigger.type=="stage"and p2.trigger.stage==2 and p2.trigger.delay==65 and p2.display.glowTargets[2]=="Other")
+  local h=by["Heal"];assert(h.trigger.type=="bwmsg"and h.trigger.spellID==1249262 and h.trigger.delay==2 and h.trigger.counterGroups[1][1].value==2 and h.target.roles.HEALER)
+  assert(by["Melee move"].target.matchAny and by["Melee move"].target.specs[71]and by.G3.target.subgroups[3]and by.Tree.target.specs[105])
+  -- They fire on the pull without being saved in a profile.
+  local shown={};local display=NS.Display;NS.Display=function(d)shown[#shown+1]=d end
+  NS.Notes().live={name="Plan",text="{time:0:20} Healbot {text}Soak now{/text}"}
+  NS.Begin(3176,16,2900);T.Advance(14.5);assert(#shown==1 and shown[1].text=="Soak now",#shown)
+  NS.Notes().cfg.timers=false;NS.Begin(3176,16,2900);T.Advance(30);assert(#shown==1,"note timers can be switched off")
+  NS.Display=display
+  -- Hide on use and spoken countdown.
+  NS.Display({type="icon",spellID=871,dur=8,hideOnUse=true,tts=false})
+  assert(NS.HideSpell(871)and not NS.HideSpell(871))
+  said={};NS.Display({type="text",text="Go",dur=5,voiceCountdown=3});T.Advance(5)
+  assert(table.concat(said,",")=="3,2,1",table.concat(said,","))
+  -- Boss timeline recorded from boss mod timers during a pull; the longer pull or the kill is kept.
+  NS.Begin(3176,16,2900);NS.Mechanic(1249262,10,"bar1");NS.Mechanic(1249262,9.8,"bar1");T.Advance(20);NS.Mechanic(1250000,nil,"msg")
+  assert(NS.FinishRecording(false))
+  local tl=NS.RecordedTimeline(3176,16);assert(#tl.events==2 and tl.events[1][1]==10 and tl.events[2][1]==20)
+  NS.Begin(3176,16,2900);NS.Mechanic(1,5,"x");assert(not NS.FinishRecording(false),"a shorter wipe does not replace it")
+ `);
+});

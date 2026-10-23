@@ -57,6 +57,53 @@ ns.CommHandlers.NOTECLR=function(_,sender)
     if not ns.GroupAuthority(sender)then return end
     ns.Notes().live=nil;ns.RefreshNoteDisplay();if ns.RefreshWorkspace then ns.RefreshWorkspace()end
 end
+-- Sharing a boss plan: the leader or an assistant sends the reminders of one boss and difficulty;
+-- group members store them in their active profile, replacing what that sender sent before.
+local function Pack(value)local ld=LibStub("LibDeflate");return ld:EncodeForPrint(ld:CompressDeflate(LibStub("LibSerialize"):Serialize(value)))end
+local function Unpack(text)
+    local ld=LibStub("LibDeflate");local raw=ld:DecompressDeflate(ld:DecodeForPrint(text)or"")
+    if not raw or #raw>400000 then return nil end
+    local ok,value=LibStub("LibSerialize"):Deserialize(raw);return ok and type(value)=="table"and value or nil
+end
+local function SharedEntries(encounter,difficulty)
+    local out,count={},0
+    for key,e in pairs(ns.Get(ns.Active().data.raidReminders,encounter)or{})do
+        if type(e)=="table"and not e.defensive and(not e.difficulties or ns.Get(e.difficulties,difficulty))and not tostring(key):match("^recv:")then
+            local c=ns.Clone(e);c.pztkMigration=nil;c.sharedFrom=nil;out[tostring(key)]=c;count=count+1
+        end
+    end
+    return out,count
+end
+function ns.SendReminders(encounter,difficulty)
+    if not ns.Active()then return nil,"Create or import a profile first"end
+    if not ns.GroupChannel()then return nil,"Join a group to send reminders"end
+    if not ns.GroupAuthority(UnitName("player"))then return nil,"Only the group leader or an assistant can send reminders"end
+    local entries,count=SharedEntries(encounter,difficulty)
+    if count==0 then return nil,"No reminders for this boss and difficulty to send"end
+    ns.Send("REMS",Pack({enc=encounter,diff=difficulty,r=entries}))
+    return count
+end
+function ns.ReceiveReminders(payload,sender)
+    local p=Unpack(payload);local enc,diff=p and tonumber(p.enc),p and tonumber(p.diff)
+    if not(enc and diff and type(p.r)=="table")then return nil,"Unreadable reminders"end
+    local who=ns.ShortName(sender)or"?"
+    local count=0
+    local ok,err=ns.EditProfile(function(data)
+        data.raidReminders=data.raidReminders or{};local list=data.raidReminders[enc]or{};data.raidReminders[enc]=list
+        local prefix="recv:"..who..":"..diff..":"
+        for key in pairs(list)do if tostring(key):sub(1,#prefix)==prefix then list[key]=nil end end
+        for key,e in pairs(p.r)do if type(e)=="table"and count<300 then e.sharedFrom=who;e.difficulties={[diff]=true};list[prefix..tostring(key)]=e;count=count+1 end end
+    end)
+    if not ok then return nil,err end
+    return count
+end
+ns.CommHandlers.REMS=function(payload,sender)
+    if not ns.GroupAuthority(sender)or ns.Notes().cfg.acceptReminders==false then return end
+    if ns.ShortName(sender)==ns.ShortName(UnitName("player"))then return end
+    local n,err=ns.ReceiveReminders(payload,sender)
+    ns.Print(n and(n.." "..L("reminders received from ")..sender)or(L("Reminders from ")..sender..L(" were not stored: ")..tostring(err)))
+    if n and ns.RefreshWorkspace then ns.RefreshWorkspace()end
+end
 -- Lines of the active notes that name this character or its nickname.
 function ns.MyNoteLines()
     local n=ns.Notes();local names={}
@@ -70,6 +117,80 @@ function ns.MyNoteLines()
     if n.live then scan(n.live.text)end
     local personal=n.activePersonal and n.personal[n.activePersonal];if personal then scan(personal.text)end
     return out
+end
+-- Note timers, in the line format raid notes commonly use for timeline reminders:
+--   {time:1:30} Ability - Name {spell:12345}  {everyone} {text}Move{/text}@Glow1,Glow2
+--   {time:0:20,p2} ...            seconds into phase 2 (p1 is the pull)
+--   {time:0:05,SCS:12345:2} ...   seconds after the 2nd cast of spell 12345 (from the boss mod message)
+-- Two spaces separate the reminders of a line. Who: a name or nickname, {everyone}, class:MAGE,
+-- spec:MAGE:2, role:HEALER, group:3 or type:melee / type:ranged. The time is when it happens; the
+-- reminder shows for the note timer duration before it.
+local spellEvents={SCC=true,SCS=true,SAA=true,SAR=true}
+local function NoteTarget(load,me,nick)
+    load=load:gsub("|c%x%x%x%x%x%x%x%x",""):gsub("|r",""):match("^%s*(.-)%s*$")
+    if load==""or load:lower()=="{everyone}"then return{all=true}end
+    local kind,value=load:match("^(%a+):(.+)$")
+    if kind then
+        kind=kind:lower();value=value:upper()
+        if kind=="class"then return{classes={[value]=true}}end
+        if kind=="spec"then local class,index=value:match("^(%a+):(%d)$");local list=class and ns.ClassSpecs[class];local id=list and list[tonumber(index)];if id then return{specs={[id]=true}}end;return nil end
+        if kind=="role"then if({TANK=true,HEALER=true,DAMAGER=true})[value]then return{roles={[value]=true}}end;return nil end
+        if kind=="group"then local g=tonumber(value);if g then return{subgroups={[g]=true}}end;return nil end
+        if kind=="type"then local melee=value=="MELEE";local specs={};for _,list in pairs(ns.ClassSpecs)do for _,id in ipairs(list)do if(ns.MeleeSpecs[id]~=nil)==melee then specs[id]=true end end end;return{specs=specs,matchAny=true}end
+        return nil
+    end
+    -- A name: only reminders for this character (or its nickname) are kept.
+    local who=load:lower()
+    if who==me or(nick and who==nick)then return{all=true}end
+end
+function ns.ParseNoteTimers(text,me,nick,duration)
+    local out,count={},0;duration=tonumber(duration)or 6
+    for line in(tostring(text or"").."\n"):gmatch("(.-)\n")do
+        local trig,rest=line:match("^%s*{(time:[^}]+)}(.*)$")
+        if trig then
+            local m,sec,extra=trig:match("^time:(%d+):(%d+%.?%d*)(.*)$")
+            local t=m and tonumber(m)*60+tonumber(sec)
+            local trigger
+            if t and t>0 then
+                local phase=extra:match("^,p(%d+)$")
+                local event,spell,count=extra:match("^,(%u+):(%d+):?(%d*)$")
+                if extra==""or phase=="1"then trigger={type="pull",delay=t,leadTime=math.min(duration,t)}
+                elseif phase then trigger={type="stage",stage=tonumber(phase),delay=t,leadTime=math.min(duration,t)}
+                elseif event and spellEvents[event]then trigger={type="bwmsg",spellID=tonumber(spell),delay=math.max(0,t-duration),counterGroups=tonumber(count)and{{{op="=",value=tonumber(count)}}}or nil}end
+            end
+            if trigger then
+                rest=rest:match("^.-%s%-%s(.+)$")or rest
+                for chunk in(rest.."  "):gmatch("(.-)%s%s+")do
+                    local load,shown,after=chunk:match("^(.-)%s*({.+})(.*)$")
+                    if not load then load,shown,after="",chunk,""end
+                    -- Glow names follow an @, after the display or inside the recipient part.
+                    local glow=after:match("@(.+)$")
+                    if load:find("@")then load,glow=load:match("^(.-)@(.*)$")end
+                    local target=NoteTarget(load,me,nick)
+                    local textValue=shown:match("{[Tt][Ee][Xx][Tt]}(.-){/[Tt][Ee][Xx][Tt]}")
+                    local spell=tonumber(shown:match("{spell:(%d+)}"))
+                    if target and(spell or(textValue and textValue~=""))then
+                        local display={type=spell and"icon"or"text",spellID=spell,text=textValue or"",dur=math.min(duration,t),tts=true}
+                        if glow then local names={};for name in glow:gmatch("[^,%s]+")do if #names<40 then names[#names+1]=name end end;display.glowTargets=names[1]and names or nil end
+                        count=count+1;out["note:"..count]={name="Note timer",trigger=trigger,target=target,display=display}
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+-- Timers for this pull from the shared note and the active personal note.
+function ns.NoteTimerEntries()
+    local n=ns.Notes();if n.cfg.timers==false then return{}end
+    local me=UnitName and UnitName("player");me=type(me)=="string"and me:lower()or""
+    local nick=ns.MyNickname and ns.MyNickname();nick=type(nick)=="string"and nick~=""and nick:lower()or nil
+    local all={}
+    local personal=n.activePersonal and n.personal[n.activePersonal]
+    for i,text in ipairs({n.live and n.live.text or"",personal and personal.text or""})do
+        for k,v in pairs(ns.ParseNoteTimers(text,me,nick,n.cfg.timerDuration))do all[i..k]=v end
+    end
+    return all
 end
 function ns.ShowAssignment()
     local lines=ns.MyNoteLines()
@@ -170,6 +291,9 @@ local function DrawNotes(parent)
         W.Label(card,L("Active now")..": "..(#live>0 and table.concat(live," · ")or L("none")),16,446,576,12,C.soft)
         W.Label(card,L("Load & send needs group leader or assistant. /ndp note shows or hides the frame, /ndp clear takes the shared note off."),16,470,576,11,C.muted)
         W.Button(card,L("Show my lines now"),16,498,200,function()local count=ns.ShowAssignment();kit.notify(count>0 and(count..L(" lines shown"))or L("No line names you"))end,false,"assign-test",{glyph="play"})
+        W.Toggle(card,L("Timers from {time:} lines"),cfg.timers~=false,228,502,200,function(v)cfg.timers=v end,"note-timers")
+        local secs={};for _,v in ipairs({4,6,8,10})do secs[#secs+1]={value=v,label=v..L(" s before")}end
+        W.Select(card,nil,secs,tonumber(cfg.timerDuration)or 6,448,496,144,function(v)cfg.timerDuration=v;kit.refresh()end,"note-timer-duration")
     end
 end
 ns.ExtraPages.notes=DrawNotes

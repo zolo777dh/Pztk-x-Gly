@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.6.6"
+ns.version = "0.6.7"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -55,6 +55,16 @@ function ns.Spec()
     local index = get()
     local spec = index and info(index)
     return ns.Plain(spec, "number") and spec or nil
+end
+-- Specializations of each class in the game's order, and the ones that fight in melee range.
+ns.ClassSpecs={WARRIOR={71,72,73},PALADIN={65,66,70},HUNTER={253,254,255},ROGUE={259,260,261},PRIEST={256,257,258},DEATHKNIGHT={250,251,252},
+    SHAMAN={262,263,264},MAGE={62,63,64},WARLOCK={265,266,267},MONK={268,270,269},DRUID={102,103,104,105},DEMONHUNTER={577,581,1480},EVOKER={1467,1468,1473}}
+ns.MeleeSpecs={[250]=1,[251]=1,[252]=1,[577]=1,[581]=1,[103]=1,[104]=1,[255]=1,[268]=1,[270]=1,[269]=1,[65]=1,[66]=1,[70]=1,[259]=1,[260]=1,[261]=1,[263]=1,[71]=1,[72]=1,[73]=1}
+-- All melee or all ranged specializations, the recipient list for "melee" / "ranged".
+function ns.PositionSpecs(melee)
+    local specs = {}
+    for _, list in pairs(ns.ClassSpecs) do for _, id in ipairs(list) do if (ns.MeleeSpecs[id] ~= nil) == melee then specs[id] = true end end end
+    return specs
 end
 function ns.Target(t)
     if type(t) ~= "table" or t.all then return true end
@@ -143,9 +153,19 @@ function ns.Reset()
     if ns.SuspendAuraSounds then ns.SuspendAuraSounds()end
     if ns.HideDisplays then ns.HideDisplays() end
 end
+-- Reminders of an encounter: the profile's, plus timers read from the active notes for this pull.
+ns.noteEntries = {}
+function ns.EncounterEntries(profile, encounter)
+    local base = profile and ns.Get(profile.data.raidReminders, encounter)
+    if not next(ns.noteEntries) or encounter ~= ns.noteEncounter then return base end
+    local merged = {}
+    for k, v in pairs(base or {}) do merged[k] = v end
+    for k, v in pairs(ns.noteEntries) do merged[k] = v end
+    return merged
+end
 function ns.Anchor(kind, phase)
     local p = ns.Active()
-    local entries = p and ns.Get(p.data.raidReminders, ns.encounter)
+    local entries = ns.EncounterEntries(p, ns.encounter)
     for key, entry in pairs(entries or {}) do
         local trigger = entry.trigger or {}
         if trigger.type == kind and (kind ~= "stage" or trigger.stage == phase) then
@@ -160,6 +180,8 @@ function ns.Begin(encounter, difficulty, map)
     if not ns.Plain(encounter, "number") or not ns.Plain(difficulty, "number") then ns.Reset(); return end
     local firstBars=ns.CaptureProviderTimers and ns.CaptureProviderTimers(encounter)
     ns.Reset(); ns.encounter, ns.difficulty, ns.map, ns.phase = encounter, difficulty, map, 1
+    ns.pullTime, ns.recording = GetTime(), {}
+    ns.noteEntries, ns.noteEncounter = ns.NoteTimerEntries and ns.NoteTimerEntries(difficulty) or {}, encounter
     ns.Anchor("pull"); ns.Anchor("stage", 1)
     if ns.ReplayProviderTimers then ns.ReplayProviderTimers(firstBars) end
 end
@@ -312,8 +334,36 @@ function ns.Defensive(binding, lead, key, valid)
         if #spells > 0 and ns.Display then ns.Display({type="icon",spells=spells,spellID=spells[1],text=binding.display and binding.display.text or "Use defensive",dur=binding.display and binding.display.dur or 5,sound=binding.sound}) end
     end)
 end
+-- Boss timeline from your own pulls: the time of each boss mod timer or message, kept per boss and
+-- difficulty from the longest pull (or the kill). The Timeline page draws it above the reminders.
+function ns.RecordMechanic(spell, duration)
+    if not (ns.recording and ns.pullTime and ns.encounter) or #ns.recording >= 300 then return end
+    local at = math.floor((GetTime() - ns.pullTime + (duration or 0)) * 2 + 0.5) / 2
+    if at < 0 or at > 3600 then return end
+    for _, e in ipairs(ns.recording) do if e[2] == spell and math.abs(e[1] - at) < 3 then return end end
+    ns.recording[#ns.recording + 1] = { at, spell }
+end
+function ns.FinishRecording(kill)
+    local events, started = ns.recording, ns.pullTime
+    ns.recording, ns.pullTime = nil, nil
+    if not (events and started and ns.encounter and ns.difficulty) or #events == 0 then return false end
+    local store = ns.Store(); store.timelines = store.timelines or {}
+    local key = ns.Client() .. ":" .. ns.encounter .. ":" .. ns.difficulty
+    local length = GetTime() - started
+    local old = store.timelines[key]
+    if old and old.kill and not kill then return false end
+    if old and not kill and (old.length or 0) >= length then return false end
+    table.sort(events, function(a, b) return a[1] < b[1] end)
+    store.timelines[key] = { events = events, length = math.floor(length), kill = kill == true, at = time and time() or 0 }
+    return true
+end
+function ns.RecordedTimeline(encounter, difficulty)
+    local store = ns.Store()
+    return store.timelines and store.timelines[ns.Client() .. ":" .. tostring(encounter) .. ":" .. tostring(difficulty)]
+end
 function ns.Mechanic(spell, duration, identity, encounter, skipDefensive, repeatEvent)
     if not ns.Plain(spell, "number") or (duration ~= nil and not ns.Plain(duration, "number")) then return end
+    if (encounter or ns.encounter) == ns.encounter then ns.RecordMechanic(spell, duration) end
     if ns.Conflict() or not ns.Plain(identity) or not ns.Plain(encounter) then return end
     local profile, spec = ns.Active(), ns.Spec()
     if not profile then return end
@@ -328,7 +378,7 @@ function ns.Mechanic(spell, duration, identity, encounter, skipDefensive, repeat
         prefix="message:"..tostring(identity or spell)..":"..ns.occurrences[prefix]..":"
     end
     local binding = ns.Get(ns.Get(ns.Get(profile.data.abilityBindings, spec), encounter), spell)
-    local entries=ns.Get(profile.data.raidReminders,encounter)or{}
+    local entries=ns.EncounterEntries(profile,encounter)or{}
     local authored=false
     for _,entry in pairs(entries)do if entry.defensive and entry.enabled~=false and entry.trigger.spellID==spell and ns.Target(entry.target)and ns.Difficulty(entry)and(not ns.ContentMatches or ns.ContentMatches(entry))then authored=true;break end end
     local defaults=profile.data.settings or{}

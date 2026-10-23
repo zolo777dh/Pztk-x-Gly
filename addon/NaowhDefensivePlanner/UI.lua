@@ -272,18 +272,23 @@ local function DrawSets(parent)
 end
 local function InitialForm(ctx,reference)
     local e=reference and reference.entry or{};local t=e.trigger or{};local d=e.display or{}
+    -- A new timed reminder opened from a recorded boss ability starts at that ability's time.
+    local prefill=not reference and state.timedPrefill;state.timedPrefill=nil
     local dynamic=e.defensive
     local action=dynamic and"defensive"or reference and reference.section=="raidReminders"and(d.type or"text")or"defensive"
     local recipient="everyone";local player,role
     if e.target then
         local count=0;for k,v in pairs(e.target)do if type(v)=="table"and next(v)then count=count+1 end end
-        if e.target.matchAny or count>1 then recipient="preserve"
+        local function same(a,b)for k in pairs(a)do if not ns.Get(b,k)then return false end end;for k in pairs(b)do if not ns.Get(a,tonumber(k)or k)then return false end end;return true end
+        if e.target.specs and count==1 and same(e.target.specs,ns.PositionSpecs(true))then recipient="position";role="MELEE"
+        elseif e.target.specs and count==1 and same(e.target.specs,ns.PositionSpecs(false))then recipient="position";role="RANGED"
+        elseif e.target.matchAny or count>1 then recipient="preserve"
         elseif e.target.specs then recipient="spec"
         elseif e.target.roles then recipient="role";role=next(e.target.roles)
         elseif e.target.names then recipient="player";player=next(e.target.names)
         elseif not e.target.all then recipient="preserve"end
     end
-    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or 0,phase=t.stage or 1,counter=ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=(d.type=="bar"or d.type=="circle")and d.hideTimer~=true or d.countdown==true,sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),recipient=recipient,role=role or"HEALER",player=player or"",preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
+    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,phase=t.stage or 1,counter=ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=(d.type=="bar"or d.type=="circle")and d.hideTimer~=true or d.countdown==true,sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
 end
 local actionLabels={defensive="Defensive priority set",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
 local roleLabels={TANK="Tank",HEALER="Healer",DAMAGER="Damage"}
@@ -301,6 +306,7 @@ local function Summary(ctx,form)
     if form.action=="defensive"or form.recipient=="spec"then who="you ("..(ns.Catalog.specs[ctx.spec]or"this spec")..")"
     elseif form.recipient=="role"then who=(roleLabels[form.role]or"role").." players"
     elseif form.recipient=="player"then who=form.player~=""and form.player or"one player"
+    elseif form.recipient=="position"then who=(form.role=="RANGED"and"ranged"or"melee").." players"
     elseif form.recipient=="preserve"then who="imported recipients"end
     local what
     if form.action=="defensive"then local p=ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec)[form.preset];what=p and("set \""..p.name.."\"")or"a defensive set (choose one)"
@@ -356,11 +362,12 @@ local function DrawInspector(parent,ctx,rules)
     if ctx.kind~="trash"then field("WHICH CASTS · BLANK = EVERY, E.G. >1 OR 2,4","counter");cy=cy+54 end
     if ctx.scope=="raid"and form.action~="defensive"then
         heading("WHO")
-        local targets={{value="everyone",label="Everyone"},{value="spec",label="Selected specialization"},{value="role",label="Role"},{value="player",label="Player"}}
+        local targets={{value="everyone",label="Everyone"},{value="spec",label="Selected specialization"},{value="role",label="Role"},{value="position",label="Melee or ranged"},{value="player",label="Player"}}
         if form.recipient=="preserve"then targets[#targets+1]={value="preserve",label="Imported filters (preserve)"}end
         select("RECIPIENTS","recipient",targets);cy=cy+54
         if form.recipient=="role"then select("ROLE","role",{{value="TANK",label="Tank"},{value="HEALER",label="Healer"},{value="DAMAGER",label="Damage"}});cy=cy+54 end
         if form.recipient=="player"then field("PLAYER NAME OR NAME-REALM","player");cy=cy+54 end
+        if form.recipient=="position"then if form.role~="MELEE"and form.role~="RANGED"then form.role="MELEE"end;select("POSITION","role",{{value="MELEE",label="Melee"},{value="RANGED",label="Ranged"}});cy=cy+54 end
     end
     heading("SHOW")
     if ctx.kind~="trash"then
@@ -389,6 +396,10 @@ local function DrawInspector(parent,ctx,rules)
         if form.action=="bar"then select("BAR COLOUR","barColor",colors("barColor"),186);field("TICKS (S LEFT) · E.G. 5, 10","ticks",186,204);cy=cy+54 end
         if form.action~="raidframeGlow"then
             W.Toggle(content,(form.action=="bar"or form.action=="circle")and"Show seconds left"or"Show seconds left after the text",form.showTimer,6,cy,384,function(v)form.showTimer=v end,"rule:showTimer");cy=cy+32
+            select("SPOKEN COUNTDOWN","voiceCountdown",{{value=0,label="Off"},{value=3,label="Last 3 seconds"},{value=5,label="Last 5 seconds"}},186);cy=cy+54
+        end
+        if form.action=="icon"or form.action=="bar"or form.action=="circle"then
+            W.Toggle(content,"Hide when I cast the spell",form.hideOnUse,6,cy,384,function(v)form.hideOnUse=v end,"rule:hideOnUse");cy=cy+32
         end
         if ctx.scope=="raid"then
             field("ALSO GLOW PLAYERS · NAMES, SPACE-SEPARATED","glowNames");cy=cy+54
@@ -470,7 +481,7 @@ local function DrawMechanics(parent)
             state.ruleKey=reference and reference.key or"new"
             local draft=state.ruleDrafts[ruleKey(ctx,state.ruleKey)]
             if draft then state.reference=ns.Clone(draft.reference);state.form=ns.Clone(draft.form)
-            else state.reference=reference;state.form=InitialForm(ctx,reference);if state.timed and not reference then state.form.trigger="pull";state.form.delay=30;state.form.action="text"end end
+            else state.reference=reference;state.form=InitialForm(ctx,reference);if state.timed and not reference then state.form.trigger="pull";if not(state.form.delay and state.form.delay>0)then state.form.delay=30 end;state.form.action="text"end end
         end
         state.context=ctx;DrawInspector(parent,ctx,rules)
     else W.Label(parent,L("Choose an encounter and mechanic, or add your own verified IDs."),496,140,400,13,C.muted)end
@@ -599,7 +610,7 @@ local function DrawProfiles(parent)
     W.Button(right,L("Import profile"),424,466,172,function()local value=read("profile-string");local a,b,report=ns.Import(value);if a then ensureWorkspace();state.tab="profiles";loadView();state.importText=ns.ImportReportText(report)end;done(a,b,report and(L("Imported · migration items to review below: ")..#report.issues)or L("Profile imported"))end,true,"profile-import",{kind="primary",align="CENTER",h=34})
     W.Button(right,L("Export active"),12,466,150,function()local value,error=ns.Export();if value then text:SetText(value);text:HighlightText();text:SetFocus();state.importText=value;notify(L("Export ready · Ctrl+C copies the selected text"))else notify(error,true)end end,false,"profile-export",{align="CENTER",h=34})
     W.Button(right,L("Diagnostics"),170,466,140,function()local v=ns.Diagnostics();text:SetText(v);text:HighlightText();text:SetFocus();state.importText=v;notify(L("Diagnostics ready to copy"))end,false,"diagnostics",{align="CENTER",h=34})
-    W.Label(right,L("Reads PZTK1, NSRPACK2 and NSRT Profile / EncounterAlert strings. Profile data is local to the current game client; originals are kept."),12,512,584,11,C.muted)
+    W.Label(right,L("Reads PZTK1, NSRPACK2, NSRT Profile / EncounterAlert and Timeline Reminders (!TR2:, !TR:) strings. Profile data is local to the current game client."),12,512,584,11,C.muted)
 end
 ---------------------------------------------------------------------------
 -- Timeline: pull and phase reminders of one raid boss on a time axis.
@@ -618,12 +629,14 @@ local function DrawTimeline(parent)
     if not n then return end
     local saved=state.difficulty;state.difficulty=state.tlDifficulty
     local ctx=entityContext("raid",g,n);local rules=timedRules(ctx);state.difficulty=saved
-    local function open(key)
-        state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=state.tlDifficulty;state.mode="mechanics";state.timed=true;state.ruleKey=key;state.form=nil;Refresh()
+    local function open(key,at)
+        local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=true;state.ruleKey=key;state.form=nil;state.timedPrefill=at;Refresh()
     end
+    local recorded=ns.RecordedTimeline(ctx.encounter,state.tlDifficulty)
     W.Button(parent,L("+ Timed reminder"),760,56,160,function()open(nil)end,false,"tl-new",{kind="outline",align="CENTER"})
     local card=W.Card(parent,0,100,920,300,n.name.." · "..(state.tlDifficulty==16 and L("Mythic")or L("Heroic")))
     local lanes={{key="pull",label=L("Pull")}};local maxT=300
+    if recorded then table.insert(lanes,1,{key="boss",label=L("Boss")});maxT=math.max(maxT,(tonumber(recorded.length)or 0)+10)end
     for _,r in ipairs(rules)do local t=r.entry.trigger;maxT=math.max(maxT,(tonumber(t.delay)or 0)+30)
         if t.type=="stage"then local found=false;for _,l in ipairs(lanes)do if l.key=="stage"..tostring(t.stage)then found=true end end;if not found then lanes[#lanes+1]={key="stage"..tostring(t.stage),label=L("Phase").." "..tostring(t.stage)}end end
     end
@@ -631,6 +644,14 @@ local function DrawTimeline(parent)
     for t=0,maxT,step do local x=x0+w*t/maxT;W.Rect(card,x,40,1,240,t%60==0 and C.line or C.raised);local l=W.Label(card,string.format("%d:%02d",math.floor(t/60),t%60),x-20,276,40,10,C.faint);l:SetJustifyH("CENTER")end
     for i,lane in ipairs(lanes)do
         local y=44+(i-1)*44;W.Label(card,lane.label,12,y+12,80,12,C.muted);W.RoundRect(card,x0,y+18,w,4,C.raised,2)
+        if lane.key=="boss"then
+            -- Abilities recorded from your longest pull or kill; click one to time a reminder to it.
+            for j,ev in ipairs(recorded.events or{})do if j<=80 then
+                local x=x0+w*math.max(0,ev[1])/maxT
+                W.Icon(card,ev[2],x-9,y+11,18)
+                W.Button(card,"",x-9,y+11,18,function()open(nil,ev[1])end,false,"tl-ability:"..j,{kind="ghost",h=18,tooltip=name(ev[2]).." · "..string.format("%d:%02d",math.floor(ev[1]/60),ev[1]%60)..L(" · click to add a reminder")})
+            end end
+        end
         for _,r in ipairs(rules)do local t=r.entry.trigger
             local laneKey=(t.type=="stage")and("stage"..tostring(t.stage))or"pull"
             if laneKey==lane.key then
@@ -642,6 +663,8 @@ local function DrawTimeline(parent)
         end
     end
     local list=W.Card(parent,0,412,920,180,L("Reminders on this boss"))
+    W.Button(list,L("Send to group"),752,6,156,function()local count,err=ns.SendReminders(ctx.encounter,state.tlDifficulty);done(count,err,(tonumber(count)or 0)..L(" reminders sent to the group"))end,false,"tl-send",{h=24,glyph="players"})
+    if not recorded then W.Label(list,L("Pull the boss once with BigWigs or DBM and its abilities appear on the timeline."),300,12,440,10,C.faint)end
     if #rules==0 then W.Label(list,L("No pull or phase reminders yet. Add one with + Timed reminder."),12,36,700,12,C.muted)end
     for i,r in ipairs(rules)do if i<=8 then
         local t=r.entry.trigger;local at=t.type=="prepull"and("-"..tostring(t.delay).."s")or t.type=="stage"and("P"..tostring(t.stage).." "..tostring(t.delay).."s")or(tostring(t.delay).."s")

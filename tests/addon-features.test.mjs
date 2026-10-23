@@ -305,3 +305,32 @@ ns.PaceStart(3001,16);hp=50;env.advance(5);ns.PaceEnd(true);assert(c.pace.histor
 local anchors=0;C_UnitAuras={AddPrivateAuraAnchor=function(a)assert(a.unitToken=='player'and a.parent);anchors=anchors+1;return anchors end,RemovePrivateAuraAnchor=function()end}
 env.click('auras:enabled');assert(anchors==3)
 `));
+
+test('timeline reminder tools: melee/ranged recipients, hide on use, spoken countdown, recorded boss lane, sending a plan',()=>run(`
+assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
+env.click('tab:raid');env.click('new-timed');env.input('rule:name','Spread');env.select('rule:action','Spell icon');env.input('rule:displaySpellID','22812')
+env.select('rule:recipient','Melee or ranged');env.select('rule:role','Ranged');env.click('rule:hideOnUse');env.select('rule:voiceCountdown','Last 3 seconds');env.click('save-rule')
+local found;for _,es in pairs(ns.Active().data.raidReminders)do for k,e in pairs(es)do if e.name=='Spread'then found=e end end end
+assert(found and found.display.hideOnUse==true and found.display.voiceCountdown==3,'look saved')
+assert(found.target.specs[62]and not found.target.specs[71],'ranged specs')
+assert(ns.Active().minimumAddon=='0.6.7','needs 0.6.7')
+-- Reopening keeps the choices.
+env.click('tab:timeline');local key;for k in pairs(ns.UIControls)do if k:match('^tl%-marker:')then key=k end end;env.click(key);assert(ns.UIState.reference,'timeline marker reopens the reminder')
+local f=ns.UIState.form;assert(f.recipient=='position'and f.role=='RANGED'and f.hideOnUse==true,'reopened form keeps the choices')
+-- A recorded pull draws the boss lane; clicking an ability opens a reminder at its time.
+local enc;for e in pairs(ns.Active().data.raidReminders)do enc=e end
+ns.Store().timelines={[ns.Client()..':'..enc..':15']={events={{42,22812},{90,61336}},length=180}}
+env.click('tab:timeline');assert(ns.UIControls['tl-ability:2'],'boss lane drawn');env.click('tl-ability:2')
+assert(ns.UIState.tab=='raid'and tonumber(ns.UIState.form.delay)==90,'ability time prefilled')
+-- Sending needs a group; receiving stores the plan under the sender (real libraries only).
+if LibStub('LibSerialize').Deserialize then
+local ok,err=ns.SendReminders(enc,15);assert(not ok and err:match('group'),'needs a group')
+local sent;ns.Send=function(kind,text)sent={kind,text};return true end;ns.GroupChannel=function()return'RAID'end;ns.GroupAuthority=function()return true end
+assert(ns.SendReminders(enc,15)==1 and sent[1]=='REMS','plan sent')
+ns.ShortName=function(n)return n end
+local n=ns.ReceiveReminders(sent[2],'Leader');assert(n==1,'plan received')
+local got=0;for k,e in pairs(ns.Active().data.raidReminders[enc])do if tostring(k):match('^recv:Leader:15:')then got=got+1;assert(e.sharedFrom=='Leader')end end
+assert(got==1,'stored under sender');assert(ns.ReceiveReminders(sent[2],'Leader')==1);got=0;for k in pairs(ns.Active().data.raidReminders[enc])do if tostring(k):match('^recv:')then got=got+1 end end;assert(got==1,'a resend replaces')
+assert(ns.SendReminders(enc,15)==1,'received reminders are not sent on')
+end
+`));

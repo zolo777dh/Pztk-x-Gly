@@ -252,6 +252,8 @@ function ns.ApplyLook(display,form,previous)
     local sticky=form.sticky;if sticky~=nil and not tostring(sticky):match("^%s*$")then sticky=Number(sticky,"sticky seconds",0,60);display.sticky=sticky>0 and sticky or nil end
     if display.type=="bar"then display.ticks=ns.ParseTicks(form.ticks);display.barColor=LookColor(form.barColor,previous.barColor)end
     if display.type~="chat"then display.textColor=LookColor(form.textColor,previous.textColor)end
+    if form.hideOnUse~=nil then display.hideOnUse=(form.hideOnUse==true and display.spellID~=nil)or nil end
+    if form.voiceCountdown~=nil then local v=tonumber(form.voiceCountdown)or 0;assert(v>=0 and v<=10,"Choose a spoken countdown");display.voiceCountdown=v>0 and v or nil end
     if form.glowNames~=nil then
         display.glowTargets=ns.ParseGlowNames(form.glowNames)
         display.glowColor=display.glowTargets and LookColor(form.glowColor,previous.glowColor)or nil
@@ -305,6 +307,7 @@ function ns.SaveRule(ctx,form,reference)
             if dynamic or form.recipient=="spec"then target={specs={[spec]=true}}
             elseif form.recipient=="role"then assert(({TANK=true,HEALER=true,DAMAGER=true})[form.role],"Choose a role");target={roles={[form.role]=true}}
             elseif form.recipient=="player"then target={names={[Name(form.player)]=true}}
+            elseif form.recipient=="position"then assert(form.role=="MELEE"or form.role=="RANGED","Choose melee or ranged");target={specs=ns.PositionSpecs(form.role=="MELEE")}
             elseif form.recipient=="preserve"then target=reference and ns.Clone(reference.entry.target);assert(target,"No imported recipient filter")
             else target={all=true}end
             local diff=scope=="mythic"and 8 or Integer(ctx.difficulty,"raid difficulty");assert(diff==8 or diff==15 or diff==16,"Choose Mythic+, Heroic or Mythic")
