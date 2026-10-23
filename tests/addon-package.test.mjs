@@ -7,7 +7,7 @@ import fengari from 'fengari';
 import {unzipSync} from 'fflate';
 import {packageAddon} from '../tools/package-addon.mjs';
 import {parseLua} from '../core/analyzer.mjs';
-const files=['Runtime.lua','Locale.lua','Catalog.lua','Profiles.lua','Display.lua','RuleRuntime.lua','AuraSounds.lua','Providers.lua','Editor.lua','Import.lua','Widgets.lua','UI.lua','Comms.lua','Debuffs.lua','Notes.lua','Players.lua','RaidTools.lua','Alerts.lua','Main.lua'];
+const files=['Runtime.lua','Locale.lua','Catalog.lua','Profiles.lua','Display.lua','RuleRuntime.lua','AuraSounds.lua','Providers.lua','Editor.lua','Import.lua','Widgets.lua','UI.lua','Comms.lua','Debuffs.lua','Notes.lua','Players.lua','RaidTools.lua','Main.lua'];
 const sources=await Promise.all(files.map(f=>fs.readFile('addon/NaowhDefensivePlanner/'+f,'utf8')));
 test('standalone addon bundle contains valid runtime, complete loader dependencies, codecs, media and no NSR/NSRT runtime',async t=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-addon-zip-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const archive=await packageAddon(process.cwd(),dir),entries=unzipSync(await fs.readFile(archive));for(const [i,f]of files.entries()){assert.ok(entries['NaowhDefensivePlanner/'+f]);parseLua(sources[i]);}assert.ok(entries['NaowhDefensivePlanner/Libs/LibSerialize.lua']);assert.ok(entries['NaowhDefensivePlanner/Media/Voice/use-a-defensive.ogg']);assert.ok(entries['NaowhDefensivePlanner/BUILD-SOURCES.json']);assert.ok(!Object.keys(entries).some(k=>k.startsWith('NaowhSmartReminders/')||k.startsWith('NorthernSkyRaidTools/')));

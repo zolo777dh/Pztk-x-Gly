@@ -169,20 +169,7 @@ local function DrawNotes(parent)
         local live={};if n.live then live[#live+1]=L("shared")..": "..n.live.name end;local p=n.activePersonal and n.personal[n.activePersonal];if p then live[#live+1]=L("personal")..": "..p.name end
         W.Label(card,L("Active now")..": "..(#live>0 and table.concat(live," · ")or L("none")),16,446,576,12,C.soft)
         W.Label(card,L("Load & send needs group leader or assistant. /ndp note shows or hides the frame, /ndp clear takes the shared note off."),16,470,576,11,C.muted)
+        W.Button(card,L("Show my lines now"),16,498,200,function()local count=ns.ShowAssignment();kit.notify(count>0 and(count..L(" lines shown"))or L("No line names you"))end,false,"assign-test",{glyph="play"})
     end
 end
-local function DrawAssignments(parent)
-    local n=ns.Notes()
-    kit.header(parent,L("Assignments"),L("Lines of the active notes that have your name or nickname."))
-    local card=W.Card(parent,0,56,600,536,L("Your assignments"))
-    local lines=ns.MyNoteLines()
-    if #lines==0 then W.Label(card,L("No line of the active notes names you yet. Load a note on the Notes page or ask the leader to send one."),16,40,560,13,C.muted)end
-    for i,line in ipairs(lines)do if i<=14 then local row=W.Panel(card,12,34+(i-1)*34,576,30,C.raised,C.clear,6);W.Label(row,line,10,8,556,13,C.text)end end
-    local side=W.Card(parent,612,56,308,536,L("On pull"))
-    W.Toggle(side,L("Show my lines when the pull starts"),n.cfg.assignOnPull,12,36,284,function(v)n.cfg.assignOnPull=v end,"assign-pull")
-    W.Button(side,L("Show them now"),12,72,284,function()local count=ns.ShowAssignment();kit.notify(count>0 and(count..L(" lines shown"))or L("No line names you"))end,false,"assign-test",{glyph="play"})
-    W.Button(side,L("Open notes"),12,110,284,function()kit.go("notes")end,false,"assign-notes",{glyph="notes",kind="outline"})
-    W.Label(side,L("Lines match your character name and the nickname from the Players page. Boss-specific automatic splits of Northern Sky Raid Tools are not rebuilt."),12,156,284,11,C.muted)
-end
 ns.ExtraPages.notes=DrawNotes
-ns.ExtraPages.assign=DrawAssignments

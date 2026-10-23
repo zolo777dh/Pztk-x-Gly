@@ -67,8 +67,9 @@ function ns.SpellButtons(spells)
         end
     end
     for _,prefix in ipairs(barNames)do for i=1,12 do local b=_G[prefix..i];if b then add(b,ButtonSpell(b))end end end
-    for i=1,180 do local b=_G["BT4Button"..i];if b then add(b,ButtonSpell(b))end end
-    for bar=1,15 do for i=1,12 do local b=_G["ElvUI_Bar"..bar.."Button"..i];if b then add(b,ButtonSpell(b))end end end
+    -- Bartender and ElvUI bars are walked only when that addon is loaded.
+    if _G.Bartender4 then for i=1,180 do local b=_G["BT4Button"..i];if b then add(b,ButtonSpell(b))end end end
+    if _G.ElvUI then for bar=1,15 do for i=1,12 do local b=_G["ElvUI_Bar"..bar.."Button"..i];if b then add(b,ButtonSpell(b))end end end end
     return found
 end
 local function StopGlow(frame,key)
@@ -81,10 +82,18 @@ local function Release(index)
     r.glows=nil
     pool[#pool+1]=r
 end
-local function Arrange()
+-- Reminders grow to the right from a fixed left edge, so one icon sits where the first of two would.
+-- Positions saved before 0.6.4 were the center of a 340 px anchor box: its left edge is 170 px to the left.
+function ns.ReminderOrigin()
     local s=ns.Settings and ns.Settings()or{};local p=type(s.pos)=="table"and s.pos or{}
+    local x,y=tonumber(p.x)or 0,tonumber(p.y)or 100
+    if p.point~="LEFT"then x=x-170 end
+    return x,y
+end
+local function Arrange()
+    local x,y=ns.ReminderOrigin()
     local offset=0
-    for _,r in ipairs(active)do r:ClearAllPoints();r:SetPoint(p.point or"CENTER",UIParent,p.relPoint or"CENTER",p.x or 0,(p.y or 100)-offset);offset=offset+(r.height or 42)+6 end
+    for _,r in ipairs(active)do r:ClearAllPoints();r:SetPoint("LEFT",UIParent,"CENTER",x,y-offset);offset=offset+(r.height or 42)+6 end
 end
 function ns.HideDisplays()for i=#active,1,-1 do Release(i)end end
 local function GlowUnit(wanted)
@@ -177,25 +186,37 @@ function ns.Display(display)
     if C_Timer and C_Timer.NewTimer then r.timer=C_Timer.NewTimer(dur,expire)else r.expires=GetTime()+dur;r:SetScript("OnUpdate",function(self)if GetTime()>=self.expires then expire()end end)end
     active[#active+1]=r;Arrange()
 end
--- Movable anchor showing where reminders appear. Dragging it saves the position to the profile.
+-- Movable anchor: a sample icon exactly where a reminder's first icon appears. Dragging it saves the position.
 local anchor
 function ns.AnchorsUnlocked()return anchor~=nil and anchor:IsShown()end
+local function AnchorSpell()
+    local profile,spec=ns.Active and ns.Active(),ns.Spec and ns.Spec()
+    local key=profile and ns.ScopeActive and ns.ScopeActive(profile,"mythic",spec)
+    local set=key and ns.ScopePresets and ns.Get(ns.ScopePresets(profile,"mythic",spec),key)
+    return set and set.list and set.list[1]or 22812
+end
 function ns.ToggleAnchors()
     if not anchor then
-        anchor=CreateFrame("Frame",nil,UIParent,"BackdropTemplate");anchor:SetSize(340,60);anchor:SetFrameStrata("DIALOG");anchor:SetMovable(true);anchor:EnableMouse(true);anchor:RegisterForDrag("LeftButton")
-        anchor:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
-        anchor:SetBackdropColor(0.07,0.09,0.15,0.85);anchor:SetBackdropBorderColor(0.2,0.76,0.65,1)
-        anchor.text=anchor:CreateFontString(nil,"OVERLAY","GameFontHighlight");anchor.text:SetPoint("CENTER");anchor.text:SetText("Naowh Defensive Planner\n"..(ns.L and ns.L("Drag to move reminders")or"Drag to move reminders"))
+        anchor=CreateFrame("Frame",nil,UIParent);anchor:SetFrameStrata("DIALOG");anchor:SetMovable(true);anchor:EnableMouse(true);anchor:RegisterForDrag("LeftButton");anchor:SetClampedToScreen(true)
+        anchor.icon=anchor:CreateTexture(nil,"ARTWORK");anchor.icon:SetAllPoints();anchor.icon:SetTexCoord(0.07,0.93,0.07,0.93)
+        anchor.edge={}
+        for i,side in ipairs({{"TOPLEFT","TOPRIGHT"},{"BOTTOMLEFT","BOTTOMRIGHT"},{"TOPLEFT","BOTTOMLEFT"},{"TOPRIGHT","BOTTOMRIGHT"}})do
+            local t=anchor:CreateTexture(nil,"OVERLAY");t:SetColorTexture(0.2,0.76,0.65,1);t:SetPoint(side[1]);t:SetPoint(side[2]);if i<=2 then t:SetHeight(2)else t:SetWidth(2)end;anchor.edge[i]=t
+        end
+        anchor.text=anchor:CreateFontString(nil,"OVERLAY","GameFontHighlight");anchor.text:SetPoint("LEFT",anchor,"RIGHT",6,0)
+        anchor.text:SetText(ns.L and ns.L("Drag the icon · /ndp anchors locks")or"Drag the icon · /ndp anchors locks")
         anchor:SetScript("OnDragStart",function(self)self:StartMoving()end)
         anchor:SetScript("OnDragStop",function(self)
-            self:StopMovingOrSizing();local x,y=self:GetCenter();local ux,uy=UIParent:GetCenter()
-            if not(x and ux)then return end
-            local ok,error=ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="CENTER",relPoint="CENTER",x=math.floor(x-ux+0.5),y=math.floor(y-uy+0.5)}end)
+            self:StopMovingOrSizing();local left=self:GetLeft();local _,y=self:GetCenter();local ux,uy=UIParent:GetCenter()
+            if not(left and y and ux)then return end
+            local ok,error=ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="LEFT",relPoint="CENTER",x=math.floor(left-ux+0.5),y=math.floor(y-uy+0.5)}end)
             if not ok then ns.Print(error)end;if ns.RefreshWorkspace then ns.RefreshWorkspace()end
         end)
         anchor:Hide()
     end
     if anchor:IsShown()then anchor:Hide();return false end
-    local p=type((ns.Settings and ns.Settings()or{}).pos)=="table"and ns.Settings().pos or{}
-    anchor:ClearAllPoints();anchor:SetPoint("CENTER",UIParent,"CENTER",p.x or 0,p.y or 100);anchor:Show();return true
+    local settings=ns.Settings and ns.Settings()or{};local size=tonumber(settings.iconSize)or 42
+    local _,texture=Spell(AnchorSpell());anchor.icon:SetTexture(texture or 134400);anchor:SetSize(size,size)
+    local x,y=ns.ReminderOrigin()
+    anchor:ClearAllPoints();anchor:SetPoint("LEFT",UIParent,"CENTER",x,y);anchor:Show();return true
 end

@@ -20,10 +20,11 @@ using this addon. It pauses reminder dispatch if those engines are loaded.
 OPEN
 Use /ndp or the minimap addon compartment menu (/nwhdp, /pztkr and /puzatik still
 work). The window follows the design mockup: a top bar with the logo, search
-(type, then press Enter), timeline / display / roster buttons, your specialization,
+(type, then press Enter), timeline / anchor / roster buttons, your specialization,
 profile and boss mod status; a sidebar grouped as Planner (Overview, Mythic+, Raids,
-Defensives, Timeline), Raid (Notes, Boss alerts, Auras, Assignments, Raid tools,
-Players) and System (Display, Profiles, Settings, Diagnostics).
+Timeline), Raid (Notes, Raid tools, Players) and System (Profiles, Settings,
+Diagnostics). Mythic+ and Raids each switch between Mechanics, Defensive sets and
+Debuffs.
 
 SPECIALIZATION
 The window shows and edits only your current specialization. There is no picker:
@@ -35,7 +36,7 @@ COMMANDS
 /ndp                      open or close the window
 /ndp help                 list of commands
 /ndp status | test | diag  state, test reminder, diagnostics report
-/ndp sets | mythic | raid | tl | notes | alerts | debuffs | display | settings
+/ndp sets | mythic | raid | tl | notes | debuffs | settings
                           open a section
 /ndp note                 show or hide the note frame
 /ndp clear | pclear       take the shared / personal note off
@@ -63,7 +64,7 @@ A reminder is the spell icons in priority order plus their names, for example
 (text to speech) unless Settings > Sound > Speak reminders is off. The called spell
 glows on your Cooldown Manager and on Blizzard, Bartender, ElvUI or Dominos action
 buttons; Settings > Reminders > Glow the called spell on your bars turns it off.
-On the Defensives page the gear of each ability sets its own text on screen, the
+On the Defensive sets switch the gear of each ability sets its own text on screen, the
 spoken phrase or a sound instead of speech, and whether it speaks at all; Hear it
 plays it first. The last row, Call for an external, has its own phrase, voice and
 an optional EXTERNAL! line in group chat.
@@ -71,11 +72,13 @@ an optional EXTERNAL! line in group chat.
 RAID PAGES
 Notes: shared notes (Load & send gives them to the group; leader or assistant only)
 and personal notes, shown in a movable frame. Lines with your name or nickname are
-your assignments and can pop up on pull (Assignments page).
-Boss alerts: every reminder for your spec with on/off, Test and Edit.
+your assignments and can pop up on pull ("Show my lines now" tests it).
 Raid tools: ready check, pull and break timers, invite on whisper keyword, guild
 invites by rank, group arrangement, automatic assistants.
 Players: nicknames shared with the group and an addon version check.
+Reminders start at a fixed left edge and grow to the right. The unlocked anchor
+(/ndp anchors, or the anchor button) is a sample icon exactly where the first
+reminder icon appears; drag it and lock it again.
 Drag an ability from the spellbook or an action bar onto a defensive set to add it.
 Lists and long text scroll with the mouse wheel. An open drop-down list closes on
 a click anywhere outside it.
@@ -94,7 +97,7 @@ Save set / Save reminder / Save settings activates the reviewed change. Exports
 include saved profile content; incomplete editor drafts stay local.
 
 MYTHIC+
-1. Open Defensives (or Mythic+ > Defensive sets). Create a named set; click known defensives under
+1. Open Mythic+ (or Raids) > Defensive sets. Create a named set; click known defensives under
    "Add from your spellbook" or enter a spell ID. Set priority with the up / down buttons;
    Together combines checked abilities; On controls whether an ability is used.
    "Copy this spec's setup to..." replaces another spec's sets and reminders.

@@ -6,6 +6,18 @@ local gates={
     ["voice:shadowmeld-ready"]={spell=58984},
 }
 local status="Not initialized"
+local events
+-- Cooldown and usable events fire many times a second in combat: listen to them only while a
+-- racial voice is registered, since they only decide whether that voice may play.
+local function WatchReadiness()
+    if not events then return end
+    local on=false;for _,gate in pairs(gates)do if gate.used then on=true end end
+    if on==events.watching then return end
+    events.watching=on
+    for _,event in ipairs({"SPELL_UPDATE_COOLDOWN","SPELL_UPDATE_USABLE"})do
+        if on then events:RegisterEvent(event)elseif events.UnregisterEvent then events:UnregisterEvent(event)end
+    end
+end
 
 local function Busy()
     if InCombatLockdown and InCombatLockdown()then return true end
@@ -116,7 +128,7 @@ function ns.RefreshAuraSounds()
         count=count+1
         if entry.gate then gates[entry.gate].used=true;if not pending and wanted[key]then gates[entry.gate].allowed=true end end
     end
-    RefreshGates()
+    RefreshGates();WatchReadiness()
     status=count.." native aura sound registrations; "..missing.." unavailable sound rules; "..failed.." API failures"..(pending and"; changes pending until restrictions end"or"")
 end
 
@@ -131,11 +143,11 @@ function ns.ShutdownAuraSounds()
     for key in pairs(gates)do SetMuted(key,false)end
 end
 
-local events=CreateFrame("Frame")
+events=CreateFrame("Frame")
 events:SetScript("OnEvent",function(_,event)
     if event=="PLAYER_LOGOUT"then ns.ShutdownAuraSounds()
     elseif event=="ADDON_RESTRICTION_STATE_CHANGED"then ns.RefreshAuraSounds()
     else RefreshGates()end
 end)
-for _,event in ipairs({"SPELL_UPDATE_COOLDOWN","SPELL_UPDATE_USABLE","SPELLS_CHANGED","PLAYER_DEAD","PLAYER_ALIVE","PLAYER_UNGHOST","PLAYER_LOGOUT"})do events:RegisterEvent(event)end
+for _,event in ipairs({"SPELLS_CHANGED","PLAYER_DEAD","PLAYER_ALIVE","PLAYER_UNGHOST","PLAYER_LOGOUT"})do events:RegisterEvent(event)end
 if C_RestrictedActions and C_RestrictedActions.GetAddOnRestrictionState and Enum and Enum.AddOnRestrictionType then events:RegisterEvent("ADDON_RESTRICTION_STATE_CHANGED")end
