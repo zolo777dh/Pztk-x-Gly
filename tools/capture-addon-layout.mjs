@@ -3,7 +3,7 @@
 // vertex colors, draw layers, blend modes and the shipped fonts are emulated in Chromium.
 import fs from 'node:fs/promises';import path from 'node:path';import {execFileSync}from 'node:child_process';import {chromium}from 'playwright-core';
 const root=path.resolve('addon/NaowhDefensivePlanner'),out=path.resolve('test-results/addon-layout');await fs.mkdir(out,{recursive:true});const harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
-const sources=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','Anim','UI','Main'];
+const sources=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Main'];
 const prefix=`strmatch=string.match;local env=(function()\n${harness}\nend)();local ns={};\n`+['Libs/LibStub.lua','Libs/LibSerialize.lua','Libs/LibDeflate.lua',...sources.map(x=>x+'.lua')].map(x=>x.startsWith('Libs/')?`dofile(${JSON.stringify(root+'/'+x)})`:`assert(loadfile(${JSON.stringify(root+'/'+x)}))('NaowhDefensivePlanner',ns)`).join('\n')+`\nns.Open();local m=assert(ns.SaveSet('mythic',104,nil,'Magic damage',{{spellID=22812,enabled=true},{spellID=61336,enabled=true},{spellID=200851,enabled=true}}));assert(ns.SaveSet('raid',104,nil,'Raid personal',{{spellID=22812,enabled=true},{spellID=61336,enabled=true}}));\n`;
 const scenarios={
  overview:`env.click('tab:overview')`,
@@ -39,7 +39,7 @@ function readTga(buffer){
  return {width:w,height:h,rgba};
 }
 const images={};
-for(const name of['Logo','UI/Disc','UI/IconMask','UI/Icons','Anim/Glow','Anim/Spark','Anim/Trail','Anim/Ring','Anim/Aurora','Anim/LogoShine'])images[name]=readTga(await fs.readFile(path.join(root,'Media',name+'.tga')));
+for(const name of['Logo','UI/Disc','UI/IconMask','UI/Icons'])images[name]=readTga(await fs.readFile(path.join(root,'Media',name+'.tga')));
 const font=async f=>'data:font/ttf;base64,'+(await fs.readFile(path.join(root,'Media/Fonts',f))).toString('base64');
 const fonts={book:await font('URWGothic-Book.ttf'),demi:await font('URWGothic-Demi.ttf')};
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});

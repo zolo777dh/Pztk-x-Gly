@@ -74,9 +74,6 @@ function ns.Command(message)
     elseif command=="rc"or command=="readycheck"then if DoReadyCheck then DoReadyCheck()end
     elseif command=="roster"then ns.OpenWorkspace("diag");if ns.UIControls["diag-roster"]then ns.UIControls["diag-roster"]:Click()end
     elseif command=="export"then ns.OpenWorkspace("profiles");if ns.UIControls["profile-export"]then ns.UIControls["profile-export"]:Click()end
-    elseif command=="anim"then
-        local mode=rest:lower();if mode~="full"and mode~="reduced"and mode~="off"then ns.Print("Use /ndp anim full, reduced or off.");return end
-        if ns.UIPrefs then ns.UIPrefs().anim=mode end;if ns.Anim then ns.Anim.SetMode(mode)end;ns.Print("Animations: "..mode)
     elseif command=="wipe"then
         if rest:lower()=="confirm"and wipeAsked then NaowhDefensivePlannerDB=nil;ns.Print("All data removed. Reloading.");if ReloadUI then ReloadUI()end
         else wipeAsked=true;ns.Print("This removes every profile and setting on all clients. Type /ndp wipe confirm to continue.")end

@@ -458,7 +458,6 @@ local function UIPrefs()local store=ns.Store();store.ui=store.ui or{};return sto
 ns.UIPrefs=UIPrefs
 local function ApplyPrefs()
     local p=UIPrefs();W.SetTheme(p.theme);W.SetFont(p.font)
-    if ns.Anim then ns.Anim.SetMode(p.anim or"full")end
 end
 ns.ApplyUIPrefs=ApplyPrefs
 local function DrawSettings(parent)
@@ -467,8 +466,8 @@ local function DrawSettings(parent)
     W.Button(parent,L("Show a sample"),740,0,180,function()ns.Display({type="icon",spellID=22812,text=L("Use a defensive"),dur=4,tts=s.voiceOn});notify(L("Preview uses currently saved settings"))end,false,"preview-display",{align="CENTER",border=C.accent})
     local col,top,cw=304,40,296
     local reminders=W.Card(parent,0,top,cw,268,L("Reminders"))
-    local flags={{"Enable reminders","enabled",reminders},{"Show spell icons","showIcon",reminders},{"Show reminder text","showText",reminders},{"Show duration bar","showBar",reminders},{"Call external if nothing is ready","fallbackOn",reminders}}
-    for i,f in ipairs(flags)do local value=s[f[2]];if value==nil then value=f[2]~="voiceOn"and f[2]~="fallbackOn"end;W.Toggle(f[3],L(f[1]),value,12,34+(i-1)*30,cw-24,function(v)s[f[2]]=v end,"setting:"..f[2])end
+    local flags={{"Enable reminders","enabled",reminders},{"Show spell icons","showIcon",reminders},{"Show reminder text","showText",reminders},{"Call external if nothing is ready","fallbackOn",reminders}}
+    for i,f in ipairs(flags)do local value=s[f[2]];if value==nil then value=f[2]~="fallbackOn"end;W.Toggle(f[3],L(f[1]),value,12,34+(i-1)*30,cw-24,function(v)s[f[2]]=v end,"setting:"..f[2])end
     W.Select(reminders,L("Boss mod source"),{{value="bigwigs",label="BigWigs / LittleWigs"},{value="dbm",label="DBM"}},s.bossSource or"bigwigs",12,190,cw-24,function(v)s.bossSource=v end,"setting:bossSource")
     local look=W.Card(parent,col,top,cw,268,L("Reminder look"))
     local fields={{"Icon size","iconSize",42},{"Text size","textSize",14},{"Voice volume","voiceVol",100},{"X position","x",0},{"Y position","y",100}}
@@ -479,15 +478,12 @@ local function DrawSettings(parent)
     end end
     W.Label(look,L("Position is relative to the screen center. The Display page lets you drag the anchor."),12,214,cw-24,11,C.muted)
     local sound=W.Card(parent,col*2,top,cw-8,268,L("Sound and voice"))
-    W.Toggle(sound,L("Enable text to speech"),s.voiceOn==true,12,34,cw-32,function(v)s.voiceOn=v end,"setting:voiceOn")
+    W.Toggle(sound,L("Speak reminders"),s.voiceOn~=false,12,34,cw-32,function(v)s.voiceOn=v end,"setting:voiceOn")
     W.Label(sound,L("Voice volume"),12,78,170,13);W.Input(sound,state.settingFields.voiceVol or s.voiceVol or 100,cw-110,70,90,"setting:voiceVol")
     W.Label(sound,L("Boss mechanics require matching provider messages/timers. ExBoss supplies trash countdowns. Readiness uses public game APIs."),12,118,cw-32,11,C.muted)
     -- Local window preferences.
     local prefs=UIPrefs()
-    local anim=W.Card(parent,0,top+280,cw,232,L("Animations"))
-    W.Select(anim,L("Mode"),{{value="full",label=L("Full")},{value="reduced",label=L("Reduced")},{value="off",label=L("Off")}},prefs.anim or"full",12,34,cw-24,function(v)prefs.anim=v;ApplyPrefs();Refresh()end,"ui:anim")
-    W.Label(anim,L("Full: living background at 60 fps, particles, trails, glow, logo shine and a burst on each reminder. Reduced keeps only the glow. Animations run only while the window or a reminder is shown."),12,90,cw-24,11,C.muted)
-    local window_=W.Card(parent,col,top+280,cw,232,L("Window"))
+    local window_=W.Card(parent,0,top+280,cw,232,L("Window"))
     W.Select(window_,L("Theme"),{{value="mockup",label=L("Like the mockup")},{value="logo",label=L("Logo blue")}},prefs.theme or"mockup",12,34,cw-24,function(v)prefs.theme=v;ApplyPrefs();Refresh()end,"ui:theme")
     W.Select(window_,L("Font"),{{value="urw",label="URW Gothic"},{value="naowh",label=L("Naowh.ttf (your own file)")},{value="game",label=L("Game font")}},prefs.font or"urw",12,86,cw-24,function(v)prefs.font=v;ApplyPrefs();Refresh()end,"ui:font")
     W.Label(window_,L("Naowh.ttf is not shipped: put your own copy in Media/Fonts and restart the game."),12,142,cw-24,11,C.muted)
@@ -628,7 +624,10 @@ local function DrawDisplay(parent)
     local s=ns.Settings();local pos=type(s.pos)=="table"and s.pos or{}
     local preview=W.Card(parent,0,56,600,300,L("Preview"))
     local stage=W.Panel(preview,12,34,576,254,C.background,C.line,8)
-    local sample=W.Panel(stage,138,96,300,62,C.panel,C.accent,8);W.Icon(sample,22812,8,8,46);W.Label(sample,L("Use a defensive"),64,12,220,16,C.text,true);W.Bar(sample,64,42,220,0.6,C.accent,4)
+    -- Same look as the in-game reminder: icons and the call-out, no panel.
+    local size=math.max(24,math.min(64,tonumber(s.iconSize)or 42))
+    W.Texture(stage,W.SpellTexture(22812),120,104,size,size):SetTexCoord(0.07,0.93,0.07,0.93);W.Texture(stage,W.SpellTexture(61336),120+size+4,104,size,size):SetTexCoord(0.07,0.93,0.07,0.93)
+    W.Label(stage,"Barkskin and Survival Instincts",120+2*(size+4)+6,104+size/2-10,320,math.max(10,math.min(28,tonumber(s.textSize)or 18)),C.text,true)
     W.Label(stage,"x "..tostring(pos.x or 0).." · y "..tostring(pos.y or 100),10,232,300,11,C.faint)
     local actions=W.Card(parent,612,56,308,300,L("Anchors"))
     W.Button(actions,ns.AnchorsUnlocked and ns.AnchorsUnlocked()and L("Lock anchor")or L("Unlock anchor"),12,34,284,function()if ns.ToggleAnchors then ns.ToggleAnchors()end;Refresh()end,false,"display-anchor",{glyph="anchor"})
@@ -636,13 +635,13 @@ local function DrawDisplay(parent)
     W.Button(actions,L("Reset position"),12,110,284,function()done(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="CENTER",relPoint="CENTER",x=0,y=100}end),nil,L("Position reset"))end,false,"display-reset",{glyph="reset",kind="outline"})
     W.Label(actions,L("Size, text and bar options are on the Settings page. /ndp anchors toggles the anchor too."),12,154,284,11,C.muted)
     local tips=W.Card(parent,0,368,920,224,L("What a reminder shows"))
-    local rows={{"Spell icons in priority order",s.showIcon~=false},{"Reminder text",s.showText~=false},{"Duration bar",s.showBar~=false},{"Text to speech",s.voiceOn==true},{"Burst animation",(UIPrefs().anim or"full")=="full"}}
+    local rows={{"Spell icons in priority order",s.showIcon~=false},{"Reminder text",s.showText~=false},{"Spoken spell names",s.voiceOn~=false}}
     for i,r in ipairs(rows)do local y=34+(i-1)*34;W.Dot(tips,14,y+4,r[2]and C.ok or C.faint);W.Label(tips,L(r[1]),30,y,400,13,r[2]and C.text or C.muted)end
 end
 ---------------------------------------------------------------------------
 local commands={{"/ndp","open or close the window"},{"/ndp status","state and combat source"},{"/ndp test","test a defensive reminder"},{"/ndp diag","diagnostics report"},{"/ndp sets · mythic · raid","open a section"},
     {"/ndp tl","timeline"},{"/ndp notes · alerts · auras","raid sections"},{"/ndp anchors","move the reminder anchor"},{"/ndp pull 10","pull timer"},{"/ndp rc","ready check"},
-    {"/ndp roster","copy the group roster"},{"/ndp export","export the active profile"},{"/ndp anim full · reduced · off","animation mode"},{"/ndp wipe","reset all data (asks to confirm)"},{"/ndp help","this list"}}
+    {"/ndp roster","copy the group roster"},{"/ndp export","export the active profile"},{"/ndp wipe","reset all data (asks to confirm)"},{"/ndp help","this list"}}
 ns.CommandHelp=commands
 local function DrawDiagnostics(parent)
     W.Label(parent,L("Diagnostics"),0,0,200,20,C.text,true)
@@ -723,7 +722,6 @@ Refresh=function()
     elseif planned[state.tab]then DrawPlanned(body,state.tab)
     else state.tab="overview";DrawOverview(body)end
     W.Finish();saveView();notify(state.message or L("Drafts stay when you navigate. Save explicitly to activate changes."),state.error)
-    if ns.Anim then ns.Anim.Layout(window,header)end
 end
 function ns.RefreshWorkspace()if window and window:IsShown()then capture();saveView();Refresh()end end
 function ns.OpenWorkspace(tab)
@@ -737,7 +735,6 @@ function ns.OpenWorkspace(tab)
         window:SetScript("OnHide",function()capture();saveView();if W.popup then W.popup:Hide()end end)
         status=W.Label(window,"",SIDEBAR+16,HEIGHT-22,WIDTH-SIDEBAR-40,11,C.muted)
         ns.WorkspaceWindow=window
-        if ns.Anim then ns.Anim.Attach(window)end
     end
     if not ns.Active()then
         if not(InCombatLockdown and InCombatLockdown())then ns.CreateProfile("Default",false)end

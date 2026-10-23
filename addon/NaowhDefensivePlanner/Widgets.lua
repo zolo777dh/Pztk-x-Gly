@@ -46,10 +46,8 @@ function W.Font(bold)return bold and fontDemi or fontBook end
 ---------------------------------------------------------------------------
 -- WoW frames cannot be destroyed. Reuse dynamic controls across redraws.
 local framePools,fontPool,texturePool,iconPool={},{},{},{}
-W.pulses={}
 function W.Begin()
-    W.building=true;W.fontIndex=0;W.textureIndex=0;W.iconIndex=0;W.pulses={}
-    for _,pools in pairs(framePools)do for _,pool in pairs(pools)do pool.index=0;for _,f in ipairs(pool)do f:Hide()end end end
+    W.building=true;W.fontIndex=0;W.textureIndex=0;W.iconIndex=0;    for _,pools in pairs(framePools)do for _,pool in pairs(pools)do pool.index=0;for _,f in ipairs(pool)do f:Hide()end end end
     for _,f in ipairs(fontPool)do f:Hide()end;for _,t in ipairs(texturePool)do t:Hide()end;for _,t in ipairs(iconPool)do t:Hide()end
 end
 function W.Finish()
@@ -221,10 +219,7 @@ function W.Button(parent,text,x,y,w,callback,selected,key,opts)
     local bg,border=c[selected and style.selectedBg or style.bg],opts.border or c[selected and style.selectedBorder or style.border]
     box(b,w,h,bg,border,opts.radius or(h>=34 and 8 or 6))
     local left=10
-    if selected and(opts.kind=="nav"or opts.marker)then W.RoundRect(b,0,4,3,h-8,c.accent,1.5,"ARTWORK")
-        -- Baked glow, pulsed by Anim.lua while the window is shown.
-        local glow=W.Texture(b,media.."Anim\\Glow",-10,-6,w*0.7,h+12,"BORDER");glow:SetBlendMode("ADD");glow:SetVertexColor(c.accent[1],c.accent[2],c.accent[3],1);glow:SetAlpha(0.12);W.pulses[#W.pulses+1]=glow
-    end
+    if selected and(opts.kind=="nav"or opts.marker)then W.RoundRect(b,0,4,3,h-8,c.accent,1.5,"ARTWORK")end
     if opts.glyph then local size=16;W.Glyph(b,opts.glyph,10,(h-size)/2,size,selected and c.accent or(opts.kind=="nav"and c.iconIdle or c[style.text]));left=10+size+9
     elseif opts.icon or opts.texture then local size=math.min(h-8,24);if opts.texture then W.Texture(b,opts.texture,7,(h-size)/2,size,size)else W.Icon(b,opts.icon,7,(h-size)/2,size)end;left=7+size+8 end
     if text==""and(opts.glyph or opts.icon)and not opts.align then left=w end

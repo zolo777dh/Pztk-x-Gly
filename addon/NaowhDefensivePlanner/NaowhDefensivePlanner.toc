@@ -25,6 +25,5 @@ Providers.lua
 Editor.lua
 Import.lua
 Widgets.lua
-Anim.lua
 UI.lua
 Main.lua

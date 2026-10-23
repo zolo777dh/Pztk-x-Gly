@@ -49,7 +49,7 @@ function ns.RenderDefensive(binding, trash)
     local settings=ns.Settings()
     if trash and(not binding.preset or not preset)and binding.display and binding.display.text and binding.display.text~=""then
         local custom=Copy(binding.display);custom.type=custom.type or"text"
-        if custom.tts==nil then custom.tts=settings.voiceOn==true end
+        if custom.tts==nil then custom.tts=settings.voiceOn~=false end
         if settings.voiceOn==false then custom.tts=false end
         if ns.Display then ns.Display(custom)end;return
     end
@@ -69,7 +69,7 @@ function ns.RenderDefensive(binding, trash)
     if not display.text or display.text==""then display.text=label
     elseif not display.text:find(label,1,true)then display.text=display.text.."\n"..label end
     display.ttsText=display.ttsText or spoken
-    if display.tts==nil then display.tts=settings.voiceOn==true end
+    if display.tts==nil then display.tts=settings.voiceOn~=false end
     if settings.voiceOn==false then display.tts=false end
     display.sound=display.sound or binding.sound or(settings.soundOn and settings.soundKey)
     if ns.Display then ns.Display(display)end

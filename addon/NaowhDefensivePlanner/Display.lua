@@ -18,23 +18,23 @@ local function Spell(spell)
     return "Spell " .. tostring(spell), 134400
 end
 ns.SpellLabel=Spell
+-- Reminder look follows Naowh Smart Reminders: spell icons in a row and the call-out text
+-- beside them. No panel, timer or bar, so nothing has to be redrawn while it is shown.
 local function Region()
     local r = table.remove(pool)
     if r then return r end
     r = CreateFrame("Frame", nil, UIParent)
     serial=serial+1;r.glowKey="NaowhDefensivePlanner:"..serial
-    r:SetSize(340, 60); r:SetFrameStrata("HIGH")
-    r.background = r:CreateTexture(nil,"BACKGROUND"); r.background:SetAllPoints(); r.background:SetColorTexture(0.02,0.07,0.12,0.9)
-    r.text = r:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); r.text:SetPoint("TOPLEFT",r,"TOPLEFT",60,-7);r.text:SetPoint("RIGHT",r,"RIGHT",-8,0);r.text:SetJustifyH("LEFT")
-    r.timer = r:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); r.timer:SetPoint("BOTTOMRIGHT",-8,7)
+    r:SetSize(340, 48); r:SetFrameStrata("HIGH")
+    r.text = r:CreateFontString(nil,"OVERLAY","GameFontNormalLarge");r.text:SetJustifyH("LEFT");r.text:SetTextColor(1,1,1,1)
+    r.text:SetShadowColor(0,0,0,1);r.text:SetShadowOffset(1,-1)
     r.icons = {}
-    for i=1,6 do local icon=r:CreateTexture(nil,"ARTWORK");icon:SetSize(42,42);icon:SetPoint("LEFT",8+(i-1)*46,0);r.icons[i]=icon end
+    for i=1,6 do local icon=r:CreateTexture(nil,"ARTWORK");icon:SetSize(42,42);icon:SetPoint("LEFT",(i-1)*46,0);icon:SetTexCoord(0.07,0.93,0.07,0.93);r.icons[i]=icon end
     r.swipe=CreateFrame("Cooldown",nil,r,"CooldownFrameTemplate");r.swipe:SetAllPoints(r.icons[1]);r.swipe:Hide()
-    r.bar = CreateFrame("StatusBar",nil,r);r.bar:SetPoint("BOTTOMLEFT",8,6);r.bar:SetPoint("BOTTOMRIGHT",-8,6);r.bar:SetHeight(4);r.bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar");r.bar:SetStatusBarColor(0,0.6,1)
     return r
 end
 local function Release(index)
-    local r=table.remove(active,index);r:Hide();r:SetScript("OnUpdate",nil)
+    local r=table.remove(active,index);r:Hide();r:SetScript("OnUpdate",nil);if r.timer then r.timer:Cancel();r.timer=nil end
     local lcg=LibStub("LibCustomGlow-1.0",true)
     for _,frame in ipairs(r.glows or {})do if lcg then pcall(lcg.PixelGlow_Stop,frame,r.glowKey)end end
     r.glows=nil
@@ -43,7 +43,7 @@ end
 local function Arrange()
     local s=ns.Settings and ns.Settings()or{};local p=type(s.pos)=="table"and s.pos or{}
     local offset=0
-    for _,r in ipairs(active)do r:ClearAllPoints();r:SetPoint(p.point or"CENTER",UIParent,p.relPoint or"CENTER",p.x or 0,(p.y or 100)-offset);offset=offset+(r.height or 60)+6 end
+    for _,r in ipairs(active)do r:ClearAllPoints();r:SetPoint(p.point or"CENTER",UIParent,p.relPoint or"CENTER",p.x or 0,(p.y or 100)-offset);offset=offset+(r.height or 42)+6 end
 end
 function ns.HideDisplays()for i=#active,1,-1 do Release(i)end end
 local function GlowUnit(wanted)
@@ -91,22 +91,27 @@ function ns.Display(display)
     if text=="" and spells[1] and display.type~="chat"then text=Spell(spells[1])end
     local sound=ns.SoundPath(display.sound)
     if sound then pcall(PlaySoundFile,sound,"Master")end
-    if display.tts and C_VoiceChat and C_VoiceChat.GetTtsVoices and C_VoiceChat.SpeakText then
+    -- Spoken call-out: the reminder text (spell names for defensives) unless voice is turned off.
+    local speak=display.tts;if speak==nil then speak=#spells>0 end
+    if speak and settings.voiceOn~=false and C_VoiceChat and C_VoiceChat.GetTtsVoices and C_VoiceChat.SpeakText then
         local ok,voices=pcall(C_VoiceChat.GetTtsVoices);local spoken=display.ttsText and display.ttsText~="" and display.ttsText or text
-        if ok and voices and voices[1] and spoken~=""and settings.voiceOn~=false then pcall(C_VoiceChat.SpeakText,voices[1].voiceID,spoken,0,settings.voiceVol or 100,false)end
+        if ok and voices and voices[1] and spoken~="" then
+            local voice=voices[1].voiceID;for _,v in ipairs(voices)do if v.voiceID==settings.voiceID then voice=v.voiceID end end
+            pcall(C_VoiceChat.SpeakText,voice,spoken,0,tonumber(settings.voiceVol)or 100,false)
+        end
     end
     if display.type=="chat"then if text~=""then ns.Print(text)end;return end
     if #active>=6 then Release(1)end
     local r=Region();local count=(display.type=="text"or settings.showIcon==false)and 0 or math.min(6,#spells);if display.type=="circle"and count==0 and settings.showIcon~=false then count=1;spells={display.spellID or 0}end
-    local iconSize=tonumber(settings.iconSize)or 42;r.height=math.max(60,iconSize+16);r:SetSize(math.max(340,count*(iconSize+4)+120),r.height)
-    for i,icon in ipairs(r.icons)do if i<=count then local _,texture=Spell(spells[i]);icon:SetSize(iconSize,iconSize);icon:ClearAllPoints();icon:SetPoint("LEFT",8+(i-1)*(iconSize+4),0);icon:SetTexture(texture or 134400);icon:Show()else icon:Hide()end end
-    r.text:ClearAllPoints();r.text:SetPoint("TOPLEFT",r,"TOPLEFT",count>0 and (10+(iconSize+4)*count)or 10,-8);r.text:SetPoint("RIGHT",r,"RIGHT",-8,0);r.text:SetText(text)
+    local iconSize=tonumber(settings.iconSize)or 42;local gap=4
+    for i,icon in ipairs(r.icons)do if i<=count then local _,texture=Spell(spells[i]);icon:SetSize(iconSize,iconSize);icon:ClearAllPoints();icon:SetPoint("LEFT",r,"LEFT",(i-1)*(iconSize+gap),0);icon:SetTexture(texture or 134400);icon:Show()else icon:Hide()end end
+    local font,_,flags=r.text:GetFont();if ns.Widgets then font=ns.Widgets.Font(true)end
+    if type(font)=="string"then r.text:SetFont(font,tonumber(settings.textSize)or 18,"OUTLINE")end
+    r.text:ClearAllPoints();r.text:SetPoint("LEFT",r,"LEFT",count>0 and count*(iconSize+gap)+6 or 0,0);r.text:SetText(text)
     if settings.showText==false then r.text:Hide()else r.text:Show()end
-    -- Same typeface as the window; the size setting still applies.
-    local font,size,flags=r.text:GetFont();if ns.Widgets then font=ns.Widgets.Font(true)end
-    if type(font)=="string"then r.text:SetFont(font,tonumber(settings.textSize)or size or 16,flags or"")end
-    local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5));r.expires=GetTime()+dur;if display.type=="circle"then r.swipe:SetCooldown(GetTime(),dur);r.swipe:Show()else r.swipe:Hide()end;r.bar:SetMinMaxValues(0,dur);r.bar:SetValue(dur);r:Show()
-    if settings.showBar==false then r.bar:Hide()else r.bar:Show()end
+    local width=r.text.GetStringWidth and r.text:GetStringWidth()or 0;if type(width)~="number"then width=0 end
+    r.height=math.max(iconSize,24);r:SetSize(math.max(40,count*(iconSize+gap)+6+width),r.height)
+    local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5));if display.type=="circle"then r.swipe:SetCooldown(GetTime(),dur);r.swipe:Show()else r.swipe:Hide()end;r:Show()
     r.glows={}
     if display.type=="raidframeGlow"or display.type=="nameplateGlow"then local frame=Glow(display.glowTarget,display.type,r.glowKey);if frame then r.glows[1]=frame else ns.Print("Glow target frame unavailable; showing the reminder instead.")end end
     -- NSRT glowunit: extra raid frames glow alongside any display type.
@@ -114,9 +119,10 @@ function ns.Display(display)
         local color=GlowColor(display.glowColor)
         for _,name in ipairs(display.glowTargets)do local frame=Glow(name,"raidframeGlow",r.glowKey,color);if frame then r.glows[#r.glows+1]=frame end end
     end
-    r:SetScript("OnUpdate",function(self)local left=self.expires-GetTime();if left<=0 then for i,v in ipairs(active)do if v==self then Release(i);Arrange();break end end else self.timer:SetText(string.format("%.1f",left));self.bar:SetValue(left)end end)
+    -- One timer per reminder instead of a per-frame OnUpdate.
+    local function expire()for i,v in ipairs(active)do if v==r then Release(i);Arrange();break end end end
+    if C_Timer and C_Timer.NewTimer then r.timer=C_Timer.NewTimer(dur,expire)else r.expires=GetTime()+dur;r:SetScript("OnUpdate",function(self)if GetTime()>=self.expires then expire()end end)end
     active[#active+1]=r;Arrange()
-    if ns.Anim then ns.Anim.Burst(r,count>0 and r.icons[1]or nil)end
 end
 -- Movable anchor showing where reminders appear. Dragging it saves the position to the profile.
 local anchor
