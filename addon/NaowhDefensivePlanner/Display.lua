@@ -33,10 +33,51 @@ local function Region()
     r.swipe=CreateFrame("Cooldown",nil,r,"CooldownFrameTemplate");r.swipe:SetAllPoints(r.icons[1]);r.swipe:Hide()
     return r
 end
+-- Buttons that can show a spell: the Cooldown Manager first, then Blizzard and common action bar addons.
+local barNames={"ActionButton","MultiBarBottomLeftButton","MultiBarBottomRightButton","MultiBarRightButton","MultiBarLeftButton","MultiBar5Button","MultiBar6Button","MultiBar7Button","DominosActionButton"}
+local function ButtonSpell(button)
+    local slot=button.action or(button.GetAttribute and button:GetAttribute("action"))
+    if type(slot)=="number"and GetActionInfo then
+        local ok,kind,id=pcall(GetActionInfo,slot)
+        if ok and ns.Plain(kind,"string")and ns.Plain(id,"number")and(kind=="spell"or kind=="macro")then return id end
+    end
+end
+local function CooldownSpell(item)
+    local spell
+    if item.GetSpellID then local ok,v=pcall(item.GetSpellID,item);if ok then spell=v end end
+    if not ns.Plain(spell,"number")and item.cooldownID and C_CooldownViewer and C_CooldownViewer.GetCooldownViewerCooldownInfo then
+        local ok,info=pcall(C_CooldownViewer.GetCooldownViewerCooldownInfo,item.cooldownID)
+        if ok and ns.Plain(info,"table")then spell=ns.Plain(info.overrideSpellID,"number")and info.overrideSpellID or info.spellID end
+    end
+    return ns.Plain(spell,"number")and spell or nil
+end
+-- Every visible button showing one of the spells; a spell's base and override IDs both match.
+function ns.SpellButtons(spells)
+    local wanted={}
+    for _,spell in ipairs(spells or{})do if type(spell)=="number"then wanted[spell]=true
+        if C_Spell and C_Spell.GetOverrideSpell then local ok,o=pcall(C_Spell.GetOverrideSpell,spell);if ok and ns.Plain(o,"number")then wanted[o]=true end end
+    end end
+    local found={}
+    local function add(frame,spell)if spell and wanted[spell]and frame.IsVisible and frame:IsVisible()then found[#found+1]=frame end end
+    for _,name in ipairs({"EssentialCooldownViewer","UtilityCooldownViewer"})do
+        local viewer=_G[name]
+        if viewer then
+            local items=viewer.GetItemFrames and viewer:GetItemFrames()or{viewer:GetChildren()}
+            for _,item in ipairs(items or{})do add(item,CooldownSpell(item))end
+        end
+    end
+    for _,prefix in ipairs(barNames)do for i=1,12 do local b=_G[prefix..i];if b then add(b,ButtonSpell(b))end end end
+    for i=1,180 do local b=_G["BT4Button"..i];if b then add(b,ButtonSpell(b))end end
+    for bar=1,15 do for i=1,12 do local b=_G["ElvUI_Bar"..bar.."Button"..i];if b then add(b,ButtonSpell(b))end end end
+    return found
+end
+local function StopGlow(frame,key)
+    local lcg=LibStub("LibCustomGlow-1.0",true);if not lcg then return end
+    pcall(lcg.PixelGlow_Stop,frame,key);if lcg.ProcGlow_Stop then pcall(lcg.ProcGlow_Stop,frame,key)end
+end
 local function Release(index)
     local r=table.remove(active,index);r:Hide();r:SetScript("OnUpdate",nil);if r.timer then r.timer:Cancel();r.timer=nil end
-    local lcg=LibStub("LibCustomGlow-1.0",true)
-    for _,frame in ipairs(r.glows or {})do if lcg then pcall(lcg.PixelGlow_Stop,frame,r.glowKey)end end
+    for _,frame in ipairs(r.glows or {})do StopGlow(frame,r.glowKey)end
     r.glows=nil
     pool[#pool+1]=r
 end
@@ -114,6 +155,15 @@ function ns.Display(display)
     local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5));if display.type=="circle"then r.swipe:SetCooldown(GetTime(),dur);r.swipe:Show()else r.swipe:Hide()end;r:Show()
     r.glows={}
     if display.type=="raidframeGlow"or display.type=="nameplateGlow"then local frame=Glow(display.glowTarget,display.type,r.glowKey);if frame then r.glows[1]=frame else ns.Print("Glow target frame unavailable; showing the reminder instead.")end end
+    -- Like NSR: only the called defensive glows, on the player's own Cooldown Manager or action bar button.
+    if settings.cdmGlow~=false and count>0 and display.type~="circle"then
+        local lcg=LibStub("LibCustomGlow-1.0",true)
+        for i=1,count do for _,button in ipairs(ns.SpellButtons({spells[i]}))do
+            local started=lcg and lcg.ProcGlow_Start and pcall(lcg.ProcGlow_Start,button,{key=r.glowKey,color={1,0.82,0.2,1}})
+            if not started and lcg then started=pcall(lcg.PixelGlow_Start,button,{1,0.82,0.2,1},8,0.25,nil,2,0,0,false,r.glowKey)end
+            if started then r.glows[#r.glows+1]=button end
+        end end
+    end
     -- NSRT glowunit: extra raid frames glow alongside any display type.
     if type(display.glowTargets)=="table"then
         local color=GlowColor(display.glowColor)

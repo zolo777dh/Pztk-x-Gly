@@ -466,7 +466,7 @@ local function DrawSettings(parent)
     W.Button(parent,L("Show a sample"),740,0,180,function()ns.Display({type="icon",spellID=22812,text=L("Use a defensive"),dur=4,tts=s.voiceOn});notify(L("Preview uses currently saved settings"))end,false,"preview-display",{align="CENTER",border=C.accent})
     local col,top,cw=304,40,296
     local reminders=W.Card(parent,0,top,cw,268,L("Reminders"))
-    local flags={{"Enable reminders","enabled",reminders},{"Show spell icons","showIcon",reminders},{"Show reminder text","showText",reminders},{"Call external if nothing is ready","fallbackOn",reminders}}
+    local flags={{"Enable reminders","enabled",reminders},{"Show spell icons","showIcon",reminders},{"Show reminder text","showText",reminders},{"Glow the called spell on your bars","cdmGlow",reminders},{"Call external if nothing is ready","fallbackOn",reminders}}
     for i,f in ipairs(flags)do local value=s[f[2]];if value==nil then value=f[2]~="fallbackOn"end;W.Toggle(f[3],L(f[1]),value,12,34+(i-1)*30,cw-24,function(v)s[f[2]]=v end,"setting:"..f[2])end
     W.Select(reminders,L("Boss mod source"),{{value="bigwigs",label="BigWigs / LittleWigs"},{value="dbm",label="DBM"}},s.bossSource or"bigwigs",12,190,cw-24,function(v)s.bossSource=v end,"setting:bossSource")
     local look=W.Card(parent,col,top,cw,268,L("Reminder look"))
@@ -635,7 +635,7 @@ local function DrawDisplay(parent)
     W.Button(actions,L("Reset position"),12,110,284,function()done(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="CENTER",relPoint="CENTER",x=0,y=100}end),nil,L("Position reset"))end,false,"display-reset",{glyph="reset",kind="outline"})
     W.Label(actions,L("Size, text and bar options are on the Settings page. /ndp anchors toggles the anchor too."),12,154,284,11,C.muted)
     local tips=W.Card(parent,0,368,920,224,L("What a reminder shows"))
-    local rows={{"Spell icons in priority order",s.showIcon~=false},{"Reminder text",s.showText~=false},{"Spoken spell names",s.voiceOn~=false}}
+    local rows={{"Spell icons in priority order",s.showIcon~=false},{"Reminder text",s.showText~=false},{"Spoken spell names",s.voiceOn~=false},{"Glow on your Cooldown Manager / action bar",s.cdmGlow~=false}}
     for i,r in ipairs(rows)do local y=34+(i-1)*34;W.Dot(tips,14,y+4,r[2]and C.ok or C.faint);W.Label(tips,L(r[1]),30,y,400,13,r[2]and C.text or C.muted)end
 end
 ---------------------------------------------------------------------------

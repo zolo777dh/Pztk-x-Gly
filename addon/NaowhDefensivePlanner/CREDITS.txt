@@ -15,6 +15,5 @@ logic or a copied NSR/NSRT interface. Game icons/fonts are resolved by the clien
 Fonts: URW Gothic Book and Demi (Media/Fonts) are from URW++ base35 fonts, licensed
 under the AGPL with the font exception; see Media/Fonts/URWGothic-LICENSE.txt. The
 commercial Naowh / ITC Avant Garde Gothic font is not included.
-Media/Anim and Media/UI textures were rendered for this addon by tools/bake-addon-media.mjs
-with three.js (MIT), PixiJS (MIT) and GSAP (Standard "no charge" license) at build time.
-Those libraries are not shipped in the addon; only the rendered images are.
+Media/UI textures (rounded corners, icon mask, interface glyphs) were drawn for this
+addon by tools/bake-addon-media.mjs.

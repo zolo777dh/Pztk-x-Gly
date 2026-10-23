@@ -77,6 +77,18 @@ ns.Display({type='nameplateGlow',text='Nameplate',glowTarget='Tester'})
 assert(glowStarts[1].frame==unitFrame and glowStarts[2].frame==unitFrame and glowStarts[1].key~=glowStarts[2].key)
 assert(glowStarts[3].frame==plate and plateQueries==1);ns.HideDisplays();assert(#glowStops==3)
 for _,stop in ipairs(glowStops)do assert(type(stop.key)=='string'and stop.key:find('NaowhDefensivePlanner:',1,true)==1)end
+-- Only the called spell glows on the player's own Cooldown Manager / action bar, then stops.
+local function button(spell)return {IsVisible=function()return true end,GetSpellID=function()return spell end}end
+local called,other,bar=button(22812),button(61336),{IsVisible=function()return true end,action=7}
+EssentialCooldownViewer={GetItemFrames=function()return {called,other}end};ActionButton1=bar
+function GetActionInfo(slot)if slot==7 then return 'spell',22812 end end
+local procStarts,procStops={},{}
+libs['LibCustomGlow-1.0'].ProcGlow_Start=function(f,o)procStarts[#procStarts+1]={frame=f,key=o.key}end
+libs['LibCustomGlow-1.0'].ProcGlow_Stop=function(f,key)procStops[#procStops+1]=f end
+ns.Display({type='defensive',spells={22812},text='Barkskin',dur=5})
+assert(#procStarts==2 and procStarts[1].frame==called and procStarts[2].frame==bar)
+ns.HideDisplays();assert(#procStops==2)
+EssentialCooldownViewer=nil;ActionButton1=nil
 -- Exercise the actual lifecycle event callback, then reopen in the other client.
 local eventFrame
 for _,f in ipairs(frames)do if f._events and f._events.PLAYER_ENTERING_WORLD then eventFrame=f end end
