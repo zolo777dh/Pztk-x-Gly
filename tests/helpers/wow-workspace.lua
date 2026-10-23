@@ -69,16 +69,16 @@ function UnitFullName()return 'Tester','Realm'end
 function PlaySoundFile()end
 function issecretvalue()return false end
 C_SpellBook={IsSpellKnown=function()return true end}
-C_Spell={GetSpellCooldown=function()return{startTime=0,duration=0,isEnabled=true,isActive=false}end,GetSpellInfo=function(id)return {name=(PztkReminders and PztkReminders.Catalog.spellNames[id])or('Spell '..id),iconID=134400}end,GetSpellTexture=function()return 134400 end}
+C_Spell={GetSpellCooldown=function()return{startTime=0,duration=0,isEnabled=true,isActive=false}end,GetSpellInfo=function(id)return {name=(NaowhDefensivePlanner and NaowhDefensivePlanner.Catalog.spellNames[id])or('Spell '..id),iconID=134400}end,GetSpellTexture=function()return 134400 end}
 C_AddOns={IsAddOnLoaded=function()return false end,GetAddOnMetadata=function()return'test'end}
 SlashCmdList={}
 local timers={}
 C_Timer={NewTimer=function(delay,fn)local t={at=env.time+delay,fn=fn};function t:Cancel()self.cancelled=true end;timers[#timers+1]=t;return t end}
 function env.advance(seconds)env.time=env.time+seconds;for _,t in ipairs(timers)do if not t.cancelled and not t.fired and t.at<=env.time then t.fired=true;t.fn()end end end
-function env.click(key)assert(PztkReminders.UIControls[key],'Missing control '..key):Click()end
-function env.input(key,text)assert(PztkReminders.UIControls[key],'Missing input '..key):SetText(text)end
+function env.click(key)assert(NaowhDefensivePlanner.UIControls[key],'Missing control '..key):Click()end
+function env.input(key,text)assert(NaowhDefensivePlanner.UIControls[key],'Missing input '..key):SetText(text)end
 function env.select(key,value)
- env.click(key);local menu=PztkReminders.Widgets.menu
+ env.click(key);local menu=NaowhDefensivePlanner.Widgets.menu
  for _,r in ipairs(menu.rows)do if r.shown and r.label.text==value then r:Click();return end end
  error('Missing option '..value..' for '..key)
 end
@@ -91,6 +91,6 @@ function env.assertLayout()
    assert(child:GetFrameLevel()>f:GetFrameLevel(),'Scroll content is below its background')
   end
  end
- for key,f in pairs(PztkReminders.UIControls)do assert(f:IsVisible(),'Control is hidden: '..key)end
+ for key,f in pairs(NaowhDefensivePlanner.UIControls)do assert(f:IsVisible(),'Control is hidden: '..key)end
 end
 return env

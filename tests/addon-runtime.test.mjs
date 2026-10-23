@@ -12,7 +12,7 @@ import {inflateRawSync} from 'node:zlib';
 
 const {lua,lauxlib,lualib,to_luastring,to_jsstring}=fengari;
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const addon=path.join(root,'addon','PztkReminders');
+const addon=path.join(root,'addon','NaowhDefensivePlanner');
 
 // Loads the addon's real Lua (plus the real LibStub/LibDeflate/LibSerialize) over WoW stubs and runs a Lua test body.
 function runLua(body,globals={}){
@@ -30,8 +30,8 @@ function runLua(body,globals={}){
   function ld:CompressDeflate(s)return s end`,'LibDeflate shim');
  for(const lib of ['LibSerialize.lua'])run(fs.readFileSync(path.join(addon,'Libs',lib),'utf8'),lib);
  run('NS={}','ns');
- const files=fs.readFileSync(path.join(addon,'PztkReminders.toc'),'utf8').split(/\r?\n/).filter(l=>l.endsWith('.lua')&&!l.startsWith('Libs'));
- for(const file of files)run(`local chunk=assert(loadstring and loadstring(...) or load(...));chunk("PztkReminders",NS)`.replace(/\.\.\./g,JSON.stringify(fs.readFileSync(path.join(addon,file),'utf8'))),file);
+ const files=fs.readFileSync(path.join(addon,'NaowhDefensivePlanner.toc'),'utf8').split(/\r?\n/).filter(l=>l.endsWith('.lua')&&!l.startsWith('Libs'));
+ for(const file of files)run(`local chunk=assert(loadstring and loadstring(...) or load(...));chunk("NaowhDefensivePlanner",NS)`.replace(/\.\.\./g,JSON.stringify(fs.readFileSync(path.join(addon,file),'utf8'))),file);
  run(body,'test');
 }
 

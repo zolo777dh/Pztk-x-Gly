@@ -1,10 +1,10 @@
 ## Interface: 120105, 16001
 ## AllowLoadGameType: standard, camelot
-## Title: Puzatik Reminders
+## Title: Naowh Defensive Planner
 ## Notes: In-game Mythic+ defensive sets and raid mechanic / encounter-time reminders.
 ## Author: Pztk x Glyalith
-## Version: 0.3.3
-## SavedVariables: PztkRemindersDB
+## Version: 0.4.0
+## SavedVariables: NaowhDefensivePlannerDB, PztkRemindersDB
 ## OptionalDeps: BigWigs, DBM-Core, EXBoss
 Libs\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml

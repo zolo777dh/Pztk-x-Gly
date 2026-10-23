@@ -1,4 +1,4 @@
-Pztk Reminders runtime, data validation, display and desktop PZTK1 format are independently implemented for this application. No NSR or NSRT runtime is required or bundled.
+Naowh Defensive Planner runtime, data validation, display and desktop PZTK1 format are independently implemented for this application. No NSR or NSRT runtime is required or bundled.
 
 Third-party runtime libraries are redistributed with their existing notices:
 - LibStub (public domain)

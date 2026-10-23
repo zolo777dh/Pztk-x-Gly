@@ -2,7 +2,7 @@ local _, ns = ...
 local pool, active, serial = {}, {}, 0
 local builtins={ ["voice:use-a-defensive"]="use-a-defensive.ogg",["voice:move-out"]="move-out.ogg",["voice:dispel-me"]="dispel-me.ogg",["voice:stoneform-ready"]="stoneform-ready.ogg",["voice:shadowmeld-ready"]="shadowmeld-ready.ogg",["voice:stoneform-preview"]="stoneform-preview.ogg",["voice:shadowmeld-preview"]="shadowmeld-preview.ogg" }
 function ns.SoundPath(key)
-    if builtins[key]then return "Interface\\AddOns\\PztkReminders\\Media\\Voice\\"..builtins[key]end
+    if builtins[key]then return "Interface\\AddOns\\NaowhDefensivePlanner\\Media\\Voice\\"..builtins[key]end
     if type(key)~="string"or key==""or key=="none"then return nil end
     if key:match("^Interface[\\/]")then return key end
     local lsm=LibStub("LibSharedMedia-3.0",true)
@@ -22,7 +22,7 @@ local function Region()
     local r = table.remove(pool)
     if r then return r end
     r = CreateFrame("Frame", nil, UIParent)
-    serial=serial+1;r.glowKey="PztkReminders:"..serial
+    serial=serial+1;r.glowKey="NaowhDefensivePlanner:"..serial
     r:SetSize(340, 60); r:SetFrameStrata("HIGH")
     r.background = r:CreateTexture(nil,"BACKGROUND"); r.background:SetAllPoints(); r.background:SetColorTexture(0.02,0.07,0.12,0.9)
     r.text = r:CreateFontString(nil,"OVERLAY","GameFontNormalLarge"); r.text:SetPoint("TOPLEFT",r,"TOPLEFT",60,-7);r.text:SetPoint("RIGHT",r,"RIGHT",-8,0);r.text:SetJustifyH("LEFT")

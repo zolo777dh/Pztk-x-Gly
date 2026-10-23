@@ -1,14 +1,22 @@
-Puzatik Reminders 0.3.2 — in-game editor and reminder engine
+Naowh Defensive Planner 0.4.0 — in-game editor and reminder engine
+(formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
-Close WoW. Replace the PztkReminders folder in Interface/AddOns with this folder.
-The in-game title is Puzatik Reminders; the folder and PztkRemindersDB name stay
-unchanged so existing profiles remain available. Do not delete SavedVariables.
+Close WoW. Copy the NaowhDefensivePlanner folder into Interface/AddOns.
+
+UPGRADING FROM PUZATIK REMINDERS (PztkReminders 0.3.x)
+The folder, SavedVariables and command changed. Keep your profiles one of two ways:
+- Before updating, open /pztkr > Profiles > Export active, copy the PZTK1 string,
+  then import it with /nwhdp > Profiles > Import profile; or
+- With WoW closed, copy WTF/Account/<account>/SavedVariables/PztkReminders.lua to
+  NaowhDefensivePlanner.lua in the same folder. The addon adopts it on first load.
+Then delete Interface/AddOns/PztkReminders. Both addons must not run together;
+this one pauses while PztkReminders is loaded. PZTK1 strings stay valid.
 Disable NaowhSmartReminders, NorthernSkyRaidTools and TimelineReminders while
 using this addon. It pauses reminder dispatch if those engines are loaded.
 
 OPEN
-Use /puzatik or /pztkr. The workspace has Mythic+, Raids, Profiles and Settings.
+Use /nwhdp. The workspace has Mythic+, Raids, Profiles and Settings.
 Choose a specialization by name. All 40 current specialization labels are present.
 
 Navigation preserves your selected encounter, specialization, defensive-set draft,
@@ -44,8 +52,8 @@ Direct imports also accept unlicensed NSRPACK2 and current !NSRT:Profile: or
 report in the string box. NSRT glow units glow those players' raid frames next to
 the reminder. Negative phase-1 times become "Before pull (countdown)" reminders:
 they start from a /countdown or boss-mod pull timer, and the boss is the nearest
-planned boss among the Encounter Journal pins on your map (/pztkr debug shows it).
-Profiles using either feature need Puzatik Reminders 0.3.3.
+planned boss among the Encounter Journal pins on your map (/nwhdp debug shows it).
+Profiles using either feature need Naowh Defensive Planner 0.3.3.
 Original migration strings and reports stay locally in SavedVariables. Unavailable
 conditions, displays and source engines are reported; they are not guessed.
 Account-licensed NSR strings remain managed in NSR. Licenses are not bypassed.
@@ -58,7 +66,7 @@ spell labels and icons identify the chosen defensive, not only the boss ability.
 Together callouts show the selected group. Public readiness chooses priorities;
 closed/unknown charge counts are not guessed. Fixed spell-icon reminders do not
 require readiness-based selection. Preview is not a live encounter test.
-Use /pztkr debug for a copyable build/provider report and the first BugSack stack.
+Use /nwhdp debug for a copyable build/provider report and the first BugSack stack.
 
 CLIENTS / DATA
 Targets remain Retail 12.1.5.70448 and Forever 1.60.1.70425. Client workspaces are

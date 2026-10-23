@@ -1,5 +1,5 @@
 local _,ns=...
-function ns.Print(message)print("|cff009dffPuzatik Reminders:|r "..tostring(message))end
+function ns.Print(message)print("|cff009dffNaowh Defensive Planner:|r "..tostring(message))end
 local warning
 function ns.RefreshContext()
     local difficulty,map,kind
@@ -10,7 +10,7 @@ function ns.RefreshContext()
 end
 function ns.Diagnostics()
     local version,build,_,interface=GetBuildInfo()
-    local lines={"Pztk Reminders "..ns.version,"Client: "..ns.Client(),"Build: "..tostring(version).." / "..tostring(build).." / interface "..tostring(interface)}
+    local lines={"Naowh Defensive Planner "..ns.version,"Client: "..ns.Client(),"Build: "..tostring(version).." / "..tostring(build).." / interface "..tostring(interface)}
     local loaded=C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
     local metadata=C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
     local status,errors=ns.ProviderStatus()
@@ -36,10 +36,12 @@ function ns.Open()
     if ns.RefreshAuraSounds then ns.RefreshAuraSounds()end
     ns.OpenWorkspace()
 end
-SLASH_PZTKREMINDERS1="/pztkr"
-SLASH_PZTKREMINDERS2="/pztkreminders"
-SLASH_PZTKREMINDERS3="/puzatik"
-SlashCmdList.PZTKREMINDERS=function(message)
+SLASH_NWHDP1="/nwhdp"
+SLASH_NWHDP2="/naowhdp"
+-- Pre-0.4.0 commands keep working after the rename.
+SLASH_NWHDP3="/pztkr"
+SLASH_NWHDP4="/puzatik"
+SlashCmdList.NWHDP=function(message)
     if type(message)=="string"and message:lower():match("^%s*debug%s*$")then ns.ShowDiagnostics()else ns.Open()end
 end
 local events=CreateFrame("Frame")
@@ -56,7 +58,7 @@ events:SetScript("OnEvent",function(_,event,a,b,c)
     else
         if event=="PLAYER_SPECIALIZATION_CHANGED"and a~="player"then return end
         if event=="PLAYER_ENTERING_WORLD"or event=="PLAYER_SPECIALIZATION_CHANGED"then ns.Reset()end
-        ns.RefreshContext();ns.ConnectProviders();local conflict=ns.Conflict();if conflict then ns.Cancel();if ns.HideDisplays then ns.HideDisplays()end end;if conflict and warning~=conflict then warning=conflict;ns.Print("Paused: disable "..conflict.." and reload to use Pztk Reminders.")elseif not conflict then warning=nil end
+        ns.RefreshContext();ns.ConnectProviders();local conflict=ns.Conflict();if conflict then ns.Cancel();if ns.HideDisplays then ns.HideDisplays()end end;if conflict and warning~=conflict then warning=conflict;ns.Print("Paused: disable "..conflict.." and reload to use Naowh Defensive Planner.")elseif not conflict then warning=nil end
     end
     if ns.RefreshAuraSounds then ns.RefreshAuraSounds()end
 end)

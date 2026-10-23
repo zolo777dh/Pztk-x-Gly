@@ -1,13 +1,13 @@
-# Pztk x Glyalith 0.6.2 + Puzatik Reminders 0.3.2
+# Pztk x Glyalith 0.6.2 + Naowh Defensive Planner 0.3.2
 
-Pztk x Glyalith is a Windows desktop app for planning profiles for **Puzatik Reminders**, a separate WoW addon that combines defensive priorities, raid assignments and timed encounter reminders. Addon maintenance and AI tools remain in the same desktop application.
+Pztk x Glyalith is a Windows desktop app for planning profiles for **Naowh Defensive Planner**, a separate WoW addon that combines defensive priorities, raid assignments and timed encounter reminders. Addon maintenance and AI tools remain in the same desktop application.
 
-- **In-game workspace:** `/puzatik` or `/pztkr` opens Mythic+, Raids, Profiles and Settings. Create and edit content-specific sets and mechanic / pull / phase reminders directly in WoW. Assignment, Display and Conditions keep related controls together.
+- **In-game workspace:** `/nwhdp` opens Mythic+, Raids, Profiles and Settings. Create and edit content-specific sets and mechanic / pull / phase reminders directly in WoW. Assignment, Display and Conditions keep related controls together.
 - **Persistent editing:** switching pages, encounters, difficulty, specialization or profiles keeps unfinished inputs and navigation state. Drafts survive close and logout/reload in local SavedVariables; explicit Save activates a change. Drafts are separate from runtime profiles and are not included in exports.
 - **Independent content sets:** M+ and raid priorities are separate for every spec, with Together and disabled abilities. The first save copies legacy shared sets into independent collections.
 - **Direct in-game migration:** unlicensed NSRPACK2 and current NSRT Profile / EncounterAlert exports (full, single alert or group, including raid-frame glows and pre-pull countdown times) can be imported with a review report. Source strings and reports stay locally in SavedVariables. Native PZTK1 combines the configured content.
-- **One native export:** PZTK1 contains configured defensive sets, Mythic+ / raid mechanic bindings and scheduled assignments. Import it in Pztk Reminders with `/pztkr`.
-- **In-game diagnostics:** `/pztkr debug` prepares a copyable client, build, provider-version and connection report for troubleshooting alongside BugSack errors.
+- **One native export:** PZTK1 contains configured defensive sets, Mythic+ / raid mechanic bindings and scheduled assignments. Import it in Naowh Defensive Planner with `/pztkr`.
+- **In-game diagnostics:** `/nwhdp debug` prepares a copyable client, build, provider-version and connection report for troubleshooting alongside BugSack errors.
 - **Reminder model:** time, phase, ability timer or mechanic message → specialization, role, player or everyone → spell icon, text, sound or player-frame glow. Bar/countdown, circle and TTS displays are also supported.
 - **Native migration editing:** NSR custom defensive reminders retain their specialization, priority set, counter condition and delay. Open an editable migrated copy from the export review; the original source remains available. Migration issues are grouped and identify the source rule and specialization.
 - **Aura sound rules:** native client registrations, scoped to spec/map/instance; private Stoneform/Shadowmeld cues follow public readiness. Missing APIs or restricted changes are reported. No aura contents are read.
@@ -23,4 +23,4 @@ The separate addon has its own runtime, displays, SavedVariables and PZTK1 impor
 
 See [START-HERE.txt](START-HERE.txt) and the included addon INSTALL.txt for installation.
 
-Migration does not implement cdmGlow or coveredSkip / coveredSkipDefaultOn / coveredCastWindow behavior. These values are retained and flagged, as are missing preset references. Native aura registration depends on the installed client API; it is not guaranteed on Forever. The in-game editor and scoped sets require Puzatik Reminders 0.3.0. The folder and SavedVariables name remain PztkReminders / PztkRemindersDB.
+Migration does not implement cdmGlow or coveredSkip / coveredSkipDefaultOn / coveredCastWindow behavior. These values are retained and flagged, as are missing preset references. Native aura registration depends on the installed client API; it is not guaranteed on Forever. The in-game editor and scoped sets require Naowh Defensive Planner 0.3.0. The folder and SavedVariables name remain NaowhDefensivePlanner / NaowhDefensivePlannerDB.

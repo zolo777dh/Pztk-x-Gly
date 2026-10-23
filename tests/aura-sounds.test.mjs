@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import fengari from 'fengari';
-const runtime=await fs.readFile('addon/PztkReminders/Runtime.lua','utf8'),rules=await fs.readFile('addon/PztkReminders/RuleRuntime.lua','utf8'),auras=await fs.readFile('addon/PztkReminders/AuraSounds.lua','utf8');
+const runtime=await fs.readFile('addon/NaowhDefensivePlanner/Runtime.lua','utf8'),rules=await fs.readFile('addon/NaowhDefensivePlanner/RuleRuntime.lua','utf8'),auras=await fs.readFile('addon/NaowhDefensivePlanner/AuraSounds.lua','utf8');
 function execute(script){const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}}
 const fixture=`local ns={};local profile;local combat=false;local now=0;local spec=264;local frames={};local handles={};local nextId=1;local added,removed=0,0;local muted={};local known={[100]=true,[20594]=true,[58984]=false};local cds={};local usable=true;local dead=false;local secret={};local shown={};local pending={}
 function GetTime()return now end
@@ -17,14 +17,14 @@ C_Spell={GetSpellCooldown=function(s)return cds[s]or{isActive=false,isEnabled=tr
 C_Timer={NewTimer=function(delay,fn)local t={at=now+delay,fn=fn};function t:Cancel()self.cancelled=true end;pending[#pending+1]=t;return t end}
 Enum={UnitAuraSoundTrigger={Added=1,Removed=2,ApplicationsIncreased=3}}
 C_UnitAuras={AddAuraSound=function(trigger,info)assert(not combat,'registration in combat');local id=nextId;nextId=nextId+1;handles[id]={trigger=trigger,info=info};added=added+1;return id end,RemoveAuraSound=function(id)assert(not combat,'removal in combat');handles[id]=nil;removed=removed+1 end}
-function MuteSoundFile(path)assert(path:find('PztkReminders',1,true));muted[path]=true end
-function UnmuteSoundFile(path)assert(path:find('PztkReminders',1,true));muted[path]=false end
-${[runtime,rules].map(s=>`;(function(...)\n${s}\nend)('PztkReminders',ns);`).join('\n')}
+function MuteSoundFile(path)assert(path:find('NaowhDefensivePlanner',1,true));muted[path]=true end
+function UnmuteSoundFile(path)assert(path:find('NaowhDefensivePlanner',1,true));muted[path]=false end
+${[runtime,rules].map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns);`).join('\n')}
 ns.Store=function()return {active='p',profiles={p=profile}}end
-ns.SoundPath=function(key)if not key or key=='none'then return nil end;return 'Interface/AddOns/PztkReminders/'..key end
+ns.SoundPath=function(key)if not key or key=='none'then return nil end;return 'Interface/AddOns/NaowhDefensivePlanner/'..key end
 ns.Display=function(display)shown[#shown+1]=display end
 ns.SpellLabel=function(spell)return 'Fixture spell '..spell end
-;(function(...)\n${auras}\nend)('PztkReminders',ns)
+;(function(...)\n${auras}\nend)('NaowhDefensivePlanner',ns)
 local function rule(spell,sound)return {enabled=true,trigger={type='auraSound',mapID=456,spellID=spell,target='player',auraEvent='Added'},display={sound=sound,text='',dur=3}}end
 profile={data={settings={enabled=true,voiceOn=true},presets={[264]={p={list={100}}}},activePreset={[264]='p'},callouts={[100]='Fixture callout'},integrationRules={[264]={a=rule(600,'voice:stoneform-ready'),b=rule(601,'voice:shadowmeld-ready')}}}}
 ns.map=456;ns.instanceType='party'

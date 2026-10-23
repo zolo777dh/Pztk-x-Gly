@@ -15,14 +15,14 @@ test('one native Pztk export includes defensive sets, mechanic bindings and time
  const {s,v}=await fixture(t);let n=await s.handle('nsr.change',{id:v.id,revision:v.revision,operation:{kind:'preset.save',args:{specId:264,key:'personal',name:'Personal',spells:[{spellId:108271}]}}});n=await s.handle('nsr.assignRaid',{id:n.id,revision:n.revision,specId:264,seasonId:'MidnightS2',encounterId:3470,spellId:1284103,difficulty:'heroic',preset:'personal'});
  let u=await s.handle('reminders.save',reminder(n));u=await s.handle('reminders.save',reminder(u,{key:'phase',trigger:{type:'stage',stage:2,delay:15,leadTime:0},target:{roles:{HEALER:true}},display:{type:'text',text:'Healing assignment',dur:5}}));u=await s.handle('reminders.save',reminder(u,{key:'mechanic',difficulty:'16',trigger:{type:'bwmsg',spellID:1292036,leadTime:0},target:{names:{'Tester-Realm':true}},display:{type:'raidframeGlow',glowTarget:'Tester',text:'External',dur:5}}));
  const out=await s.handle('reminders.export',{id:u.id,revision:u.revision}),{pack,numericKeys}=s.reminderPack.decode(out.text);assert.deepEqual(pack.data.presets['264'].personal.list,{'1':108271});assert.equal(pack.data.abilityBindings['264']['3470']['1292036'].preset,'personal');assert.equal(pack.data.raidReminders['3470'].test.trigger.delay,30);assert.equal(pack.data.raidReminders['3470'].phase.trigger.stage,2);assert.equal(pack.data.raidReminders['3470'].mechanic.target.names['Tester-Realm'],true);assert.equal(pack.addon,'PztkReminders');assert.ok(numericKeys.some(p=>p.join('/')==='data/raidReminders/3470/test/target/specs/264'));assert.equal((await s.handle('reminders.read',{id:u.id})).reminders.length,3);
- if(process.env.DOCTOR_LUA51){const f=path.join(s.dataDir,'combined.txt');await fs.writeFile(f,out.text);const addon=path.resolve('addon/PztkReminders');const script=`strmatch=string.match
+ if(process.env.DOCTOR_LUA51){const f=path.join(s.dataDir,'combined.txt');await fs.writeFile(f,out.text);const addon=path.resolve('addon/NaowhDefensivePlanner');const script=`strmatch=string.match
  dofile(${JSON.stringify(addon+'/Libs/LibStub.lua')})
  dofile(${JSON.stringify(addon+'/Libs/LibSerialize.lua')})
  dofile(${JSON.stringify(addon+'/Libs/LibDeflate.lua')})
  function GetBuildInfo()return '12.1.5','70448','',120105 end
  local ns={}
- assert(loadfile(${JSON.stringify(addon+'/Runtime.lua')}))('PztkReminders',ns)
- assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('PztkReminders',ns)
+ assert(loadfile(${JSON.stringify(addon+'/Runtime.lua')}))('NaowhDefensivePlanner',ns)
+ assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('NaowhDefensivePlanner',ns)
  local f=assert(io.open(${JSON.stringify(f)},'rb'));local input=f:read('*a');f:close()
  local profile,error=ns.Decode(input);assert(profile,error);assert(profile.data.raidReminders[3470].test.target.specs[264])
  local name,error=ns.Import(input);assert(name,error);assert(ns.Active().data.raidReminders[3470].mechanic.difficulties[16])
@@ -55,13 +55,13 @@ test('desktop and game refuse malformed binding displays and target flags before
  for(const target of [{all:'false'},{matchAny:42}])bad.push({...structuredClone(base),data:{raidReminders:{3470:{r:{trigger:{type:'pull',delay:10},target,display:{type:'text',text:'Invalid'}}}}}});
  for(const pack of bad)assert.throws(()=>s.reminderPack.encode(pack),/Invalid/);
  if(process.env.DOCTOR_LUA51){
-  const addon=path.resolve('addon/PztkReminders'),inputs=[];
+  const addon=path.resolve('addon/NaowhDefensivePlanner'),inputs=[];
   for(const [i,pack]of bad.entries()){const file=path.join(s.dataDir,'invalid-'+i+'.txt');await fs.writeFile(file,'PZTK1:'+encodePrint(deflateRawSync(s.codec.invoke('encode',pack))));inputs.push(file);}
   const script=`strmatch=string.match
   dofile(${JSON.stringify(addon+'/Libs/LibStub.lua')})
   dofile(${JSON.stringify(addon+'/Libs/LibSerialize.lua')})
   dofile(${JSON.stringify(addon+'/Libs/LibDeflate.lua')})
-  local ns={};assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('PztkReminders',ns)
+  local ns={};assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('NaowhDefensivePlanner',ns)
   for _,path in ipairs({${inputs.map(p=>JSON.stringify(p)).join(',')}})do local f=assert(io.open(path,'rb'));local text=f:read('*a');f:close();local profile,error=ns.Decode(text);assert(profile==nil and error=='Unsupported profile data')end
   print('MALFORMED_PROFILE_REFUSED')`;
   const file=path.join(s.dataDir,'invalid.lua');await fs.writeFile(file,script);assert.match(execFileSync(process.env.DOCTOR_LUA51,[file],{encoding:'utf8'}),/MALFORMED_PROFILE_REFUSED/);
@@ -77,9 +77,9 @@ test('text reminders omit blank spell IDs and 0.4.0 exports recover that optiona
  assert.equal((await s.nsrEditor.read(view.id)).pack.data.raidReminders['3470'].test.display.spellID,'','source working copy is retained');
  pack.data.raidReminders['3470'].test.display.spellID='';const legacy='PZTK1:'+encodePrint(deflateRawSync(s.codec.invoke('encode',pack)));
  assert.equal(s.reminderPack.decode(legacy).pack.data.raidReminders['3470'].test.display.spellID,undefined);
- if(process.env.DOCTOR_LUA51){const addon=path.resolve('addon/PztkReminders'),file=path.join(s.dataDir,'legacy.txt');await fs.writeFile(file,legacy);const script=`strmatch=string.match
+ if(process.env.DOCTOR_LUA51){const addon=path.resolve('addon/NaowhDefensivePlanner'),file=path.join(s.dataDir,'legacy.txt');await fs.writeFile(file,legacy);const script=`strmatch=string.match
  dofile(${JSON.stringify(addon+'/Libs/LibStub.lua')});dofile(${JSON.stringify(addon+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(addon+'/Libs/LibDeflate.lua')})
- local ns={};assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('PztkReminders',ns)
+ local ns={};assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('NaowhDefensivePlanner',ns)
  local f=assert(io.open(${JSON.stringify(file)},'rb'));local text=f:read('*a');f:close();local pack,error=ns.Decode(text);assert(pack,error)
  local entries=pack.data.raidReminders[3470]or pack.data.raidReminders['3470'];assert(entries.test.display.spellID==nil);print('LEGACY_BLANK_ID_RECOVERED')`;
  const lua=path.join(s.dataDir,'legacy.lua');await fs.writeFile(lua,script);assert.match(execFileSync(process.env.DOCTOR_LUA51,[lua],{encoding:'utf8'}),/LEGACY_BLANK_ID_RECOVERED/);}

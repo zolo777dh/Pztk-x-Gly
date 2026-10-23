@@ -4,11 +4,15 @@ function ns.Client()
     return (interface == 16001 or (type(version) == "string" and version:match("^1%.60%."))) and "forever" or "retail"
 end
 function ns.Store()
-    PztkRemindersDB = PztkRemindersDB or { clients = {} }
-    PztkRemindersDB.clients = PztkRemindersDB.clients or {}
+    -- 0.4.0 renamed the addon from PztkReminders. A copied PztkReminders.lua
+    -- SavedVariables file still holds PztkRemindersDB; adopt it once, then drop it.
+    if NaowhDefensivePlannerDB == nil and type(PztkRemindersDB) == "table" then NaowhDefensivePlannerDB = PztkRemindersDB end
+    PztkRemindersDB = nil
+    NaowhDefensivePlannerDB = NaowhDefensivePlannerDB or { clients = {} }
+    NaowhDefensivePlannerDB.clients = NaowhDefensivePlannerDB.clients or {}
     local client = ns.Client()
-    PztkRemindersDB.clients[client] = PztkRemindersDB.clients[client] or {profiles={},history={}}
-    return PztkRemindersDB.clients[client]
+    NaowhDefensivePlannerDB.clients[client] = NaowhDefensivePlannerDB.clients[client] or {profiles={},history={}}
+    return NaowhDefensivePlannerDB.clients[client]
 end
 local function Data(value, seen, depth, budget)
     if depth > 32 then return false end
@@ -209,7 +213,7 @@ function ns.Decode(input)
             end end
         end end
     end
-    if ok and type(profile)=="table"and type(profile.minimumAddon)=="string"and type(ns.version)=="string"and Newer(profile.minimumAddon,ns.version)then return nil,"This profile needs Pztk Reminders "..profile.minimumAddon.." or newer" end
+    if ok and type(profile)=="table"and type(profile.minimumAddon)=="string"and type(ns.version)=="string"and Newer(profile.minimumAddon,ns.version)then return nil,"This profile needs Naowh Defensive Planner "..profile.minimumAddon.." or newer" end
     if not ok or not ns.Validate(profile) then return nil, "Unsupported profile data" end
     return profile
 end
