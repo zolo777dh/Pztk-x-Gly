@@ -76,6 +76,7 @@ Boss alerts: every reminder for your spec with on/off, Test and Edit.
 Raid tools: ready check, pull and break timers, invite on whisper keyword, guild
 invites by rank, group arrangement, automatic assistants.
 Players: nicknames shared with the group and an addon version check.
+Drag an ability from the spellbook or an action bar onto a defensive set to add it.
 Lists and long text scroll with the mouse wheel. An open drop-down list closes on
 a click anywhere outside it.
 

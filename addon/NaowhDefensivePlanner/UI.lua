@@ -233,9 +233,15 @@ local function DrawSets(parent)
     W.Field(panel,L("Set name"),state.setName,16,14,400,"set-name")
     if state.setKey and ns.SetUses then W.Label(panel,L("Used by reminders: ")..ns.SetUses(scope(),state.spec,state.setKey),430,38,220,12,C.muted)end
     W.Heading(panel,L("Priority order"),16,72,636)
-    local content=W.Scroll(panel,12,94,644,218,"sets:abilities",C.background)
+    local content,_,listPanel=W.Scroll(panel,12,94,644,218,"sets:abilities",C.background)
+    -- Drag an ability from the spellbook (or an action bar) onto the set to add it.
+    local function dropped(spell)
+        if not spell then notify(L("Only spells can be added to a set"),true)return end
+        state.setName=read("set-name");setRowsAdd(spell)
+    end
+    W.DropTarget(panel,dropped);W.DropTarget(listPanel,dropped);W.DropTarget(content,dropped)
     for i,row in ipairs(state.setRows)do
-        local y=(i-1)*46;local r=W.Panel(content,0,y,620,42,C.raised,C.line,8)
+        local y=(i-1)*46;local r=W.Panel(content,0,y,620,42,C.raised,C.line,8);W.DropTarget(r,dropped)
         W.Label(r,tostring(i),10,15,20,12,C.muted);W.Icon(r,row.spellID,32,6,30);W.Label(r,name(row.spellID),72,7,200,12);W.Label(r,tostring(row.spellID),72,24,200,10,C.muted)
         W.Toggle(r,L("On"),row.enabled,270,9,64,function(v)row.enabled=v end,"set-enabled:"..i)
         W.Toggle(r,L("Together"),row.together,344,9,110,function(v)row.together=v end,"set-together:"..i)
@@ -250,9 +256,9 @@ local function DrawSets(parent)
     W.Toggle(er,L("On"),settings.fallbackOn==true,270,9,64,function(v)state.setName=read("set-name");done(ns.SaveExternalCallout({on=v}),nil,v and L("External call on")or L("External call off"))end,"set-external-on")
     W.Button(er,"",580,7,30,function()state.setName=read("set-name");openCallout("external");Refresh()end,state.callout and state.callout.spell=="external","set-external",{h=28,glyph="settings",tooltip=L("Phrase, voice and chat line")})
     content:SetHeight(math.max(1,#state.setRows*46+46))
-    if #state.setRows==0 then W.Label(content,L("Add defensives from your spellbook below, or enter a spell ID."),12,14,560,12,C.muted)end
+    if #state.setRows==0 then W.Label(content,L("Drag abilities here from the spellbook, pick them below, or enter a spell ID."),12,14,560,12,C.muted)end
     if state.callout then DrawCallout(panel)else
-    W.Heading(panel,L("Add from your spellbook"),16,324,636)
+    W.Heading(panel,L("Add from your spellbook · or drag a spell onto the set"),16,324,636)
     local x=16;local ids={};for id in pairs(ns.Catalog.spellNames)do if knownSpell(id)then ids[#ids+1]=id end end;table.sort(ids)
     local inSet={};for _,r in ipairs(state.setRows)do inSet[r.spellID]=true end
     local shown=0
