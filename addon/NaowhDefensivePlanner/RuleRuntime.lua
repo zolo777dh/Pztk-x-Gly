@@ -32,6 +32,30 @@ local function Copy(source)
     local out={};for key,value in pairs(source or {})do out[key]=value end;return out
 end
 
+-- Icons, text and voice of the chosen abilities: each one has its own text, spoken phrase,
+-- voice switch or sound (Defensives page, gear button). Also used by the Test set button.
+function ns.DefensiveDisplay(spells,base,bindingSound)
+    local settings=ns.Settings()
+    local display=Copy(base)
+    display.type="icon"
+    display.spells,display.spellID=spells,spells[1]
+    display.dur=display.dur or settings.lingerSec or 5
+    local spoken,labels,sound={},{},nil
+    for _,spell in ipairs(spells)do
+        local label,phrase,audio,own=ns.Callout(spell)
+        labels[#labels+1]=label
+        if audio then if phrase then spoken[#spoken+1]=phrase elseif own and not sound then sound=own end end
+    end
+    local label=table.concat(labels," and ")
+    if not display.text or display.text==""then display.text=label
+    elseif not display.text:find(label,1,true)then display.text=display.text.."\n"..label end
+    display.ttsText=display.ttsText or table.concat(spoken," and ")
+    if display.tts==nil then display.tts=settings.voiceOn~=false end
+    if settings.voiceOn==false or display.ttsText==""then display.tts=false end
+    display.sound=display.sound or bindingSound or sound or(settings.soundOn and settings.soundKey)
+    return display
+end
+
 function ns.RenderDefensive(binding, trash)
     local profile,spec=ns.Active(),ns.Spec()
     if not ns.Enabled()or not spec or binding.enabled==false then return end
@@ -59,24 +83,7 @@ function ns.RenderDefensive(binding, trash)
         if external then ns.CallExternal()end
         return
     end
-    local display=Copy(binding.display)
-    display.type="icon"
-    display.spells,display.spellID=spells,spells[1]
-    display.dur=display.dur or settings.lingerSec or 5
-    -- Each ability has its own text, spoken phrase, voice switch or sound (Defensives page, gear button).
-    local spoken,labels,sound={},{},nil
-    for _,spell in ipairs(spells)do
-        local label,phrase,audio,own=ns.Callout(spell)
-        labels[#labels+1]=label
-        if audio then if phrase then spoken[#spoken+1]=phrase elseif own and not sound then sound=own end end
-    end
-    local label=table.concat(labels," and ")
-    if not display.text or display.text==""then display.text=label
-    elseif not display.text:find(label,1,true)then display.text=display.text.."\n"..label end
-    display.ttsText=display.ttsText or table.concat(spoken," and ")
-    if display.tts==nil then display.tts=settings.voiceOn~=false end
-    if settings.voiceOn==false or display.ttsText==""then display.tts=false end
-    display.sound=display.sound or binding.sound or sound or(settings.soundOn and settings.soundKey)
+    local display=ns.DefensiveDisplay(spells,binding.display,binding.sound)
     if ns.Display then ns.Display(display)end
 end
 

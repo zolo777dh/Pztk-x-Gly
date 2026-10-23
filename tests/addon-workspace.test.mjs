@@ -17,7 +17,7 @@ env.click('tab:settings');env.click('tab:mythic');env.click('mode:sets')
 assert(ns.UIControls['set-name']:GetText()=='Unfinished set');assert(#ns.ScopePresets(ns.Active(),'mythic',104)[key].list==2)
 `));
 test('settings drafts survive a source dropdown, page changes and closing, then save exactly',()=>run(`
-env.click('tab:settings');env.input('setting:iconSize','57');env.input('setting:x','125');env.click('setting:voiceOn');env.select('setting:bossSource','DBM')
+env.click('tab:settings');env.input('setting:iconSize','57');env.input('setting:x','125');if ns.UIControls['setting:voiceOn'].value then env.click('setting:voiceOn')end;env.click('setting:voiceOn');env.select('setting:bossSource','DBM')
 assert(ns.UIControls['setting:bossSource'].label:GetText()=='DBM')
 env.click('tab:profiles');env.click('tab:settings');assert(ns.UIControls['setting:iconSize']:GetText()=='57');assert(ns.UIControls['setting:voiceOn'].value)
 ns.WorkspaceWindow:Hide();ns.Open();assert(ns.UIControls['setting:x']:GetText()=='125');env.click('save-settings')
@@ -187,7 +187,7 @@ assert(ns.UIState.spec==105,'Window did not follow the spec change')
 env.class='MAGE';env.spec=62;ns.Open();assert(ns.UIState.spec==62);assert(ns.SaveSet('mythic',62,nil,'Mage set',{{spellID=45438,enabled=true}}))
 `));
 test('every sidebar section draws with visible, anchored controls',()=>run(`
-for _,tab in ipairs({'overview','mythic','raid','sets','timeline','notes','alerts','debuffs','assign','raidtools','players','display','profiles','settings','diag'})do
+for _,tab in ipairs({'overview','mythic','raid','sets','timeline','notes','alerts','assign','raidtools','players','display','profiles','settings','diag'})do
  env.click('tab:'..tab);env.assertLayout();assert(ns.UIState.tab==tab)
 end
 env.click('tab:sets');env.click('sets-scope:raid');env.input('set-name','Raid from Defensives');env.input('new-spell','22812');env.click('add-spell');env.click('save-set')

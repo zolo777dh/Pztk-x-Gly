@@ -149,7 +149,7 @@ function ns.Validate(profile)
             local t=rule.trigger
             if (t.type~="exboss"and t.type~="auraSound")or not Number(t.mapID,0,100000000)or t.mapID%1~=0 or not ID(t.spellID)or not Number(t.timeleft,0,120,true)then return false end
             if t.type=="auraSound"then
-                if (t.target~="player"and t.target~="party")or(t.auraEvent~="Added"and t.auraEvent~="ApplicationsIncreased"and t.auraEvent~="Removed")or type(rule.display)~="table"or type(rule.display.sound)~="string"or rule.display.sound==""or rule.display.sound=="none"then return false end
+                if (t.target~="player"and t.target~="party")or(t.auraEvent~="Added"and t.auraEvent~="ApplicationsIncreased"and t.auraEvent~="Removed")or type(rule.display)~="table"or type(rule.display.sound)~="string"or rule.display.sound==""or rule.display.sound=="none"or(t.scope~=nil and t.scope~="raid")then return false end
                 if (rule.display.sound=="voice:stoneform-ready"or rule.display.sound=="voice:shadowmeld-ready")and t.target~="player"then return false end
             end
         end

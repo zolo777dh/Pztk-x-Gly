@@ -158,7 +158,8 @@ local function ModeSwitch(parent)
     if state.tab=="sets"then
         W.Segmented(parent,{{value="mythic",label="Mythic+"},{value="raid",label=L("Raid")}},scope(),620,0,300,function(v)state.setScope=v;state.setKey=nil;state.setName=nil;state.setRows={};Refresh()end,"sets-scope");return
     end
-    W.Segmented(parent,{{value="mechanics",label=L("Mechanics")},{value="sets",label=L("Defensive sets")}},state.mode=="sets"and"sets"or"mechanics",620,0,300,function(v)state.mode=v;Refresh()end,"mode")
+    local mode=(state.mode=="sets"or state.mode=="debuffs")and state.mode or"mechanics"
+    W.Segmented(parent,{{value="mechanics",label=L("Mechanics")},{value="sets",label=L("Defensive sets")},{value="debuffs",label=L("Debuffs")}},mode,530,0,390,function(v)state.mode=v;Refresh()end,"mode")
 end
 local function setRowsAdd(spell)
     for _,r in ipairs(state.setRows)do if r.spellID==spell then notify("Ability already exists",true);return end end
@@ -263,7 +264,7 @@ local function DrawSets(parent)
     W.Button(panel,L("Add ability"),236,408,120,function()local spell=tonumber(read("new-spell"));if not spell or spell<1 or spell%1~=0 then notify("Enter a positive integer spell ID",true);return end;setRowsAdd(spell)end,false,"add-spell")
     end
     W.Button(parent,L("Delete set"),252,566,116,function()local key=state.setKey;local a,b=ns.DeleteSet(scope(),state.spec,key);if a then state.setDrafts[draftKey(key)]=nil;chooseSet(nil,true)end;done(a,b,"Set deleted")end,false,"delete-set",{kind="danger"})
-    W.Button(parent,L("Test set"),600,566,120,function()local preset={list={},together={},disabled={}};for _,r in ipairs(state.setRows)do preset.list[#preset.list+1]=r.spellID;if r.together then preset.together[r.spellID]=true end;if not r.enabled then preset.disabled[r.spellID]=true end end;local spells=ns.Pick(preset);if #spells==0 then for _,r in ipairs(state.setRows)do if r.enabled then spells={r.spellID};break end end end;ns.Display({type="icon",spells=spells,text="Set preview",dur=4});notify("Preview only; no encounter trigger was fired")end,false,"test-set")
+    W.Button(parent,L("Test set"),600,566,120,function()local preset={list={},together={},disabled={}};for _,r in ipairs(state.setRows)do preset.list[#preset.list+1]=r.spellID;if r.together then preset.together[r.spellID]=true end;if not r.enabled then preset.disabled[r.spellID]=true end end;local spells=ns.Pick(preset);if #spells==0 then for _,r in ipairs(state.setRows)do if r.enabled then spells={r.spellID};break end end end;if #spells==0 then notify(L("Turn on at least one ability to test the set"),true)return end;local shown=ns.DefensiveDisplay(spells,{dur=4});ns.Display(shown);notify(L("Preview")..": "..shown.text..(ns.Settings().voiceOn==false and L(" · voice is off in Display")or L(" · no encounter trigger was fired")),ns.Settings().voiceOn==false)end,false,"test-set")
     W.Button(parent,L("Save set"),730,566,190,function()local oldKey=state.setKey;local a,b=ns.SaveSet(scope(),state.spec,oldKey,read("set-name"),state.setRows);if a then state.setDrafts[draftKey(oldKey)]=nil;state.setKey=a;state.setName=read("set-name")end;done(a,b,"Defensive set saved")end,true,"save-set",{kind="primary",align="CENTER"})
 end
 local function InitialForm(ctx,reference)
@@ -654,7 +655,7 @@ local function DrawDisplay(parent)
 end
 ---------------------------------------------------------------------------
 local commands={{"/ndp","open or close the window"},{"/ndp status","state and combat source"},{"/ndp test","test a defensive reminder"},{"/ndp diag","diagnostics report"},{"/ndp sets · mythic · raid","open a section"},
-    {"/ndp notes · alerts · debuffs","raid sections"},{"/ndp note","show or hide the note frame"},{"/ndp clear · pclear","take the shared / personal note off"},{"/ndp anchors","move the reminder anchor"},
+    {"/ndp notes · alerts","raid sections"},{"/ndp debuffs","debuff alerts (Mythic+ / Raids)"},{"/ndp note","show or hide the note frame"},{"/ndp clear · pclear","take the shared / personal note off"},{"/ndp anchors","move the reminder anchor"},
     {"/ndp pull 10 · rc","pull timer, ready check"},{"/ndp break 10","break timer (0 ends it)"},{"/ndp inv · arrange","guild invites, arrange groups"},{"/ndp promote","give assist from your list"},
     {"/ndp nick Name","set your nickname"},{"/ndp versions","addon version check"},{"/ndp roster · export","roster, export the profile"},{"/ndp wipe","reset all data (asks to confirm)"}}
 ns.CommandHelp=commands
@@ -677,7 +678,7 @@ end
 ---------------------------------------------------------------------------
 local nav={
     {"Planner",{{"overview","Overview","overview"},{"mythic","Mythic+","mythic"},{"raid","Raids","raid"},{"sets","Defensives","sets"},{"timeline","Timeline","clock"}}},
-    {"Raid",{{"notes","Notes","notes"},{"alerts","Boss alerts","alerts"},{"debuffs","Debuffs","auras"},{"assign","Assignments","assign"},{"raidtools","Raid tools","raidtools"},{"players","Players","players"}}},
+    {"Raid",{{"notes","Notes","notes"},{"alerts","Boss alerts","alerts"},{"assign","Assignments","assign"},{"raidtools","Raid tools","raidtools"},{"players","Players","players"}}},
     {"System",{{"display","Display","display"},{"profiles","Profiles","profiles"},{"settings","Settings","settings"},{"diag","Diagnostics","diag"}}},
 }
 local function go(tab)if state.tab~=tab then state.tab=tab;loadView()end;Refresh()end
@@ -733,7 +734,7 @@ Refresh=function()
     DrawHeader();DrawSidebar()
     body=W.Frame("Frame",nil,window);body:SetPoint("TOPLEFT",SIDEBAR+16,-(TOP+14));body:SetSize(920,600);body.surface=C.background
     if state.tab=="mythic"or state.tab=="raid"then
-        if state.mode=="sets"then DrawSets(body)elseif state.mode=="manual"then DrawManual(body)else DrawMechanics(body)end
+        if state.mode=="sets"then DrawSets(body)elseif state.mode=="manual"then DrawManual(body)elseif state.mode=="debuffs"and ns.DrawDebuffs then ns.DrawDebuffs(body)else DrawMechanics(body)end
     elseif state.tab=="sets"then DrawSets(body)
     elseif pages[state.tab]then pages[state.tab](body)
     elseif ns.ExtraPages[state.tab]then ns.ExtraPages[state.tab](body)
@@ -760,11 +761,14 @@ function ns.OpenWorkspace(tab)
     -- The window always follows the logged-in specialization.
     local current=ns.Spec()
     if current and current~=state.spec and ns.CanEditSpec(current)then saveView();state.spec=current;loadView()end
+    -- Debuff alerts live in the Mythic+ and Raids sections, next to Mechanics and Defensive sets.
+    local debuffs=tab=="debuffs";if debuffs then tab=state.tab=="raid"and"raid"or"mythic"end
     if tab and(pages[tab]or ns.ExtraPages[tab]or tab=="mythic"or tab=="raid"or tab=="sets")and tab~=state.tab then saveView();state.tab=tab;loadView()end
+    if debuffs then state.mode="debuffs"end
     Refresh();window:Show()
 end
 function ns.ShowDiagnostics()
     ns.OpenWorkspace();state.tab="diag";loadView();state.diagText=ns.Diagnostics();Refresh()
 end
 -- Helpers shared with the page files loaded after this one.
-ns.UIKit={state=state,notify=notify,done=done,go=go,read=read,name=name,header=ContentHeader,loadView=loadView,classColor=classColor,roster=Roster,refresh=function()Refresh()end}
+ns.UIKit={state=state,notify=notify,done=done,go=go,read=read,name=name,header=ContentHeader,loadView=loadView,classColor=classColor,roster=Roster,modeSwitch=ModeSwitch,refresh=function()Refresh()end}

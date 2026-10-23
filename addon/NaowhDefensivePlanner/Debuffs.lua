@@ -19,6 +19,18 @@ ns.RacialDebuffs={
     {mapID=2859,name="The Blinding Vale",list={{1235640,"Thornblade","stoneform"},{1259365,"Bloodthorn Roots","stoneform"},{1241058,"Grievous Thrash","stoneform"},{1247685,"Thornspike","stoneform"},{1238066,"Thornblade (trash)","stoneform"},{1242135,"Grievous Gash","stoneform"},{1250937,"Toxic Spew","stoneform"}}},
     {mapID=2923,name="Voidscar Arena",list={{1267894,"Savage Leap","stoneform"},{1299133,"Ferocious Leap","stoneform"},{1250043,"Melt Armor","stoneform"},{1249238,"Fire Spit","stoneform"},{1289258,"Corrosive Essence","stoneform"},{1311778,"Rip and Slice","stoneform"},{1300138,"Void Beam","shadowmeld"}}},
 }
+-- Raid boss debuffs for Stoneform, picked by their names (venom, blight, bleed, curse...).
+-- Dispel types and aura IDs are not confirmed: the IDs are the boss timer spells from the NSRT
+-- timelines in resources/raid-catalog.json. Spread and soak debuffs are left out on purpose.
+ns.RaidRacialDebuffs={
+    {encounterID=3445,name="Entombed Sentinels",list={{1284487,"Bloodvenom Injection","stoneform"},{1284483,"Blighted Blood","stoneform"},{1296878,"Shifting Protovenom","stoneform"}}},
+    {encounterID=3455,name="Vashnik the Malignant",list={{1280935,"Dripping Fangs","stoneform"},{1294994,"Stygian Infection","stoneform"},{1281910,"Plague Froth","stoneform"}}},
+    {encounterID=3470,name="Nek'zali the Soulcoiler",list={{1287434,"Essence Rend","stoneform"}}},
+    {encounterID=3497,name="The Lost Explorers",list={{1297024,"Binding Anguish","stoneform"},{1301667,"Dark Whispers","stoneform"},{1286922,"Icebound Flames","stoneform"}}},
+    {encounterID=3420,name="Sszorak",list={{1277002,"Ravage","stoneform"}}},
+    {encounterID=3429,name="The Coiled Altar",list={{1282287,"Venomfang","stoneform"},{1299684,"Sever","stoneform"},{1286620,"Soul Sever","stoneform"},{1307292,"Blighted Sever","stoneform"}}},
+    {encounterID=3492,name="Ula'tek",list={{1301117,"Grasping Fangs","stoneform"}}},
+}
 local racialSpell={stoneform=20594,shadowmeld=58984}
 local sounds={{value="voice:stoneform-ready",label="Stoneform (only when ready)"},{value="voice:shadowmeld-ready",label="Shadowmeld (only when ready)"},{value="voice:use-a-defensive",label="Use a defensive"},{value="voice:move-out",label="Move out"},{value="voice:dispel-me",label="Dispel me"}}
 local events={{value="Added",label="Applied"},{value="ApplicationsIncreased",label="Stack increased"},{value="Removed",label="Removed"}}
@@ -31,6 +43,13 @@ local function instanceName(map)
     for _,d in ipairs(ns.RacialDebuffs)do if d.mapID==map then return d.name end end
     return L("Instance").." "..map
 end
+-- Raid alerts are grouped by the boss that casts the debuff.
+local function raidBoss(spell)
+    for _,d in ipairs(ns.RaidRacialDebuffs)do for _,e in ipairs(d.list)do if e[1]==spell then return d.name end end end
+    for _,season in ipairs(ns.Catalog.raids or{})do for _,b in ipairs(season.bosses or{})do for _,a in ipairs(b.abilities or{})do if a.id==spell then return b.name end end end end
+    return L("Other raid debuffs")
+end
+local function count(list,racial)local n=0;for _,d in ipairs(list)do for _,e in ipairs(d.list)do if e[3]==racial then n=n+1 end end end;return n end
 local function known(spell)
     local fn=C_SpellBook and(C_SpellBook.IsSpellKnownOrInSpellBook or C_SpellBook.IsSpellKnown)or IsPlayerSpell
     if not fn then return false end;local ok,v=pcall(fn,spell);return ok and v==true
@@ -42,29 +61,36 @@ local function formFrom(rule)
     return{name=rule.name or"",spellID=tostring(t.spellID or""),mapID=tostring(map),map=listed and map or"other",event=t.auraEvent or"Added",unit=t.target or"player",sound=rule.display and rule.display.sound or"voice:use-a-defensive",enabled=rule.enabled~=false}
 end
 
-local function DrawDebuffs(parent)
-    local state=kit.state;local spec=state.spec
-    kit.header(parent,L("Debuff alerts"),L("A sound or racial voice when a debuff is applied, stacks or falls off."))
-    local status=ns.AuraSoundStatus and ns.AuraSoundStatus()or"";W.Label(parent,(status:match("^[^\n]*")or"")..L(" · changes apply outside combat"),0,44,600,11,C.faint)
-    local rules=ns.DebuffRules(spec)
+-- Mythic+ and Raids each show their own alerts: raid ones carry trigger.scope "raid".
+local function scoped(spec,raid)
+    local out={};for _,r in ipairs(ns.DebuffRules(spec))do if(r.rule.trigger.scope=="raid")==raid then out[#out+1]=r end end;return out
+end
+function ns.DrawDebuffs(parent)
+    local state=kit.state;local spec=state.spec;local raid=state.tab=="raid";local scope=raid and"raid"or nil
+    kit.header(parent,raid and L("Raid debuffs")or L("Dungeon debuffs"),L("A sound or racial voice when a debuff is applied, stacks or falls off."))
+    kit.modeSwitch(parent)
+    local status=ns.AuraSoundStatus and ns.AuraSoundStatus()or"";W.Label(parent,(status:match("^[^\n]*")or"")..L(" · changes apply outside combat"),0,46,500,11,C.faint)
+    local rules=scoped(spec,raid)
     -- Bundled racial lists and an additive copy from the other specs of this class.
-    W.Select(parent,nil,{{value="stoneform",label=L("Add Stoneform list")..(known(racialSpell.stoneform)and""or" ("..L("not your racial")..")")},{value="shadowmeld",label=L("Add Shadowmeld list")..(known(racialSpell.shadowmeld)and""or" ("..L("not your racial")..")")}},nil,520,0,200,function(v)
-        local added,err=ns.AddRacialDebuffs(spec,v);kit.done(added,err,(tonumber(added)or 0)..L(" debuff alerts added"))end,"debuffs-racial")
+    local source=raid and ns.RaidRacialDebuffs or ns.RacialDebuffs;local racials={}
+    for _,r in ipairs({"stoneform","shadowmeld"})do local n=count(source,r);if n>0 then racials[#racials+1]={value=r,label=L(r=="stoneform"and"Add Stoneform list"or"Add Shadowmeld list").." ("..n..")"..(known(racialSpell[r])and""or" - "..L("not your racial"))}end end
+    W.Select(parent,nil,racials,nil,520,40,200,function(v)
+        local added,err=ns.AddRacialDebuffs(spec,v,scope);kit.done(added,err,(tonumber(added)or 0)..L(" debuff alerts added"))end,"debuffs-racial")
     ns.UIControls["debuffs-racial"].label:SetText(L("Add racial debuffs..."))
     local copy={};for _,id in ipairs(ns.OwnSpecs())do if id~=spec and #ns.DebuffRules(id)>0 then copy[#copy+1]={value=id,label=ns.Catalog.specs[id].." ("..#ns.DebuffRules(id)..")"}end end
-    if #copy>0 then W.Select(parent,nil,copy,nil,730,0,190,function(v)local added,err=ns.CopyDebuffRules(v,spec);kit.done(added,err,(tonumber(added)or 0)..L(" debuff alerts copied"))end,"debuffs-copy");ns.UIControls["debuffs-copy"].label:SetText(L("Copy from spec..."))end
-    -- Saved alerts grouped by instance; a group header folds its rows.
+    if #copy>0 then W.Select(parent,nil,copy,nil,730,40,190,function(v)local added,err=ns.CopyDebuffRules(v,spec);kit.done(added,err,(tonumber(added)or 0)..L(" debuff alerts copied"))end,"debuffs-copy");ns.UIControls["debuffs-copy"].label:SetText(L("Copy from spec..."))end
+    -- Saved alerts grouped by dungeon (or raid boss); a group header folds its rows.
     local groups,order={},{}
-    for _,r in ipairs(rules)do local map=tonumber(r.rule.trigger.mapID)or 0;if not groups[map]then groups[map]={};order[#order+1]=map end;table.insert(groups[map],r)end
-    table.sort(order,function(a,b)return instanceName(a)<instanceName(b)end)
+    for _,r in ipairs(rules)do local g=raid and raidBoss(r.rule.trigger.spellID)or instanceName(r.rule.trigger.mapID);if not groups[g]then groups[g]={};order[#order+1]=g end;table.insert(groups[g],r)end
+    table.sort(order)
     state.drafts.folded=state.drafts.folded or{}
-    local list=W.Scroll(parent,0,64,300,480,"debuffs:list");local y=4
+    local list=W.Scroll(parent,0,80,300,464,"debuffs:list");local y=4
     if #rules==0 then W.Label(list,L("No debuff alerts for this specialization yet. Add the racial list above or create one."),10,10,260,12,C.muted)end
     local selected=state.drafts.debuffKey
-    for _,map in ipairs(order)do
-        local folded=state.drafts.folded[tostring(map)]
-        W.Button(list,(folded and"+ "or"- ")..instanceName(map).."  ("..#groups[map]..")",0,y,272,function()state.drafts.folded[tostring(map)]=not folded or nil;kit.refresh()end,false,"debuff-group:"..map,{kind="ghost",h=26});y=y+28
-        if not folded then for _,r in ipairs(groups[map])do
+    for _,group in ipairs(order)do
+        local folded=state.drafts.folded[group]
+        W.Button(list,(folded and"+ "or"- ")..group.."  ("..#groups[group]..")",0,y,272,function()state.drafts.folded[group]=not folded or nil;kit.refresh()end,false,"debuff-group:"..group,{kind="ghost",h=26});y=y+28
+        if not folded then for _,r in ipairs(groups[group])do
             local row=W.Panel(list,6,y,266,28,r.key==selected and C.accentSoft or C.raised,r.key==selected and C.accent or C.clear,6)
             W.Toggle(row,"",r.rule.enabled~=false,4,2,34,function(v)kit.done(ns.SetDebuffEnabled(spec,r.key,v),nil,v and L("Debuff alert on")or L("Debuff alert off"))end,"debuff-on:"..r.key)
             local sound=r.rule.display and r.rule.display.sound or"";local racial=sound:match("^voice:(%a+)%-ready$")
@@ -80,24 +106,25 @@ local function DrawDebuffs(parent)
     if not f then f=blank()end;state.drafts.debuff=f
     local exists=false;for _,r in ipairs(rules)do if r.key==selected then exists=true end end
     if not exists then selected=nil;state.drafts.debuffKey=nil end
-    local card=W.Card(parent,312,64,608,520,selected and L("Debuff settings")or L("New debuff alert"))
+    local card=W.Card(parent,312,80,608,504,selected and L("Debuff settings")or L("New debuff alert"))
     local function collect()for _,k in ipairs({"name","spellID","mapID"})do local c=ns.UIControls["debuff:"..k];if c then f[k]=c:GetText()end end end
     W.Toggle(card,L("Enabled"),f.enabled,456,8,140,function(v)f.enabled=v end,"debuff:enabled")
     W.Field(card,L("DEBUFF SPELL ID (THE AURA, NOT THE CAST)"),f.spellID,16,40,280,"debuff:spellID")
     local spell=tonumber(f.spellID);if spell then W.Icon(card,spell,308,58,26);W.Label(card,ns.SpellLabel(spell),340,64,250,12,C.soft)end
     W.Field(card,L("REMINDER NAME · BLANK = SPELL NAME"),f.name,16,100,576,"debuff:name")
-    local maps={{value=0,label=L("All instances")}};for _,d in ipairs(ns.Catalog.dungeons or{})do maps[#maps+1]={value=d.mapID,label=d.name}end;maps[#maps+1]={value="other",label=L("Another instance (by ID)")}
-    W.Select(card,L("DUNGEON"),maps,f.map,16,160,280,function(v)collect();f.map=v;if v~="other"then f.mapID=tostring(v)end;kit.refresh()end,"debuff:map")
+    local maps={{value=0,label=L("All instances")}};if not raid then for _,d in ipairs(ns.Catalog.dungeons or{})do maps[#maps+1]={value=d.mapID,label=d.name}end end;maps[#maps+1]={value="other",label=L("Another instance (by ID)")}
+    W.Select(card,raid and L("INSTANCE")or L("DUNGEON"),maps,f.map,16,160,280,function(v)collect();f.map=v;if v~="other"then f.mapID=tostring(v)end;kit.refresh()end,"debuff:map")
     if f.map=="other"then W.Field(card,L("INSTANCE ID · 0 = EVERYWHERE"),f.mapID,312,160,280,"debuff:mapID")end
     W.Select(card,L("WHEN"),events,f.event,16,220,280,function(v)collect();f.event=v;kit.refresh()end,"debuff:event")
     W.Select(card,L("UNIT"),units,f.unit,312,220,280,function(v)collect();f.unit=v;if v~="player"and previews[f.sound]then f.sound="voice:use-a-defensive"end;kit.refresh()end,"debuff:unit")
     local options={};for _,o in ipairs(sounds)do if f.unit=="player"or not previews[o.value]then options[#options+1]=o end end
     W.Select(card,L("SOUND"),options,f.sound,16,280,576,function(v)collect();f.sound=v;kit.refresh()end,"debuff:sound")
     W.Label(card,L("Stoneform and Shadowmeld voices play only while the racial is ready and need Unit: Me. Test plays the voice anyway."),16,342,576,11,C.muted)
+    if raid then W.Label(card,L("The raid list is picked from the debuff names; dispel types and aura IDs are not confirmed yet, so check each alert in game."),16,372,576,11,C.warning)end
     W.Button(card,L("Test"),16,470,100,function()collect();local path=ns.SoundPath(previews[f.sound]or f.sound);if path and PlaySoundFile then PlaySoundFile(path,"Master")end;kit.notify(L("Sound preview; the real alert needs the debuff in game"))end,false,"debuff-test",{glyph="play"})
     if selected then W.Button(card,L("Remove"),124,470,110,function()local ok,err=ns.DeleteDebuffRule(spec,selected);if ok then state.drafts.debuffKey=nil;state.drafts.debuff=nil end;kit.done(ok,err,L("Debuff alert removed"))end,false,"debuff-delete",{kind="danger",align="CENTER"})end
     W.Button(card,L("Save debuff alert"),412,470,180,function()collect()
-        local form={name=f.name,spellID=f.spellID,mapID=f.map=="other"and f.mapID or f.map,event=f.event,unit=f.unit,sound=f.sound,enabled=f.enabled}
+        local form={name=f.name,spellID=f.spellID,mapID=f.map=="other"and f.mapID or f.map,event=f.event,unit=f.unit,sound=f.sound,enabled=f.enabled,scope=scope}
         local key,err=ns.SaveDebuffRule(spec,selected,form);if key then state.drafts.debuffKey=key;state.drafts.debuff=nil end;kit.done(key,err,L("Debuff alert saved"))end,true,"debuff-save",{kind="primary",align="CENTER"})
 end
-ns.ExtraPages.debuffs=DrawDebuffs
+

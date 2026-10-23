@@ -73,13 +73,18 @@ Notes: shared notes (Load & send gives them to the group; leader or assistant on
 and personal notes, shown in a movable frame. Lines with your name or nickname are
 your assignments and can pop up on pull (Assignments page).
 Boss alerts: every reminder for your spec with on/off, Test and Edit.
-Debuffs: a sound or racial voice when a debuff is applied, stacks or falls off.
-"Add racial debuffs" fills in the season dungeon debuffs that Stoneform or
-Shadowmeld can clear; the voice plays only while the racial is ready.
 Raid tools: ready check, pull and break timers, invite on whisper keyword, guild
 invites by rank, group arrangement, automatic assistants.
 Players: nicknames shared with the group and an addon version check.
-Lists and long text scroll with the mouse wheel.
+Lists and long text scroll with the mouse wheel. An open drop-down list closes on
+a click anywhere outside it.
+
+DEBUFFS (Mythic+ and Raids, next to Mechanics and Defensive sets)
+A sound or racial voice when a debuff is applied, stacks or falls off.
+"Add racial debuffs" fills in the season dungeon debuffs (Mythic+) or raid boss
+debuffs (Raids) that Stoneform or Shadowmeld can clear; the voice plays only
+while the racial is ready. The raid list is picked from the debuff names and is
+not confirmed in game yet.
 
 Navigation preserves your selected encounter, specialization, defensive-set draft,
 reminder fields, settings draft and scroll position. Drafts are saved locally on

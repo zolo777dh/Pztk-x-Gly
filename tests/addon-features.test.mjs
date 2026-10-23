@@ -24,7 +24,7 @@ local set=next(ns.ScopePresets(ns.Active(),'mythic',104));ns.RenderDefensive({de
 local shown=env.shown[#env.shown];assert(shown.text:find('BARK',1,true),shown.text)
 `));
 test('debuff alerts: racial lists, editing, on/off, removal and copy between own specs',()=>run(`
-env.click('tab:debuffs');env.click('debuffs-racial')
+env.click('tab:mythic');env.click('mode:debuffs');assert(ns.UIState.tab=='mythic'and ns.UIState.mode=='debuffs');env.click('debuffs-racial')
 local menu=ns.Widgets.menu;for _,r in ipairs(menu.rows)do if r.shown and r.label.text:find('Stoneform',1,true)then r:Click()break end end
 local rules=ns.DebuffRules(104);assert(#rules>=30,#rules)
 for _,r in ipairs(rules)do assert(r.rule.display.sound=='voice:stoneform-ready'and r.rule.trigger.target=='player'and r.rule.trigger.mapID>0)end
@@ -119,19 +119,21 @@ end
 -- Content on every page: sets, reminders, debuffs, notes, nicknames.
 assert(ns.SaveSet('mythic',104,nil,'Magic',{{spellID=22812},{spellID=61336}}));assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
 env.click('tab:raid');env.click('new-timed');env.input('rule:name','Pull wall');env.input('rule:delay','20');env.click('save-rule')
-assert(ns.AddRacialDebuffs(104,'stoneform'))
+assert(ns.AddRacialDebuffs(104,'stoneform'));assert(ns.AddRacialDebuffs(104,'stoneform','raid'))
 assert(ns.SaveNote('shared',nil,{name='Plan',text='Soak 1: Tester'}));assert(ns.SetNickname('Friend','Fr'))
-local tabs={'overview','mythic','raid','sets','timeline','notes','alerts','debuffs','assign','raidtools','players','display','profiles','settings','diag'}
+local tabs={'overview','mythic','raid','sets','timeline','mythic/sets','mythic/debuffs','raid/debuffs','notes','alerts','assign','raidtools','players','display','profiles','settings','diag'}
 local dead,errors,total={},{},0
+-- 'mythic/debuffs' opens the Mythic+ section on its Debuffs switch; plain 'mythic' on Mechanics.
+local function open(tab)local t,m=tab:match('^(%w+)/?(%w*)$');env.click('tab:'..t);if t=='mythic'or t=='raid'then local c=ns.UIControls['mode:'..(m~=''and m or'mechanics')];if c then c:Click()end end end
 for pass=1,2 do for _,tab in ipairs(tabs)do
  if not ns.WorkspaceWindow.shown then ns.Open()end
- env.click('tab:'..tab)
+ open(tab)
  local keys={}
  for k,c in pairs(ns.UIControls)do if c.scripts and c.scripts.OnClick and not k:match('^tab:')and k~='close'then keys[#keys+1]=k end end
  table.sort(keys)
  for _,k in ipairs(keys)do
   if not ns.WorkspaceWindow.shown then ns.Open()end
-  env.click('tab:'..tab)
+  open(tab)
   local c=ns.UIControls[k]
   if c then
    total=total+1;ns.UIState.message='__x'
@@ -145,10 +147,37 @@ for pass=1,2 do for _,tab in ipairs(tabs)do
 end end
 assert(#errors==0,'Controls raised errors:\\n'..table.concat(errors,'\\n'))
 -- Controls that legitimately change nothing when clicked in the state they are already in.
-local same={['top:timeline']=1,['top:display']=1,['header-profile']=1,['top:roster']=1,['debuff-new']=1,['display-anchor']=1}
+local same={['top:timeline']=1,['top:display']=1,['header-profile']=1,['top:roster']=1,['debuff-new']=1,['mode:mechanics']=1,['mode:sets']=1,['mode:debuffs']=1,['display-anchor']=1}
 local unexplained={}
 for _,line in ipairs(dead)do local key=line:match(' (.+)$');local chosen=key:match(':%d+$')or key:match('scope:')or key:match('^ability:')or key:match('^entity:')or key:match('^set:')or key:match('^note:')or key:match('^debuff:')or key:match('^timed:')
  if not same[key]and not chosen then unexplained[#unexplained+1]=line end end
 assert(#unexplained==0,'Controls with no effect:\\n'..table.concat(unexplained,'\\n'))
 assert(total>250,'Audit clicked only '..total..' controls')
+`));
+test('debuffs sit in Mythic+ and Raids, raids get their own racial list, /ndp debuffs opens them',()=>run(`
+env.click('tab:raid');env.click('mode:debuffs');assert(ns.UIState.tab=='raid'and ns.UIState.mode=='debuffs')
+assert(ns.UIControls['tab:debuffs']==nil,'Debuffs must not be a sidebar section')
+ns.UIControls['debuffs-racial']:Click();for _,r in ipairs(ns.Widgets.menu.rows)do if r.shown and r.label.text:find('Stoneform',1,true)then r:Click()break end end
+local raid,mythic=0,0;for _,r in ipairs(ns.DebuffRules(104))do if r.rule.trigger.scope=='raid'then raid=raid+1;assert(r.rule.trigger.mapID==0)else mythic=mythic+1 end end
+assert(raid>=15 and mythic==0,raid..' '..mythic)
+local found=false;for k in pairs(ns.UIControls)do if k:match('^debuff%-group:Vashnik')then found=true end end;assert(found,'Raid alerts are grouped by boss')
+env.click('debuff-new');env.input('debuff:spellID','1290336');env.click('debuff-save')
+local saved;for _,r in ipairs(ns.DebuffRules(104))do if r.rule.trigger.spellID==1290336 then saved=r end end;assert(saved and saved.rule.trigger.scope=='raid')
+env.click('tab:mythic');env.click('mode:debuffs');for k in pairs(ns.UIControls)do assert(not k:match('^debuff%-group:Vashnik'),'Raid alerts leaked into Mythic+')end
+env.reload();assert(#ns.DebuffRules(104)>=16,'Raid debuff alerts did not survive a reload')
+ns.WorkspaceWindow:Hide();SlashCmdList.NDP('debuffs');assert(ns.UIState.mode=='debuffs')
+`));
+test('an open list closes on a click anywhere outside it',()=>run(`
+env.click('tab:settings');ns.UIControls['ui:theme']:Click()
+local menu=ns.Widgets.menu;assert(menu.shown and menu.catcher.shown)
+menu.catcher.scripts.OnMouseDown(menu.catcher,'LeftButton')
+assert(not menu.shown and not menu.catcher.shown,'The list stayed open')
+ns.UIControls['ui:theme']:Click();assert(menu.shown);menu.rows[1]:Click();assert(not menu.catcher.shown)
+`));
+test('Test set speaks the chosen ability, not a set preview line',()=>run(`
+local spoken={};C_VoiceChat={GetTtsVoices=function()return{{voiceID=1}}end,SpeakText=function(_,text)spoken[#spoken+1]=text end}
+env.click('tab:sets');env.input('set-name','Bear');env.input('new-spell','22812');env.click('add-spell');env.click('save-set')
+local n=#env.shown;env.click('test-set');local d=env.shown[#env.shown];assert(#env.shown==n+1)
+assert(not d.text:find('preview',1,true),d.text);assert(d.text==ns.SpellLabel(22812),d.text);assert(d.tts~=false and d.ttsText==ns.SpellLabel(22812),tostring(d.tts)..' '..tostring(d.ttsText))
+env.click('set-callout:1');env.input('callout:spoken','bark now');env.click('callout-save');env.click('test-set');assert(env.shown[#env.shown].ttsText=='bark now')
 `));

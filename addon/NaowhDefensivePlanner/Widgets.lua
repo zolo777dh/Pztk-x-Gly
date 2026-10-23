@@ -343,6 +343,10 @@ function W.Select(parent,title,options,value,x,y,w,callback,key,opts)
             p.scroll=CreateFrame("ScrollFrame",nil,p);p.scroll:SetPoint("TOPLEFT",4,-4)
             p.child=CreateFrame("Frame",nil,p.scroll);W.AttachScrollChild(p.scroll,p.child);p.child.wheelScroll=p.scroll;W.menu=p
             wheel(p.scroll,p,0,6,288)
+            -- A click anywhere outside the open list closes it, like a click on one of its rows.
+            local catcher=CreateFrame("Frame",nil,UIParent);catcher:SetAllPoints(UIParent);catcher:SetFrameStrata("FULLSCREEN_DIALOG");catcher:EnableMouse(true);catcher:Hide()
+            catcher:SetScript("OnMouseDown",function()p:Hide()end);p.catcher=catcher
+            p:SetScript("OnShow",function()catcher:Show()end);p:SetScript("OnHide",function()catcher:Hide()end)
         end
         p:ClearAllPoints();local height=math.min(300,#options*28+8);local bottom=b.GetBottom and b:GetBottom()
         if type(bottom)=="number"and bottom<height then p:SetPoint("BOTTOMLEFT",b,"TOPLEFT",0,2)else p:SetPoint("TOPLEFT",b,"BOTTOMLEFT",0,-2)end
@@ -361,7 +365,7 @@ function W.Select(parent,title,options,value,x,y,w,callback,key,opts)
             row:SetScript("OnClick",function()if W.BeforeAction then W.BeforeAction()end;p:Hide();b.label:SetText(o.label);if callback then callback(o.value)end end)
         end
         if p.scroll.UpdateThumb then p.scroll.UpdateThumb()end
-        p:Show();W.popup=p
+        p:Show();p.catcher:Show();W.popup=p
     end,false,key,opts)
     local h=opts and opts.h or 30
     b.label:SetWidth(math.max(1,w-b.left-30));W.Glyph(b,"chevron",w-24,(h-12)/2,12,W.colors.muted)

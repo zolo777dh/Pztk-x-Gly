@@ -72,7 +72,7 @@ end
 function ns.CreateProfile(name,copy)
     local ok,result=pcall(function()
         Editable();name=Name(name);local store=ns.Store();assert(not store.profiles[name],"A profile with this name already exists")
-        local p=copy and ns.Clone(assert(ns.Active(),"No profile to copy"))or{format=1,addon="PztkReminders",client=ns.Client(),data={settings={enabled=true,showIcon=true,showText=true,voiceOn=false},presets={},activePreset={},abilityBindings={},integrationRules={},raidReminders={}}}
+        local p=copy and ns.Clone(assert(ns.Active(),"No profile to copy"))or{format=1,addon="PztkReminders",client=ns.Client(),data={settings={enabled=true,showIcon=true,showText=true,voiceOn=true},presets={},activePreset={},abilityBindings={},integrationRules={},raidReminders={}}}
         p.name=name;p.minimumAddon=ns.MinimumAddon(p.data);Prepare(p.data);store.profiles[name]=p;store.active=name;Changed();return name
     end);if ok then return result end;return nil,tostring(result)
 end
@@ -325,7 +325,8 @@ function ns.SaveDebuffRule(spec,key,form)
         data.integrationRules=data.integrationRules or{};data.integrationRules[spec]=ns.Get(data.integrationRules,spec)or{}
         key=key or ns.UID("debuff")
         local name=tostring(form.name or""):match("^%s*(.-)%s*$");if name==""then name=(ns.SpellLabel and ns.SpellLabel(spell))or("Debuff "..spell)end
-        data.integrationRules[spec][key]={name=Name(name),enabled=form.enabled~=false,trigger={type="auraSound",mapID=map,spellID=spell,auraEvent=form.event,target=form.unit},display={sound=form.sound}}
+        local scope=form.scope=="raid"and"raid"or nil
+        data.integrationRules[spec][key]={name=Name(name),enabled=form.enabled~=false,trigger={type="auraSound",mapID=map,spellID=spell,auraEvent=form.event,target=form.unit,scope=scope},display={sound=form.sound}}
         return key
     end)
 end
@@ -335,16 +336,20 @@ end
 function ns.DeleteDebuffRule(spec,key)
     return ns.EditProfile(function(data)spec=OwnSpec(Integer(spec,"specialization"));local rules=ns.Get(data.integrationRules,spec);assert(rules and ns.Get(rules,key),"Debuff alert not found");rules[key]=nil;return true end)
 end
--- Adds the bundled racial list (Stoneform / Shadowmeld). Debuffs already watched on the same instance are kept.
-function ns.AddRacialDebuffs(spec,racial)
+-- Adds the bundled racial list (Stoneform / Shadowmeld) of the season dungeons, or of the raid
+-- with scope "raid". Debuffs already watched on the same instance are kept.
+function ns.AddRacialDebuffs(spec,racial,scope)
     return ns.EditProfile(function(data)
         spec=OwnSpec(Integer(spec,"specialization"));local voice=assert(({stoneform="voice:stoneform-ready",shadowmeld="voice:shadowmeld-ready"})[racial],"Choose a racial")
         data.integrationRules=data.integrationRules or{};data.integrationRules[spec]=ns.Get(data.integrationRules,spec)or{}
         local rules=data.integrationRules[spec];local have={};local added=0
         for _,r in pairs(rules)do local t=r.trigger or{};if t.type=="auraSound"then have[t.mapID..":"..t.spellID]=true end end
-        for _,d in ipairs(ns.RacialDebuffs or{})do for _,e in ipairs(d.list)do
-            if e[3]==racial and not have[d.mapID..":"..e[1]]then
-                rules[ns.UID("debuff")]={name=e[2],enabled=true,trigger={type="auraSound",mapID=d.mapID,spellID=e[1],auraEvent="Added",target="player"},display={sound=voice}};added=added+1
+        local raid=scope=="raid"
+        for _,d in ipairs((raid and ns.RaidRacialDebuffs or ns.RacialDebuffs)or{})do for _,e in ipairs(d.list)do
+            local map=raid and 0 or d.mapID
+            if e[3]==racial and not have[map..":"..e[1]]then
+                have[map..":"..e[1]]=true
+                rules[ns.UID("debuff")]={name=e[2],enabled=true,trigger={type="auraSound",mapID=map,spellID=e[1],auraEvent="Added",target="player",scope=raid and"raid"or nil},display={sound=voice}};added=added+1
             end
         end end
         return added
