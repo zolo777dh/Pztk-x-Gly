@@ -3,7 +3,7 @@
 // vertex colors, draw layers, blend modes and the shipped fonts are emulated in Chromium.
 import fs from 'node:fs/promises';import path from 'node:path';import {execFileSync}from 'node:child_process';import {chromium}from 'playwright-core';
 const root=path.resolve('addon/NaowhDefensivePlanner'),out=path.resolve('test-results/addon-layout');await fs.mkdir(out,{recursive:true});const harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
-const sources=['Runtime','Locale','Catalog','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'];
+const sources=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'];
 const prefix=`strmatch=string.match;local env=(function()\n${harness}\nend)();local ns={};\n`+['Libs/LibStub.lua','Libs/LibSerialize.lua','Libs/LibDeflate.lua',...sources.map(x=>x+'.lua')].map(x=>x.startsWith('Libs/')?`dofile(${JSON.stringify(root+'/'+x)})`:`assert(loadfile(${JSON.stringify(root+'/'+x)}))('NaowhDefensivePlanner',ns)`).join('\n')+`\nns.Open();local m=assert(ns.SaveSet('mythic',104,nil,'Magic damage',{{spellID=22812,enabled=true},{spellID=61336,enabled=true},{spellID=200851,enabled=true}}));assert(ns.SaveSet('raid',104,nil,'Raid personal',{{spellID=22812,enabled=true},{spellID=61336,enabled=true}}));\n`;
 const scenarios={
  overview:`env.click('tab:overview')`,
@@ -11,7 +11,8 @@ const scenarios={
  sets:`env.click('tab:mythic');env.click('mode:sets')`,
  raid:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Personal defensive');env.select('rule:action','Defensive priority set');env.select('rule:preset','Raid personal');env.input('rule:delay','45');env.click('save-rule')`,
  raidbar:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Soak');env.select('rule:action','Countdown bar');env.select('rule:barColor','Red');env.input('rule:ticks','3, 6');local f=ns.UIControls['rule:glowNames'];assert(f)`,
- timeline:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Pull wall');env.input('rule:delay','20');env.click('save-rule');env.click('new-timed');env.input('rule:name','Big add');env.input('rule:delay','95');env.click('save-rule');local enc=next(ns.Active().data.raidReminders);ns.Store().timelines={[ns.Client()..':'..enc..':15']={events={{12,22812},{42,61336},{90,22812},{130,61336}},length=180}};env.click('tab:timeline')`,
+ timeline:`env.click('tab:raid');env.click('new-timed');env.input('rule:name','Pull wall');env.input('rule:delay','20');env.click('save-rule');env.click('new-timed');env.input('rule:name','Big add');env.input('rule:delay','95');env.click('save-rule');env.click('new-timed');env.input('rule:name','Soak');env.select('rule:trigger','Boss mod message');env.click('save-rule');local enc,sp;for e,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do enc=e;if v.name=='Soak'then sp=v.trigger.spellID end end end;ns.Store().timelines={[ns.Client()..':'..enc..':15']={events={{12,22812},{42,sp},{90,22812},{130,sp}},length=180}};env.click('tab:timeline')`,
+ profiles:`env.click('tab:profiles');env.click('profile-export')`,
  callout:`env.click('tab:mythic');env.click('mode:sets');env.click('set-callout:1')`,
  debuffs:`assert(ns.AddRacialDebuffs(104,'stoneform'));assert(ns.AddRacialDebuffs(104,'shadowmeld'));env.click('tab:mythic');env.click('mode:debuffs');local r=ns.DebuffRules(104)[1];env.click('debuff:'..r.key)`,
  raiddebuffs:`assert(ns.AddRacialDebuffs(104,'stoneform','raid'));env.click('tab:raid');env.click('mode:debuffs')`,

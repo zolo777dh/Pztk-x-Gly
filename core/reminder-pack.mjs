@@ -1,6 +1,11 @@
 import {deflateRawSync,inflateRawSync} from 'node:zlib';
 import {encodePrint,decodePrint,validatePackBounds} from './packs.mjs';
 import {migrateNsrData} from './nsr-migration.mjs';
+import {encodeCbor,decodeCbor} from './cbor.mjs';
+// Native string: one !NDP1: carries every profile of a client, Mythic+ and raids:
+// '!NDP1:' + Base64(raw Deflate(CBOR({v:1,addon,client,minimumAddon,active,profiles:[…]}))).
+export const NDP_PREFIX='!NDP1:';
+const newer=(a,b)=>{const x=String(a).split('.').map(Number),y=String(b).split('.').map(Number);for(let i=0;i<Math.max(x.length,y.length);i++)if((x[i]||0)!==(y[i]||0))return (x[i]||0)>(y[i]||0);return false;};
 export const REMINDER_CLIENTS={retail:'12.1.5.70448',forever:'1.60.1.70425'};
 const object=v=>v&&typeof v==='object'&&!Array.isArray(v);
 const table=(v,label)=>{if(!object(v)&&!Array.isArray(v))throw Error('Invalid '+label+' table');return v;};
@@ -63,8 +68,31 @@ function validateRuntime(data){
 export class ReminderPack{
  constructor(codec){this.codec=codec;}
  validate(p){if(!p||p.format!==1||p.addon!=='PztkReminders'||typeof p.name!=='string'||p.name.length>200||!REMINDER_CLIENTS[p.client])throw Error('Expected a Naowh Defensive Planner profile for Retail or Forever');if(p.licensed)throw Error('Licensed source packs cannot be migrated');validatePackBounds(p);validateRuntime(p.data);return p;}
- decode(text){const input=String(text).replace(/\s+/g,'');if(!input.startsWith('PZTK1:')||input.length>130000)throw Error('Expected PZTK1 string under 130 KB');let raw;try{raw=inflateRawSync(decodePrint(input.slice(6)),{maxOutputLength:4e6});}catch{throw Error('Invalid Naowh Defensive Planner compression or size limit exceeded');}const result=this.codec.invoke('decode',raw,{trackKeys:true});normalizeOptionalIds(result.pack?.data);this.validate(result.pack);return result;}
- encode(pack,numericKeys=[]){this.validate(pack);const text='PZTK1:'+encodePrint(deflateRawSync(this.codec.invoke('encode',pack,{numericKeys})));this.decode(text);return text;}
+ // Older PZTK1 strings (one profile, LibSerialize) are still read.
+ decodeLegacy(input){if(input.length>130000)throw Error('Expected PZTK1 string under 130 KB');let raw;try{raw=inflateRawSync(decodePrint(input.slice(6)),{maxOutputLength:4e6});}catch{throw Error('Invalid Naowh Defensive Planner compression or size limit exceeded');}const result=this.codec.invoke('decode',raw,{trackKeys:true});normalizeOptionalIds(result.pack?.data);this.validate(result.pack);return result;}
+ decodeBundle(text){
+  const input=String(text).replace(/\s+/g,'');
+  if(input.startsWith('PZTK1:')){const r=this.decodeLegacy(input);return {client:r.pack.client,active:r.pack.name,profiles:[r]};}
+  if(!input.startsWith(NDP_PREFIX)||input.length>1e6)throw Error('Expected a '+NDP_PREFIX+' string under 1 MB');
+  let raw;try{raw=inflateRawSync(Buffer.from(input.slice(NDP_PREFIX.length),'base64'),{maxOutputLength:8e6});}catch{throw Error('Invalid Naowh Defensive Planner compression or size limit exceeded');}
+  const {data,numericKeys}=decodeCbor(raw,{maxBytes:8e6,maxItems:2e6});
+  if(!object(data)||data.v!==1||data.addon!=='NaowhDefensivePlanner'||!REMINDER_CLIENTS[data.client])throw Error('Not a Naowh Defensive Planner export');
+  const list=sequence(data.profiles);if(!list||!list.length||list.length>50)throw Error('The export holds no profiles');
+  const profiles=list.map((pack,i)=>{if(pack?.client!==data.client)throw Error('Profile '+(i+1)+' belongs to another game client');normalizeOptionalIds(pack.data);this.validate(pack);return {pack,numericKeys:numericKeys.filter(p=>p[0]==='profiles'&&p[1]===String(i)).map(p=>p.slice(2))};});
+  return {client:data.client,active:typeof data.active==='string'?data.active:null,profiles};
+ }
+ // The active profile of a bundle (or its first).
+ decode(text){const b=this.decodeBundle(text);return b.profiles.find(p=>p.pack.name===b.active)||b.profiles[0];}
+ encodeBundle(list,active){
+  if(!list.length||list.length>50)throw Error('Export holds 1 to 50 profiles');
+  let need='0.2.0';const client=list[0].pack.client;
+  for(const {pack}of list){this.validate(pack);if(pack.client!==client)throw Error('All profiles of one export belong to one game client');const m=pack.minimumAddon||minimumAddonFor(pack.data);if(newer(m,need))need=m;}
+  const bundle={v:1,addon:'NaowhDefensivePlanner',client,minimumAddon:need,...(active!=null?{active}:{}),profiles:list.map(x=>x.pack)};
+  const keys=list.flatMap((x,i)=>(x.numericKeys||[]).map(p=>['profiles',String(i),...p]));
+  const text=NDP_PREFIX+deflateRawSync(encodeCbor(bundle,keys,{maxBytes:8e6})).toString('base64');
+  if(text.length>1e6)throw Error('Export exceeds 1 MB');this.decodeBundle(text);return text;
+ }
+ encode(pack,numericKeys=[]){return this.encodeBundle([{pack,numericKeys}],pack.name);}
  fromDraft(draft,client){if(draft.pack.licensed)throw Error('Licensed source packs cannot be migrated');const source=draft.pack.profiles?draft.pack.profiles[draft.profileKey]:draft.pack.data;if(!source)throw Error('Choose one working profile');if(source.bindingsBySpec===false&&Object.keys(source.abilityBindings||{}).length)throw Error('Migrate legacy non-spec NSR bindings in current NSR before importing');const {data,warnings,report,convertedPaths}=migrateNsrData(source);
  normalizeOptionalIds(data);
  const pack={format:1,addon:'PztkReminders',name:draft.pack.name||'Reminder profile',client,build:REMINDER_CLIENTS[client],minimumAddon:minimumAddonFor(data),data,...(draft.pack.pztkLabels?{pztkLabels:structuredClone(draft.pack.pztkLabels)}:{}),...(draft.pack.derivedFrom?{derivedFrom:structuredClone(draft.pack.derivedFrom)}:{})};const prefix=draft.pack.profiles?['profiles',draft.profileKey]:['data'],numericKeys=draft.numericKeys.filter(p=>prefix.every((k,i)=>p[i]===k)&&Object.hasOwn(data,p[prefix.length])).map(p=>['data',...p.slice(prefix.length)]);numericKeys.push(...convertedPaths.map(p=>['data',...p]));return {text:this.encode(pack,numericKeys),warnings,payload:pack,report};

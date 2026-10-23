@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.6.7 — in-game editor and reminder engine
+Naowh Defensive Planner 0.6.8 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -154,7 +154,18 @@ difficulty (the kill, or the lowest wipe). If the game hides boss health, it say
 Private auras: big icons of your own private auras (and the other tank's, as tank),
 drawn by the game into slots you can size and move.
 
+EXPORT STRING (!NDP1:)
+Profiles > Export all profiles gives one !NDP1: string with every profile of this
+game client, Mythic+ and raid data together. Only active exports the selected
+profile. Import adds every profile of the string (same names get a number) and
+selects the one that was active. The format is the addon's own: CBOR, raw
+Deflate and Base64. Older PZTK1 strings still import.
+
 TIMELINE TOOLS
+The Mechanics lane shows reminders and defensive sets tied to boss abilities at
+the times those abilities happened on your recorded pull. + Timed reminder can
+also make a "Boss mod timer bar" or "Boss mod message" reminder for a chosen
+boss ability.
 Boss timeline: each pull records when your boss mod announced the boss abilities.
 The kill (or the longest pull) is kept, and the Timeline page shows it as a
 "Boss" lane. Click an ability icon to start a reminder at that time. You need one
@@ -182,7 +193,7 @@ list of specs) are kept. Sounds from the Timeline Reminders folder are left out.
 
 PROFILES
 Create, copy, rename, delete, select, import or export a profile inside the game.
-PZTK1 is the native combined M+ / raid export. Imports create a separate profile.
+!NDP1: is the native export (all profiles, M+ and raids). Imports create separate profiles.
 Direct imports also accept unlicensed NSRPACK2 and current !NSRT:Profile: or
 !NSRT:EncounterAlert: exports (full, single alert or group). Review the migration
 report in the string box. NSRT glow units glow those players' raid frames next to

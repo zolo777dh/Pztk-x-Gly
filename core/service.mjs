@@ -44,7 +44,7 @@ export class DoctorService {
     switch(method){
       case 'init':return { ...this.state,version:APP_VERSION,backups:await this.patches.list(),tokens:this.tokenStatus()};
       case 'reminders.decode':return this.reminderPack.decode(args.text).pack;
-      case 'reminders.import':{const {pack,numericKeys}=this.reminderPack.decode(args.text);if(pack.client!==args.client)throw Error('This profile belongs to '+pack.client+'. Switch the client target before importing.');const legacy={format:1,name:pack.name,data:pack.data,pztkLabels:pack.pztkLabels,...(pack.derivedFrom?{derivedFrom:pack.derivedFrom}:{})};return this.planner.importProfile(this.codec.encode(legacy,{numericKeys}),args.client);}
+      case 'reminders.import':{const bundle=this.reminderPack.decodeBundle(args.text);if(bundle.client!==args.client)throw Error('This profile belongs to '+bundle.client+'. Switch the client target before importing.');let selected;for(const {pack,numericKeys}of bundle.profiles){const legacy={format:1,name:pack.name,data:pack.data,pztkLabels:pack.pztkLabels,...(pack.derivedFrom?{derivedFrom:pack.derivedFrom}:{})};const p=await this.planner.importProfile(this.codec.encode(legacy,{numericKeys}),args.client);if(!selected||pack.name===bundle.active)selected=p;}return selected;}
       case 'reminders.export':{const d=await this.nsrEditor.read(args.id);if(d.revision!==args.revision)throw Error('Profile changed after review. Refresh before export.');const source=await this.planner.read(d.source.kind,d.source.id);return this.reminderPack.fromDraft(d,source.client||'retail');}
       case 'reminders.read':return this.reminders.view(args.id);
       case 'reminders.save':return this.reminders.save(args);
