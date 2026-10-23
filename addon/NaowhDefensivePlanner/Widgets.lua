@@ -77,7 +77,7 @@ local function forwardWheel(f,parent)
     else f:EnableMouseWheel(false)end
 end
 W.ForwardWheel=forwardWheel
-local resetScripts={"OnClick","OnEnter","OnLeave","OnEscapePressed","OnEnterPressed","OnTextChanged","OnKeyDown","OnUpdate","OnEditFocusGained","OnEditFocusLost","OnMouseWheel","OnVerticalScroll","OnScrollRangeChanged"}
+local resetScripts={"OnClick","OnEnter","OnLeave","OnEscapePressed","OnEnterPressed","OnTextChanged","OnKeyDown","OnUpdate","OnEditFocusGained","OnEditFocusLost","OnMouseWheel","OnVerticalScroll","OnScrollRangeChanged","OnReceiveDrag","OnMouseUp"}
 function W.Frame(kind,unused,parent,template)
     if not W.building then local f=CreateFrame(kind,nil,parent,template);if kind=="Button"or kind=="EditBox"then forwardWheel(f,parent)end;return f end
     -- A ScrollFrame retains its scroll child. Never recycle that child into a
@@ -87,6 +87,7 @@ function W.Frame(kind,unused,parent,template)
     local f=pool[pool.index];if not f then f=CreateFrame(kind,nil,parent,template);pool[pool.index]=f else
         f:SetParent(parent);f:ClearAllPoints()
         for _,event in ipairs(resetScripts)do if f:HasScript(event)then f:SetScript(event,nil)end end
+        if f.dropTarget then f.dropTarget=nil;f:EnableMouse(false)end
     end
     f.surface=nil;f.rest=nil
     if kind=="Button"or kind=="EditBox"then forwardWheel(f,parent)end
@@ -330,6 +331,28 @@ function W.Scroll(parent,x,y,w,h,key,color)
     local child=W.Frame("Frame",nil,s);child:SetSize(w-16,1);W.AttachScrollChild(s,child);child.surface=panel.surface;child.wheelScroll=s
     wheel(s,panel,w-7,6,h-12)
     if key then ns.UIScrolls[key]=s end;s:SetVerticalScroll(key and W.scrollPositions and W.scrollPositions[key]or 0);return child,s,panel
+end
+-- Spell dragged from the spellbook or an action bar: its spell ID, or nil and the cursor kind.
+function W.CursorSpell()
+    if not GetCursorInfo then return nil end
+    local kind,index,book,spell=GetCursorInfo()
+    if kind~="spell"then return nil,kind end
+    spell=tonumber(spell)
+    if not spell and C_SpellBook and C_SpellBook.GetSpellBookItemInfo and Enum and Enum.SpellBookSpellBank then
+        local ok,info=pcall(C_SpellBook.GetSpellBookItemInfo,index,book=="pet"and Enum.SpellBookSpellBank.Pet or Enum.SpellBookSpellBank.Player)
+        if ok and type(info)=="table"then spell=tonumber(info.spellID)end
+    end
+    return spell,kind
+end
+-- Lets a frame take a spell dropped on it: a drag release, or a click while a spell is held.
+function W.DropTarget(frame,callback)
+    frame:EnableMouse(true);frame.dropTarget=true
+    local function drop()
+        local spell,kind=W.CursorSpell();if not spell and not kind then return end
+        if ClearCursor then ClearCursor()end;callback(spell,kind)
+    end
+    frame:SetScript("OnReceiveDrag",drop);frame:SetScript("OnMouseUp",drop)
+    return frame
 end
 -- title=nil draws the button only, at y. opts are passed to the button (pill, avatar...).
 function W.Select(parent,title,options,value,x,y,w,callback,key,opts)

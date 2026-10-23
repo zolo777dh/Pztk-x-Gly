@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.6.1"
+ns.version = "0.6.3"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -98,9 +98,18 @@ function ns.Target(t)
     end
     return true
 end
+-- Dungeon difficulties: Normal, Heroic, Mythic, Mythic+, Timewalking, Follower and story dungeons.
+ns.DungeonDifficulties={[1]=true,[2]=true,[8]=true,[23]=true,[24]=true,[150]=true,[205]=true}
+function ns.InDungeon()
+    return ns.instanceType=="party"or(ns.difficulty~=nil and ns.DungeonDifficulties[ns.difficulty]==true)
+end
+-- A dungeon reminder fires in every dungeon difficulty: a Mythic+ flag (8) from NSR or the
+-- planner covers Normal, Heroic and Mythic too. Raid flags still pick Heroic or Mythic.
 function ns.Difficulty(entry)
     if not entry.difficulties or not next(entry.difficulties) then return true end
-    return ns.Get(entry.difficulties, ns.difficulty) == true
+    if ns.Get(entry.difficulties, ns.difficulty) == true then return true end
+    if ns.InDungeon() then for diff, on in pairs(entry.difficulties) do if on == true and ns.DungeonDifficulties[tonumber(diff)] then return true end end end
+    return false
 end
 function ns.Cancel(prefix)
     local keys = {}

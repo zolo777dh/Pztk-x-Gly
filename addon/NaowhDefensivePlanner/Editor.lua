@@ -42,11 +42,13 @@ end
 function ns.ContentMatches(entry)
     local profile=ns.Active();local filters=profile and profile.data.contentDifficulties
     local selected=ns.ContentScope(entry);local allowed=filters and filters[selected]
+    -- Dungeon content runs in any dungeon difficulty, whatever an imported NSR filter says.
+    if selected=="mythic"and ns.InDungeon and ns.InDungeon()then allowed=nil end
     if allowed and not ns.Get(allowed,ns.difficulty)then return false end
     return not entry.content or entry.content==ns.ContentScope()
 end
 local function Prepare(data)
-    data.contentDifficulties=data.contentDifficulties or{mythic={[8]=true},raid={[15]=true,[16]=true}}
+    data.contentDifficulties=data.contentDifficulties or{mythic={[1]=true,[2]=true,[8]=true,[23]=true,[24]=true},raid={[15]=true,[16]=true}}
     data.scopePresets=data.scopePresets or{}
     data.scopeActivePreset=data.scopeActivePreset or{}
     for _,scope in ipairs({"mythic","raid"})do

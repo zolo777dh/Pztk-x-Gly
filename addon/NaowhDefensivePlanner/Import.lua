@@ -59,7 +59,7 @@ local function NSR(input)
     local data,report={},Report("NSR")
     for _,key in ipairs({"presets","activePreset","abilityBindings","integrationRules","raidReminders","callouts","voiceNone","leadTime","settings","scopePresets","scopeActivePreset","manualCatalog"})do data[key]=ns.Clone(original[key])end
     data.raidReminders=data.raidReminders or{}
-    data.contentDifficulties={mythic={[8]=true},raid={[15]=true,[16]=true}}
+    data.contentDifficulties={mythic={[1]=true,[2]=true,[8]=true,[23]=true,[24]=true},raid={[15]=true,[16]=true}}
     for enc,entries in pairs(original.customReminders or{})do for key,r in pairs(entries)do
         local success,error=pcall(function()
             local t=r.trigger or{};assert(({pull=true,stage=true,bwtimer=true,bwmsg=true})[t.type],"Unsupported trigger "..tostring(t.type))
@@ -77,11 +77,15 @@ local function NSR(input)
         end)
         if not success then issue(report,tostring(enc).."/"..tostring(key),tostring(error))end
     end end
-    for _,key in ipairs({"coveredSkip","coveredSkipDefaultOn","coveredCastWindow"})do if data.settings and data.settings[key]then issue(report,"settings/"..key,"Setting retained; this behavior is not implemented")end end
+    -- NSR "already covered" settings work here too; an out-of-range window is clamped.
+    if data.settings and type(data.settings.coveredCastWindow)=="number"then data.settings.coveredCastWindow=math.max(0,math.min(60,data.settings.coveredCastWindow))end
     for spec,rules in pairs(data.integrationRules or{})do for key,r in pairs(rules)do
         
         if r.trigger and r.trigger.type~="exboss"and r.trigger.type~="auraSound"then rules[key]=nil;issue(report,spec.."/"..key,"Unsupported integration trigger")
-        elseif r.preset and not ns.Get(ns.Get(data.presets,spec),r.preset)then issue(report,spec.."/"..key,"Set is missing; empty-text ExBoss rules retain active-set fallback")end
+        elseif r.preset and not ns.Get(ns.Get(data.presets,spec),r.preset)and not ns.Get(ns.Get(ns.Get(data.scopePresets,"mythic"),spec),r.preset)then
+            -- The rule points at a set that is not in the export: it falls back to the active Mythic+ set.
+            r.preset=nil;issue(report,spec.."/"..key,"Set was not in the export; this trash rule now uses the active Mythic+ set")
+        end
     end end
     local p=Native(source.name,data);p.derivedFrom=ns.Clone(source.derivedFrom);p.author=source.author;return p,report
 end

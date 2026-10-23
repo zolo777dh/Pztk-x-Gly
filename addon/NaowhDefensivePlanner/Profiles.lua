@@ -65,8 +65,8 @@ end
 local function Settings(s)
     if s==nil then return true end
     if type(s)~="table"then return false end
-    for _,key in ipairs({"enabled","voiceOn","soundOn","fallbackOn","showIcon","showText","showBar","cdmGlow","externalAudio","externalChat"})do if s[key]~=nil and type(s[key])~="boolean"then return false end end
-    for _,range in ipairs({{"voiceVol",0,100},{"iconSize",8,256},{"textSize",6,80},{"leadTime",0,120},{"lingerSec",0.1,120}})do if not Number(s[range[1]],range[2],range[3],true)then return false end end
+    for _,key in ipairs({"enabled","voiceOn","soundOn","fallbackOn","showIcon","showText","showBar","cdmGlow","externalAudio","externalChat","coveredSkip","coveredSkipDefaultOn"})do if s[key]~=nil and type(s[key])~="boolean"then return false end end
+    for _,range in ipairs({{"voiceVol",0,100},{"iconSize",8,256},{"textSize",6,80},{"leadTime",0,120},{"lingerSec",0.1,120},{"coveredCastWindow",0,60}})do if not Number(s[range[1]],range[2],range[3],true)then return false end end
     for _,key in ipairs({"soundKey","voiceNone","textSide","bossSource"})do if s[key]~=nil and type(s[key])~="string"then return false end end
     if s.pos~=nil then
         if type(s.pos)~="table"or not Number(s.pos.x,-10000,10000,true)or not Number(s.pos.y,-10000,10000,true)then return false end

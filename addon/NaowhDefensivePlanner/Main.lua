@@ -96,7 +96,9 @@ local events=CreateFrame("Frame")
 for _,event in ipairs({"ADDON_LOADED","PLAYER_ENTERING_WORLD","ENCOUNTER_START","ENCOUNTER_END","PLAYER_REGEN_ENABLED","PLAYER_SPECIALIZATION_CHANGED","PLAYER_LOGOUT"})do events:RegisterEvent(event)end
 -- Countdown events may be missing on some clients; pre-pull reminders then stay idle.
 for _,event in ipairs({"START_PLAYER_COUNTDOWN","CANCEL_PLAYER_COUNTDOWN"})do pcall(events.RegisterEvent,events,event)end
+pcall(events.RegisterUnitEvent or events.RegisterEvent,events,"UNIT_SPELLCAST_SUCCEEDED","player")
 events:SetScript("OnEvent",function(_,event,a,b,c)
+    if event=="UNIT_SPELLCAST_SUCCEEDED"then if a=="player"and ns.NoteCast then ns.NoteCast(c)end;return end
     if event=="PLAYER_LOGOUT"then if ns.SaveWorkspaceDrafts then ns.SaveWorkspaceDrafts()end;return
     elseif event=="ENCOUNTER_START"then ns.RefreshContext();ns.Begin(a,c,ns.map)
     elseif event=="START_PLAYER_COUNTDOWN"then ns.Countdown(b)

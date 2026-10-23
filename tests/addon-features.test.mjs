@@ -181,3 +181,41 @@ local n=#env.shown;env.click('test-set');local d=env.shown[#env.shown];assert(#e
 assert(not d.text:find('preview',1,true),d.text);assert(d.text==ns.SpellLabel(22812),d.text);assert(d.tts~=false and d.ttsText==ns.SpellLabel(22812),tostring(d.tts)..' '..tostring(d.ttsText))
 env.click('set-callout:1');env.input('callout:spoken','bark now');env.click('callout-save');env.click('test-set');assert(env.shown[#env.shown].ttsText=='bark now')
 `));
+test('a spell dragged from the spellbook onto the set is added to it',()=>run(`
+env.click('tab:sets');env.input('set-name','Drag')
+local targets={};for _,f in ipairs(env.frames)do if f.dropTarget and f:IsVisible()then targets[#targets+1]=f end end;assert(#targets>=3,#targets)
+local cursor;GetCursorInfo=function()if cursor then return unpack(cursor)end end;ClearCursor=function()cursor=nil end
+cursor={'spell',12,'spell',22812};targets[1].scripts.OnReceiveDrag(targets[1]);assert(cursor==nil and #ns.UIState.setRows==1 and ns.UIState.setRows[1].spellID==22812)
+assert(ns.UIControls['set-name']:GetText()=='Drag','The set name draft was lost')
+-- Older clients give only the spellbook slot: the ID comes from the spellbook.
+Enum=Enum or{};Enum.SpellBookSpellBank={Player=0,Pet=1};C_SpellBook=C_SpellBook or{};C_SpellBook.GetSpellBookItemInfo=function(i,bank)if i==7 and bank==0 then return{spellID=61336}end end
+local t;for _,f in ipairs(env.frames)do if f.dropTarget and f:IsVisible()then t=f end end
+cursor={'spell',7,'spell'};t.scripts.OnMouseUp(t,'LeftButton');assert(#ns.UIState.setRows==2 and ns.UIState.setRows[2].spellID==61336)
+cursor={'spell',12,'spell',22812};t=nil;for _,f in ipairs(env.frames)do if f.dropTarget and f:IsVisible()then t=f end end;t.scripts.OnReceiveDrag(t);assert(#ns.UIState.setRows==2,'Duplicate added')
+cursor={'item',5512};t=nil;for _,f in ipairs(env.frames)do if f.dropTarget and f:IsVisible()then t=f end end;t.scripts.OnReceiveDrag(t);assert(#ns.UIState.setRows==2 and ns.UIState.error)
+t=nil;for _,f in ipairs(env.frames)do if f.dropTarget and f:IsVisible()then t=f end end;t.scripts.OnMouseUp(t,'LeftButton');assert(#ns.UIState.setRows==2)
+env.click('save-set');local set=ns.ScopePresets(ns.Active(),'mythic',104);local _,p=next(set);assert(#p.list==2)
+env.click('tab:overview');for _,f in ipairs(env.frames)do assert(not(f.dropTarget and f:IsVisible()),'Drop target left on another page')end
+`));
+test('dungeon reminders fire in every dungeon difficulty, raid ones keep their difficulty',()=>run(`
+assert(ns.EditProfile(function(d)d.contentDifficulties={mythic={[8]=true},raid={[15]=true,[16]=true}}end))
+local mplus={content='mythic',difficulties={[8]=true}}
+for _,diff in ipairs({1,2,8,23,24})do ns.instanceType='party';ns.difficulty=diff;assert(ns.Difficulty(mplus)and ns.ContentMatches(mplus),'dungeon difficulty '..diff)end
+ns.instanceType='party';ns.difficulty=2;assert(ns.ContentMatches({content='mythic'})and ns.Difficulty({}))
+ns.instanceType='raid';ns.difficulty=15;assert(not ns.Difficulty({difficulties={[16]=true}}));assert(ns.Difficulty({difficulties={[15]=true}}));assert(not ns.Difficulty(mplus))
+ns.instanceType='raid';ns.difficulty=17;assert(not ns.ContentMatches({content='raid'}),'LFR stays off by the raid filter')
+`));
+test('already covered: no call-out while a defensive of the set was just cast; the setting saves from the Settings page',()=>run(`
+local now=100;GetTime=function()return now end
+assert(ns.SaveSet('mythic',104,nil,'Bear',{{spellID=22812},{spellID=61336}}))
+local set=next(ns.ScopePresets(ns.Active(),'mythic',104));local binding={defensive={specID=104,preset=set,scope='mythic'},content='mythic'}
+ns.Display=function(d)env.shown[#env.shown+1]=d end
+ns.NoteCast(61336);local n=#env.shown;ns.RenderDefensive(binding);assert(#env.shown==n+1,'Skip must be off by default')
+env.click('tab:settings');env.click('setting:coveredSkip');env.input('setting:coveredCastWindow','5');env.click('save-settings')
+local s=ns.Settings();assert(s.coveredSkip and s.coveredSkipDefaultOn and s.coveredCastWindow==5)
+n=#env.shown;ns.RenderDefensive(binding);assert(#env.shown==n,'Covered call-out was not skipped')
+now=106;ns.RenderDefensive(binding);assert(#env.shown==n+1,'Cast window did not expire')
+C_UnitAuras={GetPlayerAuraBySpellID=function(id)if id==22812 then return{spellId=22812}end end};n=#env.shown;ns.RenderDefensive(binding);assert(#env.shown==n,'Active aura did not count')
+local hidden={};C_UnitAuras={GetPlayerAuraBySpellID=function()return hidden end};issecretvalue=function(v)return v==hidden end;n=#env.shown;ns.RenderDefensive(binding);assert(#env.shown==n+1,'Hidden aura data must not skip')
+issecretvalue=nil;env.input('setting:coveredCastWindow','99');env.click('save-settings');assert(ns.UIState.error)
+`));

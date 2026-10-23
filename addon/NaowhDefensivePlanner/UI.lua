@@ -233,9 +233,15 @@ local function DrawSets(parent)
     W.Field(panel,L("Set name"),state.setName,16,14,400,"set-name")
     if state.setKey and ns.SetUses then W.Label(panel,L("Used by reminders: ")..ns.SetUses(scope(),state.spec,state.setKey),430,38,220,12,C.muted)end
     W.Heading(panel,L("Priority order"),16,72,636)
-    local content=W.Scroll(panel,12,94,644,218,"sets:abilities",C.background)
+    local content,_,listPanel=W.Scroll(panel,12,94,644,218,"sets:abilities",C.background)
+    -- Drag an ability from the spellbook (or an action bar) onto the set to add it.
+    local function dropped(spell)
+        if not spell then notify(L("Only spells can be added to a set"),true)return end
+        state.setName=read("set-name");setRowsAdd(spell)
+    end
+    W.DropTarget(panel,dropped);W.DropTarget(listPanel,dropped);W.DropTarget(content,dropped)
     for i,row in ipairs(state.setRows)do
-        local y=(i-1)*46;local r=W.Panel(content,0,y,620,42,C.raised,C.line,8)
+        local y=(i-1)*46;local r=W.Panel(content,0,y,620,42,C.raised,C.line,8);W.DropTarget(r,dropped)
         W.Label(r,tostring(i),10,15,20,12,C.muted);W.Icon(r,row.spellID,32,6,30);W.Label(r,name(row.spellID),72,7,200,12);W.Label(r,tostring(row.spellID),72,24,200,10,C.muted)
         W.Toggle(r,L("On"),row.enabled,270,9,64,function(v)row.enabled=v end,"set-enabled:"..i)
         W.Toggle(r,L("Together"),row.together,344,9,110,function(v)row.together=v end,"set-together:"..i)
@@ -250,9 +256,9 @@ local function DrawSets(parent)
     W.Toggle(er,L("On"),settings.fallbackOn==true,270,9,64,function(v)state.setName=read("set-name");done(ns.SaveExternalCallout({on=v}),nil,v and L("External call on")or L("External call off"))end,"set-external-on")
     W.Button(er,"",580,7,30,function()state.setName=read("set-name");openCallout("external");Refresh()end,state.callout and state.callout.spell=="external","set-external",{h=28,glyph="settings",tooltip=L("Phrase, voice and chat line")})
     content:SetHeight(math.max(1,#state.setRows*46+46))
-    if #state.setRows==0 then W.Label(content,L("Add defensives from your spellbook below, or enter a spell ID."),12,14,560,12,C.muted)end
+    if #state.setRows==0 then W.Label(content,L("Drag abilities here from the spellbook, pick them below, or enter a spell ID."),12,14,560,12,C.muted)end
     if state.callout then DrawCallout(panel)else
-    W.Heading(panel,L("Add from your spellbook"),16,324,636)
+    W.Heading(panel,L("Add from your spellbook · or drag a spell onto the set"),16,324,636)
     local x=16;local ids={};for id in pairs(ns.Catalog.spellNames)do if knownSpell(id)then ids[#ids+1]=id end end;table.sort(ids)
     local inSet={};for _,r in ipairs(state.setRows)do inSet[r.spellID]=true end
     local shown=0
@@ -533,6 +539,10 @@ local function DrawSettings(parent)
     W.Toggle(sound,L("Speak reminders"),s.voiceOn~=false,12,34,cw-32,function(v)s.voiceOn=v end,"setting:voiceOn")
     W.Label(sound,L("Voice volume"),12,78,170,13);W.Input(sound,state.settingFields.voiceVol or s.voiceVol or 100,cw-110,70,90,"setting:voiceVol")
     W.Label(sound,L("Boss mechanics require matching provider messages/timers. ExBoss supplies trash countdowns. Readiness uses public game APIs."),12,118,cw-32,11,C.muted)
+    local covered=W.Card(parent,col,top+280,cw,232,L("Already covered"))
+    W.Toggle(covered,L("Skip when a defensive is already up"),s.coveredSkip==true and s.coveredSkipDefaultOn~=false,12,34,cw-24,function(v)s.coveredSkip=v;s.coveredSkipDefaultOn=v end,"setting:coveredSkip")
+    W.Label(covered,L("Counts as cast for (sec)"),12,82,170,13);W.Input(covered,state.settingFields.coveredCastWindow or s.coveredCastWindow or 3,cw-102,74,90,"setting:coveredCastWindow")
+    W.Label(covered,L("No call-out while an ability of the set is active on you or was cast within these seconds. Data the game hides in combat counts as not covered."),12,118,cw-24,11,C.muted)
     -- Local window preferences.
     local prefs=UIPrefs()
     local window_=W.Card(parent,0,top+280,cw,232,L("Window"))
@@ -540,6 +550,7 @@ local function DrawSettings(parent)
     W.Select(window_,L("Font"),{{value="urw",label="URW Gothic"},{value="naowh",label=L("Naowh.ttf (your own file)")},{value="game",label=L("Game font")}},prefs.font or"urw",12,86,cw-24,function(v)prefs.font=v;ApplyPrefs();Refresh()end,"ui:font")
     W.Label(window_,L("Naowh.ttf is not shipped: put your own copy in Media/Fonts and restart the game."),12,142,cw-24,11,C.muted)
     W.Button(parent,L("Save settings"),col*2,top+472,cw-8,function()local v,e=ns.EditProfile(function(data)
+        local window=tonumber(read("setting:coveredCastWindow"));assert(window and window>=0 and window<=60,L("Enter 0-60 seconds for the cast window"));s.coveredCastWindow=window
         for _,f in ipairs(fields)do local number=tonumber(read("setting:"..f[2]));assert(number,L("Enter a number for ")..L(f[1]));if f[2]=="x"or f[2]=="y"then s.pos=s.pos or{point="CENTER",relPoint="CENTER"};s.pos[f[2]]=number else s[f[2]]=number end end;data.settings=s
     end);done(v,e,L("Settings saved"))end,true,"save-settings",{kind="primary",align="CENTER",h=40})
 end
