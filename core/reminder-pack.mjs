@@ -7,7 +7,7 @@ const table=(v,label)=>{if(!object(v)&&!Array.isArray(v))throw Error('Invalid '+
 const number=(v,min,max)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max;
 const flags=v=>v==null||object(v)&&Object.values(v).every(n=>typeof n==='boolean');
 export const TRIGGER_TYPES=['pull','prepull','stage','bwtimer','bwmsg'];
-// Pre-pull countdown triggers and multi-frame glows need PztkReminders 0.3.3; other profiles keep their older minimum.
+// Pre-pull countdown triggers and multi-frame glows need addon 0.3.3; other profiles keep their older minimum.
 export const minimumAddonFor=data=>Object.values(object(data?.raidReminders)?data.raidReminders:{}).some(entries=>object(entries)&&Object.values(entries).some(e=>e?.trigger?.type==='prepull'||e?.display?.glowTargets!=null||e?.display?.glowColor!=null))?'0.3.3':data?.scopePresets?'0.3.0':'0.2.0';
 // Lua tables decode as arrays or as {1:…,2:…} objects depending on the codec path.
 const sequence=v=>Array.isArray(v)?v:object(v)&&Object.keys(v).every((k,i)=>k===String(i+1))?Object.values(v):null;
@@ -59,8 +59,8 @@ function validateRuntime(data){
 }
 export class ReminderPack{
  constructor(codec){this.codec=codec;}
- validate(p){if(!p||p.format!==1||p.addon!=='PztkReminders'||typeof p.name!=='string'||p.name.length>200||!REMINDER_CLIENTS[p.client])throw Error('Expected a Pztk Reminders profile for Retail or Forever');if(p.licensed)throw Error('Licensed source packs cannot be migrated');validatePackBounds(p);validateRuntime(p.data);return p;}
- decode(text){const input=String(text).replace(/\s+/g,'');if(!input.startsWith('PZTK1:')||input.length>130000)throw Error('Expected PZTK1 string under 130 KB');let raw;try{raw=inflateRawSync(decodePrint(input.slice(6)),{maxOutputLength:4e6});}catch{throw Error('Invalid Pztk Reminders compression or size limit exceeded');}const result=this.codec.invoke('decode',raw,{trackKeys:true});normalizeOptionalIds(result.pack?.data);this.validate(result.pack);return result;}
+ validate(p){if(!p||p.format!==1||p.addon!=='PztkReminders'||typeof p.name!=='string'||p.name.length>200||!REMINDER_CLIENTS[p.client])throw Error('Expected a Naowh Defensive Planner profile for Retail or Forever');if(p.licensed)throw Error('Licensed source packs cannot be migrated');validatePackBounds(p);validateRuntime(p.data);return p;}
+ decode(text){const input=String(text).replace(/\s+/g,'');if(!input.startsWith('PZTK1:')||input.length>130000)throw Error('Expected PZTK1 string under 130 KB');let raw;try{raw=inflateRawSync(decodePrint(input.slice(6)),{maxOutputLength:4e6});}catch{throw Error('Invalid Naowh Defensive Planner compression or size limit exceeded');}const result=this.codec.invoke('decode',raw,{trackKeys:true});normalizeOptionalIds(result.pack?.data);this.validate(result.pack);return result;}
  encode(pack,numericKeys=[]){this.validate(pack);const text='PZTK1:'+encodePrint(deflateRawSync(this.codec.invoke('encode',pack,{numericKeys})));this.decode(text);return text;}
  fromDraft(draft,client){if(draft.pack.licensed)throw Error('Licensed source packs cannot be migrated');const source=draft.pack.profiles?draft.pack.profiles[draft.profileKey]:draft.pack.data;if(!source)throw Error('Choose one working profile');if(source.bindingsBySpec===false&&Object.keys(source.abilityBindings||{}).length)throw Error('Migrate legacy non-spec NSR bindings in current NSR before importing');const {data,warnings,report,convertedPaths}=migrateNsrData(source);
  normalizeOptionalIds(data);

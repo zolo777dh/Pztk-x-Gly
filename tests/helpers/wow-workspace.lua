@@ -1,5 +1,5 @@
 unpack=unpack or table.unpack
-local env={frames={},time=100,combat=false,spec=104,version='12.1.5',map=2813,difficulty=8,instance='party',shown={}}
+local env={frames={},time=100,combat=false,spec=104,class='DRUID',version='12.1.5',map=2813,difficulty=8,instance='party',shown={}}
 local methods={}
 local function node(kind,parent)
  local f={kind=kind,parent=parent,shown=true,scripts={},events={},w=0,h=0};env.frames[#env.frames+1]=f
@@ -48,9 +48,17 @@ end
 function methods:GetScrollChild()return self.scrollChild end
 function methods:SetVerticalScroll(v)self.scroll=v end
 function methods:GetVerticalScroll()return self.scroll or 0 end
-function methods:CreateTexture()return node('Texture',self)end
-function methods:CreateFontString()return node('Text',self)end
+function methods:CreateTexture(_,layer,_,sub)local t=node('Texture',self);t.layer=layer;t.sublevel=sub or 0;return t end
+function methods:CreateFontString(_,layer)local t=node('Text',self);t.layer=layer or'OVERLAY';return t end
 function methods:SetTexture(texture)self.texture=texture end
+function methods:SetVertexColor(r,g,b,a)self.vertex={r,g,b,a or 1}end
+function methods:SetTexCoord(a,b,c,d)self.coords={a,b,c,d}end
+function methods:SetDrawLayer(layer,sub)self.layer=layer;self.sublevel=sub or 0 end
+function methods:SetBlendMode(mode)self.blend=mode end
+function methods:SetAlpha(a)self.alpha=a end
+function methods:SetJustifyH(j)self.justify=j end
+function methods:SetWordWrap(v)self.wrap=v end
+function methods:GetParent()return self.parent end
 function methods:SetColorTexture(r,g,b,a)self.background={r,g,b,a}end
 function methods:Click()assert(self.scripts.OnClick,'Control has no click handler');self.scripts.OnClick(self)end
 function methods:SetFocus()self.focus=true end
@@ -63,22 +71,22 @@ function GetSpecializationInfo()return env.spec end
 function InCombatLockdown()return env.combat end
 function GetInstanceInfo()return 'Test',env.instance,env.difficulty,nil,nil,nil,nil,env.map end
 function UnitGroupRolesAssigned()return 'TANK'end
-function UnitClass()return 'Druid','DRUID'end
+function UnitClass()return 'Class',env.class end
 function UnitName()return 'Tester'end
 function UnitFullName()return 'Tester','Realm'end
 function PlaySoundFile()end
 function issecretvalue()return false end
 C_SpellBook={IsSpellKnown=function()return true end}
-C_Spell={GetSpellCooldown=function()return{startTime=0,duration=0,isEnabled=true,isActive=false}end,GetSpellInfo=function(id)return {name=(PztkReminders and PztkReminders.Catalog.spellNames[id])or('Spell '..id),iconID=134400}end,GetSpellTexture=function()return 134400 end}
+C_Spell={GetSpellCooldown=function()return{startTime=0,duration=0,isEnabled=true,isActive=false}end,GetSpellInfo=function(id)return {name=(NaowhDefensivePlanner and NaowhDefensivePlanner.Catalog.spellNames[id])or('Spell '..id),iconID=134400}end,GetSpellTexture=function()return 134400 end}
 C_AddOns={IsAddOnLoaded=function()return false end,GetAddOnMetadata=function()return'test'end}
 SlashCmdList={}
 local timers={}
 C_Timer={NewTimer=function(delay,fn)local t={at=env.time+delay,fn=fn};function t:Cancel()self.cancelled=true end;timers[#timers+1]=t;return t end}
 function env.advance(seconds)env.time=env.time+seconds;for _,t in ipairs(timers)do if not t.cancelled and not t.fired and t.at<=env.time then t.fired=true;t.fn()end end end
-function env.click(key)assert(PztkReminders.UIControls[key],'Missing control '..key):Click()end
-function env.input(key,text)assert(PztkReminders.UIControls[key],'Missing input '..key):SetText(text)end
+function env.click(key)assert(NaowhDefensivePlanner.UIControls[key],'Missing control '..key):Click()end
+function env.input(key,text)assert(NaowhDefensivePlanner.UIControls[key],'Missing input '..key):SetText(text)end
 function env.select(key,value)
- env.click(key);local menu=PztkReminders.Widgets.menu
+ env.click(key);local menu=NaowhDefensivePlanner.Widgets.menu
  for _,r in ipairs(menu.rows)do if r.shown and r.label.text==value then r:Click();return end end
  error('Missing option '..value..' for '..key)
 end
@@ -91,6 +99,6 @@ function env.assertLayout()
    assert(child:GetFrameLevel()>f:GetFrameLevel(),'Scroll content is below its background')
   end
  end
- for key,f in pairs(PztkReminders.UIControls)do assert(f:IsVisible(),'Control is hidden: '..key)end
+ for key,f in pairs(NaowhDefensivePlanner.UIControls)do assert(f:IsVisible(),'Control is hidden: '..key)end
 end
 return env

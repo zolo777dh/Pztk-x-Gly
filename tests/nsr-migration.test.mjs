@@ -34,12 +34,12 @@ test('native Lua accepts and roundtrips migrated profiles, including the private
  assert.equal(out.report.counts.customConverted,out.report.counts.customSource);assert.equal(out.report.counts.customSkipped,0);assert.equal(Object.values(back.data.integrationRules).flatMap(Object.values).filter(r=>r.trigger.type==='auraSound').length,out.report.counts.auraSound);
  const original=decoded.pack.data;assert.equal(out.report.counts.specializations,Object.keys(original.presets).length);assert.equal(out.report.counts.defensiveSets,Object.values(original.presets).flatMap(Object.values).length);assert.equal(out.report.counts.callouts,Object.keys(original.callouts||{}).length);
  if(!process.env.DOCTOR_LUA51)return;
- const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-nsr-migration-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const file=path.join(dir,'pack.txt');await fs.writeFile(file,out.text);const addon=path.resolve('addon/PztkReminders');
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-nsr-migration-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const file=path.join(dir,'pack.txt');await fs.writeFile(file,out.text);const addon=path.resolve('addon/NaowhDefensivePlanner');
  const script=`strmatch=string.match
  dofile(${JSON.stringify(addon+'/Libs/LibStub.lua')});dofile(${JSON.stringify(addon+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(addon+'/Libs/LibDeflate.lua')})
  local ns={};function GetBuildInfo()return '12.1.5','70448','',120105 end
- assert(loadfile(${JSON.stringify(addon+'/Runtime.lua')}))('PztkReminders',ns)
- assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('PztkReminders',ns)
+ assert(loadfile(${JSON.stringify(addon+'/Runtime.lua')}))('NaowhDefensivePlanner',ns)
+ assert(loadfile(${JSON.stringify(addon+'/Profiles.lua')}))('NaowhDefensivePlanner',ns)
  local f=assert(io.open(${JSON.stringify(file)},'rb'));local input=f:read('*a');f:close();local p,e=ns.Decode(input);assert(p,e)
  local name,error=ns.Import(input);assert(name,error);local output=assert(ns.Export());assert(ns.Decode(output));local aura,trash,timed=0,0,0
  for _,rules in pairs(p.data.integrationRules)do for _,r in pairs(rules)do if r.trigger.type=='auraSound'then aura=aura+1 else trash=trash+1 end end end

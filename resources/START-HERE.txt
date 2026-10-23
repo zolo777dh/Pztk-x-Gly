@@ -5,12 +5,12 @@ Do not run the exe directly inside the ZIP. Node.js is not required.
 
 
 PUZATIK REMINDERS — IN-GAME WORKSPACE (0.3.0)
-The bundle includes PztkReminders-0.3.0.zip. Replace Interface/AddOns/PztkReminders
-with its folder while WoW is closed. Keep PztkRemindersDB SavedVariables.
-The displayed name is Puzatik Reminders. Disable NSR / NSRT / TimelineReminders
+The bundle includes NaowhDefensivePlanner-0.3.0.zip. Replace Interface/AddOns/NaowhDefensivePlanner
+with its folder while WoW is closed. Keep NaowhDefensivePlannerDB SavedVariables.
+The displayed name is Naowh Defensive Planner. Disable NSR / NSRT / TimelineReminders
 while using this separate reminder engine.
 
-Open /puzatik or /pztkr. Create defensive sets separately under Mythic+ and Raids.
+Open /nwhdp. Create defensive sets separately under Mythic+ and Raids.
 Choose spec -> dungeon/raid -> NPC/boss -> ability -> defensive set. Raid reminders
 also support time from pull / phase, recipients and display actions. Save explicitly.
 A defensive callout shows the selected defensive icon(s) and text. Together groups
@@ -31,7 +31,7 @@ Retail 12.1.5.70448 / Forever 1.60.1.70425 targets remain unchanged. The bundled
 catalog is Retail-only. Forever supports manual/imported IDs. BigWigs/LittleWigs,
 DBM and ExBoss are separate providers. No live game test was available. Public
 readiness is used; inaccessible charge counts are not guessed. Fixed spell-icon
-reminders can be configured without readiness selection. /pztkr debug prepares
+reminders can be configured without readiness selection. /nwhdp debug prepares
 a copyable provider report for BugSack troubleshooting. Read addon INSTALL.txt.
 
 ADDONS AND DIAGNOSTICS
@@ -117,6 +117,6 @@ delay, then save and export again. Unsupported trigger conditions are not guesse
 Missing set references need review. ExBoss's empty-text active-set fallback remains.
 cdmGlow, coveredSkip, coveredSkipDefaultOn and coveredCastWindow are retained but
 not implemented. Do not treat a successful decode as full behavioral equivalence.
-Native aura sounds require C_UnitAuras.AddAuraSound. /pztkr debug reports missing
+Native aura sounds require C_UnitAuras.AddAuraSound. /nwhdp debug reports missing
 APIs and pending/failed registrations. Registration changes wait for restrictions
 to end. Private racial clips stay muted when readiness is unknown or inaccessible.

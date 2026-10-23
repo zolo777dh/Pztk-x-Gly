@@ -54,7 +54,7 @@ jobs:
           $archive = "release/Pztk-x-Glyalith-$version-Windows-x64.zip"
           $digest = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
           "$digest  Pztk-x-Glyalith-$version-Windows-x64.zip" | Set-Content release/SHA256SUMS.txt
-          Get-ChildItem release/PztkReminders-*.zip | ForEach-Object {
+          Get-ChildItem release/NaowhDefensivePlanner-*.zip | ForEach-Object {
             $addonHash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant()
             "$addonHash  $($_.Name)" | Add-Content release/SHA256SUMS.txt
           }
@@ -72,7 +72,7 @@ jobs:
           name: Pztk-x-Glyalith-Windows-x64
           path: |
             release/Pztk-x-Glyalith-*-Windows-x64.zip
-            release/PztkReminders-*.zip
+            release/NaowhDefensivePlanner-*.zip
             release/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
@@ -95,6 +95,6 @@ jobs:
             Write-Host 'This version is already released; its assets are preserved. The current build remains available as an Actions artifact.'
             exit 0
           }
-          $addonArchive = (Get-ChildItem release/PztkReminders-*.zip | Select-Object -First 1).FullName
+          $addonArchive = (Get-ChildItem release/NaowhDefensivePlanner-*.zip | Select-Object -First 1).FullName
           gh release create $tag "release/Pztk-x-Glyalith-$version-Windows-x64.zip" $addonArchive release/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Pztk x Glyalith $version — Windows x64" --notes-file resources/RELEASE-NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

@@ -1,0 +1,128 @@
+Naowh Defensive Planner 0.5.0 — in-game editor and reminder engine
+(formerly Puzatik Reminders / PztkReminders)
+
+INSTALL
+Close WoW completely. Copy the NaowhDefensivePlanner folder into Interface/AddOns.
+New textures and fonts (logo, icons, animations) only load after a full client
+restart; /reload is not enough the first time.
+
+UPGRADING FROM PUZATIK REMINDERS (PztkReminders 0.3.x)
+The folder, SavedVariables and command changed. Keep your profiles one of two ways:
+- Before updating, open /pztkr > Profiles > Export active, copy the PZTK1 string,
+  then import it with /nwhdp > Profiles > Import profile; or
+- With WoW closed, copy WTF/Account/<account>/SavedVariables/PztkReminders.lua to
+  NaowhDefensivePlanner.lua in the same folder. The addon adopts it on first load.
+Then delete Interface/AddOns/PztkReminders. Both addons must not run together;
+this one pauses while PztkReminders is loaded. PZTK1 strings stay valid.
+Disable NaowhSmartReminders, NorthernSkyRaidTools and TimelineReminders while
+using this addon. It pauses reminder dispatch if those engines are loaded.
+
+OPEN
+Use /ndp or the minimap addon compartment menu (/nwhdp, /pztkr and /puzatik still
+work). The window follows the design mockup: a top bar with the logo, search
+(type, then press Enter), timeline / display / roster buttons, your specialization,
+profile and boss mod status; a sidebar grouped as Planner (Overview, Mythic+, Raids,
+Defensives, Timeline), Raid (Notes, Boss alerts, Auras, Assignments, Raid tools,
+Players) and System (Display, Profiles, Settings, Diagnostics).
+
+SPECIALIZATION
+The window shows and edits only your current specialization. There is no picker:
+switch spec in game and the window switches with it. Sets and reminders of other
+specializations and other classes are not shown, and the editor refuses to change
+them. "Copy this spec's setup to..." only offers specs of your own class.
+
+COMMANDS
+/ndp                      open or close the window
+/ndp help                 list of commands
+/ndp status | test | diag  state, test reminder, diagnostics report
+/ndp sets | mythic | raid | tl | notes | alerts | auras | display | settings
+                          open a section
+/ndp anchors              unlock / lock the draggable reminder anchor
+/ndp pull 10 | rc         pull timer, ready check (needs lead or assist)
+/ndp roster | export      copy the group roster, export the active profile
+/ndp anim full|reduced|off animation mode
+/ndp wipe                 reset all data (asks for /ndp wipe confirm)
+Former NSR (/nutank) and NSRT (/ns, /nsrt) commands are /ndp subcommands. Those
+whose features are not rebuilt yet (break, invite, arrange, notes sync, cds...)
+answer that they are planned instead of doing nothing.
+
+LOOK, FONT AND ANIMATIONS
+The interface text is English. URW Gothic (Book / Demi) ships with the addon. The
+Naowh font is commercial and is not included: to use your own licensed copy, put it
+at Media/Fonts/Naowh.ttf, restart the game and pick it in Settings > Window > Font.
+Animations were rendered ahead of time from WebGL / Three.js, PixiJS and GSAP into
+textures in Media/Anim: a living aurora background, drifting particles, a light
+trail, logo shine, selection glow, a cursor trail and a burst on each reminder.
+They play at up to 60 fps only while the window or a reminder is visible.
+Settings > Animations (or /ndp anim) switches Full / Reduced (glow only) / Off.
+
+Navigation preserves your selected encounter, specialization, defensive-set draft,
+reminder fields, settings draft and scroll position. Drafts are saved locally on
+navigation, close and logout/reload, separately for each client/profile/spec.
+Save set / Save reminder / Save settings activates the reviewed change. Exports
+include saved profile content; incomplete editor drafts stay local.
+
+MYTHIC+
+1. Open Defensives (or Mythic+ > Defensive sets). Create a named set; click known defensives under
+   "Add from your spellbook" or enter a spell ID. Set priority with the up / down buttons;
+   Together combines checked abilities; On controls whether an ability is used.
+   "Copy this spec's setup to..." replaces another spec's sets and reminders.
+2. Open Mechanics. Select dungeon, NPC/boss and its ability.
+3. In the reminder card choose the defensive set and the warning time (WHEN),
+   then text, sound, duration and TTS (SHOW). The preview and the summary line
+   show what will fire.
+4. Save reminder. Test is a display preview; check the actual trigger in game.
+M+ is restricted to Mythic+ difficulty. ExBoss supplies trash countdowns;
+BigWigs/LittleWigs or DBM supplies boss messages and bars.
+
+RAIDS
+Select raid, boss and Heroic or Mythic explicitly. Raid defensive sets are separate
+from Mythic+ sets, even with matching names or keys. Bind a defensive set to a
+mechanic or create a timed reminder from pull / phase. Actions include a chosen
+spell icon, text, countdown, circle, sound and a supported player-frame glow.
+Recipients can be the selected spec, role, player or everyone. Imported combined
+recipient filters and difficulty filters can be retained. Save explicitly.
+
+PROFILES
+Create, copy, rename, delete, select, import or export a profile inside the game.
+PZTK1 is the native combined M+ / raid export. Imports create a separate profile.
+Direct imports also accept unlicensed NSRPACK2 and current !NSRT:Profile: or
+!NSRT:EncounterAlert: exports (full, single alert or group). Review the migration
+report in the string box. NSRT glow units glow those players' raid frames next to
+the reminder. Negative phase-1 times become "Before pull (countdown)" reminders:
+they start from a /countdown or boss-mod pull timer, and the boss is the nearest
+planned boss among the Encounter Journal pins on your map (/ndp diag shows it).
+Profiles using either feature need Naowh Defensive Planner 0.3.3.
+Original migration strings and reports stay locally in SavedVariables. Unavailable
+conditions, displays and source engines are reported; they are not guessed.
+Account-licensed NSR strings remain managed in NSR. Licenses are not bypassed.
+Old shared sets get independent content copies on the first editor save. Existing
+legacy root data is retained for compatibility; scoped sets are used by this engine.
+
+SETTINGS / DIAGNOSTICS
+Configure icons, text, sizes, position, voice volume and boss-mod source. Default
+spell labels and icons identify the chosen defensive, not only the boss ability.
+Together callouts show the selected group. Public readiness chooses priorities;
+closed/unknown charge counts are not guessed. Fixed spell-icon reminders do not
+require readiness-based selection. Preview is not a live encounter test.
+Use /ndp diag (or the Diagnostics page) for a copyable build/provider report.
+The Display page previews a reminder and unlocks the anchor so you can drag it.
+
+CLIENTS / DATA
+Targets remain Retail 12.1.5.70448 and Forever 1.60.1.70425. Client workspaces are
+separate. The bundled eight-dungeon / twenty-boss catalog is Retail reference data
+from the supplied LittleWigs/ExBoss and NSRT sources. Only evidenced timer/message
+keys are offered for M+. Forever uses imported or manually added encounters.
+Add mechanic accepts explicit map/NPC/encounter/spell IDs from your game client.
+Provider packages are separate. The supplied ExBoss build requires EXBossData,
+ExwindCore, EXBOSS-Locale and its required EXBOSS-LocaleBase dependency.
+
+LIMITS
+No combat or active-encounter editing. No automatic ability presses. Native aura
+sounds need the corresponding public game API. Several source behaviors remain
+unavailable (cdmGlow, coveredSkip, coveredSkipDefaultOn, coveredCastWindow); imports
+retain and report them. QoL, Ready Check, group management, nickname engines and
+pace-comparison modules are outside this reminder addon. No live WoW test was
+available in the build environment. Notes sync, boss alert lists, aura
+tracking, assignments, break timers, invites and nicknames from NSR / NSRT are being
+rebuilt in this addon's own code; their pages show what already works and what is next. Use supported providers and verify in game.

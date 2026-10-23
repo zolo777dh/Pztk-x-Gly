@@ -4,3 +4,4 @@ release/
 .data/
 test-results/
 *.log
+addon/NaowhDefensivePlanner/Media/Fonts/Naowh.ttf

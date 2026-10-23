@@ -14,6 +14,9 @@ end
 local function Name(v)
     assert(type(v)=="string","Enter a name");v=v:match("^%s*(.-)%s*$");assert(#v>0 and #v<=120,"Use a name of 1-120 characters");return v
 end
+local function OwnSpec(spec)
+    assert(ns.CanEditSpec(spec),"This specialization belongs to another class. Log in on that class to edit its sets");return spec
+end
 local function Editable()
     assert(not(InCombatLockdown and InCombatLockdown()),"Edit profiles after combat")
     assert(not ns.encounter,"Edit profiles after the encounter")
@@ -89,7 +92,7 @@ function ns.DeleteProfile()
 end
 function ns.SaveSet(scope,spec,key,name,rows)
     return ns.EditProfile(function(data)
-        assert(scope=="mythic"or scope=="raid","Choose content");spec=Integer(spec,"specialization");assert(ns.Catalog.specs[spec],"Unknown specialization")
+        assert(scope=="mythic"or scope=="raid","Choose content");spec=OwnSpec(Integer(spec,"specialization"));assert(ns.Catalog.specs[spec],"Unknown specialization")
         local sets=ns.Get(data.scopePresets[scope],spec);if not sets then sets={};data.scopePresets[scope][spec]=sets end
         key=key or ns.UID("set");local p={name=Name(name),list={},together={},disabled={}}
         local seen={};assert(#rows>0,"Add at least one defensive ability");assert(#rows<=200,"Use at most 200 abilities in one set")
@@ -97,18 +100,60 @@ function ns.SaveSet(scope,spec,key,name,rows)
         sets[key]=p;if not ns.Get(data.scopeActivePreset[scope],spec)then data.scopeActivePreset[scope][spec]=key end;return key
     end)
 end
-local function Referenced(data,scope,spec,key)
-    for _,b in pairs(ns.Get(data.integrationRules,spec)or{})do if scope=="mythic"and b.preset==key then return true end end
+local function References(data,scope,spec,key)
+    local count=0
+    for _,b in pairs(ns.Get(data.integrationRules,spec)or{})do if scope=="mythic"and b.preset==key then count=count+1 end end
     for encounter,entries in pairs(data.abilityBindings and ns.Get(data.abilityBindings,spec)or{})do
-        local kind=ns.EncounterScope(tonumber(encounter));if kind==scope or not kind then for _,b in pairs(entries)do if b.preset==key then return true end end end
+        local kind=ns.EncounterScope(tonumber(encounter));if kind==scope or not kind then for _,b in pairs(entries)do if b.preset==key then count=count+1 end end end
     end
     for enc,entries in pairs(data.raidReminders or{})do for _,e in pairs(entries)do
         local content=e.content or ns.EncounterScope(tonumber(enc))
-        if e.defensive and e.defensive.specID==spec and e.defensive.preset==key and(content==scope or not content)then return true end
+        if e.defensive and e.defensive.specID==spec and e.defensive.preset==key and(content==scope or not content)then count=count+1 end
     end end
+    return count
+end
+local function Referenced(data,scope,spec,key)return References(data,scope,spec,key)>0 end
+function ns.SetUses(scope,spec,key)
+    local p=ns.Active();if not p or not key then return 0 end;return References(p.data,scope,spec,key)
+end
+-- True when an entry belongs to exactly this specialization: its defensive set, or a lone spec recipient.
+local function SpecOwned(entry,spec)
+    if entry.defensive then return entry.defensive.specID==spec end
+    local t=entry.target;if type(t)~="table"or t.matchAny or t.all then return false end
+    for k,v in pairs(t)do if k~="specs"and type(v)=="table"and next(v)then return false end end
+    local only=nil;for id,on in pairs(t.specs or{})do if on then if only then return false end;only=tonumber(id)end end
+    return only==spec
+end
+-- Replaces the target specialization's sets and spec-owned reminders with copies of the source's.
+function ns.CopySpecSetup(from,to)
+    return ns.EditProfile(function(data)
+        from=OwnSpec(Integer(from,"specialization"));to=OwnSpec(Integer(to,"specialization"));assert(from~=to,"Choose another specialization")
+        assert(ns.Catalog.specs[from]and ns.Catalog.specs[to],"Unknown specialization")
+        local function put(t,value)if t then t[tostring(to)]=nil;t[to]=ns.Clone(value)end end
+        for _,scope in ipairs({"mythic","raid"})do
+            put(data.scopePresets[scope],ns.Get(data.scopePresets[scope],from)or{})
+            put(data.scopeActivePreset[scope],ns.Get(data.scopeActivePreset[scope],from))
+        end
+        data.integrationRules=data.integrationRules or{};put(data.integrationRules,ns.Get(data.integrationRules,from))
+        data.abilityBindings=data.abilityBindings or{};put(data.abilityBindings,ns.Get(data.abilityBindings,from))
+        for _,entries in pairs(data.raidReminders or{})do
+            local copies={}
+            for key,e in pairs(entries)do
+                if SpecOwned(e,to)then entries[key]=nil
+                elseif SpecOwned(e,from)then
+                    local c=ns.Clone(e)
+                    if c.defensive then c.defensive.specID=to end
+                    if c.target and c.target.specs then c.target.specs={[to]=true}end
+                    copies[#copies+1]=c
+                end
+            end
+            for _,c in ipairs(copies)do entries[ns.UID("reminder")]=c end
+        end
+        return to
+    end)
 end
 function ns.DeleteSet(scope,spec,key)
-    return ns.EditProfile(function(data)spec=Integer(spec,"specialization");assert(key,"Choose a saved set first");assert(not Referenced(data,scope,spec,key),"This set is assigned to mechanics. Reassign them first.");local sets=ns.Get(data.scopePresets[scope],spec)or{};sets[key]=nil;if ns.Get(data.scopeActivePreset[scope],spec)==key then data.scopeActivePreset[scope][spec]=nil end end)
+    return ns.EditProfile(function(data)spec=OwnSpec(Integer(spec,"specialization"));assert(key,"Choose a saved set first");assert(not Referenced(data,scope,spec,key),"This set is assigned to mechanics. Reassign them first.");local sets=ns.Get(data.scopePresets[scope],spec)or{};sets[key]=nil;if ns.Get(data.scopeActivePreset[scope],spec)==key then data.scopeActivePreset[scope][spec]=nil end end)
 end
 function ns.EncounterScope(encounter)
     for _,d in ipairs(ns.Catalog.dungeons)do for _,n in ipairs(d.npcs)do if n.encounterId==encounter then return "mythic"end end end
@@ -183,7 +228,7 @@ function ns.CounterText(groups)
 end
 function ns.SaveRule(ctx,form,reference)
     return ns.EditProfile(function(data)
-        local scope=ctx.scope;assert(scope=="mythic"or scope=="raid","Choose content");local spec=Integer(ctx.spec,"specialization")
+        local scope=ctx.scope;assert(scope=="mythic"or scope=="raid","Choose content");local spec=OwnSpec(Integer(ctx.spec,"specialization"))
         local sets=ns.Get(data.scopePresets[scope],spec)or{};local dynamic=form.action=="defensive"
         if dynamic then assert(sets[form.preset],"Create or choose a defensive set for this content and specialization")end
         local duration=Number(form.duration or 4,"duration",0.1,120);local lead=Number(form.leadTime or 2,"lead time",0,120)
@@ -224,7 +269,7 @@ function ns.SaveRule(ctx,form,reference)
 end
 function ns.DeleteRule(ctx,reference)
     return ns.EditProfile(function(data)
-        assert(reference,"Select a reminder")
+        assert(reference,"Select a reminder");OwnSpec(ctx.spec)
         if reference.section=="integrationRules"then ns.Get(data.integrationRules,ctx.spec)[reference.key]=nil
         elseif reference.section=="abilityBindings"then ns.Get(ns.Get(data.abilityBindings,ctx.spec),ctx.encounter)[reference.key]=nil
         else local entry=ns.Get(data.raidReminders,ctx.encounter)[reference.key];local diff=ctx.scope=="mythic"and 8 or ctx.difficulty
