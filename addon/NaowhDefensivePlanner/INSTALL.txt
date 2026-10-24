@@ -1,34 +1,24 @@
-Puzatik Defensive Planner 0.7.3 — in-game editor and reminder engine
-(formerly Naowh Defensive Planner, and before that Puzatik Reminders / PztkReminders)
+Naowh Defensive Planner 0.7.3 — in-game editor and reminder engine
+(formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
-Close WoW completely. Copy the PuzatikDefensivePlanner folder into Interface/AddOns.
+Close WoW completely. Copy the NaowhDefensivePlanner folder into Interface/AddOns.
 New textures and fonts (logo, icons) only load after a full client
 restart; /reload is not enough the first time.
-
-UPGRADING FROM NAOWH DEFENSIVE PLANNER (0.4.0 to 0.7.2)
-The folder and SavedVariables were renamed to PuzatikDefensivePlanner; the main
-command is now /pdp (/ndp still works). Keep your profiles one of two ways:
-- Before updating, /ndp > Profiles > Export all profiles, copy the !NDP1: string,
-  then import it with /pdp > Profiles > Import profile; or
-- With WoW closed, copy WTF/Account/<account>/SavedVariables/NaowhDefensivePlanner.lua
-  to PuzatikDefensivePlanner.lua in the same folder. The addon adopts it on first load.
-Then delete Interface/AddOns/NaowhDefensivePlanner. This addon pauses while the old
-folder is loaded. Old !NDP1: strings stay valid.
 
 UPGRADING FROM PUZATIK REMINDERS (PztkReminders 0.3.x)
 The folder, SavedVariables and command changed. Keep your profiles one of two ways:
 - Before updating, open /pztkr > Profiles > Export active, copy the PZTK1 string,
   then import it with /nwhdp > Profiles > Import profile; or
 - With WoW closed, copy WTF/Account/<account>/SavedVariables/PztkReminders.lua to
-  PuzatikDefensivePlanner.lua in the same folder. The addon adopts it on first load.
+  NaowhDefensivePlanner.lua in the same folder. The addon adopts it on first load.
 Then delete Interface/AddOns/PztkReminders. Both addons must not run together;
 this one pauses while PztkReminders is loaded. PZTK1 strings stay valid.
 Disable NaowhSmartReminders, NorthernSkyRaidTools and TimelineReminders while
 using this addon. It pauses reminder dispatch if those engines are loaded.
 
 OPEN
-Use /pdp or the minimap addon compartment menu (/nwhdp, /pztkr and /puzatik still
+Use /ndp or the minimap addon compartment menu (/nwhdp, /pztkr and /puzatik still
 work). The window follows the design mockup: a top bar with the logo, search
 (type, then press Enter), timeline / anchor / roster buttons, your specialization,
 profile and boss mod status; a sidebar grouped as Planner (Overview, Mythic+, Raids,
@@ -43,22 +33,22 @@ specializations and other classes are not shown, and the editor refuses to chang
 them. "Copy this spec's setup to..." only offers specs of your own class.
 
 COMMANDS
-/pdp                      open or close the window
-/pdp help                 list of commands
-/pdp status | test | diag  state, test reminder, diagnostics report
-/pdp sets | mythic | raid | tl | notes | debuffs | settings
+/ndp                      open or close the window
+/ndp help                 list of commands
+/ndp status | test | diag  state, test reminder, diagnostics report
+/ndp sets | mythic | raid | tl | notes | debuffs | settings
                           open a section
-/pdp note                 show or hide the note frame
-/pdp clear | pclear       take the shared / personal note off
-/pdp anchors              unlock / lock the draggable reminder anchor
-/pdp pull 10 | rc         pull timer, ready check (needs lead or assist)
-/pdp break 10             break timer for the group (0 ends it)
-/pdp inv | arrange        invite guild members, arrange raid groups
-/pdp promote              give assist to the names on the Raid tools list
-/pdp nick Name | versions set your nickname, check the group's addon versions
-/pdp roster | export      copy the group roster, export the active profile
-/pdp wipe                 reset all data (asks for /pdp wipe confirm)
-Former NSR (/nutank) and NSRT (/ns, /nsrt) commands are /pdp subcommands. The few
+/ndp note                 show or hide the note frame
+/ndp clear | pclear       take the shared / personal note off
+/ndp anchors              unlock / lock the draggable reminder anchor
+/ndp pull 10 | rc         pull timer, ready check (needs lead or assist)
+/ndp break 10             break timer for the group (0 ends it)
+/ndp inv | arrange        invite guild members, arrange raid groups
+/ndp promote              give assist to the names on the Raid tools list
+/ndp nick Name | versions set your nickname, check the group's addon versions
+/ndp roster | export      copy the group roster, export the active profile
+/ndp wipe                 reset all data (asks for /ndp wipe confirm)
+Former NSR (/nutank) and NSRT (/ns, /nsrt) commands are /ndp subcommands. The few
 that are not rebuilt (bosses, keys, trace, observed, cds, calls, invite by note) say so.
 
 LOOK AND FONT
@@ -87,7 +77,7 @@ Raid tools: ready check, pull and break timers, invite on whisper keyword, guild
 invites by rank, group arrangement, automatic assistants.
 Players: nicknames shared with the group and an addon version check.
 Reminders start at a fixed left edge and grow to the right. The unlocked anchor
-(/pdp anchors, or the anchor button) is a sample icon exactly where the first
+(/ndp anchors, or the anchor button) is a sample icon exactly where the first
 reminder icon appears; drag it and lock it again.
 Drag an ability from the spellbook or an action bar onto a defensive set to add it.
 Lists and long text scroll with the mouse wheel. An open drop-down list closes on
@@ -141,7 +131,7 @@ Stay after timer (sticky seconds after the countdown ends) and Also glow players
 (raid frames of the listed names, with a glow colour). Profiles that use these
 need addon 0.6.5. Defensive call-outs keep the plain icons and names look.
 
-QUALITY OF LIFE (/pdp qol)
+QUALITY OF LIFE (/ndp qol)
 A movable text display (font size, outline, Unlock and preview) shows short notices:
 Gateway usable (when you carry a Gateway Control Shard), boss resetting / has reset
 after a wipe, Loot the boss after a raid kill, and a Soulwell, Feast, Cauldron or
@@ -159,7 +149,7 @@ a chosen rank, always promote everyone, automatically or now. Break timer: show 
 bar, a sound at the end, print the time left each minute, unlock and preview to
 move the bar, announce in group chat.
 
-COMBAT TOOLS (/pdp combat)
+COMBAT TOOLS (/ndp combat)
 Interrupt display: a kick order (typed, or the "Kick:" line of the shared note) with
 the player to kick now and the next one coloured, number and name font sizes, width,
 and a movable frame. It moves on when a listed player interrupts (your own casts
@@ -171,8 +161,8 @@ difficulty (the kill, or the lowest wipe). If the game hides boss health, it say
 Private auras: big icons of your own private auras (and the other tank's, as tank),
 drawn by the game into slots you can size and move.
 
-EXPORT STRING (!PDP1:)
-Profiles > Export all profiles gives one !PDP1: string with every profile of this
+EXPORT STRING (!NDP1:)
+Profiles > Export all profiles gives one !NDP1: string with every profile of this
 game client, Mythic+ and raid data together. Only active exports the selected
 profile. Import adds every profile of the string (same names get a number) and
 selects the one that was active. The format is the addon's own: CBOR, raw
@@ -240,14 +230,14 @@ list of specs) are kept. Sounds from the Timeline Reminders folder are left out.
 
 PROFILES
 Create, copy, rename, delete, select, import or export a profile inside the game.
-!PDP1: is the native export (all profiles, M+ and raids). Imports create separate profiles.
+!NDP1: is the native export (all profiles, M+ and raids). Imports create separate profiles.
 Direct imports also accept unlicensed NSRPACK2 and current !NSRT:Profile: or
 !NSRT:EncounterAlert: exports (full, single alert or group). Review the migration
 report in the string box. NSRT glow units glow those players' raid frames next to
 the reminder. Negative phase-1 times become "Before pull (countdown)" reminders:
 they start from a /countdown or boss-mod pull timer, and the boss is the nearest
-planned boss among the Encounter Journal pins on your map (/pdp diag shows it).
-Profiles using either feature need Puzatik Defensive Planner 0.3.3.
+planned boss among the Encounter Journal pins on your map (/ndp diag shows it).
+Profiles using either feature need Naowh Defensive Planner 0.3.3.
 Original migration strings and reports stay locally in SavedVariables. Unavailable
 conditions, displays and source engines are reported; they are not guessed.
 Account-licensed NSR strings remain managed in NSR. Licenses are not bypassed.
@@ -258,7 +248,7 @@ BOSS ABILITY ALERTS
 Timeline > click a boss ability > Note (or Every cast) creates a Boss ability alert:
 the ability's icon and your text (e.g. "Tank Hit") with the seconds left, as in boss
 mods. Style: Icon and text, Text only, or Bar with timer. These alerts stack on their
-own anchor; /pdp anchors (or Display > Unlock anchor) shows both anchors to drag.
+own anchor; /ndp anchors (or Display > Unlock anchor) shows both anchors to drag.
 Any mechanic reminder can use the action "Boss ability alert".
 
 SETTINGS / DIAGNOSTICS
@@ -270,7 +260,7 @@ spell labels and icons identify the chosen defensive, not only the boss ability.
 Together callouts show the selected group. Public readiness chooses priorities;
 closed/unknown charge counts are not guessed. Fixed spell-icon reminders do not
 require readiness-based selection. Preview is not a live encounter test.
-Use /pdp diag (or the Diagnostics page) for a copyable build/provider report.
+Use /ndp diag (or the Diagnostics page) for a copyable build/provider report.
 The Display page previews a reminder and unlocks the anchor so you can drag it.
 
 CLIENTS / DATA

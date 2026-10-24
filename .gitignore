@@ -4,4 +4,4 @@ release/
 .data/
 test-results/
 *.log
-addon/PuzatikDefensivePlanner/Media/Fonts/Naowh.ttf
+addon/NaowhDefensivePlanner/Media/Fonts/Naowh.ttf

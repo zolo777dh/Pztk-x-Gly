@@ -1,28 +1,28 @@
-Puzatik Defensive Planner: credits and sources
+Naowh Defensive Planner: credits and sources
 
 THANK YOU
-This addon would not exist without the work of other addon authors. PDP is its own
+This addon would not exist without the work of other addon authors. NDP is its own
 code and does not include their addons, but it learned from them, reads the same
 game events, and uses public facts about encounters that they made visible.
 
 - BigWigs and LittleWigs, by Funkeh, Nebula, Justwait, Delk and the BigWigsMods team.
   The built-in raid timers and the Mythic+ catalog use encounter facts (spell IDs and
-  timings) read from their public modules. PDP also listens to BigWigs events when it
+  timings) read from their public modules. NDP also listens to BigWigs events when it
   is installed.
-- Deadly Boss Mods, by the DBM team, and EXBoss. PDP listens to their timer events
+- Deadly Boss Mods, by the DBM team, and EXBoss. NDP listens to their timer events
   when they are installed. The Mythic+ catalog uses facts (encounter and spell IDs,
   durations) from the EXBoss data files.
 - Northern Sky Raid Tools, by Reloe and Rav. The note line format
   (time:;ph:;text:;tag:) and the boss ability categories follow NSRT, written anew
-  from those facts. PDP reads NSRT export strings.
+  from those facts. NDP reads NSRT export strings.
 - Naowh Smart Reminders, by Naowh. The defensive reminder ideas and the old string
-  format, which PDP still reads.
+  format, which NDP still reads.
 - Timeline Reminders, by Bart. The expected boss timelines on the Timeline page are
-  facts (spell IDs and seconds) from its community timelines. PDP reads !TR2: strings.
+  facts (spell IDs and seconds) from its community timelines. NDP reads !TR2: strings.
 - Mythic Dungeon Tools, by Nnoggie, and Raider.IO: dungeon, enemy and map IDs.
 - Method guides were used only as names for reference; no guide text is included.
 
-None of these addons' code is copied into PDP, and no protected or licensed data was
+None of these addons' code is copied into NDP, and no protected or licensed data was
 bypassed to read the facts above. Encounter facts can change with each patch; any
 mistakes in them are ours, not the original authors'.
 
@@ -40,8 +40,8 @@ FONTS AND MEDIA
   under the AGPL with the font exception; see Media/Fonts/URWGothic-LICENSE.txt. The
   commercial Naowh / ITC Avant Garde Gothic font is not included.
 - Media/UI textures (rounded corners, icon mask, interface glyphs) were drawn for this
-  addon by tools/bake-addon-media.mjs. The logo (Media/Logo.tga) is drawn by
-  tools/bake-logo.py with the bundled URW Gothic font.
+  addon by tools/bake-addon-media.mjs. The logo (Media/Logo.tga) is the Naowh logo
+  supplied by the project owner.
 - Sound: spoken cues use the game's own text-to-speech, and alert sounds are the
   game's built-in sound files referenced by ID. No third-party audio is bundled.
 - Spell icons, names and fonts shown in game come from the World of Warcraft client.

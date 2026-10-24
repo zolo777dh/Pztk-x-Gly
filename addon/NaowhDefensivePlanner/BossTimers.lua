@@ -49,7 +49,7 @@ function api.Drop(id)
     bar.done = true; ns.Cancel("ndp:msg:" .. id); ns.Cancel("ability:" .. bar.identity .. ":")
 end
 function api.Now() return GetTime() end
--- A bar PDP keeps itself (pull timers, repeating casts); its end counts as the cast.
+-- A bar NDP keeps itself (pull timers, repeating casts); its end counts as the cast.
 function api.Bar(spell, seconds)
     if not seconds or seconds <= 0 then return end
     ns.Mechanic(spell, seconds, "NDPBAR:" .. spell, ns.encounter)
@@ -116,7 +116,7 @@ local function Start(id, spell, opts, duration, elapsed)
     local repeatEvent = gap ~= nil and gap > GetTime() - 2
     if gap then state.gaps[spell] = nil; ns.Cancel("ability:NDPGAP:" .. spell .. ":") end
     local bar = {
-        id = id, spell = spell, duration = duration, deadline = GetTime() + remaining, identity = "PDP:" .. id,
+        id = id, spell = spell, duration = duration, deadline = GetTime() + remaining, identity = "NDP:" .. id,
         fixed = opts.fixed, cancelFires = opts.cancelFires, gap = opts.gap, data = opts.data,
     }
     state.bars[id] = bar
@@ -162,7 +162,7 @@ local function Changed(id)
     if not timeline or not timeline.GetEventState then return end
     local ok, s = pcall(timeline.GetEventState, id)
     if not ok or not ns.Plain(s, "number") then return end
-    -- Some bosses react to any cancelled bar, also to bars PDP does not name.
+    -- Some bosses react to any cancelled bar, also to bars NDP does not name.
     if watch and s == 3 and not (bar and bar.fixed) then watch(api, state.bars, id) end
     if not bar or bar.done or bar.fixed then return end
     if s == 2 then Finish(id)

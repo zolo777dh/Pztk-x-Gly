@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import fengari from 'fengari';
 const {lua,lauxlib,lualib,to_luastring}=fengari;
-const runtime=await fs.readFile('addon/PuzatikDefensivePlanner/Runtime.lua','utf8');
+const runtime=await fs.readFile('addon/NaowhDefensivePlanner/Runtime.lua','utf8');
 function execute(script){const L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}}
 const fixture=`local ns={};local now=0;local loaded={};local pending={};local displayed={};local secret={};local cooldowns={};local known={};local role='HEALER';local current
 function GetTime()return now end
@@ -19,7 +19,7 @@ C_AddOns={IsAddOnLoaded=function(name)return loaded[name]end}
 C_SpellBook={IsSpellKnown=function(spell)return known[spell]~=false end}
 C_Spell={GetSpellCooldown=function(spell)return cooldowns[spell]or {startTime=0,duration=0,isEnabled=true}end}
 C_Timer={NewTimer=function(delay,fn)local t={at=now+delay,fn=fn};function t:Cancel()self.cancelled=true end;pending[#pending+1]=t;return t end}
-(function(...) ${runtime}\nend)('PuzatikDefensivePlanner',ns)
+(function(...) ${runtime}\nend)('NaowhDefensivePlanner',ns)
 ns.Store=function()return {active='p',profiles={p=current}}end
 ns.Display=function(d)displayed[#displayed+1]=d end
 local function advance(t)now=t;for _,timer in ipairs(pending)do if not timer.cancelled and not timer.fired and timer.at<=now then timer.fired=true;timer.fn()end end end

@@ -1,5 +1,5 @@
 local _, ns = ...
--- Pull analysis: each real pull logs when PDP called a defensive (and which spells it showed)
+-- Pull analysis: each real pull logs when NDP called a defensive (and which spells it showed)
 -- and when you cast a spell of your sets. The last pull per boss and difficulty is kept, so the
 -- Timeline can compare the plan with what happened: a call is followed when one of its spells
 -- was cast within FOLLOW seconds. Only your own casts are read; the game hides other players'.

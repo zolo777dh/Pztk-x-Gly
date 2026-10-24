@@ -12,7 +12,7 @@ import {inflateRawSync} from 'node:zlib';
 
 const {lua,lauxlib,lualib,to_luastring,to_jsstring}=fengari;
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const addon=path.join(root,'addon','PuzatikDefensivePlanner');
+const addon=path.join(root,'addon','NaowhDefensivePlanner');
 
 // Loads the addon's real Lua (plus the real LibStub/LibDeflate/LibSerialize) over WoW stubs and runs a Lua test body.
 function runLua(body,globals={}){
@@ -22,7 +22,7 @@ function runLua(body,globals={}){
  run(fs.readFileSync(path.join(root,'tests','helpers','wow-runtime.lua'),'utf8'),'stubs');
  // Real libraries register through the real LibStub; glow/frame libraries stay stubbed.
  run(`local stub=_G.LibStub;_G.LibStub=nil;${fs.readFileSync(path.join(addon,'Libs','LibStub.lua'),'utf8')}\nlocal real=_G.LibStub;_G.LibStub=setmetatable({},{__call=function(_,name,silent)return stub(name)or real(name,silent)end,__index=real})`,'LibStub');
- // LibDeflate's bit arithmetic needs Lua 5.1; under fengari, PZTK1 bodies travel as hex and !PDP1: bodies as Base64 of the inflated bytes instead.
+ // LibDeflate's bit arithmetic needs Lua 5.1; under fengari, PZTK1 bodies travel as hex and !NDP1: bodies as Base64 of the inflated bytes instead.
  run(`LibStub:NewLibrary("LibDeflate",1)`,'LibDeflate');run(`local ld=LibStub("LibDeflate")
   function ld:DecodeForPrint(s)return (s:gsub("..",function(h)return string.char(tonumber(h,16))end))end
   function ld:EncodeForPrint(s)return (s:gsub(".",function(c)return string.format("%02x",c:byte())end))end
@@ -30,8 +30,8 @@ function runLua(body,globals={}){
   function ld:CompressDeflate(s)return s end`,'LibDeflate shim');
  for(const lib of ['LibSerialize.lua'])run(fs.readFileSync(path.join(addon,'Libs',lib),'utf8'),lib);
  run('NS={}','ns');
- const files=fs.readFileSync(path.join(addon,'PuzatikDefensivePlanner.toc'),'utf8').split(/\r?\n/).filter(l=>l.endsWith('.lua')&&!l.startsWith('Libs'));
- for(const file of files)run(`local chunk=assert(loadstring and loadstring(...) or load(...));chunk("PuzatikDefensivePlanner",NS)`.replace(/\.\.\./g,JSON.stringify(fs.readFileSync(path.join(addon,file),'utf8'))),file);
+ const files=fs.readFileSync(path.join(addon,'NaowhDefensivePlanner.toc'),'utf8').split(/\r?\n/).filter(l=>l.endsWith('.lua')&&!l.startsWith('Libs'));
+ for(const file of files)run(`local chunk=assert(loadstring and loadstring(...) or load(...));chunk("NaowhDefensivePlanner",NS)`.replace(/\.\.\./g,JSON.stringify(fs.readFileSync(path.join(addon,file),'utf8'))),file);
  run(body,'test');
 }
 
@@ -44,7 +44,7 @@ async function exportFor(alerts){
  const text=new NsrtCodec().encode({type:'EncounterAlert',payload:{version:1,type:'alerts',encounterAlerts:alerts},numericKeys:[]});
  const {view:after}=await service.handle('reminders.migrateNsrt',{id:view.id,revision:view.revision,text});
  const exported=(await service.handle('reminders.export',{id:after.id,revision:after.revision})).text;
- return '!PDP1:'+inflateRawSync(Buffer.from(exported.slice(6),'base64')).toString('base64');
+ return '!NDP1:'+inflateRawSync(Buffer.from(exported.slice(6),'base64')).toString('base64');
 }
 const alert=extra=>({name:'Pot',text:'Pot',enabled:true,IsAlert:true,DisplayType:'Text',dur:3,phase:1,timers:[-5],loadConditions:{},...extra});
 

@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/PuzatikDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Simulate','Planner','Triggers','Analysis','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
-async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('PuzatikDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.RealDisplay=ns.Display;ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(PuzatikDefensivePlannerDB));assert(ok);PuzatikDefensivePlannerDB=db else PuzatikDefensivePlannerDB=ns.Clone(PuzatikDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Simulate','Planner','Triggers','Analysis','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.RealDisplay=ns.Display;ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
 }
@@ -104,7 +104,7 @@ local function dump(v,seen,depth)
  return'{'..table.concat(out,',')..'}'
 end
 local function fingerprint()
- local popup=ns.Widgets.popup;return dump(PuzatikDefensivePlannerDB)..'|'..dump(ns.UIState)..'|'..tostring(popup and popup.shown)..'|'..#env.shown..'|'..calls..'|'..tostring(ns.WorkspaceWindow.shown)
+ local popup=ns.Widgets.popup;return dump(NaowhDefensivePlannerDB)..'|'..dump(ns.UIState)..'|'..tostring(popup and popup.shown)..'|'..#env.shown..'|'..calls..'|'..tostring(ns.WorkspaceWindow.shown)
 end
 -- Content on every page: sets, reminders, debuffs, notes, nicknames.
 assert(ns.SaveSet('mythic',104,nil,'Magic',{{spellID=22812},{spellID=61336}}));assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
@@ -144,7 +144,7 @@ for _,line in ipairs(dead)do local key=line:match(' (.+)$');local chosen=key:mat
 assert(#unexplained==0,'Controls with no effect:\\n'..table.concat(unexplained,'\\n'))
 assert(total>250,'Audit clicked only '..total..' controls')
 `));
-test('debuffs sit in Mythic+ and Raids, raids get their own racial list, /pdp debuffs opens them',()=>run(`
+test('debuffs sit in Mythic+ and Raids, raids get their own racial list, /ndp debuffs opens them',()=>run(`
 env.click('tab:raid');env.click('mode:debuffs');assert(ns.UIState.tab=='raid'and ns.UIState.mode=='debuffs')
 assert(ns.UIControls['tab:debuffs']==nil,'Debuffs must not be a sidebar section')
 ns.UIControls['debuffs-racial']:Click();for _,r in ipairs(ns.Widgets.menu.rows)do if r.shown and r.label.text:find('Stoneform',1,true)then r:Click()break end end
@@ -155,7 +155,7 @@ env.click('debuff-new');env.input('debuff:spellID','1290336');env.click('debuff-
 local saved;for _,r in ipairs(ns.DebuffRules(104))do if r.rule.trigger.spellID==1290336 then saved=r end end;assert(saved and saved.rule.trigger.scope=='raid')
 env.click('tab:mythic');env.click('mode:debuffs');for k in pairs(ns.UIControls)do assert(not k:match('^debuff%-group:Vashnik'),'Raid alerts leaked into Mythic+')end
 env.reload();assert(#ns.DebuffRules(104)>=16,'Raid debuff alerts did not survive a reload')
-ns.WorkspaceWindow:Hide();SlashCmdList.PDP('debuffs');assert(ns.UIState.mode=='debuffs')
+ns.WorkspaceWindow:Hide();SlashCmdList.NDP('debuffs');assert(ns.UIState.mode=='debuffs')
 `));
 test('an open list closes on a click anywhere outside it',()=>run(`
 env.click('tab:settings');ns.UIControls['ui:theme']:Click()
@@ -348,13 +348,13 @@ assert(got==1,'stored under sender');assert(ns.ReceiveReminders(sent[2],'Leader'
 assert(ns.SendReminders(enc,15)==1,'received reminders are not sent on')
 end
 `));
-test('one !PDP1: string carries every profile, Mythic+ and raid data, and imports them all',()=>run(`
+test('one !NDP1: string carries every profile, Mythic+ and raid data, and imports them all',()=>run(`
 assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
 assert(ns.CreateProfile('Second',true))
 local p=ns.Active();p.data.raidReminders[3379]={x={name='Float',enabled=true,content='raid',difficulties={[16]=true},trigger={type='pull',delay=12.5,leadTime=1.25},target={all=true},display={type='text',text='Négatif',dur=4,ticks={5,10}}}}
-local text,err=ns.Export();assert(text,err);assert(text:sub(1,6)=='!PDP1:','native prefix');assert(ns.DecodeProfiles('!NDP1:'..text:sub(7)),'strings from before the rename still import')
-env.click('tab:profiles');env.click('tab:profiles');env.click('profile-export');assert(ns.UIControls['profile-string']:GetText():sub(1,6)=='!PDP1:')
-env.click('profile-export-active');assert(ns.UIControls['profile-string']:GetText():sub(1,6)=='!PDP1:')
+local text,err=ns.Export();assert(text,err);assert(text:sub(1,6)=='!NDP1:','native prefix')
+env.click('tab:profiles');env.click('tab:profiles');env.click('profile-export');assert(ns.UIControls['profile-string']:GetText():sub(1,6)=='!NDP1:')
+env.click('profile-export-active');assert(ns.UIControls['profile-string']:GetText():sub(1,6)=='!NDP1:')
 if LibStub('LibDeflate').DecompressDeflate then
   local bundle=assert(ns.DecodeProfiles(text));assert(#bundle.profiles==2 and bundle.active=='Second')
   local before=0;for _ in pairs(ns.Store().profiles)do before=before+1 end
@@ -454,7 +454,7 @@ local p=ns.Active();local n0=0;for _ in pairs(ns.Store().profiles)do n0=n0+1 end
 local function rem(name)return{name=name,enabled=true,content='raid',difficulties={[15]=true},trigger={type='pull',delay=10},target={all=true},display={type='text',text=name,dur=4}}end
 p.data.raidReminders[3379]={x=rem('X')}
 env.click('tab:timeline');env.click('tab:timeline');env.click('tl-export-boss')
-assert(ns.UIState.tab=='profiles'and ns.UIState.importText:sub(1,6)=='!PDP1:','boss string shown on the Profiles page')
+assert(ns.UIState.tab=='profiles'and ns.UIState.importText:sub(1,6)=='!NDP1:','boss string shown on the Profiles page')
 env.click('profile-import-mode:merge');assert(ns.UIState.importMode=='merge')
 assert(not ns.ExportBoss(3420),'empty boss refused')
 if LibStub('LibDeflate').DecompressDeflate then

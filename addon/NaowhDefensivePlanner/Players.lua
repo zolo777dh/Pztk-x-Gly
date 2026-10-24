@@ -39,7 +39,7 @@ ns.CommHandlers.NICK=function(nick,sender)
     local p=Players();if not p.accept or not sender then return end
     local ok,value=pcall(validNick,nick);if ok and value~=""then p.nicknames[sender]=value end
 end
--- Version check: ask the group, every Puzatik Defensive Planner answers with its version.
+-- Version check: ask the group, every Naowh Defensive Planner answers with its version.
 local pending
 function ns.CheckVersions()
     local p=Players();p.versions={};p.versions[UnitName("player")]=ns.version;p.checkedAt=GetTime()

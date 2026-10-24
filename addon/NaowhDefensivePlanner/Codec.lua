@@ -1,10 +1,8 @@
--- Puzatik Defensive Planner string codec. One !PDP1: string carries every profile of a game
--- client (Mythic+ and raid data together): "!PDP1:" .. Base64(raw Deflate(CBOR(bundle))).
+-- Naowh Defensive Planner string codec. One !NDP1: string carries every profile of a game
+-- client (Mythic+ and raid data together): "!NDP1:" .. Base64(raw Deflate(CBOR(bundle))).
 -- The codec is the addon's own and does not depend on any other addon's format.
 local _,ns=...
-local PREFIX="!PDP1:"
--- Strings made before the 0.7.3 rename start with !NDP1: and name the old addon; both are read.
-local OLD_PREFIX,ADDON,OLD_ADDON="!NDP1:","PuzatikDefensivePlanner","NaowhDefensivePlanner"
+local PREFIX="!NDP1:"
 local MAX_TEXT,MAX_RAW,MAX_ITEMS,MAX_PROFILES=1000000,8000000,2000000,50
 ns.ExportPrefix=PREFIX
 
@@ -140,7 +138,7 @@ function ns.EncodeProfiles(profiles,active)
             assert(p.client==ns.Client(),"Profile "..tostring(p.name).." belongs to another game client")
             local m=p.minimumAddon or ns.MinimumAddon(p.data);if Newer(m,need)then need=m end
         end
-        local bundle={v=1,addon=ADDON,version=ns.version,client=ns.Client(),minimumAddon=need,active=active,profiles=profiles}
+        local bundle={v=1,addon="NaowhDefensivePlanner",version=ns.version,client=ns.Client(),minimumAddon=need,active=active,profiles=profiles}
         local text=PREFIX..ns.Base64Encode(LibStub("LibDeflate"):CompressDeflate(ns.WriteCBOR(bundle)))
         assert(#text<=MAX_TEXT,"Export exceeds 1 MB. Delete unused profiles or reminders first.")
         return text
@@ -148,25 +146,24 @@ function ns.EncodeProfiles(profiles,active)
     if not ok then return nil,(tostring(result):gsub("^.-:%d+: ",""))end
     return result
 end
-local function Native(text)local head=text:sub(1,#PREFIX);return head==PREFIX or head==OLD_PREFIX end
-function ns.IsNativeExport(text)return type(text)=="string"and Native((text:gsub("%s+","")))end
+function ns.IsNativeExport(text)return type(text)=="string"and text:gsub("%s+",""):sub(1,#PREFIX)==PREFIX end
 -- Returns the bundle with its profiles validated, or nil and a reason.
 function ns.DecodeProfiles(input)
     local ok,result=pcall(function()
         assert(type(input)=="string","Paste a "..PREFIX.." string")
         input=input:gsub("%s+","")
-        assert(Native(input),"Expected a "..PREFIX.." string")
+        assert(input:sub(1,#PREFIX)==PREFIX,"Expected a "..PREFIX.." string")
         assert(#input<=MAX_TEXT,"Import string exceeds 1 MB")
         local bytes=ns.Base64Decode(input:sub(#PREFIX+1))
         local raw=LibStub("LibDeflate"):DecompressDeflate(bytes)
         assert(raw and #raw<=MAX_RAW,"Invalid compressed data or size limit exceeded")
         local bundle=ns.ReadCBOR(raw,MAX_RAW,MAX_ITEMS)
-        assert(type(bundle)=="table"and bundle.v==1 and(bundle.addon==ADDON or bundle.addon==OLD_ADDON),"Not a Puzatik Defensive Planner export")
-        if type(bundle.minimumAddon)=="string"and type(ns.version)=="string"and Newer(bundle.minimumAddon,ns.version)then error("This export needs Puzatik Defensive Planner "..bundle.minimumAddon.." or newer")end
+        assert(type(bundle)=="table"and bundle.v==1 and bundle.addon=="NaowhDefensivePlanner","Not a Naowh Defensive Planner export")
+        if type(bundle.minimumAddon)=="string"and type(ns.version)=="string"and Newer(bundle.minimumAddon,ns.version)then error("This export needs Naowh Defensive Planner "..bundle.minimumAddon.." or newer")end
         assert(type(bundle.profiles)=="table"and #bundle.profiles>0 and #bundle.profiles<=MAX_PROFILES,"Export holds no profiles")
         for i,p in ipairs(bundle.profiles)do
             assert(type(p)=="table"and p.client==bundle.client,"Profile "..i.." belongs to another game client")
-            if type(p.minimumAddon)=="string"and Newer(p.minimumAddon,ns.version)then error("Profile "..tostring(p.name).." needs Puzatik Defensive Planner "..p.minimumAddon.." or newer")end
+            if type(p.minimumAddon)=="string"and Newer(p.minimumAddon,ns.version)then error("Profile "..tostring(p.name).." needs Naowh Defensive Planner "..p.minimumAddon.." or newer")end
             assert(ns.Validate(p),"Profile "..tostring(p.name).." contains unsupported data")
         end
         return bundle

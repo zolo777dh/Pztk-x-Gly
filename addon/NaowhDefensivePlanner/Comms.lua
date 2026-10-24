@@ -1,7 +1,7 @@
--- Group messages between Puzatik Defensive Planner users: notes, break timers, nicknames, version checks.
+-- Group messages between Naowh Defensive Planner users: notes, break timers, nicknames, version checks.
 -- Long payloads are split into chunks and sent from a small queue that waits out the game's throttle.
 local _,ns=...
-local PREFIX="PDP"
+local PREFIX="NDP"
 local queue,parts,serial,ticker={},{},0,nil
 ns.CommHandlers={}
 local function registered()

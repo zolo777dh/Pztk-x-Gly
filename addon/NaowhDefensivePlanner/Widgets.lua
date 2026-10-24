@@ -3,7 +3,7 @@
 -- rounded fills on BACKGROUND/BORDER, icons and the logo on ARTWORK, text on OVERLAY.
 local _,ns=...
 local W={};ns.Widgets=W;ns.UIControls={};ns.UIScrolls={}
-local media="Interface\\AddOns\\PuzatikDefensivePlanner\\Media\\"
+local media="Interface\\AddOns\\NaowhDefensivePlanner\\Media\\"
 W.media=media
 W.logo=media.."Logo"
 local DISC,WHITE,MASK,ICONS=media.."UI\\Disc",media.."UI\\Disc",media.."UI\\IconMask",media.."UI\\Icons"

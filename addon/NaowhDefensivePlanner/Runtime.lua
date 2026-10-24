@@ -1,6 +1,6 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
-_G.PuzatikDefensivePlanner = ns
+_G.NaowhDefensivePlanner = ns
 ns.version = "0.7.3"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
@@ -16,7 +16,7 @@ end
 function ns.Conflict()
     local loaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
     if loaded then
-        for _, name in ipairs({ "NaowhSmartReminders", "NorthernSkyRaidTools", "TimelineReminders", "PztkReminders", "NaowhDefensivePlanner" }) do
+        for _, name in ipairs({ "NaowhSmartReminders", "NorthernSkyRaidTools", "TimelineReminders", "PztkReminders", "PuzatikDefensivePlanner" }) do
             if loaded(name) then return name end
         end
     end

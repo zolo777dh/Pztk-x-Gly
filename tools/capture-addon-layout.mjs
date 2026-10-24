@@ -2,9 +2,9 @@
 // The PNGs are layout previews, not screenshots of a live WoW client: textures, tex coords,
 // vertex colors, draw layers, blend modes and the shipped fonts are emulated in Chromium.
 import fs from 'node:fs/promises';import path from 'node:path';import {execFileSync}from 'node:child_process';import {chromium}from 'playwright-core';
-const root=path.resolve('addon/PuzatikDefensivePlanner'),out=path.resolve('test-results/addon-layout');await fs.mkdir(out,{recursive:true});const harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),out=path.resolve('test-results/addon-layout');await fs.mkdir(out,{recursive:true});const harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 const sources=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Simulate','Planner','Triggers','Analysis','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'];
-const prefix=`strmatch=string.match;local env=(function()\n${harness}\nend)();local ns={};\n`+['Libs/LibStub.lua','Libs/LibSerialize.lua','Libs/LibDeflate.lua',...sources.map(x=>x+'.lua')].map(x=>x.startsWith('Libs/')?`dofile(${JSON.stringify(root+'/'+x)})`:`assert(loadfile(${JSON.stringify(root+'/'+x)}))('PuzatikDefensivePlanner',ns)`).join('\n')+`\nns.Open();local m=assert(ns.SaveSet('mythic',104,nil,'Magic damage',{{spellID=22812,enabled=true},{spellID=61336,enabled=true},{spellID=200851,enabled=true}}));assert(ns.SaveSet('raid',104,nil,'Raid personal',{{spellID=22812,enabled=true},{spellID=61336,enabled=true}}));\n`;
+const prefix=`strmatch=string.match;local env=(function()\n${harness}\nend)();local ns={};\n`+['Libs/LibStub.lua','Libs/LibSerialize.lua','Libs/LibDeflate.lua',...sources.map(x=>x+'.lua')].map(x=>x.startsWith('Libs/')?`dofile(${JSON.stringify(root+'/'+x)})`:`assert(loadfile(${JSON.stringify(root+'/'+x)}))('NaowhDefensivePlanner',ns)`).join('\n')+`\nns.Open();local m=assert(ns.SaveSet('mythic',104,nil,'Magic damage',{{spellID=22812,enabled=true},{spellID=61336,enabled=true},{spellID=200851,enabled=true}}));assert(ns.SaveSet('raid',104,nil,'Raid personal',{{spellID=22812,enabled=true},{spellID=61336,enabled=true}}));\n`;
 const scenarios={
  overview:`env.click('tab:overview')`,
  mythic:`env.click('tab:mythic');env.select('group','Altar of Fangs');env.click('entity:270306');env.click('ability:1306517');env.select('rule:preset','Magic damage');env.click('save-rule')`,
@@ -70,7 +70,7 @@ try{for(const [name,scenario]of Object.entries(scenarios).filter(([n])=>!process
     d.textContent=r.text||'';Object.assign(d.style,{height:'auto',fontSize:(r.fontSize||12)+'px',lineHeight:'1.2',color:rgba(r.color)||'#e8eef6',fontFamily:/Demi/.test(r.font||'')?'UD':'UB',whiteSpace:r.wrap===false?'nowrap':'pre-wrap',textOverflow:'ellipsis',textAlign:r.justify==='CENTER'?'center':r.justify==='RIGHT'?'right':'left',overflow:'hidden',maxHeight:r.kind==='EditBox'?r.h+'px':undefined});
     if(r.kind==='EditBox')d.style.zIndex=String(r.level*1000+390);
    }else{
-    const file=typeof r.texture==='string'?r.texture.replace(/^Interface\\AddOns\\PuzatikDefensivePlanner\\Media\\/,'').replace(/\\/g,'/'):null;const img=file&&urls[file];
+    const file=typeof r.texture==='string'?r.texture.replace(/^Interface\\AddOns\\NaowhDefensivePlanner\\Media\\/,'').replace(/\\/g,'/'):null;const img=file&&urls[file];
     const tint=rgba(r.vertex||[1,1,1,1]);const c=r.coords||[0,1,0,1];
     if(r.background){d.style.background=rgba(r.background);}
     else if(img){

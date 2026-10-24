@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/PuzatikDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Simulate','Planner','Triggers','Analysis','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
-async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('PuzatikDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(PuzatikDefensivePlannerDB));assert(ok);PuzatikDefensivePlannerDB=db else PuzatikDefensivePlannerDB=ns.Clone(PuzatikDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Simulate','Planner','Triggers','Analysis','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
 }
@@ -132,14 +132,14 @@ local entries=ns.Get(ns.Active().data.raidReminders,3379);local key,e=next(entri
 ns.instanceType='raid';ns.Begin(3379,15,1);env.advance(7);assert(#env.shown==0);env.advance(1);assert(#env.shown==1 and env.shown[1].text=='Move now');ns.Reset()
 env.click('timed:'..key);env.select('rule:trigger','Time from phase');env.input('rule:phase','2');env.input('rule:delay','5');env.click('save-rule');e=ns.Get(ns.Active().data.raidReminders,3379)[key];assert(e.trigger.type=='stage'and e.trigger.stage==2)
 ns.Begin(3379,15,1);env.advance(10);local before=#env.shown;ns.Phase(2);env.advance(3);assert(#env.shown==before+1);ns.Reset()
-env.click('tab:profiles');env.click('profile-export');local text=ns.UIControls['profile-string']:GetText();assert(text:sub(1,6)=='!PDP1:')
+env.click('tab:profiles');env.click('profile-export');local text=ns.UIControls['profile-string']:GetText();assert(text:sub(1,6)=='!NDP1:')
 `));
 test('profile operations, manual Forever encounters and all 40 named specs work without mutating another client',()=>run(`
 assert(ns.CreateProfile('Copy',true));assert(ns.RenameProfile('Renamed'));assert(ns.SelectProfile('Default'));assert(ns.Store().profiles.Renamed)
 local count=0;for _ in pairs(ns.Catalog.specs)do count=count+1 end;assert(count==40)
 env.version='1.60.1';assert(ns.CreateProfile('Forever',false));assert(#ns.CatalogGroups('mythic')==0)
 assert(ns.AddManualMechanic({scope='mythic',groupName='My dungeon',npcName='My boss',npcID=123,mapID=456,encounterId=789,spellID=999,spellName='My mechanic',kind='boss'}));local groups=ns.CatalogGroups('mythic');assert(#groups==1 and groups[1].npcs[1].abilities[1].id==999)
-assert(PuzatikDefensivePlannerDB.clients.retail.profiles.Default and PuzatikDefensivePlannerDB.clients.forever.profiles.Forever)
+assert(NaowhDefensivePlannerDB.clients.retail.profiles.Default and NaowhDefensivePlannerDB.clients.forever.profiles.Forever)
 `));
 test('legacy shared presets split into independent copies on first edit, with exact IDs and no aliasing',()=>run(`
 ns.Active().data.presets={[104]={p={name='Legacy',list={22812},together={}}}};ns.Active().data.activePreset={[104]='p'}
@@ -199,10 +199,10 @@ for _,old in ipairs({'alerts','assign','display','sets'})do assert(ns.UIControls
 env.click('top:display');assert(ns.AnchorsUnlocked());env.click('top:display');assert(not ns.AnchorsUnlocked());env.click('header-profile');assert(ns.UIState.tab=='profiles')
 env.click('tab:settings');env.select('ui:theme','Logo blue');assert(ns.UIPrefs().theme=='logo')
 `));
-test('/pdp opens sections and old slash aliases keep working',()=>run(`
-assert(SLASH_PDP1=='/pdp' and SLASH_PDP2=='/ndp' and SLASH_PDP3=='/nwhdp' and SLASH_PDP4=='/pztkr')
-SlashCmdList.PDP('notes');assert(ns.UIState.tab=='notes')
-SlashCmdList.PDP('tl');assert(ns.UIState.tab=='timeline')
-SlashCmdList.PDP('');assert(not ns.WorkspaceWindow:IsShown());SlashCmdList.PDP('');assert(ns.WorkspaceWindow:IsShown())
-SlashCmdList.PDP('wipe confirm');assert(PuzatikDefensivePlannerDB,'wipe ran without the first confirmation step')
+test('/ndp opens sections and old slash aliases keep working',()=>run(`
+assert(SLASH_NDP1=='/ndp' and SLASH_NDP2=='/nwhdp' and SLASH_NDP4=='/pztkr')
+SlashCmdList.NDP('notes');assert(ns.UIState.tab=='notes')
+SlashCmdList.NDP('tl');assert(ns.UIState.tab=='timeline')
+SlashCmdList.NDP('');assert(not ns.WorkspaceWindow:IsShown());SlashCmdList.NDP('');assert(ns.WorkspaceWindow:IsShown())
+SlashCmdList.NDP('wipe confirm');assert(NaowhDefensivePlannerDB,'wipe ran without the first confirmation step')
 `));

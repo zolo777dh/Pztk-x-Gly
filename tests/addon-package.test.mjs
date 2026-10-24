@@ -8,20 +8,20 @@ import {unzipSync} from 'fflate';
 import {packageAddon} from '../tools/package-addon.mjs';
 import {parseLua} from '../core/analyzer.mjs';
 const files=['Runtime.lua','Locale.lua','Catalog.lua','Codec.lua','Profiles.lua','Display.lua','RuleRuntime.lua','AuraSounds.lua','Providers.lua','BossTimers.lua','BossTimerData.lua','BossTimelines.lua','Simulate.lua','Planner.lua','Triggers.lua','Analysis.lua','Editor.lua','Import.lua','Widgets.lua','UI.lua','Comms.lua','Debuffs.lua','Notes.lua','Players.lua','RaidTools.lua','QoL.lua','Combat.lua','Main.lua'];
-const sources=await Promise.all(files.map(f=>fs.readFile('addon/PuzatikDefensivePlanner/'+f,'utf8')));
+const sources=await Promise.all(files.map(f=>fs.readFile('addon/NaowhDefensivePlanner/'+f,'utf8')));
 test('standalone addon bundle contains valid runtime, complete loader dependencies, codecs, media and no NSR/NSRT runtime',async t=>{
- const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-addon-zip-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const archive=await packageAddon(process.cwd(),dir),entries=unzipSync(await fs.readFile(archive));for(const [i,f]of files.entries()){assert.ok(entries['PuzatikDefensivePlanner/'+f]);parseLua(sources[i]);}assert.ok(entries['PuzatikDefensivePlanner/Libs/LibSerialize.lua']);assert.ok(!Object.keys(entries).some(k=>k.includes('/Media/Voice/')));assert.ok(entries['PuzatikDefensivePlanner/BUILD-SOURCES.json']);assert.ok(!Object.keys(entries).some(k=>k.startsWith('NaowhSmartReminders/')||k.startsWith('NorthernSkyRaidTools/')));
- const manifest=JSON.parse(Buffer.from(entries['PuzatikDefensivePlanner/BUILD-SOURCES.json']).toString()),toc=Buffer.from(entries['PuzatikDefensivePlanner/PuzatikDefensivePlanner.toc']).toString();assert.match(toc,new RegExp('## Version: '+manifest.version.replaceAll('.','\\.')));assert.equal(path.basename(archive),'PuzatikDefensivePlanner-'+manifest.version+'.zip');assert.match(sources[0],new RegExp('ns.version = "'+manifest.version.replaceAll('.','\\.')+'"'));
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-addon-zip-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const archive=await packageAddon(process.cwd(),dir),entries=unzipSync(await fs.readFile(archive));for(const [i,f]of files.entries()){assert.ok(entries['NaowhDefensivePlanner/'+f]);parseLua(sources[i]);}assert.ok(entries['NaowhDefensivePlanner/Libs/LibSerialize.lua']);assert.ok(!Object.keys(entries).some(k=>k.includes('/Media/Voice/')));assert.ok(entries['NaowhDefensivePlanner/BUILD-SOURCES.json']);assert.ok(!Object.keys(entries).some(k=>k.startsWith('NaowhSmartReminders/')||k.startsWith('NorthernSkyRaidTools/')));
+ const manifest=JSON.parse(Buffer.from(entries['NaowhDefensivePlanner/BUILD-SOURCES.json']).toString()),toc=Buffer.from(entries['NaowhDefensivePlanner/NaowhDefensivePlanner.toc']).toString();assert.match(toc,new RegExp('## Version: '+manifest.version.replaceAll('.','\\.')));assert.equal(path.basename(archive),'NaowhDefensivePlanner-'+manifest.version+'.zip');assert.match(sources[0],new RegExp('ns.version = "'+manifest.version.replaceAll('.','\\.')+'"'));
 });
 test('addon packaging rejects duplicate Lua loads through either TOC or XML',async t=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-loader-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
- const addon=path.join(root,'addon','PuzatikDefensivePlanner'),output=path.join(root,'release');await fs.mkdir(addon,{recursive:true});
+ const addon=path.join(root,'addon','NaowhDefensivePlanner'),output=path.join(root,'release');await fs.mkdir(addon,{recursive:true});
  await fs.writeFile(path.join(addon,'Catalog.lua'),'local _,ns=...;ns.Catalog={}');
- await fs.writeFile(path.join(addon,'PuzatikDefensivePlanner.toc'),'## Version: 0.3.1\nCatalog.lua\n./Catalog.lua\n');
- await assert.rejects(packageAddon(root,output),/Duplicate addon file load: PuzatikDefensivePlanner\/Catalog\.lua/);
- await fs.writeFile(path.join(addon,'PuzatikDefensivePlanner.toc'),'## Version: 0.3.1\nCatalog.lua\nIncludes.xml\n');
+ await fs.writeFile(path.join(addon,'NaowhDefensivePlanner.toc'),'## Version: 0.3.1\nCatalog.lua\n./Catalog.lua\n');
+ await assert.rejects(packageAddon(root,output),/Duplicate addon file load: NaowhDefensivePlanner\/Catalog\.lua/);
+ await fs.writeFile(path.join(addon,'NaowhDefensivePlanner.toc'),'## Version: 0.3.1\nCatalog.lua\nIncludes.xml\n');
  await fs.writeFile(path.join(addon,'Includes.xml'),'<Ui><Script file="Catalog.lua"/></Ui>');
- await assert.rejects(packageAddon(root,output),/Duplicate addon file load: PuzatikDefensivePlanner\/Catalog\.lua/);
+ await assert.rejects(packageAddon(root,output),/Duplicate addon file load: NaowhDefensivePlanner\/Catalog\.lua/);
  await fs.writeFile(path.join(addon,'Includes.xml'),'<Ui><!-- <Script file="Catalog.lua"/> --></Ui>');
  await packageAddon(root,output);
 });
@@ -47,18 +47,13 @@ local libs={}
 function LibStub(key)return libs[key]end
 C_Spell={GetSpellInfo=function()return {name='Astral Shift',iconID=1}end}
 C_Timer={NewTimer=function()return {Cancel=function()end}end}
-`+sources.map(s=>`;(function(...)\n${s}\nend)('PuzatikDefensivePlanner',ns);`).join('\n')+`
-assert(SlashCmdList.PDP and SLASH_PDP1=='/pdp' and SLASH_PDP2=='/ndp' and SLASH_PDP3=='/nwhdp' and SLASH_PDP4=='/pztkr');
+`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns);`).join('\n')+`
+assert(SlashCmdList.NDP and SLASH_NDP1=='/ndp' and SLASH_NDP2=='/nwhdp' and SLASH_NDP4=='/pztkr');
 -- A renamed PztkReminders.lua SavedVariables file is adopted once and dropped.
 PztkRemindersDB={clients={retail={profiles={Old={name='Old',data={}}},active='Old',history={}}}}
-assert(ns.Store().profiles.Old and PuzatikDefensivePlannerDB.clients.retail.active=='Old' and PztkRemindersDB==nil)
--- So is the 0.7.2 NaowhDefensivePlannerDB after the rename to Puzatik Defensive Planner.
-local keep=PuzatikDefensivePlannerDB;PuzatikDefensivePlannerDB=nil
-NaowhDefensivePlannerDB={clients={retail={profiles={Naowh={name='Naowh',data={}}},active='Naowh',history={}}}}
-assert(ns.Store().profiles.Naowh and PuzatikDefensivePlannerDB.clients.retail.active=='Naowh' and NaowhDefensivePlannerDB==nil)
-PuzatikDefensivePlannerDB=keep
-PuzatikDefensivePlannerDB=nil
-ns.Open();assert(PuzatikDefensivePlannerDB.clients.retail)
+assert(ns.Store().profiles.Old and NaowhDefensivePlannerDB.clients.retail.active=='Old' and PztkRemindersDB==nil)
+NaowhDefensivePlannerDB=nil
+ns.Open();assert(NaowhDefensivePlannerDB.clients.retail)
 ns.Display({type='text',text='Raid assignment',dur=5})
 ns.Display({type='icon',spellID=108271,text='Defensive',dur=5})
 ns.Display({type='circle',spellID=108271,text='Countdown',dur=5})
@@ -89,7 +84,7 @@ ns.Display({type='raidframeGlow',text='Second',glowTarget='Tester'})
 ns.Display({type='nameplateGlow',text='Nameplate',glowTarget='Tester'})
 assert(glowStarts[1].frame==unitFrame and glowStarts[2].frame==unitFrame and glowStarts[1].key~=glowStarts[2].key)
 assert(glowStarts[3].frame==plate and plateQueries==1);ns.HideDisplays();assert(#glowStops==3)
-for _,stop in ipairs(glowStops)do assert(type(stop.key)=='string'and stop.key:find('PuzatikDefensivePlanner:',1,true)==1)end
+for _,stop in ipairs(glowStops)do assert(type(stop.key)=='string'and stop.key:find('NaowhDefensivePlanner:',1,true)==1)end
 -- Only the called spell glows on the player's own Cooldown Manager / action bar, then stops.
 local function button(spell)return {IsVisible=function()return true end,GetSpellID=function()return spell end}end
 local called,other,bar=button(22812),button(61336),{IsVisible=function()return true end,action=7}
@@ -106,14 +101,14 @@ EssentialCooldownViewer=nil;ActionButton1=nil
 local eventFrame
 for _,f in ipairs(frames)do if f._events and f._events.PLAYER_ENTERING_WORLD then eventFrame=f end end
 assert(eventFrame)
-PuzatikDefensivePlannerDB.clients.retail.profiles.p={data={raidReminders={[3470]={r={trigger={type='pull',delay=30},display={type='text',text='Old zone'}}}}}}
-PuzatikDefensivePlannerDB.clients.retail.active='p'
+NaowhDefensivePlannerDB.clients.retail.profiles.p={data={raidReminders={[3470]={r={trigger={type='pull',delay=30},display={type='text',text='Old zone'}}}}}}
+NaowhDefensivePlannerDB.clients.retail.active='p'
 ns.Begin(3470,15,2813);assert(next(ns.timers));map=999;eventFrame._scripts.OnEvent(eventFrame,'PLAYER_ENTERING_WORLD')
 assert(ns.encounter==nil and ns.map==999 and next(ns.timers)==nil)
 ns.Begin(3470,15,999);eventFrame._scripts.OnEvent(eventFrame,'PLAYER_SPECIALIZATION_CHANGED','player');assert(ns.encounter==nil)
 map=nil;eventFrame._scripts.OnEvent(eventFrame,'PLAYER_ENTERING_WORLD');assert(ns.map==nil)
-build='1.60.1';ns.Open();assert(PuzatikDefensivePlannerDB.clients.forever)
-local diagnostic=ns.Diagnostics();assert(diagnostic:find('Puzatik Defensive Planner '..ns.version,1,true));assert(diagnostic:find('Client: forever',1,true));assert(diagnostic:find('EXBOSS-Locale:',1,true))
+build='1.60.1';ns.Open();assert(NaowhDefensivePlannerDB.clients.forever)
+local diagnostic=ns.Diagnostics();assert(diagnostic:find('Naowh Defensive Planner '..ns.version,1,true));assert(diagnostic:find('Client: forever',1,true));assert(diagnostic:find('EXBOSS-Locale:',1,true))
 `;
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
 });

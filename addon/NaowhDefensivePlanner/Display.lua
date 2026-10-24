@@ -3,7 +3,7 @@ local pool, active, serial = {}, {}, 0
 -- Built-in cues have no sound files of their own. As a reminder sound they are spoken by the
 -- game's text to speech, with the phrase set in Settings (or the default below). Debuff alerts
 -- go through the game's aura sound API, which needs a file: there each cue plays a game sound,
--- given by its FileDataID (these sounds ship with the game client, not with PDP).
+-- given by its FileDataID (these sounds ship with the game client, not with NDP).
 local cues={
     ["voice:use-a-defensive"]={text="Use a defensive",file=7670701},
     ["voice:move-out"]={text="Move out",file=7670697},
@@ -51,7 +51,7 @@ local function Region()
     local r = table.remove(pool)
     if r then return r end
     r = CreateFrame("Frame", nil, UIParent)
-    serial=serial+1;r.glowKey="PuzatikDefensivePlanner:"..serial
+    serial=serial+1;r.glowKey="NaowhDefensivePlanner:"..serial
     r:SetSize(340, 48); r:SetFrameStrata("HIGH")
     r.text = r:CreateFontString(nil,"OVERLAY","GameFontNormalLarge");r.text:SetJustifyH("LEFT");r.text:SetTextColor(1,1,1,1)
     r.text:SetShadowColor(0,0,0,1);r.text:SetShadowOffset(1,-1)
@@ -320,7 +320,7 @@ local function AnchorSpell()
     return set and set.list and set.list[1]or 22812
 end
 local anchorInfo={
-    main={setting="pos",label="Reminders · drag the icon · /pdp anchors locks",color={0.2,0.76,0.65,1},point="LEFT"},
+    main={setting="pos",label="Reminders · drag the icon · /ndp anchors locks",color={0.2,0.76,0.65,1},point="LEFT"},
     ability={setting="abilityPos",label="Boss ability alerts · drag the icon",color={1,0.67,0,1}},
 }
 local function MakeAnchor(group)
