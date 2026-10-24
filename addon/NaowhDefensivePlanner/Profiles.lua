@@ -174,7 +174,9 @@ function ns.Validate(profile)
                     end
                 end
             end
-            if trigger.type ~= "pull" and trigger.type ~= "prepull" and trigger.type ~= "stage" and trigger.type ~= "bwtimer" and trigger.type ~= "bwmsg" then return false end
+            if trigger.type ~= "pull" and trigger.type ~= "prepull" and trigger.type ~= "stage" and trigger.type ~= "bwtimer" and trigger.type ~= "bwmsg" and trigger.type ~= "bosshp" and trigger.type ~= "aura" then return false end
+            if trigger.type=="bosshp"and not Number(trigger.percent,1,99)then return false end
+            if trigger.type=="aura"and not ID(trigger.spellID)then return false end
             if trigger.type=="prepull"and not Number(trigger.delay,0.1,3600)then return false end
             if not Number(trigger.delay,0,7200,true)or not Number(trigger.leadTime,0,120,true)or not Number(trigger.stage,0.01,100,true)then return false end
             if (trigger.type=="bwtimer"or trigger.type=="bwmsg")and not ID(trigger.spellID)then return false end
@@ -196,6 +198,11 @@ function ns.Validate(profile)
             if entry.target and type(entry.target) ~= "table" then return false end
             for _,key in ipairs({"all","matchAny"})do if entry.target and entry.target[key]~=nil and type(entry.target[key])~="boolean"then return false end end
             for _, key in ipairs({"roles","specs","classes","names","subgroups"}) do if entry.target and entry.target[key] and not Flags(entry.target[key]) then return false end end
+            -- Rotations (cast N goes to the N-th name) and note slots (the N-th name of a note line).
+            local rot=entry.target and entry.target.rotation
+            if rot~=nil and(type(rot)~="table"or(rot.note~=nil and(type(rot.note)~="string"or #rot.note>40))or(rot.names~=nil and not Sequence(rot.names,1,40,function(v)return type(v)=="string"and #v<=64 end))or(rot.note==nil and rot.names==nil))then return false end
+            local slot=entry.target and entry.target.noteSlot
+            if slot~=nil and(type(slot)~="table"or type(slot.note)~="string"or #slot.note>40 or not Number(slot.index,1,40))then return false end
         end
     end
     return true
@@ -208,8 +215,12 @@ function ns.MinimumAddon(data)
     local need="0.3.0"
     for _,entries in pairs(type(data)=="table"and type(data.raidReminders)=="table"and data.raidReminders or{})do
         for _,e in pairs(type(entries)=="table"and entries or{})do
-            if type(e)=="table"and type(e.display)=="table"and(e.display.hideOnUse~=nil or e.display.voiceCountdown~=nil)then return "0.6.7"end
-            if type(e)=="table"and type(e.display)=="table"then for _,key in ipairs(lookKeys)do if e.display[key]~=nil then need="0.6.5"end end end
+            -- Rotations and note slots are read only from 0.7.0; older addons would show them to everyone.
+            -- Boss health and aura triggers are read only from 0.7.1.
+            if type(e)=="table"and type(e.trigger)=="table"and(e.trigger.type=="bosshp"or e.trigger.type=="aura")then return "0.7.1"end
+            if type(e)=="table"and type(e.target)=="table"and(e.target.rotation~=nil or e.target.noteSlot~=nil)then need="0.7.0"end
+            if need~="0.7.0"and type(e)=="table"and type(e.display)=="table"and(e.display.hideOnUse~=nil or e.display.voiceCountdown~=nil)then need="0.6.7"end
+            if type(e)=="table"and type(e.display)=="table"and need~="0.6.7"and need~="0.7.0"then for _,key in ipairs(lookKeys)do if e.display[key]~=nil then need="0.6.5"end end end
             if need=="0.3.0"and type(e)=="table"and(type(e.trigger)=="table"and e.trigger.type=="prepull"or type(e.display)=="table"and(e.display.glowTargets~=nil or e.display.glowColor~=nil))then need="0.3.3"end
         end
     end
@@ -245,7 +256,51 @@ function ns.Decode(input)
 end
 -- Adds every profile of an import; same names get a number. The bundle's active profile
 -- (or the first one) becomes active.
-function ns.Import(input)
+-- History: a copy of a profile is kept before an import or restore changes it, newest first,
+-- ten per game client, so any import can be undone from the Profiles page.
+function ns.Snapshot(profile,reason)
+    if type(profile)~="table"then return end
+    local store=ns.Store();store.history=store.history or{}
+    table.insert(store.history,1,{name=profile.name,client=profile.client or ns.Client(),time=time and time()or 0,reason=reason,profile=ns.Clone(profile)})
+    local kept,n={},0
+    for _,h in ipairs(store.history)do if h.client~=ns.Client()then kept[#kept+1]=h elseif n<10 then n=n+1;kept[#kept+1]=h end end
+    store.history=kept
+end
+function ns.History()
+    local out={};for i,h in ipairs(ns.Store().history or{})do if h.client==ns.Client()then out[#out+1]={index=i,name=h.name,time=h.time,reason=h.reason}end end
+    return out
+end
+function ns.RestoreSnapshot(index)
+    if (InCombatLockdown and InCombatLockdown())or ns.encounter then return nil,"Restore after combat and the encounter"end
+    local store=ns.Store();local h=store.history and store.history[index]
+    if not h or h.client~=ns.Client()then return nil,"Snapshot not found"end
+    local copy=ns.Clone(h.profile)
+    if store.profiles[h.name]then ns.Snapshot(store.profiles[h.name],"before restore")end
+    store.profiles[h.name]=copy;store.active=h.name;ns.Reset()
+    return h.name
+end
+-- Maps merge key by key; lists (sets' spell order, ticks) are taken whole from the import.
+local function Merge(into,from)
+    for k,v in pairs(from)do
+        if type(v)=="table"and type(into[k])=="table"and #v==0 and next(v)then Merge(into[k],v)else into[k]=ns.Clone(v)end
+    end
+end
+-- A one-boss string (ns.ExportBoss) replaces that boss in the active profile and adds its sets.
+local function ImportPart(part)
+    local target=ns.Active();if not target then return nil,"Create or select a profile first"end
+    local enc=tonumber(part.part.encounter);if not enc then return nil,"Invalid boss export"end
+    ns.Snapshot(target,"before boss import")
+    local d,from=target.data,part.data
+    d.raidReminders=d.raidReminders or{};d.raidReminders[enc]=ns.Clone(ns.Get(from.raidReminders,enc)or{})
+    d.abilityBindings=d.abilityBindings or{}
+    for spec,byEnc in pairs(from.abilityBindings or{})do d.abilityBindings[spec]=d.abilityBindings[spec]or{};d.abilityBindings[spec][enc]=ns.Clone(ns.Get(byEnc,enc))end
+    for _,key in ipairs({"presets","scopePresets"})do if type(from[key])=="table"then d[key]=d[key]or{};Merge(d[key],from[key])end end
+    return target.name
+end
+-- mode: "copy" (default: every profile is added, a clashing name gets a number), "merge" (into the
+-- profile of the same name, imported entries win) or "replace" (the same-name profile is replaced).
+-- Merge and replace keep a snapshot first.
+function ns.Import(input,mode)
     if (InCombatLockdown and InCombatLockdown())or ns.encounter then return nil,"Import after combat and the encounter"end
     local profiles, error, report, active
     if ns.DecodeImport then profiles,error,report,active=ns.DecodeImport(input)else local p;p,error=ns.Decode(input);profiles=p and{p}end
@@ -257,9 +312,18 @@ function ns.Import(input)
     local selected
     for i,profile in ipairs(profiles)do
         local base=tostring(profile.name or"Imported profile")
-        local name, index = base, 2
-        while store.profiles[name] do name = base .. " " .. index; index = index+1 end
-        profile.name = name; store.profiles[name] = profile
+        local name
+        if type(profile.part)=="table"then
+            local err;name,err=ImportPart(profile);if not name then return nil,err end
+        elseif mode=="replace"and store.profiles[base]then
+            ns.Snapshot(store.profiles[base],"before replace");profile.part=nil;store.profiles[base]=profile;name=base
+        elseif mode=="merge"and store.profiles[base]then
+            ns.Snapshot(store.profiles[base],"before merge");Merge(store.profiles[base].data,profile.data);name=base
+        else
+            local index=2;name=base
+            while store.profiles[name] do name = base .. " " .. index; index = index+1 end
+            profile.name = name; store.profiles[name] = profile
+        end
         if i==1 or base==active then selected=name end
     end
     store.active = selected
@@ -285,4 +349,49 @@ function ns.Export()
 end
 function ns.ExportActive()
     local profile=ns.Active();if not profile then return nil,"No active profile"end;return ns.Encode(profile)
+end
+-- One boss of the active profile: its reminders, ability bindings of every spec and the sets they
+-- use. Importing it replaces that boss in the receiver's active profile.
+local function BossPart(encounter,label)
+    local profile=ns.Active();if not profile then return nil,"No active profile"end
+    encounter=tonumber(encounter);if not encounter then return nil,"Choose a boss"end
+    local d=profile.data;local part={format=profile.format,addon=profile.addon,client=profile.client,minimumAddon=profile.minimumAddon,name=tostring(profile.name).." · "..tostring(label or encounter),part={encounter=encounter},data={}}
+    part.data.raidReminders={[encounter]=ns.Clone(ns.Get(d.raidReminders,encounter)or{})}
+    part.data.abilityBindings={}
+    for spec,byEnc in pairs(d.abilityBindings or{})do local b=ns.Get(byEnc,encounter);if b then part.data.abilityBindings[spec]={[encounter]=ns.Clone(b)}end end
+    for _,key in ipairs({"presets","scopePresets","activePreset","scopeActivePreset","contentDifficulties","settings"})do if d[key]~=nil then part.data[key]=ns.Clone(d[key])end end
+    if not next(part.data.raidReminders[encounter])and not next(part.data.abilityBindings)then return nil,"Nothing planned on this boss yet"end
+    -- Older versions would add a boss string as a whole profile, so it needs 0.7.0.
+    local need=ns.MinimumAddon(part.data);part.minimumAddon=Newer("0.7.0",need)and"0.7.0"or need
+    return part
+end
+function ns.ExportBoss(encounter,label)
+    local part,err=BossPart(encounter,label);if not part then return nil,err end
+    return ns.Encode(part)
+end
+-- Templates: named copies of one boss plan (e.g. "Prog" and "Farm"), kept per game client.
+-- Applying one replaces that boss in the active profile, with a History snapshot first.
+function ns.Templates(encounter)
+    local out={};for i,t in ipairs(ns.Store().templates or{})do if t.client==ns.Client()and(not encounter or t.encounter==tonumber(encounter))then out[#out+1]={index=i,name=t.name,encounter=t.encounter,time=t.time}end end
+    return out
+end
+function ns.SaveTemplate(encounter,name,label)
+    name=type(name)=="string"and name:match("^%s*(.-)%s*$")or"";if name==""or #name>60 then return nil,"Enter a template name (up to 60 characters)"end
+    local part,err=BossPart(encounter,label);if not part then return nil,err end
+    local store=ns.Store();store.templates=store.templates or{}
+    local list=store.templates;local slot
+    for i,t in ipairs(list)do if t.client==ns.Client()and t.encounter==part.part.encounter and t.name==name then slot=i end end
+    if not slot then local n=0;for _,t in ipairs(list)do if t.client==ns.Client()then n=n+1 end end;if n>=50 then return nil,"Delete a template first (50 per client)"end;slot=#list+1 end
+    list[slot]={name=name,client=ns.Client(),encounter=part.part.encounter,time=time and time()or 0,part=part}
+    return name
+end
+function ns.ApplyTemplate(index)
+    if (InCombatLockdown and InCombatLockdown())or ns.encounter then return nil,"Apply after combat and the encounter"end
+    local t=(ns.Store().templates or{})[index];if not t or t.client~=ns.Client()then return nil,"Template not found"end
+    local name,err=ImportPart(ns.Clone(t.part));if not name then return nil,err end
+    ns.Reset();return t.name
+end
+function ns.DeleteTemplate(index)
+    local list=ns.Store().templates or{};local t=list[index];if not t or t.client~=ns.Client()then return nil,"Template not found"end
+    table.remove(list,index);return t.name
 end

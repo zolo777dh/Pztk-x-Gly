@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.6.11"
+ns.version = "0.7.1"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -66,8 +66,19 @@ function ns.PositionSpecs(melee)
     for _, list in pairs(ns.ClassSpecs) do for _, id in ipairs(list) do if (ns.MeleeSpecs[id] ~= nil) == melee then specs[id] = true end end end
     return specs
 end
-function ns.Target(t)
+-- occurrence is the cast number of the trigger, for rotations.
+function ns.Target(t, occurrence)
     if type(t) ~= "table" or t.all then return true end
+    if type(t.rotation) == "table" then
+        local names = t.rotation.names or (ns.NoteList and ns.NoteList(t.rotation.note)) or {}
+        if #names == 0 then return false end
+        local n = math.max(1, tonumber(occurrence) or 1)
+        return ns.IsMe and ns.IsMe(names[(n - 1) % #names + 1]) or false
+    end
+    if type(t.noteSlot) == "table" then
+        local names = ns.NoteList and ns.NoteList(t.noteSlot.note) or {}
+        return ns.IsMe and ns.IsMe(names[tonumber(t.noteSlot.index) or 1]) or false
+    end
     if t.matchAny then
         local tested = false
         for _, key in ipairs({ "roles", "specs", "classes", "names", "subgroups" }) do
@@ -142,16 +153,17 @@ function ns.Schedule(key, delay, callback)
     end)
     ns.timers[key] = timer
 end
-function ns.Fire(entry, display)
-    if (ns.ContentMatches and not ns.ContentMatches(entry))or (ns.Enabled and not ns.Enabled()) or ns.Conflict() or entry.enabled == false or not ns.Difficulty(entry) or not ns.Target(entry.target) then return end
+function ns.Fire(entry, display, occurrence)
+    if (ns.ContentMatches and not ns.ContentMatches(entry))or (ns.Enabled and not ns.Enabled()) or ns.Conflict() or entry.enabled == false or not ns.Difficulty(entry) or not ns.Target(entry.target, occurrence) then return end
     if entry.defensive and ns.RenderDefensive then return ns.RenderDefensive(entry)end
     if ns.Display then ns.Display(display or entry.display or {}) end
 end
 function ns.Reset()
-    ns.Cancel(); ns.generation = ns.generation + 1; ns.occurrences = {}; ns.encounter = nil; ns.phase = nil
+    ns.Cancel(); ns.generation = ns.generation + 1; ns.occurrences = {}; ns.encounter = nil; ns.phase = nil; ns.simulation = nil; ns.expectedFallback = nil
     if ns.ResetProviders then ns.ResetProviders() end
     if ns.SuspendAuraSounds then ns.SuspendAuraSounds()end
     if ns.HideDisplays then ns.HideDisplays() end
+    if ns.StopStateTriggers then ns.StopStateTriggers() end
 end
 -- Reminders of an encounter: the profile's, plus timers read from the active notes for this pull.
 ns.noteEntries = {}
@@ -172,7 +184,8 @@ function ns.Anchor(kind, phase)
             local delay = tonumber(trigger.delay) or 0
             local lead = tonumber(trigger.leadTime) or 0
             ns.occurrences[entry]=(ns.occurrences[entry]or 0)+1
-            if not ns.CounterMatches or ns.CounterMatches(trigger.counterGroups,ns.occurrences[entry])then ns.Schedule(kind .. ":" .. tostring(key), math.max(0, delay - lead), function() ns.Fire(entry) end)end
+            local occurrence=ns.occurrences[entry]
+            if not ns.CounterMatches or ns.CounterMatches(trigger.counterGroups,occurrence)then ns.Schedule(kind .. ":" .. tostring(key), math.max(0, delay - lead), function() ns.Fire(entry, nil, occurrence) end)end
         end
     end
 end
@@ -185,6 +198,9 @@ function ns.Begin(encounter, difficulty, map)
     ns.Anchor("pull"); ns.Anchor("stage", 1)
     if ns.ReplayProviderTimers then ns.ReplayProviderTimers(firstBars) end
     if ns.StartBuiltinTimers then ns.StartBuiltinTimers() end
+    if ns.StartStateTriggers then ns.StartStateTriggers() end
+    if ns.StartExpectedFallback then ns.StartExpectedFallback() end
+    if ns.StartPullLog then ns.StartPullLog() end
 end
 -- Pre-pull reminders run before ENCOUNTER_START, so the encounter comes from the
 -- Encounter Journal pins on the player's map: only bosses this profile plans
@@ -365,6 +381,7 @@ end
 function ns.Mechanic(spell, duration, identity, encounter, skipDefensive, repeatEvent)
     if not ns.Plain(spell, "number") or (duration ~= nil and not ns.Plain(duration, "number")) then return end
     if (encounter or ns.encounter) == ns.encounter then ns.RecordMechanic(spell, duration) end
+    if ns.expectedFallback and not (type(identity)=="string" and identity:match("^EXP")) then ns.ExpectedAnnounced(spell) end
     if ns.Conflict() or not ns.Plain(identity) or not ns.Plain(encounter) then return end
     local profile, spec = ns.Active(), ns.Spec()
     if not profile then return end
@@ -386,12 +403,12 @@ function ns.Mechanic(spell, duration, identity, encounter, skipDefensive, repeat
     if binding and ns.Difficulty(binding)and(not ns.ContentMatches or ns.ContentMatches(binding))and not skipDefensive and not authored and binding.mode~="custom" then ns.Defensive(binding, duration and math.max(0, duration - (binding.leadTime or profile.data.leadTime or defaults.leadTime or 3)) or 0, prefix .. "defensive") end
     for key, entry in pairs(entries) do
         local trigger = entry.trigger or {}
-        if trigger.spellID == spell and entry.enabled~=false and ns.Target(entry.target) and ((duration and trigger.type == "bwtimer") or (not duration and trigger.type == "bwmsg")) then
+        if trigger.spellID == spell and entry.enabled~=false and ((duration and trigger.type == "bwtimer") or (not duration and trigger.type == "bwmsg")) then
             if not repeatEvent then ns.occurrences[entry]=(ns.occurrences[entry]or 0)+1 end
             local occurrence=ns.occurrences[entry]or 0
-            if not ns.CounterMatches or ns.CounterMatches(trigger.counterGroups,occurrence)then
+            if ns.Target(entry.target,occurrence)and(not ns.CounterMatches or ns.CounterMatches(trigger.counterGroups,occurrence))then
                 local delay=(duration and math.max(0,duration-(trigger.leadTime or 3))or 0)+(trigger.delay or 0)
-                ns.Schedule(prefix .. tostring(key),delay,function()ns.Fire(entry)end)
+                ns.Schedule(prefix .. tostring(key),delay,function()ns.Fire(entry,nil,occurrence)end)
             end
         end
     end

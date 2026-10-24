@@ -10,6 +10,8 @@ UIParent=node('Root');UIParent.w=1280;UIParent.h=800
 function methods:SetScript(k,v)self.scripts[k]=v end
 function methods:HasScript()return true end
 function methods:RegisterEvent(k)self.events[k]=true end
+function methods:RegisterUnitEvent(k)self.events[k]=true end
+function methods:UnregisterEvent(k)self.events[k]=nil end
 function methods:SetParent(p)local cursor=p;while cursor do assert(cursor~=self,'Cyclic frame parenting');cursor=cursor.parent end;self.parent=p end
 function methods:Show()local changed=not self.shown;self.shown=true;if changed and self.scripts.OnShow then self.scripts.OnShow(self)end end
 function methods:Hide()local changed=self.shown;self.shown=false;if changed and self.scripts.OnHide then self.scripts.OnHide(self)end end

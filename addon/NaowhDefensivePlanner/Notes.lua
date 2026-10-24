@@ -181,6 +181,32 @@ function ns.ParseNoteTimers(text,me,nick,duration)
     return out
 end
 -- Timers for this pull from the shared note and the active personal note.
+-- Names on a note line "Tag: name name name" (shared note first, then personal), in order.
+-- Rotations and note slots pick from it, so a raid leader reorders players in the note only.
+function ns.NoteList(tag)
+    if type(tag)~="string"or tag==""then return{}end
+    local n=ns.Notes();local personal=n.activePersonal and n.personal[n.activePersonal]
+    local want=tag:lower()
+    for _,text in ipairs({n.live and n.live.text or"",personal and personal.text or""})do
+        for line in (text.."\n"):gmatch("(.-)\n")do
+            local head,rest=line:match("^%s*(.-)%s*:%s*(.*)$")
+            if head and head:lower()==want then
+                local out={};rest=rest:gsub("|c%x%x%x%x%x%x%x%x",""):gsub("|r",""):gsub("{.-}"," ")
+                for name in rest:gmatch("[^%s,;]+")do out[#out+1]=name end
+                return out
+            end
+        end
+    end
+    return{}
+end
+-- True when a name from a note or list is you: character name, name-realm or your nickname.
+function ns.IsMe(name)
+    if type(name)~="string"or name==""then return false end
+    local want=name:lower()
+    local me=UnitName and UnitName("player");if type(me)=="string"and(me:lower()==want or want:match("^"..me:lower():gsub("%p","%%%0").."%-"))then return true end
+    local nick=ns.MyNickname and ns.MyNickname();if type(nick)=="string"and nick~=""and nick:lower()==want then return true end
+    return false
+end
 function ns.NoteTimerEntries()
     local n=ns.Notes();if n.cfg.timers==false then return{}end
     local me=UnitName and UnitName("player");me=type(me)=="string"and me:lower()or""
