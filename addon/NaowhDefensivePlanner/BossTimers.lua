@@ -18,7 +18,7 @@ function ns.BuiltinTimersFor(encounter)
     return ns.BossTimers[encounter] ~= nil
 end
 function ns.BuiltinTimersActive()
-    if not ns.encounter or not ns.BuiltinTimersFor(ns.encounter) then return false end
+    if not ns.encounter or ns.simulation or ns.simStarting or not ns.BuiltinTimersFor(ns.encounter) then return false end
     local source = ns.Settings and ns.Settings().bossSource
     if source == "ndp" then return true end
     -- A chosen boss mod that is not installed falls back to the built-in timers too.

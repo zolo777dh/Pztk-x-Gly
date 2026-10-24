@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Simulate','Planner','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
@@ -137,7 +137,7 @@ for pass=1,2 do for _,tab in ipairs(tabs)do
 end end
 assert(#errors==0,'Controls raised errors:\\n'..table.concat(errors,'\\n'))
 -- Controls that legitimately change nothing when clicked in the state they are already in.
-local same={['top:timeline']=1,['tl-thumb']=1,['top:display']=1,['header-profile']=1,['top:roster']=1,['debuff-new']=1,['mode:mechanics']=1,['mode:sets']=1,['mode:debuffs']=1,['display-anchor']=1}
+local same={['top:timeline']=1,['tl-thumb']=1,['profile-import-mode:copy']=1,['top:display']=1,['header-profile']=1,['top:roster']=1,['debuff-new']=1,['mode:mechanics']=1,['mode:sets']=1,['mode:debuffs']=1,['display-anchor']=1}
 local unexplained={}
 for _,line in ipairs(dead)do local key=line:match(' (.+)$');local chosen=key:match(':%d+$')or key:match('scope:')or key:match('^ability:')or key:match('^entity:')or key:match('^set:')or key:match('^note:')or key:match('^debuff:')or key:match('^timed:')
  if not same[key]and not chosen then unexplained[#unexplained+1]=line end end
@@ -381,4 +381,66 @@ s.tlStart=0;env.click('tl-left');assert(s.tlStart<0,'slider goes before the pull
 env.click('tl-right');env.click('tl-right');assert(s.tlStart>0,'and past it')
 env.click('tl-track:20');local far=s.tlStart;assert(far>200,'track click jumps, got '..far)
 ns.TimelineZoom(1);assert(s.tlSpan==120)
+`));
+test('a simulated pull plays the boss timeline through the reminders outside combat',()=>run(`
+env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2')
+local pick=ns.UIState.tlPick;env.click('tl-pick-note');env.input('rule:text','Stack in middle');env.click('save-rule')
+env.click('tab:timeline');env.click('tl-simulate');assert(ns.Simulating(),'simulation running')
+assert(ns.UIControls['tl-simulate'],'stop button')
+local before=#env.shown;for _=1,math.ceil(pick.at)+1 do env.advance(1)end
+local seen=false;for i=before+1,#env.shown do local d=env.shown[i];if d and d.text=='Stack in middle'then seen=true end end
+assert(seen,'the note fired during the simulated pull')
+assert(not ns.RecordedTimeline(pick.encounter,pick.difficulty),'a simulation records nothing')
+env.click('tl-simulate');assert(not ns.Simulating(),'stopped')
+`));
+test('the cooldowns lane predicts the spell for each defensive call and flags calls with nothing ready',()=>run(`
+assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
+env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2');env.click('tl-pick-defensive')
+env.select('rule:preset','Raid');env.input('rule:counter','');env.click('save-rule')
+env.click('tab:timeline');ns.UIState.tlSpan=600;ns.UIState.tlStart=0;env.click('tab:timeline')
+local ok,bad=0,0
+for k,c in pairs(ns.UIControls)do if k:match('^tl%-cd:')then if c.label and c.label:GetText()=='!'then bad=bad+1 else ok=ok+1 end end end
+assert(ok>=1 and bad>=1,'first call gets the spell, a call inside its cooldown is flagged: ok='..ok..' bad='..bad)
+local plan=ns.PlanDefensives({{at=0,preset={list={1,2}}},{at=10,preset={list={1,2}}},{at=20,preset={list={1,2}}}})
+assert(plan[1].spells[1]==1 and plan[2].spells[1]==2 and #plan[3].spells==0 and plan[3].readyAt==120,'priority falls through to the next ready spell')
+`));
+test('targets: rotation by cast, position in a note line, raid group and class',()=>run(`
+UnitName=function()return'Tester'end
+local t={rotation={names={'Alpha','Tester','Gamma'}}}
+assert(not ns.Target(t,1)and ns.Target(t,2)and not ns.Target(t,3)and ns.Target(t,5),'cast N goes to the N-th name, round and round')
+assert(ns.SaveNote('shared',nil,{name='Plan',text='Soak: Alpha Tester\\nKick: Tester, Beta'}))
+local id;for k,v in pairs(ns.Notes().shared)do if v.name=='Plan'then id=k end end;assert(ns.LoadNote('shared',id))
+assert(ns.Target({rotation={note='soak'}},2)and not ns.Target({rotation={note='Soak'}},1),'rotation from a note line')
+assert(ns.Target({noteSlot={note='Kick',index=1}})and not ns.Target({noteSlot={note='Kick',index=2}}),'position in a note line')
+env.click('tab:raid');env.click('new-timed');env.input('rule:name','Rot');env.select('rule:action','Text');env.select('rule:recipient','Rotation by cast');env.input('rule:rotation','note:Soak');env.click('save-rule')
+local found;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.name=='Rot'then found=v end end end
+assert(found and found.target.rotation.note=='Soak','rotation saved')
+local text=assert(ns.Export());if LibStub('LibDeflate').DecompressDeflate then assert(ns.DecodeProfiles(text),'exports and validates')end
+assert(ns.Validate(ns.Active()),'profile with a rotation validates')
+`));
+test('imports merge into or replace a same-name profile, a boss string replaces one boss, and History restores',()=>run(`
+local p=ns.Active();local n0=0;for _ in pairs(ns.Store().profiles)do n0=n0+1 end
+local function rem(name)return{name=name,enabled=true,content='raid',difficulties={[15]=true},trigger={type='pull',delay=10},target={all=true},display={type='text',text=name,dur=4}}end
+p.data.raidReminders[3379]={x=rem('X')}
+env.click('tab:timeline');env.click('tab:timeline');env.click('tl-export-boss')
+assert(ns.UIState.tab=='profiles'and ns.UIState.importText:sub(1,6)=='!NDP1:','boss string shown on the Profiles page')
+env.click('profile-import-mode:merge');assert(ns.UIState.importMode=='merge')
+assert(not ns.ExportBoss(3420),'empty boss refused')
+if LibStub('LibDeflate').DecompressDeflate then
+  local boss=assert(ns.ExportBoss(3379,'Nym'))
+  p.data.raidReminders[3379]={y=rem('Y')};p.data.raidReminders[3420]={z=rem('Z')}
+  assert(ns.Import(boss));p=ns.Active()
+  assert(p.data.raidReminders[3379].x and not p.data.raidReminders[3379].y and p.data.raidReminders[3420].z,'boss import replaces only that boss')
+  local h=ns.History();assert(#h==1 and h[1].reason=='before boss import')
+  local all=assert(ns.Export())
+  p.data.raidReminders[3379].w=rem('W')
+  assert(ns.Import(all,'merge'));p=ns.Active()
+  local n1=0;for _ in pairs(ns.Store().profiles)do n1=n1+1 end;assert(n1==n0,'merge adds no profile')
+  assert(p.data.raidReminders[3379].w and p.data.raidReminders[3379].x,'merge keeps local entries and adds imported ones')
+  assert(ns.Import(all,'replace'));p=ns.Active();assert(not p.data.raidReminders[3379].w,'replace drops local entries')
+  assert(#ns.History()==3)
+  env.click('tab:profiles');env.click('tab:profiles');assert(ns.UIControls['profile-restore:1'],'history row')
+  env.click('profile-restore:1');assert(ns.Active().data.raidReminders[3379].w,'restore brings the replaced version back')
+  for _=1,15 do ns.Snapshot(ns.Active(),'x')end;assert(#ns.History()==10,'ten snapshots kept')
+end
 `));

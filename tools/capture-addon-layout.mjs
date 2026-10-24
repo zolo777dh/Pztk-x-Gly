@@ -3,7 +3,7 @@
 // vertex colors, draw layers, blend modes and the shipped fonts are emulated in Chromium.
 import fs from 'node:fs/promises';import path from 'node:path';import {execFileSync}from 'node:child_process';import {chromium}from 'playwright-core';
 const root=path.resolve('addon/NaowhDefensivePlanner'),out=path.resolve('test-results/addon-layout');await fs.mkdir(out,{recursive:true});const harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
-const sources=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'];
+const sources=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Simulate','Planner','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'];
 const prefix=`strmatch=string.match;local env=(function()\n${harness}\nend)();local ns={};\n`+['Libs/LibStub.lua','Libs/LibSerialize.lua','Libs/LibDeflate.lua',...sources.map(x=>x+'.lua')].map(x=>x.startsWith('Libs/')?`dofile(${JSON.stringify(root+'/'+x)})`:`assert(loadfile(${JSON.stringify(root+'/'+x)}))('NaowhDefensivePlanner',ns)`).join('\n')+`\nns.Open();local m=assert(ns.SaveSet('mythic',104,nil,'Magic damage',{{spellID=22812,enabled=true},{spellID=61336,enabled=true},{spellID=200851,enabled=true}}));assert(ns.SaveSet('raid',104,nil,'Raid personal',{{spellID=22812,enabled=true},{spellID=61336,enabled=true}}));\n`;
 const scenarios={
  overview:`env.click('tab:overview')`,

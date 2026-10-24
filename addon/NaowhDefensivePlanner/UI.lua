@@ -286,18 +286,27 @@ local function InitialForm(ctx,reference)
     local dynamic=e.defensive
     local action=dynamic and"defensive"or reference and reference.section=="raidReminders"and(d.type or"text")or prefillAction or"defensive"
     local recipient="everyone";local player,role
+    local tg=type(e.target)=="table"and e.target or{}
+    local targetGroups=(function()local o={};for g in pairs(tg.subgroups or{})do o[#o+1]=tostring(g)end;table.sort(o);return table.concat(o,",")end)()
+    local targetClass=tg.classes and next(tg.classes)or nil
+    local targetRotation=type(tg.rotation)=="table"and(tg.rotation.note and("note:"..tg.rotation.note)or table.concat(tg.rotation.names or{}," "))or""
+    local targetSlot=type(tg.noteSlot)=="table"and tg.noteSlot or nil
     if e.target then
         local count=0;for k,v in pairs(e.target)do if type(v)=="table"and next(v)then count=count+1 end end
         local function same(a,b)for k in pairs(a)do if not ns.Get(b,k)then return false end end;for k in pairs(b)do if not ns.Get(a,tonumber(k)or k)then return false end end;return true end
         if e.target.specs and count==1 and same(e.target.specs,ns.PositionSpecs(true))then recipient="position";role="MELEE"
         elseif e.target.specs and count==1 and same(e.target.specs,ns.PositionSpecs(false))then recipient="position";role="RANGED"
+        elseif type(e.target.rotation)=="table"then recipient="rotation"
+        elseif type(e.target.noteSlot)=="table"then recipient="noteslot"
+        elseif e.target.subgroups and count==1 then recipient="group"
+        elseif e.target.classes and count==1 then recipient="class"
         elseif e.target.matchAny or count>1 then recipient="preserve"
         elseif e.target.specs then recipient="spec"
         elseif e.target.roles then recipient="role";role=next(e.target.roles)
         elseif e.target.names then recipient="player";player=next(e.target.names)
         elseif not e.target.all then recipient="preserve"end
     end
-    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=(d.type=="bar"or d.type=="circle")and d.hideTimer~=true or d.countdown==true,sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
+    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=(d.type=="bar"or d.type=="circle")and d.hideTimer~=true or d.countdown==true,sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
 end
 local actionLabels={defensive="Defensive priority set",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
 local roleLabels={TANK="Tank",HEALER="Healer",DAMAGER="Damage"}
@@ -377,11 +386,15 @@ local function DrawInspector(parent,ctx,rules)
     if ctx.kind~="trash"then field("WHICH CASTS · BLANK = EVERY, E.G. >1 OR 2,4","counter");cy=cy+54 end
     if ctx.scope=="raid"and form.action~="defensive"then
         heading("WHO")
-        local targets={{value="everyone",label="Everyone"},{value="spec",label="Selected specialization"},{value="role",label="Role"},{value="position",label="Melee or ranged"},{value="player",label="Player"}}
+        local targets={{value="everyone",label="Everyone"},{value="spec",label="Selected specialization"},{value="role",label="Role"},{value="position",label="Melee or ranged"},{value="player",label="Player"},{value="group",label="Raid group"},{value="class",label="Class"},{value="rotation",label="Rotation by cast"},{value="noteslot",label="Position in a note line"}}
         if form.recipient=="preserve"then targets[#targets+1]={value="preserve",label="Imported filters (preserve)"}end
         select("RECIPIENTS","recipient",targets);cy=cy+54
         if form.recipient=="role"then select("ROLE","role",{{value="TANK",label="Tank"},{value="HEALER",label="Healer"},{value="DAMAGER",label="Damage"}});cy=cy+54 end
         if form.recipient=="player"then field("PLAYER NAME OR NAME-REALM","player");cy=cy+54 end
+        if form.recipient=="group"then field("GROUPS · E.G. 1,2","groups");cy=cy+54 end
+        if form.recipient=="class"then local cl={};for _,c in ipairs({"WARRIOR","PALADIN","HUNTER","ROGUE","PRIEST","DEATHKNIGHT","SHAMAN","MAGE","WARLOCK","MONK","DRUID","DEMONHUNTER","EVOKER"})do cl[#cl+1]={value=c,label=(c:sub(1,1)..c:sub(2):lower()):gsub("knight","Knight"):gsub("hunter","Hunter")}end;if not form.class then form.class="WARRIOR"end;select("CLASS","class",cl);cy=cy+54 end
+        if form.recipient=="rotation"then field("PLAYERS IN CAST ORDER · OR note:Tag","rotation");cy=cy+54 end
+        if form.recipient=="noteslot"then field("NOTE LINE TAG · E.G. Soak","noteTag",186);field("POSITION","noteIndex",186,204);cy=cy+54 end
         if form.recipient=="position"then if form.role~="MELEE"and form.role~="RANGED"then form.role="MELEE"end;select("POSITION","role",{{value="MELEE",label="Melee"},{value="RANGED",label="Ranged"}});cy=cy+54 end
     end
     heading("SHOW")
@@ -609,7 +622,7 @@ local function DrawSettings(parent)
 end
 ---------------------------------------------------------------------------
 local function DrawProfiles(parent)
-    W.Label(parent,L("Profiles"),0,0,200,20,C.text,true);W.Label(parent,L("One profile holds both content types. Imports create a separate copy."),110,6,600,12,C.muted)
+    W.Label(parent,L("Profiles"),0,0,200,20,C.text,true);W.Label(parent,L("One profile holds both content types. Imports add a copy, merge or replace; History keeps the previous version."),110,6,600,12,C.muted)
     local left=W.Card(parent,0,40,300,552,L("Profiles"))
     local opts={};for name in pairs(ns.Store().profiles)do opts[#opts+1]={value=name,label=name}end;table.sort(opts,function(a,b)return a.label<b.label end)
     W.Select(left,L("Active profile"),opts,ns.Store().active,12,34,276,function(v)local a,b=ns.SelectProfile(v);done(a,b,L("Profile selected"))end,"profile-select")
@@ -625,16 +638,31 @@ local function DrawProfiles(parent)
     W.Button(left,L("Rename"),12,y+36,134,function()done(ns.RenameProfile(read("profile-name")))end,false,"profile-rename",{align="CENTER"})
     W.Button(left,state.confirmDelete and L("Confirm delete")or L("Delete active"),154,y+36,134,function()if not state.confirmDelete then state.confirmDelete=true;Refresh()else state.confirmDelete=false;done(ns.DeleteProfile())end end,false,"profile-delete",{kind="danger",align="CENTER"})
     local right=W.Card(parent,312,40,608,552,L("Import / export string"))
-    local panel=W.Panel(right,12,34,584,420,C.background,C.line,8);local scroll=W.Frame("ScrollFrame",nil,panel);scroll:SetPoint("TOPLEFT",10,-10);scroll:SetSize(560,400)
-    local text=W.Frame("EditBox",nil,scroll);text:SetMultiLine(true);text:SetFont(W.Font(false),12,"");text:SetTextColor(unpack(C.text));text:SetWidth(554);text:SetHeight(400);text:SetAutoFocus(false);text:SetMaxLetters(1000000);text:SetText(state.importText or"");W.AttachScrollChild(scroll,text);text:SetScript("OnTextChanged",function(self)
-        if self.GetNumLines then local ok,n=pcall(self.GetNumLines,self);if ok and type(n)=="number"then self:SetHeight(math.max(400,n*16+24));scroll:UpdateScrollChildRect()end end
-    end);text:SetScript("OnEscapePressed",function(self)self:ClearFocus()end);ns.UIControls["profile-string"]=text;W.Wheel(scroll,panel,577,6,408)
-    W.Button(right,L("Import profile"),424,466,172,function()local value=read("profile-string");local a,b,report,count=ns.Import(value);if a then ensureWorkspace();state.tab="profiles";loadView();state.importText=ns.ImportReportText(report)end;done(a,b,report and(L("Imported · migration items to review below: ")..#report.issues)or(count and count>1 and(count..L(" profiles imported")))or L("Profile imported"))end,true,"profile-import",{align="CENTER",h=34})
+    local panel=W.Panel(right,12,34,584,300,C.background,C.line,8);local scroll=W.Frame("ScrollFrame",nil,panel);scroll:SetPoint("TOPLEFT",10,-10);scroll:SetSize(560,280)
+    local text=W.Frame("EditBox",nil,scroll);text:SetMultiLine(true);text:SetFont(W.Font(false),12,"");text:SetTextColor(unpack(C.text));text:SetWidth(554);text:SetHeight(280);text:SetAutoFocus(false);text:SetMaxLetters(1000000);text:SetText(state.importText or"");W.AttachScrollChild(scroll,text);text:SetScript("OnTextChanged",function(self)
+        if self.GetNumLines then local ok,n=pcall(self.GetNumLines,self);if ok and type(n)=="number"then self:SetHeight(math.max(280,n*16+24));scroll:UpdateScrollChildRect()end end
+    end);text:SetScript("OnEscapePressed",function(self)self:ClearFocus()end);ns.UIControls["profile-string"]=text;W.Wheel(scroll,panel,577,6,288)
+    -- Import mode: add copies, merge into or replace the profile of the same name. Merge and
+    -- replace keep a snapshot in History; a one-boss string always replaces that boss only.
+    state.importMode=state.importMode or"copy"
+    W.Segmented(right,{{value="copy",label=L("Add as new")},{value="merge",label=L("Merge")},{value="replace",label=L("Replace")}},state.importMode,12,346,330,function(v)state.importMode=v;Refresh()end,"profile-import-mode")
+    W.Label(right,state.importMode=="merge"and L("Imported entries are added to the profile of the same name; same keys are overwritten.")or state.importMode=="replace"and L("The profile of the same name is replaced. A copy is kept in History.")or L("Every imported profile is added; a clashing name gets a number."),352,346,244,11,C.muted)
+    W.Button(right,L("Import profile"),424,386,172,function()local value=read("profile-string");local a,b,report,count=ns.Import(value,state.importMode);if a then ensureWorkspace();state.tab="profiles";loadView();state.importText=ns.ImportReportText(report)end;done(a,b,report and(L("Imported · migration items to review below: ")..#report.issues)or(count and count>1 and(count..L(" profiles imported")))or L("Profile imported"))end,true,"profile-import",{align="CENTER",h=34})
     local function show(value,error)if value then text:SetText(value);text:HighlightText();text:SetFocus();state.importText=value;notify(L("Export ready · Ctrl+C copies the selected text"))else notify(error,true)end end
-    W.Button(right,L("Export all profiles"),12,466,150,function()show(ns.Export())end,false,"profile-export",{kind="primary",align="CENTER",h=34})
-    W.Button(right,L("Only active"),170,466,120,function()show(ns.ExportActive())end,false,"profile-export-active",{align="CENTER",h=34})
-    W.Button(right,L("Diagnostics"),298,466,118,function()local v=ns.Diagnostics();text:SetText(v);text:HighlightText();text:SetFocus();state.importText=v;notify(L("Diagnostics ready to copy"))end,false,"diagnostics",{align="CENTER",h=34})
-    W.Label(right,L("One !NDP1: string carries every profile of this game client, Mythic+ and raids. Older PZTK1 strings and other addons' strings (NSR, NSRT, Timeline Reminders) are read once and converted."),12,512,584,11,C.muted)
+    W.Button(right,L("Export all profiles"),12,386,150,function()show(ns.Export())end,false,"profile-export",{kind="primary",align="CENTER",h=34})
+    W.Button(right,L("Only active"),170,386,120,function()show(ns.ExportActive())end,false,"profile-export-active",{align="CENTER",h=34})
+    W.Button(right,L("Diagnostics"),298,386,118,function()local v=ns.Diagnostics();text:SetText(v);text:HighlightText();text:SetFocus();state.importText=v;notify(L("Diagnostics ready to copy"))end,false,"diagnostics",{align="CENTER",h=34})
+    W.Label(right,L("One !NDP1: string carries every profile of this game client, Mythic+ and raids. Older PZTK1 strings and other addons' strings (NSR, NSRT, Timeline Reminders) are read once and converted."),12,428,584,11,C.muted)
+    -- History: copies kept before an import or restore changed a profile.
+    W.Label(right,L("HISTORY"),12,460,200,11,C.muted,true)
+    local hist=ns.History()
+    if #hist==0 then W.Label(right,L("No snapshots yet. Merge, replace, boss imports and restores keep one here."),12,480,584,11,C.muted)end
+    for i,h in ipairs(hist)do if i<=2 then
+        local y=476+(i-1)*34
+        local when=h.time and h.time>0 and date and date("%d.%m %H:%M",h.time)or""
+        W.Label(right,tostring(h.name),12,y+4,300,12,C.text,true);W.Label(right,(when~=""and(when.." · ")or"")..L(h.reason or"snapshot"),12,y+19,300,10,C.muted)
+        W.Button(right,L("Restore"),496,y,100,function()local a,b=ns.RestoreSnapshot(h.index);if a then ensureWorkspace();state.tab="profiles";loadView()end;done(a,b,L("Snapshot restored"))end,false,"profile-restore:"..i,{kind="outline",align="CENTER",h=28})
+    end end
 end
 ---------------------------------------------------------------------------
 -- Timeline: pull and phase reminders of one raid boss on a time axis.
@@ -677,6 +705,22 @@ local function DrawTimeline(parent)
     local lanes={{key="pull",label=L("Pull")}};local maxT=300
     if recorded then table.insert(lanes,1,{key="boss",label=recorded.expected and L("Boss (exp.)")or L("Boss")});maxT=math.max(maxT,(tonumber(recorded.length)or 0)+10)end
     if #mech>0 then lanes[#lanes+1]={key="mech",label=L("Mechanics")}end
+    -- Cooldowns lane: which spell of each planned defensive set will be ready at each call.
+    local uses={}
+    do local profile=ns.Active();local sets=ns.ScopePresets(profile,"raid",state.spec);local active=ns.ScopeActive(profile,"raid",state.spec)
+        local function preset(e)return ns.Get(sets,(e.defensive and e.defensive.preset)or e.preset or active)end
+        for _,m in ipairs(mech)do local e=m.r.entry
+            if m.r.section=="abilityBindings"or e.defensive then
+                for _,at in ipairs(occurrences(m))do uses[#uses+1]={at=at,preset=preset(e),label=e.name or name(m.spell),key=m.r.key,spell=m.spell}end
+            end
+        end
+        for _,r in ipairs(rules)do local e=r.entry;local t=e.trigger
+            if e.defensive and(t.type=="pull"or t.type=="prepull")then uses[#uses+1]={at=t.type=="prepull"and-(tonumber(t.delay)or 0)or tonumber(t.delay)or 0,preset=preset(e),label=e.name or L("Timed reminder"),key=r.key}end
+        end
+    end
+    local planned=#uses>0 and ns.PlanDefensives and ns.PlanDefensives(uses)or{}
+    local missing=0;for _,u in ipairs(planned)do if #u.spells==0 then missing=missing+1 end end
+    if #planned>0 then lanes[#lanes+1]={key="cds",label=L("Cooldowns")}end
     for _,r in ipairs(rules)do local t=r.entry.trigger;maxT=math.max(maxT,(tonumber(t.delay)or 0)+30)
         if t.type=="stage"then local found=false;for _,l in ipairs(lanes)do if l.key=="stage"..tostring(t.stage)then found=true end end;if not found then lanes[#lanes+1]={key="stage"..tostring(t.stage),label=L("Phase").." "..tostring(t.stage)}end end
     end
@@ -685,6 +729,10 @@ local function DrawTimeline(parent)
     maxT=math.ceil(maxT/60)*60;local x0,w=96,800
     local span=state.tlSpan or 120;if span>=maxT+30 then span=maxT+30 end
     local minStart=-30;local maxStart=math.max(minStart,maxT-span)
+    -- While a simulated pull of this boss runs, the view follows the playhead.
+    local simOn=ns.Simulating and ns.Simulating()and ns.simulation.encounter==ctx.encounter
+    local simT=simOn and ns.SimulationTime()
+    if simT and((state.tlStart or 0)>simT or simT>(state.tlStart or 0)+span*0.8)then state.tlStart=math.floor(simT-span*0.2)end
     local from=math.max(minStart,math.min(state.tlStart or 0,maxStart));state.tlStart=from
     local function X(t)return x0+w*(t-from)/span end
     local function shown(t)return t>=from-1 and t<=from+span+1 end
@@ -727,6 +775,18 @@ local function DrawTimeline(parent)
                 W.Label(card,m.r.entry.name or name(m.spell),x+12,mid-9,90,10,C.soft)
             end end end
         end
+        if lane.key=="cds"then
+            for j,u in ipairs(planned)do if shown(u.at)then
+                local x=X(u.at);local function edit()open(u.key,nil,u.spell)end
+                if #u.spells>0 then
+                    local names={};for _,sp in ipairs(u.spells)do names[#names+1]=name(sp)end
+                    W.Icon(card,u.spells[1],x-9,mid,18)
+                    W.Button(card,"",x-9,mid,18,edit,false,"tl-cd:"..j,{kind="ghost",h=18,tooltip=u.label.." · "..stamp(u.at).." · "..table.concat(names," + ")})
+                else
+                    W.Button(card,"!",x-9,mid,18,edit,false,"tl-cd:"..j,{kind="danger",h=18,align="CENTER",tooltip=u.label.." · "..stamp(u.at).." · "..L("nothing in the set is ready")..(u.readyAt and(L(" · first back at ")..stamp(math.ceil(u.readyAt)))or"")})
+                end
+            end end
+        end
         for _,r in ipairs(rules)do local t=r.entry.trigger
             local laneKey=(t.type=="stage")and("stage"..tostring(t.stage))or"pull"
             local at=(t.type=="prepull"and-(tonumber(t.delay)or 0)or tonumber(t.delay)or 0)
@@ -738,6 +798,11 @@ local function DrawTimeline(parent)
         end
         y=y+h
     end
+    if simT and shown(simT)then W.Rect(card,X(simT),top,2,height,C.warning)end
+    W.Button(card,simOn and L("Stop simulation")or L("Simulate pull"),570,6,140,function()
+        if simOn then ns.StopSimulation();notify(L("Simulation stopped"))else local ok,err=ns.SimulatePull(ctx.encounter,state.tlDifficulty);if not ok then return notify(L(err),true)end;state.tlStart=0;notify(L("Simulating the pull · reminders fire as on a real pull"))end
+        Refresh()
+    end,simOn,"tl-simulate",{h=22,align="CENTER",kind=simOn and"danger"or"outline",tooltip=L("Plays this timeline from the pull with your reminders, as on a real pull. Outside combat only.")})
     -- Slider: arrows step by a quarter window, the track jumps to where it is clicked, the
     -- thumb can be dragged, and the mouse wheel over the axis scrolls it.
     local sy=axisY+18;local total=maxStart-minStart+span
@@ -771,8 +836,11 @@ local function DrawTimeline(parent)
     W.Segmented(card,{{value=60,label="1m"},{value=120,label="2m"},{value=240,label="4m"}},span,770,6,140,function(v)state.tlSpan=v;Refresh()end,"tl-zoom")
     local list=W.Card(parent,0,458,920,134,L("Reminders on this boss"))
     W.Button(list,L("Send to group"),752,6,156,function()local count,err=ns.SendReminders(ctx.encounter,state.tlDifficulty);done(count,err,(tonumber(count)or 0)..L(" reminders sent to the group"))end,false,"tl-send",{h=24,glyph="players"})
-    if not recorded then W.Label(list,L("Pull the boss once (BigWigs, DBM or built-in timers) to place its abilities and their reminders in time."),300,12,440,10,C.faint)
-    elseif recorded.expected then W.Label(list,L("Expected times. A recorded pull replaces them."),300,12,440,10,C.faint)end
+    -- One-boss string: importing it replaces only this boss in the receiver's active profile.
+    W.Button(list,L("Export boss"),620,6,124,function()local v,err=ns.ExportBoss(ctx.encounter,n.name);if v then state.tab="profiles";loadView();state.importText=v;notify(L("Boss export ready on the Profiles page · Ctrl+C copies it"));Refresh()else notify(err,true)end end,false,"tl-export-boss",{h=24,align="CENTER",tooltip=L("A string with only this boss: its reminders, ability bindings and the sets they use.")})
+    if not recorded then W.Label(list,L("Pull the boss once (BigWigs, DBM or built-in timers) to place its abilities and their reminders in time."),300,12,310,10,C.faint)
+    elseif recorded.expected then W.Label(list,L("Expected times. A recorded pull replaces them."),300,12,310,10,C.faint)end
+    if missing>0 then W.Label(list,missing..L(" defensive calls have nothing ready (red ! on the Cooldowns lane)"),300,24,310,10,C.danger)end
     -- A clicked boss ability: bind a defensive set or write a note for that cast.
     local pick=state.tlPick;if pick and(pick.encounter~=ctx.encounter or pick.difficulty~=state.tlDifficulty or not recorded)then pick=nil end
     if pick then
@@ -934,3 +1002,15 @@ function ns.ShowDiagnostics()
 end
 -- Helpers shared with the page files loaded after this one.
 ns.UIKit={state=state,notify=notify,done=done,go=go,read=read,name=name,header=ContentHeader,loadView=loadView,classColor=classColor,roster=Roster,modeSwitch=ModeSwitch,refresh=function()Refresh()end}
+-- Redraws the Timeline twice a second while a simulated pull runs, only while it is on screen.
+local simTicker
+function ns.OnSimulationChanged()
+    if simTicker then simTicker:Cancel();simTicker=nil end
+    if ns.Simulating()and C_Timer and C_Timer.NewTicker then
+        simTicker=C_Timer.NewTicker(0.5,function()
+            if not ns.Simulating()then if simTicker then simTicker:Cancel();simTicker=nil end return end
+            if state.tab=="timeline"and ns.WorkspaceWindow and ns.WorkspaceWindow:IsShown()then Refresh()end
+        end)
+    end
+    if state.tab=="timeline"and ns.WorkspaceWindow and ns.WorkspaceWindow:IsShown()then Refresh()end
+end

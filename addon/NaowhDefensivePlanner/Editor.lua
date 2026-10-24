@@ -309,6 +309,16 @@ function ns.SaveRule(ctx,form,reference)
             elseif form.recipient=="role"then assert(({TANK=true,HEALER=true,DAMAGER=true})[form.role],"Choose a role");target={roles={[form.role]=true}}
             elseif form.recipient=="player"then target={names={[Name(form.player)]=true}}
             elseif form.recipient=="position"then assert(form.role=="MELEE"or form.role=="RANGED","Choose melee or ranged");target={specs=ns.PositionSpecs(form.role=="MELEE")}
+            elseif form.recipient=="group"then local groups={};for g in tostring(form.groups or""):gmatch("%d+")do local n=tonumber(g);assert(n>=1 and n<=8,"Groups are 1 to 8");groups[n]=true end;assert(next(groups),"Enter groups, e.g. 1,2");target={subgroups=groups}
+            elseif form.recipient=="class"then assert(type(form.class)=="string"and form.class:match("^%u+$"),"Choose a class");target={classes={[form.class]=true}}
+            elseif form.recipient=="rotation"then
+                -- "note:Soak" reads the names from the note line "Soak: ..."; otherwise the names typed here.
+                local text=tostring(form.rotation or""):match("^%s*(.-)%s*$");local tag=text:match("^note:%s*(.+)$")
+                if tag then assert(#tag<=40,"Use a shorter note tag");target={rotation={note=tag}}
+                else local names={};for nm in text:gmatch("[^%s,;]+")do assert(#nm<=64,"Name too long");names[#names+1]=nm end;assert(#names>0 and #names<=40,"Enter 1 to 40 player names in order, or note:Tag");target={rotation={names=names}}end
+            elseif form.recipient=="noteslot"then
+                local tag=tostring(form.noteTag or""):match("^%s*(.-)%s*$");assert(tag~=""and #tag<=40,"Enter the note line tag, e.g. Soak")
+                target={noteSlot={note=tag,index=Integer(form.noteIndex,"position in the note line")}};assert(target.noteSlot.index>=1 and target.noteSlot.index<=40,"Position is 1 to 40")
             elseif form.recipient=="preserve"then target=reference and ns.Clone(reference.entry.target);assert(target,"No imported recipient filter")
             else target={all=true}end
             local diff=scope=="mythic"and 8 or Integer(ctx.difficulty,"raid difficulty");assert(diff==8 or diff==15 or diff==16,"Choose Mythic+, Heroic or Mythic")
