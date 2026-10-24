@@ -137,7 +137,7 @@ for pass=1,2 do for _,tab in ipairs(tabs)do
 end end
 assert(#errors==0,'Controls raised errors:\\n'..table.concat(errors,'\\n'))
 -- Controls that legitimately change nothing when clicked in the state they are already in.
-local same={['top:timeline']=1,['top:display']=1,['header-profile']=1,['top:roster']=1,['debuff-new']=1,['mode:mechanics']=1,['mode:sets']=1,['mode:debuffs']=1,['display-anchor']=1}
+local same={['top:timeline']=1,['tl-thumb']=1,['top:display']=1,['header-profile']=1,['top:roster']=1,['debuff-new']=1,['mode:mechanics']=1,['mode:sets']=1,['mode:debuffs']=1,['display-anchor']=1}
 local unexplained={}
 for _,line in ipairs(dead)do local key=line:match(' (.+)$');local chosen=key:match(':%d+$')or key:match('scope:')or key:match('^ability:')or key:match('^entity:')or key:match('^set:')or key:match('^note:')or key:match('^debuff:')or key:match('^timed:')
  if not same[key]and not chosen then unexplained[#unexplained+1]=line end end
@@ -371,4 +371,14 @@ assert(ns.UIState.form.action=='text'and ns.UIState.form.counter==tostring(pick.
 env.input('rule:text','Stack in middle');env.click('save-rule')
 local found;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.display and v.display.text=='Stack in middle'then found=v end end end
 assert(found and found.trigger.spellID==pick.spell and found.trigger.counterGroups[1][1].value==pick.cast,'note bound to the boss ability and cast')
+`));
+test('the timeline zooms with Ctrl + wheel and the slider moves it before and after the pull',()=>run(`
+env.click('tab:timeline');env.click('tab:timeline')
+local s=ns.UIState;assert(s.tlSpan==nil or s.tlSpan==120)
+env.click('tl-zoom-in');assert(s.tlSpan==90,'zoom in, got '..tostring(s.tlSpan))
+env.click('tl-zoom-out');env.click('tl-zoom-out');assert(s.tlSpan==180)
+s.tlStart=0;env.click('tl-left');assert(s.tlStart<0,'slider goes before the pull')
+env.click('tl-right');env.click('tl-right');assert(s.tlStart>0,'and past it')
+env.click('tl-track:20');local far=s.tlStart;assert(far>200,'track click jumps, got '..far)
+ns.TimelineZoom(1);assert(s.tlSpan==120)
 `));

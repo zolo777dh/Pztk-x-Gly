@@ -187,6 +187,8 @@ function W.Glyph(parent,name,x,y,size,color)
 end
 function W.SpellTexture(spell)
     local icon=134400
+    -- Boss abilities show their own icon, which can sit on a different spell ID.
+    if ns.BossAbilityIcon and ns.BossAbilityIcon[spell]then spell=ns.BossAbilityIcon[spell]end
     if type(spell)=="number"and C_Spell and C_Spell.GetSpellTexture then local ok,v=pcall(C_Spell.GetSpellTexture,spell);if ok and ns.Plain(v,"number")then icon=v end end
     return icon
 end

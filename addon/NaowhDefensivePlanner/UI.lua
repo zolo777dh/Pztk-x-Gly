@@ -88,6 +88,7 @@ local function done(value,error,message)
     state.message=message or"Saved";state.error=false;Refresh();return true
 end
 local function name(spell,fallback)
+    if ns.BossAbilityName and ns.BossAbilityName[spell]then return ns.BossAbilityName[spell]end
     local result=ns.SpellLabel and ns.SpellLabel(spell)
     if result and not result:match("^Spell %d+$")and result~="Reminder"then return result end
     return fallback or ns.Catalog.spellNames[spell]or("Spell "..tostring(spell))
@@ -672,24 +673,41 @@ local function DrawTimeline(parent)
         return out
     end
     W.Button(parent,L("+ Timed reminder"),760,56,160,function()open(nil)end,false,"tl-new",{kind="outline",align="CENTER"})
-    local card=W.Card(parent,0,100,920,300,n.name.." · "..(state.tlDifficulty==16 and L("Mythic")or L("Heroic")))
+    local card=W.Card(parent,0,100,920,350,n.name.." · "..(state.tlDifficulty==16 and L("Mythic")or L("Heroic")))
     local lanes={{key="pull",label=L("Pull")}};local maxT=300
     if recorded then table.insert(lanes,1,{key="boss",label=recorded.expected and L("Boss (exp.)")or L("Boss")});maxT=math.max(maxT,(tonumber(recorded.length)or 0)+10)end
     if #mech>0 then lanes[#lanes+1]={key="mech",label=L("Mechanics")}end
     for _,r in ipairs(rules)do local t=r.entry.trigger;maxT=math.max(maxT,(tonumber(t.delay)or 0)+30)
         if t.type=="stage"then local found=false;for _,l in ipairs(lanes)do if l.key=="stage"..tostring(t.stage)then found=true end end;if not found then lanes[#lanes+1]={key="stage"..tostring(t.stage),label=L("Phase").." "..tostring(t.stage)}end end
     end
-    maxT=math.ceil(maxT/60)*60;local x0,w=96,800;local step=maxT<=360 and 30 or 60
-    for t=0,maxT,step do local x=x0+w*t/maxT;W.Rect(card,x,40,1,240,t%60==0 and C.line or C.raised);local l=W.Label(card,string.format("%d:%02d",math.floor(t/60),t%60),x-20,276,40,10,C.faint);l:SetJustifyH("CENTER")end
+    -- The axis shows a window of the fight; the slider under it moves the window from before
+    -- the pull to the end, and the zoom sets how many seconds fit, so icons keep their room.
+    maxT=math.ceil(maxT/60)*60;local x0,w=96,800
+    local span=state.tlSpan or 120;if span>=maxT+30 then span=maxT+30 end
+    local minStart=-30;local maxStart=math.max(minStart,maxT-span)
+    local from=math.max(minStart,math.min(state.tlStart or 0,maxStart));state.tlStart=from
+    local function X(t)return x0+w*(t-from)/span end
+    local function shown(t)return t>=from-1 and t<=from+span+1 end
+    local function stamp(t)local a=math.abs(t);return(t<0 and"-"or"")..string.format("%d:%02d",math.floor(a/60),a%60)end
+    local step=span<=60 and 10 or span<=120 and 15 or 30
+    local top,laneH,bossH=40,44,62
+    local height=0;for _,lane in ipairs(lanes)do height=height+(lane.key=="boss"and bossH or laneH)end
+    local axisY=top+height+4
+    for t=math.ceil(from/step)*step,from+span,step do local x=X(t);W.Rect(card,x,top,1,height,t==0 and C.accent or t%60==0 and C.line or C.raised);local l=W.Label(card,stamp(t),x-20,axisY,40,10,t==0 and C.accent or C.faint);l:SetJustifyH("CENTER")end
+    local y=top
     for i,lane in ipairs(lanes)do
-        local y=44+(i-1)*44;W.Label(card,lane.label,12,y+12,80,12,C.muted);W.RoundRect(card,x0,y+18,w,4,C.raised,2)
+        local h=lane.key=="boss"and bossH or laneH
+        local mid=y+math.floor(h/2)-9
+        W.Label(card,lane.label,12,mid+4,80,12,C.muted);W.RoundRect(card,x0,mid+7,w,4,C.raised,2)
         if lane.key=="boss"then
-            -- Abilities recorded from your longest pull or kill; click one to time a reminder to it.
-            for j,ev in ipairs(recorded.events or{})do if j<=80 then
-                local x=x0+w*math.max(0,ev[1])/maxT
-                W.Icon(card,ev[2],x-9,y+11,18)
+            -- Casts that would overlap move to a second row, so every icon stays clickable.
+            local lastX={-100,-100}
+            for j,ev in ipairs(recorded.events or{})do if shown(ev[1])then
+                local x=X(ev[1]);local row=(x-lastX[1]>=22)and 1 or(x-lastX[2]>=22)and 2 or(lastX[1]<=lastX[2]and 1 or 2);lastX[row]=x
+                local iy=row==1 and mid-10 or mid+12
+                W.Icon(card,ev[2],x-10,iy,20)
                 local cast=0;for k=1,j do if recorded.events[k][2]==ev[2]then cast=cast+1 end end
-                W.Button(card,"",x-9,y+11,18,function()state.tlPick={spell=ev[2],at=ev[1],cast=cast,encounter=ctx.encounter,difficulty=state.tlDifficulty};Refresh()end,false,"tl-ability:"..j,{kind="ghost",h=18,tooltip=name(ev[2]).." #"..cast.." · "..string.format("%d:%02d",math.floor(ev[1]/60),ev[1]%60)..L(" · click to plan this cast")})
+                W.Button(card,"",x-10,iy,20,function()state.tlPick={spell=ev[2],at=ev[1],cast=cast,encounter=ctx.encounter,difficulty=state.tlDifficulty};Refresh()end,false,"tl-ability:"..j,{kind="ghost",h=20,tooltip=name(ev[2]).." #"..cast.." · "..stamp(ev[1])..L(" · click to plan this cast")})
             end end
         end
         if lane.key=="mech"then
@@ -698,28 +716,60 @@ local function DrawTimeline(parent)
             local waiting=0
             for _,m in ipairs(mech)do if #occurrences(m)==0 and waiting<5 then
                 local x=x0+8+waiting*160;waiting=waiting+1
-                W.Icon(card,m.spell,x,y+11,18)
-                W.Button(card,"",x,y+11,18,function()open(m.r.key,nil,m.spell)end,false,"tl-mwait:"..tostring(m.r.key)..":"..m.spell,{kind="ghost",h=18,tooltip=(m.r.entry.name or name(m.spell))..L(" · placed after a recorded pull")})
-                W.Label(card,(m.r.entry.name or name(m.spell))..L(" · no time yet"),x+22,y+2,136,10,C.faint)
+                W.Icon(card,m.spell,x,mid,18)
+                W.Button(card,"",x,mid,18,function()open(m.r.key,nil,m.spell)end,false,"tl-mwait:"..tostring(m.r.key)..":"..m.spell,{kind="ghost",h=18,tooltip=(m.r.entry.name or name(m.spell))..L(" · placed after a recorded pull")})
+                W.Label(card,(m.r.entry.name or name(m.spell))..L(" · no time yet"),x+22,mid-9,136,10,C.faint)
             end end
-            for _,m in ipairs(mech)do for j,at in ipairs(occurrences(m))do if j<=40 then
-                local x=x0+w*math.max(0,math.min(at,maxT))/maxT
-                W.Icon(card,m.spell,x-9,y+11,18)
-                W.Button(card,"",x-9,y+11,18,function()open(m.r.key,nil,m.spell)end,false,"tl-mech:"..tostring(m.r.key)..":"..m.spell..":"..j,{kind="ghost",h=18,tooltip=(m.r.entry.name or name(m.spell))..string.format(" · %d:%02d",math.floor(at/60),at%60)})
-                if j==1 then W.Label(card,m.r.entry.name or name(m.spell),x+12,y+2,120,10,C.soft)end
+            for _,m in ipairs(mech)do for j,at in ipairs(occurrences(m))do if j<=40 and shown(at)then
+                local x=X(at)
+                W.Icon(card,m.spell,x-9,mid,18)
+                W.Button(card,"",x-9,mid,18,function()open(m.r.key,nil,m.spell)end,false,"tl-mech:"..tostring(m.r.key)..":"..m.spell..":"..j,{kind="ghost",h=18,tooltip=(m.r.entry.name or name(m.spell)).." · "..stamp(at)})
+                W.Label(card,m.r.entry.name or name(m.spell),x+12,mid-9,90,10,C.soft)
             end end end
         end
         for _,r in ipairs(rules)do local t=r.entry.trigger
             local laneKey=(t.type=="stage")and("stage"..tostring(t.stage))or"pull"
-            if laneKey==lane.key then
-                local at=(t.type=="prepull"and-(tonumber(t.delay)or 0)or tonumber(t.delay)or 0)
-                local x=x0+w*math.max(0,at)/maxT
-                local b=W.Button(card,"",x-11,y+9,22,function()open(r.key)end,false,"tl-marker:"..r.key,{h=22,radius=11,kind="primary",tooltip=(r.entry.name or L("Timed reminder")).." · "..tostring(at).."s"})
-                W.Label(card,r.entry.name or"",x+14,y+2,120,10,C.soft)
+            local at=(t.type=="prepull"and-(tonumber(t.delay)or 0)or tonumber(t.delay)or 0)
+            if laneKey==lane.key and shown(at)then
+                local x=X(at)
+                W.Button(card,"",x-11,mid-2,22,function()open(r.key)end,false,"tl-marker:"..r.key,{h=22,radius=11,kind="primary",tooltip=(r.entry.name or L("Timed reminder")).." · "..tostring(at).."s"})
+                W.Label(card,r.entry.name or"",x+14,mid-9,120,10,C.soft)
             end
         end
+        y=y+h
     end
-    local list=W.Card(parent,0,412,920,180,L("Reminders on this boss"))
+    -- Slider: arrows step by a quarter window, the track jumps to where it is clicked, the
+    -- thumb can be dragged, and the mouse wheel over the axis scrolls it.
+    local sy=axisY+18;local total=maxStart-minStart+span
+    local function moveTo(t)state.tlStart=math.floor(math.max(minStart,math.min(t,maxStart))+0.5);Refresh()end
+    W.Button(card,"<",x0-34,sy-6,26,function()moveTo(from-span/4)end,false,"tl-left",{h=20,align="CENTER",tooltip=L("Earlier")})
+    W.Button(card,">",x0+w+8,sy-6,26,function()moveTo(from+span/4)end,false,"tl-right",{h=20,align="CENTER",tooltip=L("Later")})
+    W.RoundRect(card,x0,sy,w,8,C.raised,4)
+    local segs=20
+    for k=1,segs do local t=minStart+(k-0.5)*total/segs-span/2
+        W.Button(card,"",x0+(k-1)*w/segs,sy-6,w/segs,function()moveTo(t)end,false,"tl-track:"..k,{kind="ghost",h=20})
+    end
+    local tw=math.max(24,w*span/total);local tx=x0+(w-tw)*((maxStart>minStart)and(from-minStart)/(maxStart-minStart)or 0)
+    local thumb=W.Button(card,"",tx,sy-2,tw,nil,true,"tl-thumb",{kind="primary",h=12,radius=6,tooltip=stamp(from).." – "..stamp(from+span)})
+    if thumb.RegisterForDrag and GetCursorPosition then
+        thumb:SetScript("OnMouseDown",function(self)
+            local scale=self:GetEffectiveScale();local startX=GetCursorPosition()/scale;local base=from
+            self:SetScript("OnUpdate",function(me)local cx=GetCursorPosition()/scale;local t=base+(cx-startX)*(maxStart-minStart)/math.max(1,w-tw);me.dragTo=t end)
+        end)
+        thumb:SetScript("OnMouseUp",function(self)self:SetScript("OnUpdate",nil);if self.dragTo then moveTo(self.dragTo)end end)
+    end
+    -- Ctrl + wheel zooms around the middle of the view, the wheel alone scrolls.
+    local levels={30,60,90,120,180,240,360,600}
+    local function zoom(delta)
+        local i=1;for k,v in ipairs(levels)do if v<=span then i=k end end
+        i=math.max(1,math.min(#levels,i-delta));local mid=from+span/2;state.tlSpan=levels[i];state.tlStart=math.floor(mid-levels[i]/2+0.5);Refresh()
+    end
+    ns.TimelineZoom=zoom
+    if card.EnableMouseWheel then card:EnableMouseWheel(true);card:SetScript("OnMouseWheel",function(_,delta)if IsControlKeyDown and IsControlKeyDown()then zoom(delta)else moveTo(from-delta*span/8)end end)end
+    W.Button(card,"-",716,6,24,function()zoom(-1)end,false,"tl-zoom-out",{h=22,align="CENTER",tooltip=L("Zoom out · Ctrl + mouse wheel down")})
+    W.Button(card,"+",742,6,24,function()zoom(1)end,false,"tl-zoom-in",{h=22,align="CENTER",tooltip=L("Zoom in · Ctrl + mouse wheel up")})
+    W.Segmented(card,{{value=60,label="1m"},{value=120,label="2m"},{value=240,label="4m"}},span,770,6,140,function(v)state.tlSpan=v;Refresh()end,"tl-zoom")
+    local list=W.Card(parent,0,458,920,134,L("Reminders on this boss"))
     W.Button(list,L("Send to group"),752,6,156,function()local count,err=ns.SendReminders(ctx.encounter,state.tlDifficulty);done(count,err,(tonumber(count)or 0)..L(" reminders sent to the group"))end,false,"tl-send",{h=24,glyph="players"})
     if not recorded then W.Label(list,L("Pull the boss once (BigWigs, DBM or built-in timers) to place its abilities and their reminders in time."),300,12,440,10,C.faint)
     elseif recorded.expected then W.Label(list,L("Expected times. A recorded pull replaces them."),300,12,440,10,C.faint)end
@@ -727,17 +777,17 @@ local function DrawTimeline(parent)
     local pick=state.tlPick;if pick and(pick.encounter~=ctx.encounter or pick.difficulty~=state.tlDifficulty or not recorded)then pick=nil end
     if pick then
         local function plan(action,every)state.tlPick=nil;state.newAction=action;state.newCounter=not every and pick.cast or nil;local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=false;state.ability=pick.spell;state.ruleKey="new";state.form=nil;Refresh()end
-        W.Icon(list,pick.spell,12,148,20)
-        W.Label(list,name(pick.spell).." #"..pick.cast..string.format(" · %d:%02d",math.floor(pick.at/60),pick.at%60),38,152,250,11,C.text,true)
-        W.Button(list,L("Defensive set"),300,144,140,function()plan("defensive")end,false,"tl-pick-defensive",{kind="primary",align="CENTER",h=26})
-        W.Button(list,L("Note"),446,144,110,function()plan("text")end,false,"tl-pick-note",{align="CENTER",h=26})
-        W.Button(list,L("Every cast"),562,144,120,function()plan("text",true)end,false,"tl-pick-every",{align="CENTER",h=26,tooltip=L("A note for every cast of this ability")})
-        W.Button(list,L("Timed here"),688,144,110,function()state.tlPick=nil;state.timedSpell=pick.spell;open(nil,pick.at)end,false,"tl-pick-timed",{align="CENTER",h=26})
-        W.Button(list,L("Cancel"),804,144,104,function()state.tlPick=nil;Refresh()end,false,"tl-pick-cancel",{kind="ghost",align="CENTER",h=26})
+        W.Icon(list,pick.spell,12,102,20)
+        W.Label(list,name(pick.spell).." #"..pick.cast..string.format(" · %d:%02d",math.floor(pick.at/60),pick.at%60),38,106,250,11,C.text,true)
+        W.Button(list,L("Defensive set"),300,98,140,function()plan("defensive")end,false,"tl-pick-defensive",{kind="primary",align="CENTER",h=26})
+        W.Button(list,L("Note"),446,98,110,function()plan("text")end,false,"tl-pick-note",{align="CENTER",h=26})
+        W.Button(list,L("Every cast"),562,98,120,function()plan("text",true)end,false,"tl-pick-every",{align="CENTER",h=26,tooltip=L("A note for every cast of this ability")})
+        W.Button(list,L("Timed here"),688,98,110,function()state.tlPick=nil;state.timedSpell=pick.spell;open(nil,pick.at)end,false,"tl-pick-timed",{align="CENTER",h=26})
+        W.Button(list,L("Cancel"),804,98,104,function()state.tlPick=nil;Refresh()end,false,"tl-pick-cancel",{kind="ghost",align="CENTER",h=26})
     end
     if #rules==0 and #mech==0 then W.Label(list,L("No reminders on this boss yet. Add one with + Timed reminder or on the Raids page."),12,36,700,12,C.muted)end
     local i=0
-    local rows=pick and 6 or 8
+    local rows=pick and 4 or 6
     for _,r in ipairs(rules)do i=i+1;if i<=rows then
         local t=r.entry.trigger;local at=t.type=="prepull"and("-"..tostring(t.delay).."s")or t.type=="stage"and("P"..tostring(t.stage).." "..tostring(t.delay).."s")or(tostring(t.delay).."s")
         W.Button(list,at.."  ·  "..(r.entry.name or L("Timed reminder")),12+((i-1)%2)*452,32+math.floor((i-1)/2)*34,440,function()open(r.key)end,false,"tl-row:"..r.key,{kind="ghost",h=30,glyph="clock"})
