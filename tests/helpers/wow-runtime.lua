@@ -1,4 +1,4 @@
--- Minimal WoW API stand-ins for running NaowhDefensivePlanner outside the game.
+-- Minimal WoW API stand-ins for running PuzatikDefensivePlanner outside the game.
 strmatch, strsub, strbyte, strchar, strfind, strlen, format = string.match, string.sub, string.byte, string.char, string.find, string.len, string.format
 tinsert, tremove, unpack, loadstring = table.insert, table.remove, unpack or table.unpack, loadstring or load
 function wipe(t) for k in pairs(t) do t[k] = nil end return t end

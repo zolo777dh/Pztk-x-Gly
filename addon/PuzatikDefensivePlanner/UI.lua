@@ -541,7 +541,7 @@ local function providerName()
     local p=ns.ProviderStatus and ns.ProviderStatus()or{}
     local chosen=ns.Settings and ns.Settings().bossSource
     -- Without a boss mod the built-in raid timers run, so the source is never empty.
-    if chosen=="ndp"or not p.BigWigs and not p.DBM then return L("NDP timers"),p.EXBoss end
+    if chosen=="ndp"or not p.BigWigs and not p.DBM then return L("PDP timers"),p.EXBoss end
     return p.BigWigs and"BigWigs"or"DBM",p.EXBoss
 end
 local function openGroup(content,g)
@@ -578,7 +578,7 @@ local function DrawOverview(parent)
         W.Button(row,L("Open"),364,3,64,function()openGroup("raid",g)end,false,"overview:raid:"..tostring(g.id),{kind="ghost",h=28,align="CENTER"}).label:SetTextColor(unpack(C.accent))
         y=y+40;if y>400 then break end
     end
-    local tips={{L("Reminder look and anchor"),"settings"},{L("Notes"),"notes"},{L("Diagnostics and /ndp commands"),"diag"}}
+    local tips={{L("Reminder look and anchor"),"settings"},{L("Notes"),"notes"},{L("Diagnostics and /pdp commands"),"diag"}}
     y=math.max(y+6,260)
     for _,t in ipairs(tips)do if y<=404 then
         local row=W.Panel(right,10,y,434,34,C.raised,C.clear,8);W.Dot(row,10,13,C.muted);W.Label(row,t[1],26,10,300,13,C.soft)
@@ -674,7 +674,7 @@ local function DrawProfiles(parent)
     W.Button(right,L("Export all profiles"),12,386,150,function()show(ns.Export())end,false,"profile-export",{kind="primary",align="CENTER",h=34})
     W.Button(right,L("Only active"),170,386,120,function()show(ns.ExportActive())end,false,"profile-export-active",{align="CENTER",h=34})
     W.Button(right,L("Diagnostics"),298,386,118,function()local v=ns.Diagnostics();text:SetText(v);text:HighlightText();text:SetFocus();state.importText=v;notify(L("Diagnostics ready to copy"))end,false,"diagnostics",{align="CENTER",h=34})
-    W.Label(right,L("One !NDP1: string carries every profile of this game client, Mythic+ and raids. Older PZTK1 strings and other addons' strings (NSR, NSRT, Timeline Reminders) are read once and converted."),12,428,584,11,C.muted)
+    W.Label(right,L("One !PDP1: string carries every profile of this game client, Mythic+ and raids. Older !NDP1: and PZTK1 strings and other addons' strings (NSR, NSRT, Timeline Reminders) are read once and converted."),12,428,584,11,C.muted)
     -- History: copies kept before an import or restore changed a profile.
     W.Label(right,L("HISTORY"),12,460,200,11,C.muted,true)
     local hist=ns.History()
@@ -946,10 +946,10 @@ local function classColor(class)
     local c=class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class];if c then return{c.r,c.g,c.b,1}end;return C.text
 end
 ---------------------------------------------------------------------------
-local commands={{"/ndp","open or close the window"},{"/ndp status","state and combat source"},{"/ndp test","test a defensive reminder"},{"/ndp diag","diagnostics report"},{"/ndp sets · mythic · raid","open a section"},
-    {"/ndp notes · tools · players","raid sections"},{"/ndp qol · combat","quality of life, combat tools"},{"/ndp note","show or hide the note frame"},{"/ndp clear · pclear","take the shared / personal note off"},{"/ndp anchors","move the reminder anchor"},
-    {"/ndp pull 10 · rc","pull timer, ready check"},{"/ndp break 10","break timer (0 ends it)"},{"/ndp inv · arrange","guild invites, arrange groups"},{"/ndp promote","give assist from your list"},
-    {"/ndp nick Name","set your nickname"},{"/ndp versions","addon version check"},{"/ndp roster · export","roster, export the profile"},{"/ndp wipe","reset all data (asks to confirm)"},{"/ndp credits","thanks to the authors whose work NDP builds on"}}
+local commands={{"/pdp","open or close the window"},{"/pdp status","state and combat source"},{"/pdp test","test a defensive reminder"},{"/pdp diag","diagnostics report"},{"/pdp sets · mythic · raid","open a section"},
+    {"/pdp notes · tools · players","raid sections"},{"/pdp qol · combat","quality of life, combat tools"},{"/pdp note","show or hide the note frame"},{"/pdp clear · pclear","take the shared / personal note off"},{"/pdp anchors","move the reminder anchor"},
+    {"/pdp pull 10 · rc","pull timer, ready check"},{"/pdp break 10","break timer (0 ends it)"},{"/pdp inv · arrange","guild invites, arrange groups"},{"/pdp promote","give assist from your list"},
+    {"/pdp nick Name","set your nickname"},{"/pdp versions","addon version check"},{"/pdp roster · export","roster, export the profile"},{"/pdp wipe","reset all data (asks to confirm)"},{"/pdp credits","thanks to the authors whose work PDP builds on"}}
 ns.CommandHelp=commands
 local function DrawDiagnostics(parent)
     W.Label(parent,L("Diagnostics"),0,0,200,20,C.text,true)
@@ -957,7 +957,7 @@ local function DrawDiagnostics(parent)
     for _,chip in ipairs({{"BigWigs",p.BigWigs},{"DBM",p.DBM},{"ExBoss",p.EXBoss},{L("Conflict")..": "..(ns.Conflict()or L("none")),not ns.Conflict()}})do
         local w=#chip[1]*7+34;local c=W.Panel(parent,x,0,w,26,C.panel,C.line,13);W.Dot(c,10,9,chip[2]and C.ok or C.faint);W.Label(c,chip[1],24,7,w-28,12);x=x+w+6
     end
-    local cmds=W.Card(parent,0,40,360,552,L("Commands · /ndp help"))
+    local cmds=W.Card(parent,0,40,360,552,L("Commands · /pdp help"))
     for i,c in ipairs(commands)do local y=34+(i-1)*29;W.Label(cmds,c[1],12,y,150,12,C.accent,true);W.Label(cmds,L(c[2]),164,y,184,12,C.soft)end
     local log=W.Card(parent,372,40,548,552,L("Report"))
     local panel=W.Panel(log,12,34,524,460,C.background,C.line,8);local scroll=W.Frame("ScrollFrame",nil,panel);scroll:SetPoint("TOPLEFT",10,-10);scroll:SetSize(500,440)
@@ -978,7 +978,7 @@ local function DrawHeader()
     -- Top bar background with square bottom corners inside the rounded window.
     W.Shape(header,1,1,WIDTH-2,TOP-1,9,C.panel,"BACKGROUND",-2);W.Rect(header,1,TOP-12,WIDTH-2,12,C.panel,"BACKGROUND");W.Rect(header,0,TOP-1,WIDTH,1,C.line)
     header.logo=W.Texture(header,W.logo,14,12,36,36)
-    W.Label(header,"Naowh Defensive",58,13,160,14,C.text,true);W.Label(header,"Planner",58,31,160,14,C.accent,true)
+    W.Label(header,"Puzatik Defensive",58,13,160,14,C.text,true);W.Label(header,"Planner",58,31,160,14,C.accent,true)
     -- Search filters encounters and mechanics on Enter.
     local search=W.Input(header,state.filter or"",224,13,272,"search",false,{h=34,radius=8,glyph="search"})
     local hint=W.Label(search.surround,L("Search: boss, mechanic, ability"),32,11,190,12,C.muted);hint:SetWordWrap(false);if(state.filter or"")~=""then hint:Hide()end
@@ -1014,7 +1014,7 @@ local function DrawSidebar()
         end
     end
     W.Label(header,"v"..ns.version.." · "..ns.Client(),18,HEIGHT-44,SIDEBAR-28,11,C.faint)
-    W.Label(header,"/ndp - "..L("open the window"),18,HEIGHT-28,SIDEBAR-28,11,C.faint)
+    W.Label(header,"/pdp - "..L("open the window"),18,HEIGHT-28,SIDEBAR-28,11,C.faint)
 end
 local pages={overview=DrawOverview,profiles=DrawProfiles,settings=DrawSettings,timeline=DrawTimeline,diag=DrawDiagnostics}
 Refresh=function()

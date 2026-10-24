@@ -6,13 +6,20 @@ end
 function ns.Store()
     -- 0.4.0 renamed the addon from PztkReminders. A copied PztkReminders.lua
     -- SavedVariables file still holds PztkRemindersDB; adopt it once, then drop it.
-    if NaowhDefensivePlannerDB == nil and type(PztkRemindersDB) == "table" then NaowhDefensivePlannerDB = PztkRemindersDB end
+    -- 0.7.3 renamed it from NaowhDefensivePlanner the same way (NaowhDefensivePlannerDB).
+    -- While the old addon itself is loaded its data is left alone, so it keeps its own copy.
+    local loaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
+    if not (loaded and loaded("NaowhDefensivePlanner")) then
+        if PuzatikDefensivePlannerDB == nil and type(NaowhDefensivePlannerDB) == "table" then PuzatikDefensivePlannerDB = NaowhDefensivePlannerDB end
+        NaowhDefensivePlannerDB = nil
+    end
+    if PuzatikDefensivePlannerDB == nil and type(PztkRemindersDB) == "table" then PuzatikDefensivePlannerDB = PztkRemindersDB end
     PztkRemindersDB = nil
-    NaowhDefensivePlannerDB = NaowhDefensivePlannerDB or { clients = {} }
-    NaowhDefensivePlannerDB.clients = NaowhDefensivePlannerDB.clients or {}
+    PuzatikDefensivePlannerDB = PuzatikDefensivePlannerDB or { clients = {} }
+    PuzatikDefensivePlannerDB.clients = PuzatikDefensivePlannerDB.clients or {}
     local client = ns.Client()
-    NaowhDefensivePlannerDB.clients[client] = NaowhDefensivePlannerDB.clients[client] or {profiles={},history={}}
-    return NaowhDefensivePlannerDB.clients[client]
+    PuzatikDefensivePlannerDB.clients[client] = PuzatikDefensivePlannerDB.clients[client] or {profiles={},history={}}
+    return PuzatikDefensivePlannerDB.clients[client]
 end
 local function Data(value, seen, depth, budget)
     if depth > 32 then return false end
@@ -254,7 +261,7 @@ function ns.Decode(input)
             end end
         end end
     end
-    if ok and type(profile)=="table"and type(profile.minimumAddon)=="string"and type(ns.version)=="string"and Newer(profile.minimumAddon,ns.version)then return nil,"This profile needs Naowh Defensive Planner "..profile.minimumAddon.." or newer" end
+    if ok and type(profile)=="table"and type(profile.minimumAddon)=="string"and type(ns.version)=="string"and Newer(profile.minimumAddon,ns.version)then return nil,"This profile needs Puzatik Defensive Planner "..profile.minimumAddon.." or newer" end
     if not ok or not ns.Validate(profile) then return nil, "Unsupported profile data" end
     return profile
 end
@@ -335,7 +342,7 @@ function ns.Import(input,mode)
     ns.Reset()
     return selected,nil,report,#profiles
 end
--- One profile as an !NDP1: string (Codec.lua).
+-- One profile as an !PDP1: string (Codec.lua).
 function ns.Encode(profile)
     if not profile or not ns.Validate(profile)then return nil,"Invalid profile data"end
     return ns.EncodeProfiles({profile},profile.name)

@@ -3,7 +3,7 @@ local pool, active, serial = {}, {}, 0
 -- Built-in cues have no sound files of their own. As a reminder sound they are spoken by the
 -- game's text to speech, with the phrase set in Settings (or the default below). Debuff alerts
 -- go through the game's aura sound API, which needs a file: there each cue plays a game sound,
--- given by its FileDataID (these sounds ship with the game client, not with NDP).
+-- given by its FileDataID (these sounds ship with the game client, not with PDP).
 local cues={
     ["voice:use-a-defensive"]={text="Use a defensive",file=7670701},
     ["voice:move-out"]={text="Move out",file=7670697},
@@ -51,7 +51,7 @@ local function Region()
     local r = table.remove(pool)
     if r then return r end
     r = CreateFrame("Frame", nil, UIParent)
-    serial=serial+1;r.glowKey="NaowhDefensivePlanner:"..serial
+    serial=serial+1;r.glowKey="PuzatikDefensivePlanner:"..serial
     r:SetSize(340, 48); r:SetFrameStrata("HIGH")
     r.text = r:CreateFontString(nil,"OVERLAY","GameFontNormalLarge");r.text:SetJustifyH("LEFT");r.text:SetTextColor(1,1,1,1)
     r.text:SetShadowColor(0,0,0,1);r.text:SetShadowOffset(1,-1)
@@ -318,7 +318,7 @@ function ns.ToggleAnchors()
             local t=anchor:CreateTexture(nil,"OVERLAY");t:SetColorTexture(0.2,0.76,0.65,1);t:SetPoint(side[1]);t:SetPoint(side[2]);if i<=2 then t:SetHeight(2)else t:SetWidth(2)end;anchor.edge[i]=t
         end
         anchor.text=anchor:CreateFontString(nil,"OVERLAY","GameFontHighlight");anchor.text:SetPoint("LEFT",anchor,"RIGHT",6,0)
-        anchor.text:SetText(ns.L and ns.L("Drag the icon · /ndp anchors locks")or"Drag the icon · /ndp anchors locks")
+        anchor.text:SetText(ns.L and ns.L("Drag the icon · /pdp anchors locks")or"Drag the icon · /pdp anchors locks")
         anchor:SetScript("OnDragStart",function(self)self:StartMoving()end)
         anchor:SetScript("OnDragStop",function(self)
             self:StopMovingOrSizing();local left=self:GetLeft();local _,y=self:GetCenter();local ux,uy=UIParent:GetCenter()

@@ -2,7 +2,7 @@
 // atlas) into TGA textures by drawing them on a canvas in headless Chromium.
 //   CHROMIUM_PATH=/opt/pw-browsers/chromium node tools/bake-addon-media.mjs
 import fs from 'node:fs/promises';import path from 'node:path';import {chromium}from 'playwright-core';
-const repo=path.resolve('.'),media=path.join(repo,'addon/NaowhDefensivePlanner/Media');
+const repo=path.resolve('.'),media=path.join(repo,'addon/PuzatikDefensivePlanner/Media');
 // Uncompressed 32-bit TGA, bottom-left origin: the plainest form the client loads.
 function tga(width,height,rgba){
  const out=Buffer.alloc(18+width*height*4);out[2]=2;out.writeUInt16LE(width,12);out.writeUInt16LE(height,14);out[16]=32;out[17]=8;

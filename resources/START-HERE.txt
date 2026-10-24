@@ -5,9 +5,9 @@ Do not run the exe directly inside the ZIP. Node.js is not required.
 
 
 PUZATIK REMINDERS — IN-GAME WORKSPACE (0.3.0)
-The bundle includes NaowhDefensivePlanner-0.3.0.zip. Replace Interface/AddOns/NaowhDefensivePlanner
-with its folder while WoW is closed. Keep NaowhDefensivePlannerDB SavedVariables.
-The displayed name is Naowh Defensive Planner. Disable NSR / NSRT / TimelineReminders
+The bundle includes PuzatikDefensivePlanner-0.3.0.zip. Replace Interface/AddOns/PuzatikDefensivePlanner
+with its folder while WoW is closed. Keep PuzatikDefensivePlannerDB SavedVariables.
+The displayed name is Puzatik Defensive Planner. Disable NSR / NSRT / TimelineReminders
 while using this separate reminder engine.
 
 Open /nwhdp. Create defensive sets separately under Mythic+ and Raids.

@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import fengari from 'fengari';
 
 const files=['BossTimers.lua','BossTimerData.lua'];
-const sources=await Promise.all(files.map(f=>fs.readFile('addon/NaowhDefensivePlanner/'+f,'utf8')));
+const sources=await Promise.all(files.map(f=>fs.readFile('addon/PuzatikDefensivePlanner/'+f,'utf8')));
 function run(script){
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);
  try{if(lauxlib.luaL_loadstring(L,to_luastring(fixture+'\n'+script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
@@ -36,7 +36,7 @@ function ns.Cancel(prefix)for key,t in pairs(ns.timers)do if not prefix or key:s
 function ns.Schedule(key,delay,fn)if ns.timers[key]then ns.timers[key]:Cancel()end;local t;t=C_Timer.NewTimer(math.max(0.01,delay),function()if ns.timers[key]~=t then return end;ns.timers[key]=nil;fn()end);ns.timers[key]=t end
 function ns.Phase(n)ns.phase=n;calls[#calls+1]="stage|"..n end
 function ns.Mechanic(spell,duration,identity,encounter,skip,again)calls[#calls+1]=spell.."|"..tostring(duration).."|"..identity..(again and "|again"or"")end
-${sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns);`).join('\n')}
+${sources.map(s=>`;(function(...)\n${s}\nend)('PuzatikDefensivePlanner',ns);`).join('\n')}
 function begin(encounter,difficulty)ns.ResetBuiltinTimers();ns.Cancel();ns.encounter,ns.difficulty,ns.phase=encounter,difficulty,1;ns.StartBuiltinTimers();advance(now)end
 function bar(id,duration)ns.BuiltinTimerEvent("ENCOUNTER_TIMELINE_EVENT_ADDED",{id=id,source=0,duration=duration});advance(now)end
 function state(id,s)states[id]=s;ns.BuiltinTimerEvent("ENCOUNTER_TIMELINE_EVENT_STATE_CHANGED",id)end
@@ -46,34 +46,34 @@ function absent(text)assert(not has(text),"unexpected "..text)end`;
 
 test('built-in timers name a timeline bar and send its message when it ends',()=>{
  run(`begin(3379,16)
- bar(1,18);check("1257717|18|NDP:1")
+ bar(1,18);check("1257717|18|PDP:1")
  advance(17);absent("1257717|nil|NDPMSG:1257717")
  advance(18);check("1257717|nil|NDPMSG:1257717")
- bar(2,22);check("1268562|22|NDP:2")`); // Mythic Nymrissa uses the Jet in place of Flurry
+ bar(2,22);check("1268562|22|PDP:2")`); // Mythic Nymrissa uses the Jet in place of Flurry
 });
 
 test('built-in timers stay off when a boss mod is connected unless Settings choose them, and take over without one',()=>{
  run(`providers.BigWigs=true;begin(3379,15)
- bar(1,18);absent("1257717|18|NDP:1")
+ bar(1,18);absent("1257717|18|PDP:1")
  settings.bossSource="ndp";begin(3379,15)
- bar(2,18);check("1257717|18|NDP:2")
+ bar(2,18);check("1257717|18|PDP:2")
  settings.bossSource="bigwigs";begin(3379,15)
- bar(3,18);absent("1257717|18|NDP:3")
+ bar(3,18);absent("1257717|18|PDP:3")
  providers.BigWigs=nil;begin(3379,15)
- bar(4,18);check("1257717|18|NDP:4")`);
+ bar(4,18);check("1257717|18|PDP:4")`);
 });
 
 test('paused bars resume with their remaining time and cancelled bars send nothing',()=>{
  run(`begin(3379,15)
  bar(1,18);advance(8);state(1,1);advance(30);absent("1257717|nil|NDPMSG:1257717")
- state(1,0);check("1257717|10|NDP:1|again")
+ state(1,0);check("1257717|10|PDP:1|again")
  advance(40);check("1257717|nil|NDPMSG:1257717")
  calls={};bar(2,35);state(2,3);advance(80);absent("1313393|nil|NDPMSG:1313393")`);
 });
 
 test('bars added just before the pull starts are picked up',()=>{
  run(`ns.encounter=nil;ns.BuiltinTimerEvent("ENCOUNTER_TIMELINE_EVENT_ADDED",{id=7,source=0,duration=18})
- begin(3379,14);check("1257717|18|NDP:7")`);
+ begin(3379,14);check("1257717|18|PDP:7")`);
 });
 
 test("Nek'zali starts its own pull bars and follows the ritual into stage 1.5",()=>{
@@ -87,10 +87,10 @@ test("Nek'zali starts its own pull bars and follows the ritual into stage 1.5",(
 
 test("Kith'ix drops its tracked bars when a stage one bar is cancelled",()=>{
  run(`begin(3513,16)
- bar(1,47);check("1304045|47|NDP:1")
+ bar(1,47);check("1304045|47|PDP:1")
  bar(2,5);state(2,3)
  advance(60);absent("1304045|nil|NDPMSG:1304045")
- bar(3,1);check("stage|2");check("1308873|1|NDP:3")`);
+ bar(3,1);check("stage|2");check("1308873|1|PDP:3")`);
 });
 
 test('every boss script handles bars of any length without errors',()=>{

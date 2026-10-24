@@ -6,7 +6,7 @@ import fengari from 'fengari';
 import luaparse from 'luaparse';
 
 const files=['Runtime.lua','Providers.lua'];
-const sources=await Promise.all(files.map(f=>fs.readFile('addon/NaowhDefensivePlanner/'+f,'utf8')));
+const sources=await Promise.all(files.map(f=>fs.readFile('addon/PuzatikDefensivePlanner/'+f,'utf8')));
 const providerRoot=process.env.DOCTOR_TIMER_TEST_ROOT;
 function method(source,base,name){
  const tree=luaparse.parse(source,{ranges:true,luaVersion:'5.1'});
@@ -49,7 +49,7 @@ local spells={};local CL={};local format=string.format;local checkFlag=function(
 ${bossMethods||`function boss:StopBar(text)self:SendMessage('BigWigs_StopBar',self,text)end
 function boss:PauseBar(key,text)self:SendMessage('BigWigs_PauseBar',self,text)end
 function boss:ResumeBar(key,text)self:SendMessage('BigWigs_ResumeBar',self,text)end`}
-${sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns);`).join('\n')}
+${sources.map(s=>`;(function(...)\n${s}\nend)('PuzatikDefensivePlanner',ns);`).join('\n')}
 ns.Store=function()return {active='p',profiles={p=current}}end
 ns.Display=function(display)shown[#shown+1]=display end
 ns.Print=function()end

@@ -337,7 +337,7 @@ local function DrawNotes(parent)
         W.Toggle(card,L("Show my lines when the pull starts"),cfg.assignOnPull,312,406,270,function(v)cfg.assignOnPull=v end,"note-assign")
         local live={};if n.live then live[#live+1]=L("shared")..": "..n.live.name end;local p=n.activePersonal and n.personal[n.activePersonal];if p then live[#live+1]=L("personal")..": "..p.name end
         W.Label(card,L("Active now")..": "..(#live>0 and table.concat(live," · ")or L("none")),16,446,576,12,C.soft)
-        W.Label(card,L("Load & send needs group leader or assistant. /ndp note shows or hides the frame, /ndp clear takes the shared note off."),16,470,576,11,C.muted)
+        W.Label(card,L("Load & send needs group leader or assistant. /pdp note shows or hides the frame, /pdp clear takes the shared note off."),16,470,576,11,C.muted)
         W.Button(card,L("Show my lines now"),16,498,200,function()local count=ns.ShowAssignment();kit.notify(count>0 and(count..L(" lines shown"))or L("No line names you"))end,false,"assign-test",{glyph="play"})
         W.Toggle(card,L("Timers from {time:} and time: lines"),cfg.timers~=false,228,502,200,function(v)cfg.timers=v end,"note-timers")
         local secs={};for _,v in ipairs({4,6,8,10})do secs[#secs+1]={value=v,label=v..L(" s before")}end

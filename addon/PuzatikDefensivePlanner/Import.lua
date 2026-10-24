@@ -1,4 +1,4 @@
--- Independent, bounded data-only import adapters for other addons' strings. Native exports use !NDP1: (Codec.lua).
+-- Independent, bounded data-only import adapters for other addons' strings. Native exports use !PDP1: (Codec.lua).
 local _,ns=...
 local function Native(name,data)return{format=1,addon="PztkReminders",client=ns.Client(),minimumAddon=ns.MinimumAddon(data),name=tostring(name or"Imported profile"):sub(1,120),data=data}end
 local function Report(kind)return{source=kind,converted=0,issues={}}end
