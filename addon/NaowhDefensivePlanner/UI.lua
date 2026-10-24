@@ -111,6 +111,9 @@ end
 ---------------------------------------------------------------------------
 -- Reminder counts. A context is one ability (or the timed list) of one entity.
 local timedTypes={pull=true,stage=true,prepull=true}
+-- Boss ability categories (BossTimelines.lua) and their strip colours on the Boss lane.
+local categoryColors={raid={0.95,0.55,0.25,1},tank={0.35,0.6,1,1},soak={0.95,0.85,0.3,1},adds={0.3,0.85,0.45,1},move={0.75,0.5,0.95,1},buff={0.95,0.4,0.6,1},event={0.55,0.6,0.68,1}}
+local categoryLabels={raid="raid damage",tank="tank",soak="soak",adds="adds",move="movement",buff="boss buff",event="event"}
 -- Reminders that fire on a game state, not at a time: listed with the timed ones, off the axis.
 local stateTypes={bosshp=true,aura=true}
 local function entityContext(content,g,n,ability)
@@ -771,8 +774,11 @@ local function DrawTimeline(parent)
                 local x=X(ev[1]);local row=(x-lastX[1]>=22)and 1 or(x-lastX[2]>=22)and 2 or(lastX[1]<=lastX[2]and 1 or 2);lastX[row]=x
                 local iy=row==1 and mid-10 or mid+12
                 W.Icon(card,ev[2],x-10,iy,20)
+                -- A strip under the icon shows what the ability asks of the raid.
+                local category=ns.BossAbilityCategory and ns.BossAbilityCategory[ev[2]]
+                if category and categoryColors[category]then W.Rect(card,x-10,iy+20,20,2,categoryColors[category])end
                 local cast=0;for k=1,j do if recorded.events[k][2]==ev[2]then cast=cast+1 end end
-                W.Button(card,"",x-10,iy,20,function()state.tlPick={spell=ev[2],at=ev[1],cast=cast,encounter=ctx.encounter,difficulty=state.tlDifficulty};Refresh()end,false,"tl-ability:"..j,{kind="ghost",h=20,tooltip=name(ev[2]).." #"..cast.." · "..stamp(ev[1])..L(" · click to plan this cast")})
+                W.Button(card,"",x-10,iy,20,function()state.tlPick={spell=ev[2],at=ev[1],cast=cast,encounter=ctx.encounter,difficulty=state.tlDifficulty};Refresh()end,false,"tl-ability:"..j,{kind="ghost",h=20,tooltip=name(ev[2]).." #"..cast.." · "..stamp(ev[1])..(category and(" · "..L(categoryLabels[category]))or"")..L(" · click to plan this cast")})
             end end
         end
         if lane.key=="mech"then

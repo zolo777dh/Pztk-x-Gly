@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.7.1 — in-game editor and reminder engine
+Naowh Defensive Planner 0.7.2 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -202,6 +202,10 @@ Boss timeline: each pull records when your boss mod announced the boss abilities
 The kill (or the longest pull) is kept, and the Timeline page shows it as a
 "Boss" lane. Click an ability icon to start a reminder at that time. You need one
 pull with BigWigs, DBM or the built-in raid timers before the lane appears.
+NSRT-style note lines also work: time:90;ph:2;text:Soak;spellid:123;tag:Name Name;
+glowunit:Name;dur:5. The time counts from the start of the phase; no tag means everyone.
+Boss lane strips: raid damage (orange), tank (blue), soak (yellow), adds (green),
+movement (purple), boss buff (pink), event (grey).
 Note timers: lines like {time:1:30} Soak - Name in the shared or personal note
 show as reminders on the pull. Who can be a name, {everyone}, class:, spec:,
 role:, group: or type:melee / type:ranged. Turn them off or set how early they

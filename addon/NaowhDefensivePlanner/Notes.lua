@@ -122,6 +122,7 @@ end
 --   {time:1:30} Ability - Name {spell:12345}  {everyone} {text}Move{/text}@Glow1,Glow2
 --   {time:0:20,p2} ...            seconds into phase 2 (p1 is the pull)
 --   {time:0:05,SCS:12345:2} ...   seconds after the 2nd cast of spell 12345 (from the boss mod message)
+--   time:90;ph:2;text:Soak;spellid:123;tag:Name Name;glowunit:Name;dur:5   NSRT style, seconds into the phase
 -- Two spaces separate the reminders of a line. Who: a name or nickname, {everyone}, class:MAGE,
 -- spec:MAGE:2, role:HEALER, group:3 or type:melee / type:ranged. The time is when it happens; the
 -- reminder shows for the note timer duration before it.
@@ -175,6 +176,27 @@ function ns.ParseNoteTimers(text,me,nick,duration)
                         count=count+1;out["note:"..count]={name="Note timer",trigger=trigger,target=target,display=display}
                     end
                 end
+            end
+        elseif line:find("time:%-?%d")and line:find(";",1,true)then
+            -- NSRT-style line: time:90;ph:2;text:Soak;spellid:123;tag:Name Name;glowunit:Name;dur:5
+            -- The time counts from the start of the phase (phase 1 = the pull). No tag means everyone.
+            -- Negative (pre-pull) times are skipped: note timers load when the pull starts.
+            local t=tonumber(line:match("time:(%-?%d*%.?%d+)"))
+            local ph=tonumber(line:match("ph:(%d*%.?%d+)"))or 1
+            local textValue=line:match("text:([^;]+)");local spell=tonumber(line:match("spellid:(%d+)"))
+            local tag=line:match("tag:([^;]+)");local glow=line:match("glowunit:([^;]+)")
+            local dur=math.min(30,tonumber(line:match("dur:(%d+)"))or duration)
+            local target
+            if not tag then target={all=true}else
+                for name in tag:gmatch("%S+")do local who=name:lower();if who=="everyone"or who=="{everyone}"or who==me or(nick and who==nick)then target={all=true}end end
+            end
+            local trigger
+            if t and ph<=1 and t>0 then trigger={type="pull",delay=t,leadTime=math.min(dur,t)}
+            elseif t and ph>1 and t>=0 then trigger={type="stage",stage=ph,delay=t,leadTime=math.min(dur,t)}end
+            if trigger and target and(spell or(textValue and textValue~=""))then
+                local display={type=spell and"icon"or"text",spellID=spell,text=textValue and textValue:match("^%s*(.-)%s*$")or"",dur=dur,tts=true}
+                if glow then local names={};for name in glow:gmatch("[^,%s]+")do if #names<40 then names[#names+1]=name end end;display.glowTargets=names[1]and names or nil end
+                count=count+1;out["note:"..count]={name="Note timer",trigger=trigger,target=target,display=display}
             end
         end
     end
@@ -317,7 +339,7 @@ local function DrawNotes(parent)
         W.Label(card,L("Active now")..": "..(#live>0 and table.concat(live," · ")or L("none")),16,446,576,12,C.soft)
         W.Label(card,L("Load & send needs group leader or assistant. /ndp note shows or hides the frame, /ndp clear takes the shared note off."),16,470,576,11,C.muted)
         W.Button(card,L("Show my lines now"),16,498,200,function()local count=ns.ShowAssignment();kit.notify(count>0 and(count..L(" lines shown"))or L("No line names you"))end,false,"assign-test",{glyph="play"})
-        W.Toggle(card,L("Timers from {time:} lines"),cfg.timers~=false,228,502,200,function(v)cfg.timers=v end,"note-timers")
+        W.Toggle(card,L("Timers from {time:} and time: lines"),cfg.timers~=false,228,502,200,function(v)cfg.timers=v end,"note-timers")
         local secs={};for _,v in ipairs({4,6,8,10})do secs[#secs+1]={value=v,label=v..L(" s before")}end
         W.Select(card,nil,secs,tonumber(cfg.timerDuration)or 6,448,496,144,function(v)cfg.timerDuration=v;kit.refresh()end,"note-timer-duration")
     end

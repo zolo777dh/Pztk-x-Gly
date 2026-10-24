@@ -155,6 +155,12 @@ test('Timeline Reminders features: note timers, hide on use, spoken countdown, r
   local p2=by["22812"];assert(p2.trigger.type=="stage"and p2.trigger.stage==2 and p2.trigger.delay==65 and p2.display.glowTargets[2]=="Other")
   local h=by["Heal"];assert(h.trigger.type=="bwmsg"and h.trigger.spellID==1249262 and h.trigger.delay==2 and h.trigger.counterGroups[1][1].value==2 and h.target.roles.HEALER)
   assert(by["Melee move"].target.matchAny and by["Melee move"].target.specs[71]and by.G3.target.subgroups[3]and by.Tree.target.specs[105])
+  -- NSRT-style lines: time from the start of the phase, tag names, glowunit, dur.
+  local ns2=NS.ParseNoteTimers(table.concat({"time:90;ph:2;text:Soak;tag:Healbot Other;glowunit:Tankadin;dur:5","time:12.5;spellid:22812;tag:Someone","time:30;text:Everyone go","time:-5;text:Pre"},"\\n"),"healbot",nil,6)
+  local nb={};local nn=0;for _,e in pairs(ns2)do nn=nn+1;nb[e.display.text]=e end
+  assert(nn==2,"two NSRT lines for this character: "..nn)
+  assert(nb.Soak.trigger.type=="stage"and nb.Soak.trigger.stage==2 and nb.Soak.trigger.delay==90 and nb.Soak.trigger.leadTime==5 and nb.Soak.display.dur==5 and nb.Soak.display.glowTargets[1]=="Tankadin")
+  assert(nb["Everyone go"].trigger.type=="pull"and nb["Everyone go"].trigger.delay==30 and nb["Everyone go"].target.all)
   -- They fire on the pull without being saved in a profile.
   local shown={};local display=NS.Display;NS.Display=function(d)shown[#shown+1]=d end
   NS.Notes().live={name="Plan",text="{time:0:20} Healbot {text}Soak now{/text}"}
