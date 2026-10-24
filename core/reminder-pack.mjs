@@ -40,6 +40,7 @@ function settings(s){
  for(const [key,min,max]of [['voiceVol',0,100],['iconSize',8,256],['textSize',6,80],['leadTime',0,120],['lingerSec',0.1,120]])if(s[key]!=null&&!number(s[key],min,max))throw Error('Invalid setting '+key);
  for(const key of ['soundKey','voiceNone','textSide','bossSource'])if(s[key]!=null&&typeof s[key]!=='string')throw Error('Invalid setting '+key);
  if(s.pos!=null){if(!object(s.pos))throw Error('Invalid display position');for(const key of ['x','y'])if(s.pos[key]!=null&&!number(s.pos[key],-10000,10000))throw Error('Invalid display position');for(const key of ['point','relPoint'])if(s.pos[key]!=null&&!['CENTER','TOP','BOTTOM','LEFT','RIGHT','TOPLEFT','TOPRIGHT','BOTTOMLEFT','BOTTOMRIGHT'].includes(s.pos[key]))throw Error('Invalid display anchor');}
+ if(s.voicePhrases!=null){if(!object(s.voicePhrases))throw Error('Invalid voice phrases');for(const [key,text]of Object.entries(s.voicePhrases))if(!/^voice:[A-Za-z0-9-]+$/.test(key)||typeof text!=='string'||text.length>100)throw Error('Invalid voice phrase '+key);}
 }
 function validateRuntime(data){
  if(!object(data))throw Error('Invalid reminder profile data');

@@ -182,7 +182,8 @@ local function knownSpell(spell)
     local ok,value=pcall(known,spell);return ok and ns.Plain(value,"boolean")and value
 end
 -- Sounds offered wherever a reminder can play a file instead of speech.
-local soundOptions={{value="voice:use-a-defensive",label="Use a defensive"},{value="voice:move-out",label="Move out"},{value="voice:dispel-me",label="Dispel me"},{value="voice:stoneform-preview",label="Stoneform (voice)"},{value="voice:shadowmeld-preview",label="Shadowmeld (voice)"}}
+-- The voice: cues are spoken by the game with the phrase from Settings > Voice phrases.
+local soundOptions={{value="voice:use-a-defensive",label="Say: Use a defensive"},{value="voice:move-out",label="Say: Move out"},{value="voice:dispel-me",label="Say: Dispel me"},{value="voice:stoneform-preview",label="Say: Stoneform"},{value="voice:shadowmeld-preview",label="Say: Shadowmeld"},{value="sound:567397",label="Raid warning sound"}}
 ns.SoundOptions=soundOptions
 function openCallout(spell)
     local data=ns.Active()and ns.Active().data or{}
@@ -209,7 +210,7 @@ function DrawCallout(panel)
     W.Button(panel,L("Hear it"),16,426,110,function()collect()
         if external then ns.Speak(f.text~=""and f.text or L("Call external"))
         elseif f.speak then ns.Speak(f.spoken~=""and f.spoken or f.label~=""and f.label or name(c.spell))
-        else local path=ns.SoundPath(f.sound);if path and PlaySoundFile then PlaySoundFile(path,"Master")end end
+        else ns.PlayCue(f.sound)end
         notify(L("Playing the call-out; nothing is saved yet"))end,false,"callout-hear",{glyph="play"})
     W.Button(panel,L("Cancel"),400,426,110,function()state.callout=nil;Refresh()end,false,"callout-cancel",{align="CENTER"})
     W.Button(panel,L("Save call-out"),518,426,134,function()collect()
@@ -417,7 +418,7 @@ local function DrawInspector(parent,ctx,rules)
     elseif form.action=="icon"then field("DISPLAY SPELL ID","displaySpellID");cy=cy+54
     elseif form.action=="bar"or form.action=="circle"then field("ICON SPELL ID · BLANK USES THE MECHANIC","displaySpellID");cy=cy+54 end
     field("TEXT · BLANK USES THE SPELL NAME","text");cy=cy+54
-    local sounds={{value="",label="None"},{value="voice:use-a-defensive",label="Use a defensive"},{value="voice:move-out",label="Move out"},{value="voice:dispel-me",label="Dispel me"}}
+    local sounds={{value="",label="None"},{value="voice:use-a-defensive",label="Say: Use a defensive"},{value="voice:move-out",label="Say: Move out"},{value="voice:dispel-me",label="Say: Dispel me"},{value="sound:567397",label="Raid warning sound"}}
     local known=false;for _,o in ipairs(sounds)do if o.value==form.sound then known=true end end
     if not known then sounds[#sounds+1]={value=form.sound,label="Imported sound"}end
     select("SOUND","sound",sounds,186);field("SHOW FOR (SECONDS)","duration",186,204);cy=cy+54
@@ -625,7 +626,18 @@ local function DrawSettings(parent)
     W.Select(window_,L("Theme"),{{value="mockup",label=L("Like the mockup")},{value="logo",label=L("Logo blue")}},prefs.theme or"mockup",12,34,cw-24,function(v)prefs.theme=v;ApplyPrefs();Refresh()end,"ui:theme")
     W.Select(window_,L("Font"),{{value="urw",label="URW Gothic"},{value="naowh",label=L("Naowh.ttf (your own file)")},{value="game",label=L("Game font")}},prefs.font or"urw",12,86,cw-24,function(v)prefs.font=v;ApplyPrefs();Refresh()end,"ui:font")
     W.Label(window_,L("Naowh.ttf is not shipped: put your own copy in Media/Fonts and restart the game."),12,142,cw-24,11,C.muted)
+    -- Phrases the built-in cues speak; blank keeps the default.
+    local phrases=W.Card(parent,col*2,top+280,cw-8,184,L("Voice phrases"))
+    s.voicePhrases=s.voicePhrases or{}
+    for i,key in ipairs(ns.VoicePhraseKeys)do local y=32+(i-1)*29
+        W.Label(phrases,L(ns.CueDefault(key)),12,y+6,112,11,C.muted)
+        W.Input(phrases,state.settingFields["phrase:"..key]or s.voicePhrases[key]or"",124,y,cw-8-160,"setting:phrase:"..key,false,{h=24})
+        W.Button(phrases,"",cw-8-32,y+2,20,function()capture();local t=state.settingFields["phrase:"..key];ns.Speak(t and t~=""and t or ns.CueDefault(key))end,false,"phrase-hear:"..i,{h=20,glyph="play",tooltip=L("Hear it")})
+    end
     W.Button(parent,L("Save settings"),col*2,top+472,cw-8,function()local v,e=ns.EditProfile(function(data)
+        s.voicePhrases=s.voicePhrases or{}
+        for _,key in ipairs(ns.VoicePhraseKeys)do local t=tostring(read("setting:phrase:"..key)or""):match("^%s*(.-)%s*$");assert(#t<=100,L("Use at most 100 characters for a phrase"));s.voicePhrases[key]=t~=""and t or nil end
+        if not next(s.voicePhrases)then s.voicePhrases=nil end
         local window=tonumber(read("setting:coveredCastWindow"));assert(window and window>=0 and window<=60,L("Enter 0-60 seconds for the cast window"));s.coveredCastWindow=window
         for _,f in ipairs(fields)do local number=tonumber(read("setting:"..f[2]));assert(number,L("Enter a number for ")..L(f[1]));if f[2]=="x"or f[2]=="y"then s.pos=s.pos or{point="CENTER",relPoint="CENTER"};s.pos[f[2]]=number else s[f[2]]=number end end;data.settings=s
     end);done(v,e,L("Settings saved"))end,true,"save-settings",{kind="primary",align="CENTER",h=40})

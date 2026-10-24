@@ -84,9 +84,10 @@ Lists and long text scroll with the mouse wheel. An open drop-down list closes o
 a click anywhere outside it.
 
 DEBUFFS (Mythic+ and Raids, next to Mechanics and Defensive sets)
-A sound or racial voice when a debuff is applied, stacks or falls off.
+A game sound when a debuff is applied, stacks or falls off (the game allows only
+sounds here, not speech).
 "Add racial debuffs" fills in the season dungeon debuffs (Mythic+) or raid boss
-debuffs (Raids) that Stoneform or Shadowmeld can clear; the voice plays only
+debuffs (Raids) that Stoneform or Shadowmeld can clear; the alert plays only
 while the racial is ready. The raid list is picked from the debuff names and is
 not confirmed in game yet.
 
@@ -244,7 +245,10 @@ Old shared sets get independent content copies on the first editor save. Existin
 legacy root data is retained for compatibility; scoped sets are used by this engine.
 
 SETTINGS / DIAGNOSTICS
-Configure icons, text, sizes, position, voice volume and boss-mod source. Default
+Configure icons, text, sizes, position, voice volume and boss-mod source.
+Voice phrases: type your own text for each spoken cue (Use a defensive, Move out,
+Dispel me, Stoneform, Shadowmeld); empty keeps the default. The game's own voice
+speaks them. Default
 spell labels and icons identify the chosen defensive, not only the boss ability.
 Together callouts show the selected group. Public readiness chooses priorities;
 closed/unknown charge counts are not guessed. Fixed spell-icon reminders do not

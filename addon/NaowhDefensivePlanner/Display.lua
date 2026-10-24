@@ -1,9 +1,36 @@
 local _, ns = ...
 local pool, active, serial = {}, {}, 0
-local builtins={ ["voice:use-a-defensive"]="use-a-defensive.ogg",["voice:move-out"]="move-out.ogg",["voice:dispel-me"]="dispel-me.ogg",["voice:stoneform-ready"]="stoneform-ready.ogg",["voice:shadowmeld-ready"]="shadowmeld-ready.ogg",["voice:stoneform-preview"]="stoneform-preview.ogg",["voice:shadowmeld-preview"]="shadowmeld-preview.ogg" }
+-- Built-in cues have no sound files of their own. As a reminder sound they are spoken by the
+-- game's text to speech, with the phrase set in Settings (or the default below). Debuff alerts
+-- go through the game's aura sound API, which needs a file: there each cue plays a game sound,
+-- given by its FileDataID (these sounds ship with the game client, not with NDP).
+local cues={
+    ["voice:use-a-defensive"]={text="Use a defensive",file=7670701},
+    ["voice:move-out"]={text="Move out",file=7670697},
+    ["voice:dispel-me"]={text="Dispel me",file=7670699},
+    ["voice:stoneform-ready"]={text="Stoneform",file=569200},
+    ["voice:shadowmeld-ready"]={text="Shadowmeld",file=543587},
+    ["voice:stoneform-preview"]={text="Stoneform",file=569200,phrase="voice:stoneform-ready"},
+    ["voice:shadowmeld-preview"]={text="Shadowmeld",file=543587,phrase="voice:shadowmeld-ready"},
+}
+-- Cues whose phrase can be changed in Settings, in display order.
+ns.VoicePhraseKeys={"voice:use-a-defensive","voice:move-out","voice:dispel-me","voice:stoneform-ready","voice:shadowmeld-ready"}
+function ns.CueDefault(key)return cues[key]and cues[key].text end
+function ns.CuePhrase(key)
+    local cue=cues[key];if not cue then return nil end
+    local phrases=ns.Settings and ns.Settings().voicePhrases
+    local custom=type(phrases)=="table"and phrases[cue.phrase or key]
+    return type(custom)=="string"and custom~=""and custom or cue.text
+end
+-- Plays a reminder sound: built-in cues are spoken, anything else plays its file.
+function ns.PlayCue(key)
+    if cues[key]then return ns.Speak(ns.CuePhrase(key))end
+    local path=ns.SoundPath(key);if path and PlaySoundFile then return pcall(PlaySoundFile,path,"Master")end
+end
 function ns.SoundPath(key)
-    if builtins[key]then return "Interface\\AddOns\\NaowhDefensivePlanner\\Media\\Voice\\"..builtins[key]end
+    if cues[key]then return cues[key].file end
     if type(key)~="string"or key==""or key=="none"then return nil end
+    local id=key:match("^sound:(%d+)$");if id then return tonumber(id)end
     if key:match("^Interface[\\/]")then return key end
     local lsm=LibStub("LibSharedMedia-3.0",true)
     if lsm then local ok,path=pcall(lsm.Fetch,lsm,"sound",key:gsub("^lsm:",""),true);if ok and type(path)=="string"then return path end end
@@ -156,8 +183,7 @@ function ns.Display(display)
     local text=type(display.text)=="string" and display.text or ""
     local spells=display.spells or (display.spellID and {display.spellID}) or {}
     if text=="" and spells[1] and display.type~="chat"then text=Spell(spells[1])end
-    local sound=ns.SoundPath(display.sound)
-    if sound then pcall(PlaySoundFile,sound,"Master")end
+    if display.sound and display.sound~=""then ns.PlayCue(display.sound)end
     -- Spoken call-out: the reminder text (spell names for defensives) unless voice is turned off.
     local speak=display.tts;if speak==nil then speak=#spells>0 end
     if speak and settings.voiceOn~=false then ns.Speak(display.ttsText and display.ttsText~="" and display.ttsText or text)end

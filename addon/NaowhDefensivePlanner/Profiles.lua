@@ -73,6 +73,10 @@ local function Settings(s)
         local anchors={CENTER=true,TOP=true,BOTTOM=true,LEFT=true,RIGHT=true,TOPLEFT=true,TOPRIGHT=true,BOTTOMLEFT=true,BOTTOMRIGHT=true}
         for _,key in ipairs({"point","relPoint"})do if s.pos[key]~=nil and not anchors[s.pos[key]]then return false end end
     end
+    if s.voicePhrases~=nil then
+        if type(s.voicePhrases)~="table"then return false end
+        for key,text in pairs(s.voicePhrases)do if type(key)~="string"or not key:match("^voice:[%w%-]+$")or type(text)~="string"or #text>100 then return false end end
+    end
     return true
 end
 function ns.Validate(profile)
