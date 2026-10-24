@@ -1,19 +1,50 @@
-Naowh Defensive Planner runtime, data validation, display and desktop PZTK1 format are independently implemented for this application. No NSR or NSRT runtime is required or bundled.
+Naowh Defensive Planner: credits and sources
 
-Third-party runtime libraries are redistributed with their existing notices:
-- LibStub (public domain)
-- LibSerialize (MIT, Ross Nichols)
-- LibDeflate (its full LICENSE is included)
-- CallbackHandler-1.0, LibCustomGlow-1.0, LibGetFrame-1.0 (embedded notices / license files retained)
-Library snapshots originate from the user's supplied complete addon archive. Spoken cues use the game's own text-to-speech, and alert sounds are the game's built-in sound files referenced by ID; no third-party audio is bundled. No strategy article text or NSRT encounter implementation is bundled.
+THANK YOU
+This addon would not exist without the work of other addon authors. NDP is its own
+code and does not include their addons, but it learned from them, reads the same
+game events, and uses public facts about encounters that they made visible.
 
-The 0.3.0 in-game editor, controls, scoped-set model, bounded CBOR import adapter
-and original layout are implemented in this project. The bundled Catalog.lua is
-factual reference data generated from the existing source snapshots, not provider
-logic or a copied NSR/NSRT interface. Game icons/fonts are resolved by the client.
+- BigWigs and LittleWigs, by Funkeh, Nebula, Justwait, Delk and the BigWigsMods team.
+  The built-in raid timers and the Mythic+ catalog use encounter facts (spell IDs and
+  timings) read from their public modules. NDP also listens to BigWigs events when it
+  is installed.
+- Deadly Boss Mods, by the DBM team, and EXBoss. NDP listens to their timer events
+  when they are installed. The Mythic+ catalog uses facts (encounter and spell IDs,
+  durations) from the EXBoss data files.
+- Northern Sky Raid Tools, by Reloe and Rav. The note line format
+  (time:;ph:;text:;tag:) and the boss ability categories follow NSRT, written anew
+  from those facts. NDP reads NSRT export strings.
+- Naowh Smart Reminders, by Naowh. The defensive reminder ideas and the old string
+  format, which NDP still reads.
+- Timeline Reminders, by Bart. The expected boss timelines on the Timeline page are
+  facts (spell IDs and seconds) from its community timelines. NDP reads !TR2: strings.
+- Mythic Dungeon Tools, by Nnoggie, and Raider.IO: dungeon, enemy and map IDs.
+- Method guides were used only as names for reference; no guide text is included.
 
-Fonts: URW Gothic Book and Demi (Media/Fonts) are from URW++ base35 fonts, licensed
-under the AGPL with the font exception; see Media/Fonts/URWGothic-LICENSE.txt. The
-commercial Naowh / ITC Avant Garde Gothic font is not included.
-Media/UI textures (rounded corners, icon mask, interface glyphs) were drawn for this
-addon by tools/bake-addon-media.mjs.
+None of these addons' code is copied into NDP, and no protected or licensed data was
+bypassed to read the facts above. Encounter facts can change with each patch; any
+mistakes in them are ours, not the original authors'.
+
+LIBRARIES (redistributed with their own notices)
+- LibStub, by Kaelten, Cladhaire, ckknight, Mikk, Ammo, Nevcairiel and joshborke:
+  public domain (notice in Libs/LibStub.lua).
+- LibSerialize, by Ross Nichols: MIT license (full notice at the top of
+  Libs/LibSerialize.lua).
+- LibDeflate, by Haoqian He (SafeteeWoW): zlib license (Libs/LibDeflate-LICENSE.txt).
+- LibCustomGlow-1.0, by Benjamin Staneck, with work by Hendrik "nevcairiel" Leppkes:
+  MIT license (Libs/LibCustomGlow-1.0/LICENSE).
+
+FONTS AND MEDIA
+- URW Gothic Book and Demi (Media/Fonts) are from the URW++ base35 fonts, licensed
+  under the AGPL with the font exception; see Media/Fonts/URWGothic-LICENSE.txt. The
+  commercial Naowh / ITC Avant Garde Gothic font is not included.
+- Media/UI textures (rounded corners, icon mask, interface glyphs) were drawn for this
+  addon by tools/bake-addon-media.mjs. The logo (Media/Logo.tga) is the Naowh logo
+  supplied by the project owner.
+- Sound: spoken cues use the game's own text-to-speech, and alert sounds are the
+  game's built-in sound files referenced by ID. No third-party audio is bundled.
+- Spell icons, names and fonts shown in game come from the World of Warcraft client.
+
+World of Warcraft is a trademark of Blizzard Entertainment, Inc. This addon is not
+made or endorsed by Blizzard Entertainment or by the authors listed above.

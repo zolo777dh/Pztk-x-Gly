@@ -75,7 +75,8 @@ ns.Display({type='icon',spellID=108271,tts=true,dur=5});ns.HideDisplays()
 -- Glows use independent ownership keys, and nameplates use the nameplate API.
 local unitFrame,plate=frame(),frame();local plateQueries=0
 function UnitExists(token)return token=='player'end
-libs['LibGetFrame-1.0']={GetUnitFrame=function()return unitFrame end}
+unitFrame.GetAttribute=function(_,key)return key=='unit'and'player'or nil end;unitFrame.IsVisible=function()return true end
+function EnumerateFrames(after)if not after then return unitFrame end end
 libs['LibCustomGlow-1.0']={PixelGlow_Start=function(f,_,_,_,_,_,_,_,_,key)glowStarts[#glowStarts+1]={frame=f,key=key}end,PixelGlow_Stop=function(f,key)glowStops[#glowStops+1]={frame=f,key=key}end}
 C_NamePlate={GetNamePlateForUnit=function()plateQueries=plateQueries+1;return {UnitFrame=plate}end}
 ns.Display({type='raidframeGlow',text='First',glowTarget='Tester'})

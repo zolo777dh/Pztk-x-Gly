@@ -156,14 +156,40 @@ local function GlowColor(color)
     for i=1,4 do local v=color[i];if v==nil and i==4 then v=1 end;if type(v)~="number"or v<0 or v>1 then return end;c[i]=v end
     return c
 end
+-- Party and raid frames found by their "unit" attribute, which the game's frames and most
+-- frame addons set. The list is rebuilt when a unit has no shown frame in it.
+local unitFrames
+local function GroupUnit(unit)return type(unit)=="string"and(unit=="player"or unit:match("^party%d$")or unit:match("^raid%d+$"))end
+local function FrameUnit(f)local ok,unit=pcall(f.GetAttribute,f,"unit");if ok and GroupUnit(unit)then return unit end end
+local function ScanUnitFrames()
+    unitFrames={}
+    if not EnumerateFrames then return end
+    local f=EnumerateFrames()
+    while f do
+        if FrameUnit(f)then unitFrames[#unitFrames+1]=f end
+        f=EnumerateFrames(f)
+    end
+end
+local function Find(unit)
+    for _,f in ipairs(unitFrames or{})do
+        local shown=f.IsVisible and select(2,pcall(f.IsVisible,f))
+        local u=FrameUnit(f)
+        if shown and u and(u==unit or(UnitIsUnit and select(2,pcall(UnitIsUnit,u,unit))==true))then return f end
+    end
+end
+function ns.UnitFrame(unit)
+    if not GroupUnit(unit)and not(UnitExists and UnitExists(unit))then return end
+    local f=unitFrames and Find(unit)
+    if not f then ScanUnitFrames();f=Find(unit)end
+    return f
+end
 local function Glow(wanted,kind,key,color)
     local unit=GlowUnit(wanted)
-    local lgf=LibStub("LibGetFrame-1.0",true)
     local ok,frame
     if unit and kind=="nameplateGlow"and C_NamePlate and C_NamePlate.GetNamePlateForUnit then
         ok,frame=pcall(C_NamePlate.GetNamePlateForUnit,unit)
         if ok and frame then frame=frame.UnitFrame or frame end
-    elseif unit and lgf then ok,frame=pcall(lgf.GetUnitFrame,unit)end
+    elseif unit then ok,frame=pcall(ns.UnitFrame,unit)end
     if ok and frame and LibStub("LibCustomGlow-1.0",true) then
         local started=pcall(LibStub("LibCustomGlow-1.0").PixelGlow_Start,frame,color or {1,0.75,0,1},8,0.25,nil,2,0,0,false,key)
         if started then return frame end

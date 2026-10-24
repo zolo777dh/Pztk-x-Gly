@@ -50,6 +50,17 @@ local sections={sets="sets",defensives="sets",mythic="mythic",["m+"]="mythic",ra
     tools="raidtools",raidtools="raidtools",rt="raidtools",players="players",qol="qol",combat="combat",interrupts="combat",kicks="combat",pace="combat",nicks="players",display="display",profiles="profiles",settings="settings",config="settings"}
 -- Commands from the old addons that are not rebuilt yet: say so instead of silently opening the window.
 local planned={bosses=true,keys=true,trace=true,observed=true,cds=true,calls=true,cd=true,invite=true}
+-- Shown by /ndp credits; the full list with licenses is in CREDITS.txt.
+ns.Credits={
+    "BigWigs and LittleWigs (Funkeh, Nebula, Justwait, Delk and the BigWigsMods team): encounter timings",
+    "Deadly Boss Mods (DBM team) and EXBoss: boss mod events NDP listens to",
+    "Northern Sky Raid Tools (Reloe, Rav): note line format and ability categories",
+    "Naowh Smart Reminders (Naowh): the reminder ideas and the string format NDP still reads",
+    "Timeline Reminders (Bart): community boss timelines",
+    "Mythic Dungeon Tools (Nnoggie) and Raider.IO: dungeon and enemy IDs",
+    "LibStub, LibSerialize (Ross Nichols), LibDeflate (Haoqian He), LibCustomGlow (Benjamin Staneck)",
+    "URW Gothic font by URW++",
+}
 local function help()
     ns.Print("Commands:")
     for _,c in ipairs(ns.CommandHelp or{})do print("  |cff33c3a6"..c[1].."|r - "..c[2])end
@@ -61,6 +72,9 @@ function ns.Command(message)
     if command==""then
         if ns.WorkspaceWindow and ns.WorkspaceWindow:IsShown()then ns.WorkspaceWindow:Hide()else ns.Open()end
     elseif command=="help"or command=="?"then help()
+    elseif command=="credits"or command=="thanks"then
+        ns.Print("Thanks to the authors whose work this addon builds on:")
+        for _,line in ipairs(ns.Credits)do print("  "..line)end
     elseif command=="debug"or command=="diag"or command=="diagnostics"then ns.ShowDiagnostics()
     elseif command=="status"then
         local p=ns.ProviderStatus and ns.ProviderStatus()or{}
