@@ -13,6 +13,22 @@ local WIDTH,HEIGHT,SIDEBAR,TOP=1120,720,176,60
 -- Navigation never commits a partial reminder or silently throws its inputs away.
 local workspace,owner,profileName
 local viewFields={"mode","difficulty","group","entity","ability","ruleKey","timed","form","reference","context","ruleDrafts","setKey","setRows","setName","setDrafts","newSpell","settings","settingFields","manual","profileName","importText","confirmDelete","confirmCopy","scrolls","setScope","tlGroup","tlBoss","tlDifficulty","tlTemplateName","callout","drafts"}
+-- Dragging the Timeline thumb. The page is redrawn as the view moves, which replaces the thumb,
+-- so a lasting frame follows the cursor while the left button is held and moves the view live.
+local dragDriver
+function ns.StartTimelineDrag(startX,base,perPixel,apply)
+    dragDriver=dragDriver or CreateFrame("Frame")
+    local last,wait=math.floor(base+0.5),0
+    local function step()
+        local t=math.floor(base+(GetCursorPosition()-startX)*perPixel+0.5)
+        if t~=last then last=t;apply(t)end
+    end
+    dragDriver:SetScript("OnUpdate",function(self,elapsed)
+        wait=wait+(elapsed or 0)
+        if not(IsMouseButtonDown and IsMouseButtonDown("LeftButton"))then self:SetScript("OnUpdate",nil);step();return end
+        if wait>=0.03 then wait=0;step()end
+    end)
+end
 local formKeys={"name","leadTime","delay","phase","counter","duration","text","displaySpellID","player","glowTarget","sticky","ticks","glowNames"}
 local specTabs={mythic=true,raid=true,sets=true,timeline=true}
 local function viewKey()return state.tab..":"..tostring(specTabs[state.tab]and state.spec or"general")end
@@ -313,9 +329,9 @@ local function InitialForm(ctx,reference)
         elseif e.target.names then recipient="player";player=next(e.target.names)
         elseif not e.target.all then recipient="preserve"end
     end
-    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,percent=t.percent or 50,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=(d.type=="bar"or d.type=="circle")and d.hideTimer~=true or d.countdown==true,sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
+    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,percent=t.percent or 50,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=((d.type or action)=="bar"or(d.type or action)=="circle"or(d.type or action)=="ability")and d.hideTimer~=true or d.countdown==true,abilityStyle=d.style or"icon",sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
 end
-local actionLabels={defensive="Defensive priority set",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
+local actionLabels={defensive="Defensive priority set",ability="Boss ability alert",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
 local roleLabels={TANK="Tank",HEALER="Healer",DAMAGER="Damage"}
 -- One plain sentence describing what the reminder will do.
 local function Summary(ctx,form)
@@ -344,7 +360,7 @@ local function Preview(parent,ctx,form,x,y,w)
     local box=W.Panel(parent,x,y,w,56,C.background,C.line,8)
     local spells={}
     if form.action=="defensive"then local p=ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec)[form.preset];for i,s in ipairs(p and p.list or{})do if i<=4 then spells[#spells+1]=s end end
-    elseif form.action=="icon"or form.action=="circle"then spells={tonumber(form.displaySpellID)or ctx.spell}end
+    elseif form.action=="icon"or form.action=="circle"or form.action=="ability"and form.abilityStyle~="text"then spells={tonumber(form.displaySpellID)or ctx.spell}end
     local ix=10;for i,s in ipairs(spells)do local icon=W.Icon(box,s,ix,10,32);if i>1 then icon:SetVertexColor(0.55,0.55,0.55,1)end;ix=ix+36 end
     local text=form.text~=""and form.text or(spells[1]and name(spells[1]))or(ctx.abilityName or"Reminder")
     if form.action=="chat"then text="(sound only) "..text end
@@ -410,13 +426,17 @@ local function DrawInspector(parent,ctx,rules)
     end
     heading("SHOW")
     if ctx.kind~="trash"then
-        local actions={};for _,k in ipairs({"defensive","icon","text","bar","circle","chat","raidframeGlow"})do actions[#actions+1]={value=k,label=actionLabels[k]}end
+        local actions={};for _,k in ipairs({"defensive","ability","icon","text","bar","circle","chat","raidframeGlow"})do actions[#actions+1]={value=k,label=actionLabels[k]}end
         select("ACTION","action",actions);cy=cy+54
     end
     if form.action=="defensive"then
         local sets=rowsOptions(ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec));table.insert(sets,1,{value="",label="Choose defensive set..."});select("DEFENSIVE SET","preset",sets);cy=cy+54
     elseif form.action=="icon"then field("DISPLAY SPELL ID","displaySpellID");cy=cy+54
-    elseif form.action=="bar"or form.action=="circle"then field("ICON SPELL ID · BLANK USES THE MECHANIC","displaySpellID");cy=cy+54 end
+    elseif form.action=="bar"or form.action=="circle"then field("ICON SPELL ID · BLANK USES THE MECHANIC","displaySpellID");cy=cy+54
+    elseif form.action=="ability"then
+        -- Shown on its own anchor (Display > Unlock anchor), like NSRT: text only, icon and text, or a bar with a timer.
+        select("STYLE","abilityStyle",{{value="icon",label="Icon and text"},{value="text",label="Text only"},{value="bar",label="Bar with timer"}},186);field("ICON SPELL ID · BLANK = ABILITY","displaySpellID",186,204);cy=cy+54
+    end
     field("TEXT · BLANK USES THE SPELL NAME","text");cy=cy+54
     local sounds={{value="",label="None"},{value="voice:use-a-defensive",label="Say: Use a defensive"},{value="voice:move-out",label="Say: Move out"},{value="voice:dispel-me",label="Say: Dispel me"},{value="sound:567397",label="Raid warning sound"}}
     local known=false;for _,o in ipairs(sounds)do if o.value==form.sound then known=true end end
@@ -432,9 +452,9 @@ local function DrawInspector(parent,ctx,rules)
             return o
         end
         select("TEXT COLOUR","textColor",colors("textColor"),186);field("STAY AFTER TIMER (S)","sticky",186,204);cy=cy+54
-        if form.action=="bar"then select("BAR COLOUR","barColor",colors("barColor"),186);field("TICKS (S LEFT) · E.G. 5, 10","ticks",186,204);cy=cy+54 end
+        if form.action=="bar"or form.action=="ability"and form.abilityStyle=="bar"then select("BAR COLOUR","barColor",colors("barColor"),186);field("TICKS (S LEFT) · E.G. 5, 10","ticks",186,204);cy=cy+54 end
         if form.action~="raidframeGlow"then
-            W.Toggle(content,(form.action=="bar"or form.action=="circle")and"Show seconds left"or"Show seconds left after the text",form.showTimer,6,cy,384,function(v)form.showTimer=v end,"rule:showTimer");cy=cy+32
+            W.Toggle(content,(form.action=="bar"or form.action=="circle"or form.action=="ability")and"Show seconds left"or"Show seconds left after the text",form.showTimer,6,cy,384,function(v)form.showTimer=v end,"rule:showTimer");cy=cy+32
             select("SPOKEN COUNTDOWN","voiceCountdown",{{value=0,label="Off"},{value=3,label="Last 3 seconds"},{value=5,label="Last 5 seconds"}},186);cy=cy+54
         end
         if form.action=="icon"or form.action=="bar"or form.action=="circle"then
@@ -451,7 +471,7 @@ local function DrawInspector(parent,ctx,rules)
     end
     content:SetHeight(cy+8)
     W.Button(p,L("Test"),12,462,76,function()collect();local spell=tonumber(form.displaySpellID);if form.action=="defensive"then local preset=ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec)[form.preset];spell=preset and preset.list[1]end;local preview={type=spell and"icon"or"text",spellID=spell,text=form.text~=""and form.text or"Reminder preview",dur=tonumber(form.duration)or 4,sound=form.sound,tts=form.tts}
-        if form.action~="defensive"and form.action~="chat"and form.action~="raidframeGlow"then preview.type=form.action;preview.spellID=spell or(form.action~="text"and ctx.spell)or nil;local ok,error=pcall(ns.ApplyLook,preview,form,state.reference and state.reference.entry.display);if not ok then return notify(tostring(error):gsub("^.-:%d+: ",""),true)end end
+        if form.action~="defensive"and form.action~="chat"and form.action~="raidframeGlow"then preview.type=form.action;if form.action=="ability"and form.abilityStyle~="icon"then preview.style=form.abilityStyle end;preview.spellID=spell or(form.action~="text"and ctx.spell)or nil;local ok,error=pcall(ns.ApplyLook,preview,form,state.reference and state.reference.entry.display);if not ok then return notify(tostring(error):gsub("^.-:%d+: ",""),true)end end
         ns.Display(preview);notify("Display preview; verify the mechanic in game")end,false,"test-rule",{align="CENTER"})
     W.Button(p,L("Delete"),96,462,86,function()local a,b=ns.DeleteRule(ctx,state.reference);if a then state.ruleDrafts[ruleKey(ctx,state.ruleKey)]=nil;state.reference=nil;state.ruleKey="new";state.form=InitialForm(ctx)end;done(a,b,"Reminder deleted")end,false,"delete-rule",{kind="danger",align="CENTER"})
     W.Button(p,L("Save reminder"),258,462,170,function()collect();local key,error=ns.SaveRule(ctx,form,state.reference);if key then state.ruleDrafts[ruleKey(ctx,state.ruleKey)]=nil;state.ruleDrafts[ruleKey(ctx,key)]=nil;state.ruleKey=key;state.form=nil end;done(key,error,"Reminder saved")end,true,"save-rule",{kind="primary",align="CENTER"})
@@ -863,12 +883,14 @@ local function DrawTimeline(parent)
     end
     local tw=math.max(24,w*span/total);local tx=x0+(w-tw)*((maxStart>minStart)and(from-minStart)/(maxStart-minStart)or 0)
     local thumb=W.Button(card,"",tx,sy-2,tw,nil,true,"tl-thumb",{kind="primary",h=12,radius=6,tooltip=stamp(from).." – "..stamp(from+span)})
-    if thumb.RegisterForDrag and GetCursorPosition then
-        thumb:SetScript("OnMouseDown",function(self)
-            local scale=self:GetEffectiveScale();local startX=GetCursorPosition()/scale;local base=from
-            self:SetScript("OnUpdate",function(me)local cx=GetCursorPosition()/scale;local t=base+(cx-startX)*(maxStart-minStart)/math.max(1,w-tw);me.dragTo=t end)
+    -- Above the track buttons, so a press on the thumb starts a drag and not a jump.
+    if thumb.SetFrameLevel and thumb.GetFrameLevel then thumb:SetFrameLevel((thumb:GetFrameLevel()or 1)+3)end
+    if GetCursorPosition then
+        thumb:SetScript("OnMouseDown",function(self,button)
+            if button and button~="LeftButton"then return end
+            local scale=self:GetEffectiveScale()or 1
+            ns.StartTimelineDrag(GetCursorPosition(),from,(maxStart-minStart)/(math.max(1,w-tw)*scale),moveTo)
         end)
-        thumb:SetScript("OnMouseUp",function(self)self:SetScript("OnUpdate",nil);if self.dragTo then moveTo(self.dragTo)end end)
     end
     -- Ctrl + wheel zooms around the middle of the view, the wheel alone scrolls.
     local levels={30,60,90,120,180,240,360,600}
@@ -896,7 +918,7 @@ local function DrawTimeline(parent)
     -- A clicked boss ability: bind a defensive set or write a note for that cast.
     local pick=state.tlPick;if pick and(pick.encounter~=ctx.encounter or pick.difficulty~=state.tlDifficulty or not recorded)then pick=nil end
     if pick then
-        local function plan(action,every)state.tlPick=nil;state.newAction=action;state.newCounter=not every and pick.cast or nil;local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=false;state.ability=pick.spell;state.ruleKey="new";state.form=nil;Refresh()end
+        local function plan(action,every)state.tlPick=nil;state.newAction=action=="text"and"ability"or action;state.newCounter=not every and pick.cast or nil;local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=false;state.ability=pick.spell;state.ruleKey="new";state.form=nil;Refresh()end
         W.Icon(list,pick.spell,12,102,20)
         W.Label(list,name(pick.spell).." #"..pick.cast..string.format(" · %d:%02d",math.floor(pick.at/60),pick.at%60),38,106,250,11,C.text,true)
         W.Button(list,L("Defensive set"),300,98,140,function()plan("defensive")end,false,"tl-pick-defensive",{kind="primary",align="CENTER",h=26})

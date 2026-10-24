@@ -245,12 +245,12 @@ end
 -- Adds the look fields from the reminder editor to a display table. previous is the saved display, if any.
 function ns.ApplyLook(display,form,previous)
     previous=previous or{}
-    local timed=display.type=="bar"or display.type=="circle"
+    local timed=display.type=="bar"or display.type=="circle"or display.type=="ability"
     if form.showTimer~=nil then
         if timed then display.hideTimer=not form.showTimer or nil elseif display.type~="chat"then display.countdown=form.showTimer or nil end
     end
     local sticky=form.sticky;if sticky~=nil and not tostring(sticky):match("^%s*$")then sticky=Number(sticky,"sticky seconds",0,60);display.sticky=sticky>0 and sticky or nil end
-    if display.type=="bar"then display.ticks=ns.ParseTicks(form.ticks);display.barColor=LookColor(form.barColor,previous.barColor)end
+    if display.type=="bar"or display.type=="ability"and display.style=="bar"then display.ticks=ns.ParseTicks(form.ticks);display.barColor=LookColor(form.barColor,previous.barColor)end
     if display.type~="chat"then display.textColor=LookColor(form.textColor,previous.textColor)end
     if form.hideOnUse~=nil then display.hideOnUse=(form.hideOnUse==true and display.spellID~=nil)or nil end
     if form.voiceCountdown~=nil then local v=tonumber(form.voiceCountdown)or 0;assert(v>=0 and v<=10,"Choose a spoken countdown");display.voiceCountdown=v>0 and v or nil end
@@ -284,7 +284,8 @@ function ns.SaveRule(ctx,form,reference)
         local display={type=dynamic and"icon"or(form.action or"text"),text=tostring(form.text or""),dur=duration,sound=tostring(form.sound or""),tts=form.tts==true}
         if display.type=="icon"and not dynamic then display.spellID=Integer(form.displaySpellID,"display spell ID")end
         -- Bars and circles take an optional custom icon; blank uses the mechanic's own icon.
-        if(display.type=="bar"or display.type=="circle")then local id=tostring(form.displaySpellID or""):match("^%s*(.-)%s*$");display.spellID=id~=""and Integer(id,"display spell ID")or ctx.spell end
+        if display.type=="ability"then display.style=(form.abilityStyle=="text"or form.abilityStyle=="bar")and form.abilityStyle or nil end
+        if(display.type=="bar"or display.type=="circle"or display.type=="ability")then local id=tostring(form.displaySpellID or""):match("^%s*(.-)%s*$");display.spellID=id~=""and Integer(id,"display spell ID")or ctx.spell end
         if display.type=="raidframeGlow"then display.glowTarget=Name(form.glowTarget)end
         local previous=reference and reference.section~="abilityBindings"and type(reference.entry.display)=="table"and reference.entry.display
         -- Extra raid-frame glows (NSRT glowunit) are kept across edits when the editor did not show them.

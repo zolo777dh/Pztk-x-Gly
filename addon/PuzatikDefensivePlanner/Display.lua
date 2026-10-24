@@ -119,16 +119,21 @@ local function Release(index)
 end
 -- Reminders grow to the right from a fixed left edge, so one icon sits where the first of two would.
 -- Positions saved before 0.6.4 were the center of a 340 px anchor box: its left edge is 170 px to the left.
-function ns.ReminderOrigin()
-    local s=ns.Settings and ns.Settings()or{};local p=type(s.pos)=="table"and s.pos or{}
+-- Boss ability alerts (icon, note text and seconds left, like boss mod bars) have their own anchor.
+function ns.ReminderOrigin(group)
+    local s=ns.Settings and ns.Settings()or{}
+    if group=="ability"then local p=type(s.abilityPos)=="table"and s.abilityPos or{};return tonumber(p.x)or 200,tonumber(p.y)or 180 end
+    local p=type(s.pos)=="table"and s.pos or{}
     local x,y=tonumber(p.x)or 0,tonumber(p.y)or 100
     if p.point~="LEFT"then x=x-170 end
     return x,y
 end
 local function Arrange()
-    local x,y=ns.ReminderOrigin()
-    local offset=0
-    for _,r in ipairs(active)do r:ClearAllPoints();r:SetPoint("LEFT",UIParent,"CENTER",x,y-offset);offset=offset+(r.height or 42)+6 end
+    local offsets={}
+    for _,r in ipairs(active)do
+        local group=r.group or"main";local x,y=ns.ReminderOrigin(group);local offset=offsets[group]or 0
+        r:ClearAllPoints();r:SetPoint("LEFT",UIParent,"CENTER",x,y-offset);offsets[group]=offset+(r.height or 42)+6
+    end
 end
 function ns.HideDisplays()for i=#active,1,-1 do Release(i)end end
 local function GlowUnit(wanted)
@@ -215,8 +220,12 @@ function ns.Display(display)
     if speak and settings.voiceOn~=false then ns.Speak(display.ttsText and display.ttsText~="" and display.ttsText or text)end
     if display.type=="chat"then if text~=""then ns.Print(text)end;return end
     if #active>=6 then Release(1)end
-    local bar=display.type=="bar"
-    local r=Region();local count=(display.type=="text"or settings.showIcon==false)and 0 or math.min(bar and 1 or 6,#spells);if(display.type=="circle"or bar)and count==0 and settings.showIcon~=false and display.spellID then count=1;spells={display.spellID}end
+    -- Boss ability alerts come in three looks, as in NSRT: icon and text (default), text only, or a bar with a timer.
+    local ability=display.type=="ability"
+    local bar=display.type=="bar"or(ability and display.style=="bar")
+    local r=Region();r.group=ability and"ability"or"main"
+    if ability then spells={display.spellID or 0}end
+    local count=(display.type=="text"or(ability and display.style=="text")or settings.showIcon==false)and 0 or math.min(bar and 1 or 6,#spells);if(display.type=="circle"or bar)and count==0 and settings.showIcon~=false and display.spellID then count=1;spells={display.spellID}end
     if display.type=="circle"and count==0 and settings.showIcon~=false then count=1;spells={0}end
     local iconSize=tonumber(settings.iconSize)or 42;local gap=4
     for i,icon in ipairs(r.icons)do if i<=count then local _,texture=Spell(spells[i]);icon:SetSize(iconSize,iconSize);icon:ClearAllPoints();icon:SetPoint("LEFT",r,"LEFT",(i-1)*(iconSize+gap),0);icon:SetTexture(texture or 134400);icon:Show()else icon:Hide()end end
@@ -228,7 +237,7 @@ function ns.Display(display)
     local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5))
     local sticky=math.max(0,math.min(60,tonumber(display.sticky)or 0))
     -- Seconds left: always on bars unless hidden, on other types only when the countdown is switched on.
-    local clock=display.hideTimer~=true and(bar or display.countdown==true)and display.type~="circle"
+    local clock=display.hideTimer~=true and(bar or ability or display.countdown==true)and display.type~="circle"
     r.text:ClearAllPoints()
     if bar then
         local width=math.max(120,tonumber(settings.barWidth)or 240)
@@ -267,7 +276,7 @@ function ns.Display(display)
     r.glows={}
     if display.type=="raidframeGlow"or display.type=="nameplateGlow"then local frame=Glow(display.glowTarget,display.type,r.glowKey);if frame then r.glows[1]=frame else ns.Print("Glow target frame unavailable; showing the reminder instead.")end end
     -- Like NSR: only the called defensive glows, on the player's own Cooldown Manager or action bar button.
-    if settings.cdmGlow~=false and count>0 and display.type~="circle"then
+    if settings.cdmGlow~=false and count>0 and display.type~="circle"and not ability then
         local lcg=LibStub("LibCustomGlow-1.0",true)
         for i=1,count do for _,button in ipairs(ns.SpellButtons({spells[i]}))do
             local started=lcg and lcg.ProcGlow_Start and pcall(lcg.ProcGlow_Start,button,{key=r.glowKey,color={1,0.82,0.2,1}})
@@ -300,37 +309,47 @@ function ns.HideSpell(spell)
     if hidden then Arrange()end
     return hidden
 end
--- Movable anchor: a sample icon exactly where a reminder's first icon appears. Dragging it saves the position.
-local anchor
-function ns.AnchorsUnlocked()return anchor~=nil and anchor:IsShown()end
+-- Movable anchors: a sample icon exactly where a reminder's first icon appears, one for
+-- reminders and one for boss ability alerts. Dragging one saves its position.
+local anchors={}
+function ns.AnchorsUnlocked()return anchors.main~=nil and anchors.main:IsShown()end
 local function AnchorSpell()
     local profile,spec=ns.Active and ns.Active(),ns.Spec and ns.Spec()
     local key=profile and ns.ScopeActive and ns.ScopeActive(profile,"mythic",spec)
     local set=key and ns.ScopePresets and ns.Get(ns.ScopePresets(profile,"mythic",spec),key)
     return set and set.list and set.list[1]or 22812
 end
-function ns.ToggleAnchors()
-    if not anchor then
-        anchor=CreateFrame("Frame",nil,UIParent);anchor:SetFrameStrata("DIALOG");anchor:SetMovable(true);anchor:EnableMouse(true);anchor:RegisterForDrag("LeftButton");anchor:SetClampedToScreen(true)
-        anchor.icon=anchor:CreateTexture(nil,"ARTWORK");anchor.icon:SetAllPoints();anchor.icon:SetTexCoord(0.07,0.93,0.07,0.93)
-        anchor.edge={}
-        for i,side in ipairs({{"TOPLEFT","TOPRIGHT"},{"BOTTOMLEFT","BOTTOMRIGHT"},{"TOPLEFT","BOTTOMLEFT"},{"TOPRIGHT","BOTTOMRIGHT"}})do
-            local t=anchor:CreateTexture(nil,"OVERLAY");t:SetColorTexture(0.2,0.76,0.65,1);t:SetPoint(side[1]);t:SetPoint(side[2]);if i<=2 then t:SetHeight(2)else t:SetWidth(2)end;anchor.edge[i]=t
-        end
-        anchor.text=anchor:CreateFontString(nil,"OVERLAY","GameFontHighlight");anchor.text:SetPoint("LEFT",anchor,"RIGHT",6,0)
-        anchor.text:SetText(ns.L and ns.L("Drag the icon · /pdp anchors locks")or"Drag the icon · /pdp anchors locks")
-        anchor:SetScript("OnDragStart",function(self)self:StartMoving()end)
-        anchor:SetScript("OnDragStop",function(self)
-            self:StopMovingOrSizing();local left=self:GetLeft();local _,y=self:GetCenter();local ux,uy=UIParent:GetCenter()
-            if not(left and y and ux)then return end
-            local ok,error=ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="LEFT",relPoint="CENTER",x=math.floor(left-ux+0.5),y=math.floor(y-uy+0.5)}end)
-            if not ok then ns.Print(error)end;if ns.RefreshWorkspace then ns.RefreshWorkspace()end
-        end)
-        anchor:Hide()
+local anchorInfo={
+    main={setting="pos",label="Reminders · drag the icon · /pdp anchors locks",color={0.2,0.76,0.65,1},point="LEFT"},
+    ability={setting="abilityPos",label="Boss ability alerts · drag the icon",color={1,0.67,0,1}},
+}
+local function MakeAnchor(group)
+    local info=anchorInfo[group]
+    local a=CreateFrame("Frame",nil,UIParent);a:SetFrameStrata("DIALOG");a:SetMovable(true);a:EnableMouse(true);a:RegisterForDrag("LeftButton");a:SetClampedToScreen(true)
+    a.icon=a:CreateTexture(nil,"ARTWORK");a.icon:SetAllPoints();a.icon:SetTexCoord(0.07,0.93,0.07,0.93)
+    a.edge={}
+    for i,side in ipairs({{"TOPLEFT","TOPRIGHT"},{"BOTTOMLEFT","BOTTOMRIGHT"},{"TOPLEFT","BOTTOMLEFT"},{"TOPRIGHT","BOTTOMRIGHT"}})do
+        local t=a:CreateTexture(nil,"OVERLAY");t:SetColorTexture(info.color[1],info.color[2],info.color[3],info.color[4]);t:SetPoint(side[1]);t:SetPoint(side[2]);if i<=2 then t:SetHeight(2)else t:SetWidth(2)end;a.edge[i]=t
     end
-    if anchor:IsShown()then anchor:Hide();return false end
+    a.text=a:CreateFontString(nil,"OVERLAY","GameFontHighlight");a.text:SetPoint("LEFT",a,"RIGHT",6,0)
+    a.text:SetText(ns.L and ns.L(info.label)or info.label)
+    a:SetScript("OnDragStart",function(self)self:StartMoving()end)
+    a:SetScript("OnDragStop",function(self)
+        self:StopMovingOrSizing();local left=self:GetLeft();local _,y=self:GetCenter();local ux,uy=UIParent:GetCenter()
+        if not(left and y and ux)then return end
+        local ok,error=ns.EditProfile(function(data)data.settings=data.settings or{};data.settings[info.setting]={point=info.point,relPoint="CENTER",x=math.floor(left-ux+0.5),y=math.floor(y-uy+0.5)}end)
+        if not ok then ns.Print(error)end;if ns.RefreshWorkspace then ns.RefreshWorkspace()end
+    end)
+    a:Hide();anchors[group]=a;return a
+end
+function ns.ToggleAnchors()
+    local main=anchors.main or MakeAnchor("main");local ability=anchors.ability or MakeAnchor("ability")
+    if main:IsShown()then main:Hide();ability:Hide();return false end
     local settings=ns.Settings and ns.Settings()or{};local size=tonumber(settings.iconSize)or 42
-    local _,texture=Spell(AnchorSpell());anchor.icon:SetTexture(texture or 134400);anchor:SetSize(size,size)
-    local x,y=ns.ReminderOrigin()
-    anchor:ClearAllPoints();anchor:SetPoint("LEFT",UIParent,"CENTER",x,y);anchor:Show();return true
+    local _,texture=Spell(AnchorSpell());main.icon:SetTexture(texture or 134400);ability.icon:SetTexture(134400)
+    for group,a in pairs(anchors)do
+        a:SetSize(size,size);local x,y=ns.ReminderOrigin(group)
+        a:ClearAllPoints();a:SetPoint("LEFT",UIParent,"CENTER",x,y);a:Show()
+    end
+    return true
 end

@@ -254,6 +254,13 @@ Account-licensed NSR strings remain managed in NSR. Licenses are not bypassed.
 Old shared sets get independent content copies on the first editor save. Existing
 legacy root data is retained for compatibility; scoped sets are used by this engine.
 
+BOSS ABILITY ALERTS
+Timeline > click a boss ability > Note (or Every cast) creates a Boss ability alert:
+the ability's icon and your text (e.g. "Tank Hit") with the seconds left, as in boss
+mods. Style: Icon and text, Text only, or Bar with timer. These alerts stack on their
+own anchor; /pdp anchors (or Display > Unlock anchor) shows both anchors to drag.
+Any mechanic reminder can use the action "Boss ability alert".
+
 SETTINGS / DIAGNOSTICS
 Configure icons, text, sizes, position, voice volume and boss-mod source.
 Voice phrases: type your own text for each spoken cue (Use a defensive, Move out,
