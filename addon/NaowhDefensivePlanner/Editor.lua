@@ -328,7 +328,13 @@ function ns.SaveRule(ctx,form,reference)
             local diff=scope=="mythic"and 8 or Integer(ctx.difficulty,"raid difficulty");assert(diff==8 or diff==15 or diff==16,"Choose Mythic+, Heroic or Mythic")
             local entry=ns.Clone(reference and reference.section=="raidReminders"and reference.entry or{});entry.name=Name(form.name);entry.enabled=form.enabled~=false;entry.content=scope;entry.trigger=trigger;entry.target=target;entry.display=display
             entry.difficulties=form.preserveDifficulties and entry.difficulties or{[diff]=true}
-            entry.defensive=dynamic and{specID=spec,preset=form.preset,scope=scope}or nil;entry.catalog={npcID=ctx.npc,groupId=ctx.group,abilityID=trigger.spellID or ctx.spell}
+            entry.defensive=dynamic and{specID=spec,preset=form.preset,scope=scope}or nil
+            -- Boss ability alert shown next to the reminder, on its own anchor.
+            if form.alertOn and display.type~="ability"then
+                local text=tostring(form.alertText or""):match("^%s*(.-)%s*$");assert(#text<=200,"Alert text is at most 200 characters")
+                entry.alert={text=text~=""and text or nil,style=(form.alertStyle=="text"or form.alertStyle=="bar")and form.alertStyle or nil}
+            elseif form.alertOn~=nil then entry.alert=nil end
+            entry.catalog={npcID=ctx.npc,groupId=ctx.group,abilityID=trigger.spellID or ctx.spell}
             data.raidReminders=data.raidReminders or{};data.raidReminders[encounter]=ns.Get(data.raidReminders,encounter)or{};data.raidReminders[encounter][key]=entry
             if reference and reference.section=="abilityBindings"then ns.Get(ns.Get(data.abilityBindings,spec),encounter)[ctx.spell]=nil end
         end

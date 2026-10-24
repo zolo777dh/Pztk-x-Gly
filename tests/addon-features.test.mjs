@@ -230,7 +230,7 @@ assert(not ns.ToggleAnchors())
 ns.RealDisplay({type='ability',spellID=1257717,text='Tank Hit',dur=5});ns.RealDisplay({type='icon',spellID=22812,text='Barkskin',dur=5})
 local alert,plain;for _,f in ipairs(env.frames)do if f.group=='ability'and f.shown then alert=f elseif f.group=='main'and f.shown then plain=f end end
 assert(alert and plain,'both shown');assert(alert.point.x==-260 and alert.point.y==200 and plain.point.x==40 and plain.point.y==60,'each stacks on its own anchor')
-assert(alert.text.text=='Tank Hit'and alert.clock.shown,'ability alert shows its text and seconds left')
+assert(alert.text.text=='Tank Hit'and alert.clock.shown and alert.clock.text=='(5)'and alert.icons[1].w==28,'ability alert: small icon, text and (seconds) as in NSRT')
 ns.HideDisplays()
 ns.RealDisplay({type='ability',style='bar',spellID=1257717,text='Tank Hit',dur=5});ns.RealDisplay({type='ability',style='text',spellID=1257717,text='Soak',dur=5})
 local barAlert,textAlert;for _,f in ipairs(env.frames)do if f.group=='ability'and f.shown then if f.text.text=='Soak'then textAlert=f else barAlert=f end end end
@@ -427,7 +427,13 @@ env.click('tl-simulate');assert(not ns.Simulating(),'stopped')
 test('the cooldowns lane predicts the spell for each defensive call and flags calls with nothing ready',()=>run(`
 assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
 env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2');env.click('tl-pick-defensive')
-env.select('rule:preset','Raid');env.input('rule:counter','');env.click('save-rule')
+assert(ns.UIState.form.alertOn,'a defensive on a boss ability offers the ability alert by default')
+env.select('rule:preset','Raid');env.input('rule:counter','');env.input('rule:alertText','Tank Hit');env.click('save-rule')
+-- NSR pair: the defensive call and, separately, the boss ability with the text on its own anchor.
+local saved;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.defensive then saved=v end end end
+assert(saved and saved.alert and saved.alert.text=='Tank Hit'and saved.alert.style==nil and ns.Validate(ns.Active())and ns.MinimumAddon(ns.Active().data)=='0.7.3','alert saved with the defensive')
+env.shown={};ns.ShowAbilityAlert(saved);local al=env.shown[1]
+assert(al and al.type=='ability'and al.text=='Tank Hit'and al.spellID==saved.trigger.spellID and al.small and al.tts==false,'alert goes to the ability anchor with a small icon')
 env.click('tab:timeline');ns.UIState.tlSpan=600;ns.UIState.tlStart=0;env.click('tab:timeline')
 local ok,bad=0,0
 for k,c in pairs(ns.UIControls)do if k:match('^tl%-cd:')then if c.label and c.label:GetText()=='!'then bad=bad+1 else ok=ok+1 end end end

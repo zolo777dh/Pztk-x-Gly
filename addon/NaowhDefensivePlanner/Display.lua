@@ -227,10 +227,11 @@ function ns.Display(display)
     if ability then spells={display.spellID or 0}end
     local count=(display.type=="text"or(ability and display.style=="text")or settings.showIcon==false)and 0 or math.min(bar and 1 or 6,#spells);if(display.type=="circle"or bar)and count==0 and settings.showIcon~=false and display.spellID then count=1;spells={display.spellID}end
     if display.type=="circle"and count==0 and settings.showIcon~=false then count=1;spells={0}end
-    local iconSize=tonumber(settings.iconSize)or 42;local gap=4
+    -- Alerts that go with a defensive use a small icon (Display > ability icon size).
+    local iconSize=(display.small or ability)and(tonumber(settings.abilityIconSize)or 28)or tonumber(settings.iconSize)or 42;local gap=4
     for i,icon in ipairs(r.icons)do if i<=count then local _,texture=Spell(spells[i]);icon:SetSize(iconSize,iconSize);icon:ClearAllPoints();icon:SetPoint("LEFT",r,"LEFT",(i-1)*(iconSize+gap),0);icon:SetTexture(texture or 134400);icon:Show()else icon:Hide()end end
     local font,_,flags=r.text:GetFont();if ns.Widgets then font=ns.Widgets.Font(true)end
-    local size=tonumber(settings.textSize)or 18
+    local size=(display.small or ability)and math.min(tonumber(settings.textSize)or 18,16)or tonumber(settings.textSize)or 18
     if type(font)=="string"then r.text:SetFont(font,size,"OUTLINE");r.clock:SetFont(font,size,"OUTLINE")end
     local tc=GlowColor(display.textColor)or{1,1,1,1};r.text:SetTextColor(tc[1],tc[2],tc[3],tc[4]);r.clock:SetTextColor(tc[1],tc[2],tc[3],tc[4])
     local left=count>0 and count*(iconSize+gap)+(bar and 0 or 6)or 0
@@ -265,10 +266,12 @@ function ns.Display(display)
     if display.type=="circle"then if r.swipe.SetHideCountdownNumbers then r.swipe:SetHideCountdownNumbers(display.hideTimer==true)end;r.swipe:SetCooldown(GetTime(),dur);r.swipe:Show()else r.swipe:Hide()end;r:Show()
     -- One cheap ticker per bar or visible timer; the text is rewritten only when the whole second changes.
     local ends=GetTime()+dur;local shown
+    -- NSRT text alerts read "Drop-Pool (4)": the seconds in brackets after the text.
+    local paren=ability and not bar
     local function tick()
         local remain=math.max(0,ends-GetTime())
         if bar then r.bar:SetValue(remain/dur)end
-        if clock then local s=remain>0 and math.ceil(remain)or nil;if s~=shown then shown=s;r.clock:SetText(s and tostring(s)or"")end end
+        if clock then local s=remain>0 and math.ceil(remain)or nil;if s~=shown then shown=s;r.clock:SetText(s and(paren and"("..s..")"or tostring(s))or"")end end
         if remain<=0 and r.ticker then r.ticker:Cancel();r.ticker=false end
     end
     if clock then r.clock:Show()end
@@ -348,7 +351,8 @@ function ns.ToggleAnchors()
     local settings=ns.Settings and ns.Settings()or{};local size=tonumber(settings.iconSize)or 42
     local _,texture=Spell(AnchorSpell());main.icon:SetTexture(texture or 134400);ability.icon:SetTexture(134400)
     for group,a in pairs(anchors)do
-        a:SetSize(size,size);local x,y=ns.ReminderOrigin(group)
+        local edge=group=="ability"and(tonumber(settings.abilityIconSize)or 28)or size
+        a:SetSize(edge,edge);local x,y=ns.ReminderOrigin(group)
         a:ClearAllPoints();a:SetPoint("LEFT",UIParent,"CENTER",x,y);a:Show()
     end
     return true

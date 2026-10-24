@@ -66,7 +66,7 @@ local function Settings(s)
     if s==nil then return true end
     if type(s)~="table"then return false end
     for _,key in ipairs({"enabled","voiceOn","soundOn","fallbackOn","showIcon","showText","showBar","cdmGlow","externalAudio","externalChat","coveredSkip","coveredSkipDefaultOn"})do if s[key]~=nil and type(s[key])~="boolean"then return false end end
-    for _,range in ipairs({{"voiceVol",0,100},{"iconSize",8,256},{"textSize",6,80},{"leadTime",0,120},{"lingerSec",0.1,120},{"coveredCastWindow",0,60}})do if not Number(s[range[1]],range[2],range[3],true)then return false end end
+    for _,range in ipairs({{"voiceVol",0,100},{"iconSize",8,256},{"abilityIconSize",8,256},{"textSize",6,80},{"leadTime",0,120},{"lingerSec",0.1,120},{"coveredCastWindow",0,60}})do if not Number(s[range[1]],range[2],range[3],true)then return false end end
     for _,key in ipairs({"soundKey","voiceNone","textSide","bossSource"})do if s[key]~=nil and type(s[key])~="string"then return false end end
     local anchors={CENTER=true,TOP=true,BOTTOM=true,LEFT=true,RIGHT=true,TOPLEFT=true,TOPRIGHT=true,BOTTOMLEFT=true,BOTTOMRIGHT=true}
     for _,name in ipairs({"pos","abilityPos"})do local pos=s[name]
@@ -188,6 +188,8 @@ function ns.Validate(profile)
             if (trigger.type=="bwtimer"or trigger.type=="bwmsg")and not ID(trigger.spellID)then return false end
             if trigger.type=="stage"and not trigger.stage then return false end
             if not Flags(entry.difficulties)then return false end
+            local alert=entry.alert
+            if alert~=nil and(type(alert)~="table"or(alert.text~=nil and(type(alert.text)~="string"or #alert.text>200))or(alert.style~=nil and alert.style~="text"and alert.style~="bar")or(alert.spellID~=nil and not ID(alert.spellID)))then return false end
             local display=entry.display
             local types={icon=true,text=true,bar=true,circle=true,chat=true,raidframeGlow=true,nameplateGlow=true,ability=true}
             if display.style~=nil and not(display.type=="ability"and(display.style=="text"or display.style=="bar"))then return false end
@@ -222,7 +224,7 @@ function ns.MinimumAddon(data)
     local need="0.3.0"
     -- Boss ability alerts are shown only from 0.7.3.
     for _,entries in pairs(type(data)=="table"and type(data.raidReminders)=="table"and data.raidReminders or{})do
-        for _,e in pairs(type(entries)=="table"and entries or{})do if type(e)=="table"and type(e.display)=="table"and e.display.type=="ability"then return "0.7.3"end end
+        for _,e in pairs(type(entries)=="table"and entries or{})do if type(e)=="table"and(e.alert~=nil or type(e.display)=="table"and e.display.type=="ability")then return "0.7.3"end end
     end
     for _,entries in pairs(type(data)=="table"and type(data.raidReminders)=="table"and data.raidReminders or{})do
         for _,e in pairs(type(entries)=="table"and entries or{})do

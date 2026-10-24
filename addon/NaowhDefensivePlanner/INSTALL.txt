@@ -250,6 +250,10 @@ the ability's icon and your text (e.g. "Tank Hit") with the seconds left, as in 
 mods. Style: Icon and text, Text only, or Bar with timer. These alerts stack on their
 own anchor; /ndp anchors (or Display > Unlock anchor) shows both anchors to drag.
 Any mechanic reminder can use the action "Boss ability alert".
+Like NSR, a defensive on a boss ability can show two things at once: your personal
+defensive on the reminder anchor and, on the ability anchor, a small ability icon
+with your text (e.g. Empowering Slam + "Tank Hit") counting down to the cast. Turn it
+on with "Also show the boss ability and my text" in the reminder card.
 
 SETTINGS / DIAGNOSTICS
 Configure icons, text, sizes, position, voice volume and boss-mod source.

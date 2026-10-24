@@ -29,7 +29,7 @@ function ns.StartTimelineDrag(startX,base,perPixel,apply)
         if wait>=0.03 then wait=0;step()end
     end)
 end
-local formKeys={"name","leadTime","delay","phase","counter","duration","text","displaySpellID","player","glowTarget","sticky","ticks","glowNames"}
+local formKeys={"alertText","name","leadTime","delay","phase","counter","duration","text","displaySpellID","player","glowTarget","sticky","ticks","glowNames"}
 local specTabs={mythic=true,raid=true,sets=true,timeline=true}
 local function viewKey()return state.tab..":"..tostring(specTabs[state.tab]and state.spec or"general")end
 local function scope()return state.tab=="raid"and"raid"or"mythic"end
@@ -329,7 +329,7 @@ local function InitialForm(ctx,reference)
         elseif e.target.names then recipient="player";player=next(e.target.names)
         elseif not e.target.all then recipient="preserve"end
     end
-    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,percent=t.percent or 50,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=((d.type or action)=="bar"or(d.type or action)=="circle"or(d.type or action)=="ability")and d.hideTimer~=true or d.countdown==true,abilityStyle=d.style or"icon",sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
+    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,percent=t.percent or 50,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=((d.type or action)=="bar"or(d.type or action)=="circle"or(d.type or action)=="ability")and d.hideTimer~=true or d.countdown==true,abilityStyle=d.style or"icon",alertOn=e.alert~=nil or(not reference and ctx.spell~=nil and ctx.kind~="trash"and action=="defensive"),alertText=e.alert and e.alert.text or"",alertStyle=e.alert and e.alert.style or"icon",sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
 end
 local actionLabels={defensive="Defensive priority set",ability="Boss ability alert",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
 local roleLabels={TANK="Tank",HEALER="Healer",DAMAGER="Damage"}
@@ -437,6 +437,14 @@ local function DrawInspector(parent,ctx,rules)
         -- Shown on its own anchor (Display > Unlock anchor), like NSRT: text only, icon and text, or a bar with a timer.
         select("STYLE","abilityStyle",{{value="icon",label="Icon and text"},{value="text",label="Text only"},{value="bar",label="Bar with timer"}},186);field("ICON SPELL ID · BLANK = ABILITY","displaySpellID",186,204);cy=cy+54
     end
+    -- NSR-style pair: the boss ability with your text on its own anchor, next to the defensive call.
+    if ctx.spell and ctx.kind~="trash"and form.action~="ability"then
+        W.Toggle(content,"Also show the boss ability and my text (own anchor)",form.alertOn,6,cy,384,function(v)collect();form.alertOn=v;Refresh()end,"rule:alertOn");cy=cy+32
+        if form.alertOn then
+            field("ALERT TEXT · E.G. TANK HIT · BLANK = ABILITY NAME","alertText");cy=cy+54
+            select("ALERT STYLE","alertStyle",{{value="icon",label="Icon and text"},{value="text",label="Text only"},{value="bar",label="Bar with timer"}});cy=cy+54
+        end
+    end
     field("TEXT · BLANK USES THE SPELL NAME","text");cy=cy+54
     local sounds={{value="",label="None"},{value="voice:use-a-defensive",label="Say: Use a defensive"},{value="voice:move-out",label="Say: Move out"},{value="voice:dispel-me",label="Say: Dispel me"},{value="sound:567397",label="Raid warning sound"}}
     local known=false;for _,o in ipairs(sounds)do if o.value==form.sound then known=true end end
@@ -472,6 +480,7 @@ local function DrawInspector(parent,ctx,rules)
     content:SetHeight(cy+8)
     W.Button(p,L("Test"),12,462,76,function()collect();local spell=tonumber(form.displaySpellID);if form.action=="defensive"then local preset=ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec)[form.preset];spell=preset and preset.list[1]end;local preview={type=spell and"icon"or"text",spellID=spell,text=form.text~=""and form.text or"Reminder preview",dur=tonumber(form.duration)or 4,sound=form.sound,tts=form.tts}
         if form.action~="defensive"and form.action~="chat"and form.action~="raidframeGlow"then preview.type=form.action;if form.action=="ability"and form.abilityStyle~="icon"then preview.style=form.abilityStyle end;preview.spellID=spell or(form.action~="text"and ctx.spell)or nil;local ok,error=pcall(ns.ApplyLook,preview,form,state.reference and state.reference.entry.display);if not ok then return notify(tostring(error):gsub("^.-:%d+: ",""),true)end end
+        if form.alertOn and form.action~="ability"and ctx.spell then ns.Display({type="ability",spellID=ctx.spell,text=form.alertText~=""and form.alertText or nil,style=form.alertStyle~="icon"and form.alertStyle or nil,dur=tonumber(form.leadTime)or 3,small=true,tts=false})end
         ns.Display(preview);notify("Display preview; verify the mechanic in game")end,false,"test-rule",{align="CENTER"})
     W.Button(p,L("Delete"),96,462,86,function()local a,b=ns.DeleteRule(ctx,state.reference);if a then state.ruleDrafts[ruleKey(ctx,state.ruleKey)]=nil;state.reference=nil;state.ruleKey="new";state.form=InitialForm(ctx)end;done(a,b,"Reminder deleted")end,false,"delete-rule",{kind="danger",align="CENTER"})
     W.Button(p,L("Save reminder"),258,462,170,function()collect();local key,error=ns.SaveRule(ctx,form,state.reference);if key then state.ruleDrafts[ruleKey(ctx,state.ruleKey)]=nil;state.ruleDrafts[ruleKey(ctx,key)]=nil;state.ruleKey=key;state.form=nil end;done(key,error,"Reminder saved")end,true,"save-rule",{kind="primary",align="CENTER"})

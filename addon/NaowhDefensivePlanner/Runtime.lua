@@ -153,8 +153,20 @@ function ns.Schedule(key, delay, callback)
     end)
     ns.timers[key] = timer
 end
+-- Boss ability alert of a reminder (entry.alert): a small ability icon and text on its own anchor,
+-- shown next to whatever the reminder itself shows (usually a personal defensive), like NSR.
+-- On a boss mod timer it counts down to the cast.
+function ns.ShowAbilityAlert(entry)
+    local alert=type(entry)=="table"and entry.alert
+    if type(alert)~="table"or not ns.Display then return end
+    local trigger=type(entry.trigger)=="table"and entry.trigger or{}
+    local spell=alert.spellID or trigger.spellID or(type(entry.catalog)=="table"and entry.catalog.abilityID)
+    local dur=trigger.type=="bwtimer"and math.max(1,(tonumber(trigger.leadTime)or 3)-(tonumber(trigger.delay)or 0))or(type(entry.display)=="table"and tonumber(entry.display.dur))or 4
+    ns.Display({type="ability",spellID=spell,text=alert.text or"",style=alert.style,dur=dur,small=true,tts=false})
+end
 function ns.Fire(entry, display, occurrence)
     if (ns.ContentMatches and not ns.ContentMatches(entry))or (ns.Enabled and not ns.Enabled()) or ns.Conflict() or entry.enabled == false or not ns.Difficulty(entry) or not ns.Target(entry.target, occurrence) then return end
+    ns.ShowAbilityAlert(entry)
     if entry.defensive and ns.RenderDefensive then return ns.RenderDefensive(entry)end
     if ns.Display then ns.Display(display or entry.display or {}) end
 end
@@ -344,6 +356,7 @@ function ns.Defensive(binding, lead, key, valid)
     if not profile or binding.enabled == false or not spec then return end
     ns.Schedule(key, math.max(0, lead), function()
         if ns.Spec() ~= spec or (valid and not valid()) then return end
+        ns.ShowAbilityAlert(binding)
         if ns.RenderDefensive then return ns.RenderDefensive(binding,binding.trigger and binding.trigger.type=="exboss")end
         local presetKey = binding.preset or ns.Get(profile.data.activePreset, spec)
         local preset = ns.Get(ns.Get(profile.data.presets, spec), presetKey)
