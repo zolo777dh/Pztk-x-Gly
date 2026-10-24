@@ -66,12 +66,18 @@ local function Settings(s)
     if s==nil then return true end
     if type(s)~="table"then return false end
     for _,key in ipairs({"enabled","voiceOn","soundOn","fallbackOn","showIcon","showText","showBar","cdmGlow","externalAudio","externalChat","coveredSkip","coveredSkipDefaultOn"})do if s[key]~=nil and type(s[key])~="boolean"then return false end end
-    for _,range in ipairs({{"voiceVol",0,100},{"iconSize",8,256},{"textSize",6,80},{"leadTime",0,120},{"lingerSec",0.1,120},{"coveredCastWindow",0,60}})do if not Number(s[range[1]],range[2],range[3],true)then return false end end
+    for _,range in ipairs({{"voiceVol",0,100},{"iconSize",8,256},{"abilityIconSize",8,256},{"textSize",6,80},{"leadTime",0,120},{"lingerSec",0.1,120},{"coveredCastWindow",0,60}})do if not Number(s[range[1]],range[2],range[3],true)then return false end end
     for _,key in ipairs({"soundKey","voiceNone","textSide","bossSource"})do if s[key]~=nil and type(s[key])~="string"then return false end end
-    if s.pos~=nil then
-        if type(s.pos)~="table"or not Number(s.pos.x,-10000,10000,true)or not Number(s.pos.y,-10000,10000,true)then return false end
-        local anchors={CENTER=true,TOP=true,BOTTOM=true,LEFT=true,RIGHT=true,TOPLEFT=true,TOPRIGHT=true,BOTTOMLEFT=true,BOTTOMRIGHT=true}
-        for _,key in ipairs({"point","relPoint"})do if s.pos[key]~=nil and not anchors[s.pos[key]]then return false end end
+    local anchors={CENTER=true,TOP=true,BOTTOM=true,LEFT=true,RIGHT=true,TOPLEFT=true,TOPRIGHT=true,BOTTOMLEFT=true,BOTTOMRIGHT=true}
+    for _,name in ipairs({"pos","abilityPos"})do local pos=s[name]
+        if pos~=nil then
+            if type(pos)~="table"or not Number(pos.x,-10000,10000,true)or not Number(pos.y,-10000,10000,true)then return false end
+            for _,key in ipairs({"point","relPoint"})do if pos[key]~=nil and not anchors[pos[key]]then return false end end
+        end
+    end
+    if s.voicePhrases~=nil then
+        if type(s.voicePhrases)~="table"then return false end
+        for key,text in pairs(s.voicePhrases)do if type(key)~="string"or not key:match("^voice:[%w%-]+$")or type(text)~="string"or #text>100 then return false end end
     end
     return true
 end
@@ -163,7 +169,7 @@ function ns.Validate(profile)
             if not Scope(entry.content)then return false end
             if entry.defensive~=nil then
                 local d=entry.defensive
-                if type(d)~="table"or not Scope(d.scope)or type(d.preset)~="string"or not ID(d.specID)then return false end
+                if type(d)~="table"or not Scope(d.scope)or type(d.preset)~="string"or not ID(d.specID)or(d.spell~=nil and not ID(d.spell))then return false end
             end
             if trigger.counterGroups~=nil then
                 if type(trigger.counterGroups)~="table"then return false end
@@ -182,8 +188,11 @@ function ns.Validate(profile)
             if (trigger.type=="bwtimer"or trigger.type=="bwmsg")and not ID(trigger.spellID)then return false end
             if trigger.type=="stage"and not trigger.stage then return false end
             if not Flags(entry.difficulties)then return false end
+            local alert=entry.alert
+            if alert~=nil and(type(alert)~="table"or(alert.text~=nil and(type(alert.text)~="string"or #alert.text>200))or(alert.style~=nil and alert.style~="text"and alert.style~="bar")or(alert.spellID~=nil and not ID(alert.spellID)))then return false end
             local display=entry.display
-            local types={icon=true,text=true,bar=true,circle=true,chat=true,raidframeGlow=true,nameplateGlow=true}
+            local types={icon=true,text=true,bar=true,circle=true,chat=true,raidframeGlow=true,nameplateGlow=true,ability=true}
+            if display.style~=nil and not(display.type=="ability"and(display.style=="text"or display.style=="bar"))then return false end
             if not types[display.type]or not Number(display.dur,0.1,120,true)or (display.spellID and not ID(display.spellID))then return false end
             for _,key in ipairs({"text","sound","ttsText","glowTarget"})do if display[key]~=nil and type(display[key])~="string"then return false end end
             if display.tts~=nil and type(display.tts)~="boolean"then return false end
@@ -213,6 +222,10 @@ end
 local lookKeys={"textColor","barColor","ticks","sticky","hideTimer","countdown"}
 function ns.MinimumAddon(data)
     local need="0.3.0"
+    -- Boss ability alerts are shown only from 0.7.3.
+    for _,entries in pairs(type(data)=="table"and type(data.raidReminders)=="table"and data.raidReminders or{})do
+        for _,e in pairs(type(entries)=="table"and entries or{})do if type(e)=="table"and(e.alert~=nil or type(e.display)=="table"and e.display.type=="ability"or type(e.defensive)=="table"and e.defensive.spell~=nil)then return "0.7.3"end end
+    end
     for _,entries in pairs(type(data)=="table"and type(data.raidReminders)=="table"and data.raidReminders or{})do
         for _,e in pairs(type(entries)=="table"and entries or{})do
             -- Rotations and note slots are read only from 0.7.0; older addons would show them to everyone.

@@ -60,9 +60,16 @@ C_Map = {
 C_EncounterJournal = { GetEncountersOnMap = function() return T.pins end }
 function EJ_GetEncounterInfo(id) return "Boss", "", id, 0, "", 1, ({ [11] = 3183, [12] = 3176 })[id], 2900 end
 -- Frame lookups and glows are recorded instead of drawn.
+local groupFrames = {}
+for _, unit in ipairs({ "player", "party1", "party2", "party3", "party4" }) do groupFrames[#groupFrames + 1] = unit end
+for i = 1, 40 do groupFrames[#groupFrames + 1] = "raid" .. i end
+for i, unit in ipairs(groupFrames) do groupFrames[i] = { unit = unit, GetAttribute = function(self, key) return key == "unit" and self.unit or nil end, IsVisible = function() return true end } end
+function EnumerateFrames(after)
+    if not after then return groupFrames[1] end
+    for i, f in ipairs(groupFrames) do if f == after then return groupFrames[i + 1] end end
+end
 local registry = {}
 function LibStub(name)
-    if name == "LibGetFrame-1.0" then return { GetUnitFrame = function(unit) return { unit = unit } end } end
     if name == "LibCustomGlow-1.0" then return {
         PixelGlow_Start = function(frame, color, _, _, _, _, _, _, _, key) T.glows[#T.glows + 1] = { unit = frame.unit, color = color, key = key } end,
         PixelGlow_Stop = function(frame, key) T.stopped[#T.stopped + 1] = frame.unit end,

@@ -32,7 +32,9 @@ ns.RaidRacialDebuffs={
     {encounterID=3492,name="Ula'tek",list={{1301117,"Grasping Fangs","stoneform"}}},
 }
 local racialSpell={stoneform=20594,shadowmeld=58984}
-local sounds={{value="voice:stoneform-ready",label="Stoneform (only when ready)"},{value="voice:shadowmeld-ready",label="Shadowmeld (only when ready)"},{value="voice:use-a-defensive",label="Use a defensive"},{value="voice:move-out",label="Move out"},{value="voice:dispel-me",label="Dispel me"}}
+-- The game plays debuff alerts itself and needs a sound file, so these are game sounds
+-- (Display.lua), not speech.
+local sounds={{value="voice:stoneform-ready",label="Stoneform alert (only when ready)"},{value="voice:shadowmeld-ready",label="Shadowmeld alert (only when ready)"},{value="voice:use-a-defensive",label="Encounter warning: medium"},{value="voice:move-out",label="Encounter warning: high"},{value="voice:dispel-me",label="Encounter warning: low"},{value="sound:567397",label="Raid warning"}}
 local events={{value="Added",label="Applied"},{value="ApplicationsIncreased",label="Stack increased"},{value="Removed",label="Removed"}}
 local units={{value="player",label="Me"},{value="party",label="Party members"}}
 local previews={["voice:stoneform-ready"]="voice:stoneform-preview",["voice:shadowmeld-ready"]="voice:shadowmeld-preview"}
@@ -119,9 +121,9 @@ function ns.DrawDebuffs(parent)
     W.Select(card,L("UNIT"),units,f.unit,312,220,280,function(v)collect();f.unit=v;if v~="player"and previews[f.sound]then f.sound="voice:use-a-defensive"end;kit.refresh()end,"debuff:unit")
     local options={};for _,o in ipairs(sounds)do if f.unit=="player"or not previews[o.value]then options[#options+1]=o end end
     W.Select(card,L("SOUND"),options,f.sound,16,280,576,function(v)collect();f.sound=v;kit.refresh()end,"debuff:sound")
-    W.Label(card,L("Stoneform and Shadowmeld voices play only while the racial is ready and need Unit: Me. Test plays the voice anyway."),16,342,576,11,C.muted)
+    W.Label(card,L("The game plays debuff alerts itself and allows only sounds here, not speech. Stoneform and Shadowmeld alerts play only while the racial is ready and need Unit: Me; Test plays them anyway."),16,342,576,11,C.muted)
     if raid then W.Label(card,L("The raid list is picked from the debuff names; dispel types and aura IDs are not confirmed yet, so check each alert in game."),16,372,576,11,C.warning)end
-    W.Button(card,L("Test"),16,470,100,function()collect();local path=ns.SoundPath(previews[f.sound]or f.sound);if path and PlaySoundFile then PlaySoundFile(path,"Master")end;kit.notify(L("Sound preview; the real alert needs the debuff in game"))end,false,"debuff-test",{glyph="play"})
+    W.Button(card,L("Test"),16,470,100,function()collect();local path=ns.SoundPath(previews[f.sound]or f.sound);if path and PlaySoundFile then pcall(PlaySoundFile,path,"Master")end;kit.notify(L("Sound preview; the real alert needs the debuff in game"))end,false,"debuff-test",{glyph="play"})
     if selected then W.Button(card,L("Remove"),124,470,110,function()local ok,err=ns.DeleteDebuffRule(spec,selected);if ok then state.drafts.debuffKey=nil;state.drafts.debuff=nil end;kit.done(ok,err,L("Debuff alert removed"))end,false,"debuff-delete",{kind="danger",align="CENTER"})end
     W.Button(card,L("Save debuff alert"),412,470,180,function()collect()
         local form={name=f.name,spellID=f.spellID,mapID=f.map=="other"and f.mapID or f.map,event=f.event,unit=f.unit,sound=f.sound,enabled=f.enabled,scope=scope}

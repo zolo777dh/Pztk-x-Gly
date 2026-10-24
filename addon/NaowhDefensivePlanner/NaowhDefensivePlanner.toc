@@ -3,17 +3,15 @@
 ## Title: Naowh Defensive Planner
 ## Notes: In-game Mythic+ defensive sets and raid mechanic / encounter-time reminders.
 ## Author: Pztk x Glyalith
-## Version: 0.7.1
+## Version: 0.7.3
 ## SavedVariables: NaowhDefensivePlannerDB, PztkRemindersDB
 ## IconTexture: Interface\AddOns\NaowhDefensivePlanner\Media\Logo
 ## AddonCompartmentFunc: NaowhDefensivePlanner_OnAddonCompartmentClick
 ## OptionalDeps: BigWigs, DBM-Core, EXBoss
 Libs\LibStub.lua
-Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
 Libs\LibSerialize.lua
 Libs\LibDeflate.lua
 Libs\LibCustomGlow-1.0\LibCustomGlow-1.0.xml
-Libs\LibGetFrame-1.0\LibGetFrame-1.0.xml
 Runtime.lua
 Locale.lua
 Catalog.lua

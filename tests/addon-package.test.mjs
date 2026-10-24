@@ -10,7 +10,7 @@ import {parseLua} from '../core/analyzer.mjs';
 const files=['Runtime.lua','Locale.lua','Catalog.lua','Codec.lua','Profiles.lua','Display.lua','RuleRuntime.lua','AuraSounds.lua','Providers.lua','BossTimers.lua','BossTimerData.lua','BossTimelines.lua','Simulate.lua','Planner.lua','Triggers.lua','Analysis.lua','Editor.lua','Import.lua','Widgets.lua','UI.lua','Comms.lua','Debuffs.lua','Notes.lua','Players.lua','RaidTools.lua','QoL.lua','Combat.lua','Main.lua'];
 const sources=await Promise.all(files.map(f=>fs.readFile('addon/NaowhDefensivePlanner/'+f,'utf8')));
 test('standalone addon bundle contains valid runtime, complete loader dependencies, codecs, media and no NSR/NSRT runtime',async t=>{
- const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-addon-zip-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const archive=await packageAddon(process.cwd(),dir),entries=unzipSync(await fs.readFile(archive));for(const [i,f]of files.entries()){assert.ok(entries['NaowhDefensivePlanner/'+f]);parseLua(sources[i]);}assert.ok(entries['NaowhDefensivePlanner/Libs/LibSerialize.lua']);assert.ok(entries['NaowhDefensivePlanner/Media/Voice/use-a-defensive.ogg']);assert.ok(entries['NaowhDefensivePlanner/BUILD-SOURCES.json']);assert.ok(!Object.keys(entries).some(k=>k.startsWith('NaowhSmartReminders/')||k.startsWith('NorthernSkyRaidTools/')));
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-addon-zip-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const archive=await packageAddon(process.cwd(),dir),entries=unzipSync(await fs.readFile(archive));for(const [i,f]of files.entries()){assert.ok(entries['NaowhDefensivePlanner/'+f]);parseLua(sources[i]);}assert.ok(entries['NaowhDefensivePlanner/Libs/LibSerialize.lua']);assert.ok(!Object.keys(entries).some(k=>k.includes('/Media/Voice/')));assert.ok(entries['NaowhDefensivePlanner/BUILD-SOURCES.json']);assert.ok(!Object.keys(entries).some(k=>k.startsWith('NaowhSmartReminders/')||k.startsWith('NorthernSkyRaidTools/')));
  const manifest=JSON.parse(Buffer.from(entries['NaowhDefensivePlanner/BUILD-SOURCES.json']).toString()),toc=Buffer.from(entries['NaowhDefensivePlanner/NaowhDefensivePlanner.toc']).toString();assert.match(toc,new RegExp('## Version: '+manifest.version.replaceAll('.','\\.')));assert.equal(path.basename(archive),'NaowhDefensivePlanner-'+manifest.version+'.zip');assert.match(sources[0],new RegExp('ns.version = "'+manifest.version.replaceAll('.','\\.')+'"'));
 });
 test('addon packaging rejects duplicate Lua loads through either TOC or XML',async t=>{
@@ -57,8 +57,15 @@ ns.Open();assert(NaowhDefensivePlannerDB.clients.retail)
 ns.Display({type='text',text='Raid assignment',dur=5})
 ns.Display({type='icon',spellID=108271,text='Defensive',dur=5})
 ns.Display({type='circle',spellID=108271,text='Countdown',dur=5})
+local said;C_VoiceChat={GetTtsVoices=function()return{{voiceID=1}}end,SpeakText=function(_,text)said=text end}
 ns.Display({type='chat',sound='voice:use-a-defensive',text=''})
-assert(sound=='Interface\\\\AddOns\\\\NaowhDefensivePlanner\\\\Media\\\\Voice\\\\use-a-defensive.ogg')
+assert(said=='Use a defensive' and sound==nil)
+ns.Settings().voicePhrases={['voice:use-a-defensive']='Wall now'}
+ns.Display({type='chat',sound='voice:use-a-defensive',text=''})
+assert(said=='Wall now' and ns.SoundPath('voice:use-a-defensive')==7670701 and ns.SoundPath('sound:567397')==567397)
+ns.Settings().voicePhrases=nil
+assert(ns.Validate({format=1,addon='PztkReminders',name='p',client='retail',data={settings={voicePhrases={['voice:move-out']='Go'}}}}))
+assert(not ns.Validate({format=1,addon='PztkReminders',name='p',client='retail',data={settings={voicePhrases={['voice:move-out']=string.rep('x',101)}}}}))
 ns.HideDisplays();assert(#frames>5)
 -- A failed optional name/icon lookup or unavailable voice list must not break display.
 C_Spell.GetSpellInfo=function()error('not available')end
@@ -68,7 +75,8 @@ ns.Display({type='icon',spellID=108271,tts=true,dur=5});ns.HideDisplays()
 -- Glows use independent ownership keys, and nameplates use the nameplate API.
 local unitFrame,plate=frame(),frame();local plateQueries=0
 function UnitExists(token)return token=='player'end
-libs['LibGetFrame-1.0']={GetUnitFrame=function()return unitFrame end}
+unitFrame.GetAttribute=function(_,key)return key=='unit'and'player'or nil end;unitFrame.IsVisible=function()return true end
+function EnumerateFrames(after)if not after then return unitFrame end end
 libs['LibCustomGlow-1.0']={PixelGlow_Start=function(f,_,_,_,_,_,_,_,_,key)glowStarts[#glowStarts+1]={frame=f,key=key}end,PixelGlow_Stop=function(f,key)glowStops[#glowStops+1]={frame=f,key=key}end}
 C_NamePlate={GetNamePlateForUnit=function()plateQueries=plateQueries+1;return {UnitFrame=plate}end}
 ns.Display({type='raidframeGlow',text='First',glowTarget='Tester'})

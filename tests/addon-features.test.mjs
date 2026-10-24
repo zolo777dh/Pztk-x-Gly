@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
 const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Simulate','Planner','Triggers','Analysis','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
-async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
+async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.RealDisplay=ns.Display;ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
 }
@@ -11,7 +11,7 @@ env.click('tab:mythic');env.click('mode:sets');env.input('set-name','Bear');env.
 env.click('set-callout:1');env.input('callout:label','BARK');env.input('callout:spoken','bark now');env.click('callout-hear');assert(spoken[#spoken]=='bark now')
 env.click('callout-save');local data=ns.Active().data;assert(data.calloutOptions[22812].label=='BARK'and data.callouts[22812]=='bark now')
 local label,phrase,audio=ns.Callout(22812);assert(label=='BARK'and phrase=='bark now'and audio)
-env.click('set-callout:2');env.click('callout:speak');env.select('callout:sound','Move out');env.click('callout:audio');env.click('callout:audio');env.click('callout-save')
+env.click('set-callout:2');env.click('callout:speak');env.select('callout:sound','Say: Move out');env.click('callout:audio');env.click('callout:audio');env.click('callout-save')
 local _,phrase2,_,sound=ns.Callout(61336);assert(phrase2==nil and sound=='voice:move-out')
 env.click('set-callout:1');env.click('callout:audio');env.click('callout-save');assert(ns.Active().data.calloutOptions[22812].audio==false)
 env.click('set-callout:2');env.click('callout-cancel');assert(ns.UIState.callout==nil)
@@ -34,9 +34,9 @@ local key=rules[1].key;env.click('debuff:'..key);env.input('debuff:name','Rename
 local r=ns.Active().data.integrationRules[104][key];assert(r.name=='Renamed'and r.trigger.auraEvent=='Removed')
 env.click('debuff-on:'..key);assert(ns.Active().data.integrationRules[104][key].enabled==false)
 env.click('debuff:'..key);env.click('debuff-delete');assert(ns.Active().data.integrationRules[104][key]==nil)
-env.click('debuff-new');env.input('debuff:spellID','1217633');env.select('debuff:unit','Party members');env.select('debuff:sound','Dispel me');env.select('debuff:map','Another instance (by ID)');env.input('debuff:mapID','0');env.click('debuff-save')
+env.click('debuff-new');env.input('debuff:spellID','1217633');env.select('debuff:unit','Party members');env.select('debuff:sound','Encounter warning: low');env.select('debuff:map','Another instance (by ID)');env.input('debuff:mapID','0');env.click('debuff-save')
 local found=false;for _,x in ipairs(ns.DebuffRules(104))do if x.rule.trigger.spellID==1217633 and x.rule.trigger.target=='party'and x.rule.trigger.mapID==0 then found=true end end;assert(found)
-env.click('debuff-new');env.input('debuff:spellID','1217633');env.select('debuff:sound','Stoneform (only when ready)');env.select('debuff:unit','Party members');assert(ns.UIState.drafts.debuff.sound=='voice:use-a-defensive')
+env.click('debuff-new');env.input('debuff:spellID','1217633');env.select('debuff:sound','Stoneform alert (only when ready)');env.select('debuff:unit','Party members');assert(ns.UIState.drafts.debuff.sound=='voice:use-a-defensive')
 env.click('debuff-test')
 assert(ns.CopyDebuffRules(104,105)>0);assert(#ns.DebuffRules(105)>0)
 assert(not ns.CopyDebuffRules(104,71),'copy to another class must fail')
@@ -216,13 +216,27 @@ assert(not f.events.SPELL_UPDATE_COOLDOWN and not f.events.SPELL_UPDATE_USABLE,'
 test('reminders grow right from a fixed left edge and the unlocked anchor is a sample icon at that spot',()=>run(`
 assert(ns.EditProfile(function(d)d.settings.pos={point='CENTER',relPoint='CENTER',x=363,y=-65}end))
 local x,y=ns.ReminderOrigin();assert(x==193 and y==-65,'old centered positions keep their left edge')
-assert(ns.ToggleAnchors());local a;for _,f in ipairs(env.frames)do if f.icon and f.scripts.OnDragStop then a=f end end;assert(a)
+assert(ns.ToggleAnchors());local a,b;for _,f in ipairs(env.frames)do if f.icon and f.scripts.OnDragStop then if a then b=b or f else a=f end end end;assert(a and b)
 assert(a.point.point=='LEFT'and a.point.relativePoint=='CENTER'and a.point.x==193 and a.point.y==-65,'anchor icon is not at the reminder origin')
 assert(a.w==(ns.Settings().iconSize or 42)and a.w==a.h,'anchor must be one icon')
 a.GetLeft=function()return 1000 end;a.GetCenter=function()return 1010,600 end;UIParent.GetCenter=function()return 960,540 end
 a.scripts.OnDragStop(a);local p=ns.Settings().pos;assert(p.point=='LEFT'and p.x==40 and p.y==60)
 x,y=ns.ReminderOrigin();assert(x==40 and y==60)
+-- Boss ability alerts have their own anchor and stack there, apart from the reminders.
+assert(b.point.x==200 and b.point.y==180,'ability anchor default')
+b.GetLeft=function()return 700 end;b.GetCenter=function()return 710,740 end
+b.scripts.OnDragStop(b);local q=ns.Settings().abilityPos;assert(q.x==-260 and q.y==200 and ns.Settings().pos.x==40)
 assert(not ns.ToggleAnchors())
+ns.RealDisplay({type='ability',spellID=1257717,text='Tank Hit',dur=5});ns.RealDisplay({type='icon',spellID=22812,text='Barkskin',dur=5})
+local alert,plain;for _,f in ipairs(env.frames)do if f.group=='ability'and f.shown then alert=f elseif f.group=='main'and f.shown then plain=f end end
+assert(alert and plain,'both shown');assert(alert.point.x==-260 and alert.point.y==200 and plain.point.x==40 and plain.point.y==60,'each stacks on its own anchor')
+assert(alert.text.text=='Tank Hit'and alert.clock.shown and alert.clock.text=='(5)'and alert.icons[1].w==28,'ability alert: small icon, text and (seconds) as in NSRT')
+ns.HideDisplays()
+ns.RealDisplay({type='ability',style='bar',spellID=1257717,text='Tank Hit',dur=5});ns.RealDisplay({type='ability',style='text',spellID=1257717,text='Soak',dur=5})
+local barAlert,textAlert;for _,f in ipairs(env.frames)do if f.group=='ability'and f.shown then if f.text.text=='Soak'then textAlert=f else barAlert=f end end end
+assert(barAlert.bar.shown and barAlert.icons[1].shown,'bar style: icon and a timer bar')
+assert(not textAlert.bar.shown and not textAlert.icons[1].shown and textAlert.clock.shown,'text style: no icon, no bar')
+ns.HideDisplays()
 `));
 
 test('quality of life: notices, ready check, consumables, gateway and events only while switched on',()=>run(`
@@ -367,10 +381,19 @@ local key;for k in pairs(ns.UIControls)do if k=='tl-ability:2'then key=k end end
 assert(ns.UIState.tlPick and ns.UIControls['tl-pick-note']and ns.UIControls['tl-pick-defensive'],'cast picker')
 local pick=ns.UIState.tlPick
 env.click('tl-pick-note');assert(ns.UIState.tab=='raid'and ns.UIState.ability==pick.spell,'ability opened on the Raids page')
-assert(ns.UIState.form.action=='text'and ns.UIState.form.counter==tostring(pick.cast),'note for this cast')
-env.input('rule:text','Stack in middle');env.click('save-rule')
+assert(ns.UIState.form.action=='none'and ns.UIState.form.alertOn and ns.UIState.form.counter==tostring(pick.cast),'note for this cast: the text alert only')
+env.input('rule:alertText','Stack in middle');env.click('save-rule')
 local found;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.display and v.display.text=='Stack in middle'then found=v end end end
 assert(found and found.trigger.spellID==pick.spell and found.trigger.counterGroups[1][1].value==pick.cast,'note bound to the boss ability and cast')
+assert(found.display.type=='ability'and found.display.spellID==pick.spell and found.display.style==nil and found.display.hideTimer==nil,'a boss ability alert with the ability icon and seconds left')
+assert(ns.MinimumAddon(ns.Active().data)=='0.7.3')
+-- The same alert as a bar with a timer, or as text only.
+env.select('rule:alertStyle','Bar with timer');env.click('save-rule')
+found=nil;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.display and v.display.text=='Stack in middle'then found=v end end end
+assert(found.display.style=='bar'and ns.Validate(ns.Active()),'bar style saved')
+env.select('rule:alertStyle','Text only');env.click('save-rule')
+found=nil;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.display and v.display.text=='Stack in middle'then found=v end end end
+assert(found.display.style=='text','text style saved')
 `));
 test('the timeline zooms with Ctrl + wheel and the slider moves it before and after the pull',()=>run(`
 env.click('tab:timeline');env.click('tab:timeline')
@@ -380,11 +403,19 @@ env.click('tl-zoom-out');env.click('tl-zoom-out');assert(s.tlSpan==180)
 s.tlStart=0;env.click('tl-left');assert(s.tlStart<0,'slider goes before the pull')
 env.click('tl-right');env.click('tl-right');assert(s.tlStart>0,'and past it')
 env.click('tl-track:20');local far=s.tlStart;assert(far>200,'track click jumps, got '..far)
+-- Holding the left button on the thumb drags the view live, even though each move redraws the page.
+local cx,down=500,true;function GetCursorPosition()return cx,300 end;function IsMouseButtonDown()return down end;ns.RefreshWorkspace();far=s.tlStart
+local thumb=ns.UIControls['tl-thumb'];assert(thumb:GetFrameLevel()>ns.UIControls['tl-track:1']:GetFrameLevel(),'thumb above the track')
+thumb.scripts.OnMouseDown(thumb,'LeftButton')
+local d;for i=#env.frames,1,-1 do local f=env.frames[i];if f.scripts.OnUpdate and f.parent==nil then d=f;break end end;assert(d,'drag driver')
+cx=300;d.scripts.OnUpdate(d,0.05);local dragged=s.tlStart;assert(dragged<far,'thumb drag moves the view, got '..dragged)
+cx=200;down=false;d.scripts.OnUpdate(d,0.01);assert(s.tlStart<dragged and d.scripts.OnUpdate==nil,'release ends the drag at the cursor')
+GetCursorPosition,IsMouseButtonDown=nil,nil
 ns.TimelineZoom(1);assert(s.tlSpan==120)
 `));
 test('a simulated pull plays the boss timeline through the reminders outside combat',()=>run(`
 env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2')
-local pick=ns.UIState.tlPick;env.click('tl-pick-note');env.input('rule:text','Stack in middle');env.click('save-rule')
+local pick=ns.UIState.tlPick;env.click('tl-pick-note');env.input('rule:alertText','Stack in middle');env.click('save-rule')
 env.click('tab:timeline');env.click('tl-simulate');assert(ns.Simulating(),'simulation running')
 assert(ns.UIControls['tl-simulate'],'stop button')
 local before=#env.shown;for _=1,math.ceil(pick.at)+1 do env.advance(1)end
@@ -396,7 +427,19 @@ env.click('tl-simulate');assert(not ns.Simulating(),'stopped')
 test('the cooldowns lane predicts the spell for each defensive call and flags calls with nothing ready',()=>run(`
 assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
 env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2');env.click('tl-pick-defensive')
-env.select('rule:preset','Raid');env.input('rule:counter','');env.click('save-rule')
+assert(ns.UIState.form.alertOn,'a defensive on a boss ability offers the ability alert by default')
+env.select('rule:preset','Raid');env.input('rule:counter','');env.input('rule:alertText','Tank Hit');env.click('save-rule')
+-- NSR pair: the defensive call and, separately, the boss ability with the text on its own anchor.
+local saved;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.defensive then saved=v end end end
+assert(saved and saved.defensive.spell==nil and saved.alert and saved.alert.text=='Tank Hit'and saved.alert.style==nil and ns.Validate(ns.Active())and ns.MinimumAddon(ns.Active().data)=='0.7.3','alert saved with the defensive')
+env.shown={};ns.ShowAbilityAlert(saved);local al=env.shown[1]
+assert(al and al.type=='ability'and al.text=='Tank Hit'and al.spellID==saved.trigger.spellID and al.small and al.tts==false,'alert goes to the ability anchor with a small icon')
+-- Both blocks at once, and the defensive bound to one spell of the set instead of the priority.
+assert(ns.UIControls['rule:alertOn']and ns.UIControls['rule:defSpell'],'text alert and personal defensive are shown together')
+env.select('rule:defSpell',ns.SpellLabel(22812));env.click('save-rule')
+saved=nil;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.defensive then saved=v end end end
+assert(saved.defensive.spell==22812 and saved.alert.text=='Tank Hit'and ns.Validate(ns.Active()),'one spell of the set, alert kept')
+env.shown={};ns.ShowAbilityAlert(saved);ns.RenderDefensive(saved);assert(env.shown[1]and env.shown[1].type=='ability'and env.shown[2]and env.shown[2].spellID==22812,'one fire shows the text alert and the chosen defensive')
 env.click('tab:timeline');ns.UIState.tlSpan=600;ns.UIState.tlStart=0;env.click('tab:timeline')
 local ok,bad=0,0
 for k,c in pairs(ns.UIControls)do if k:match('^tl%-cd:')then if c.label and c.label:GetText()=='!'then bad=bad+1 else ok=ok+1 end end end

@@ -245,12 +245,12 @@ end
 -- Adds the look fields from the reminder editor to a display table. previous is the saved display, if any.
 function ns.ApplyLook(display,form,previous)
     previous=previous or{}
-    local timed=display.type=="bar"or display.type=="circle"
+    local timed=display.type=="bar"or display.type=="circle"or display.type=="ability"
     if form.showTimer~=nil then
         if timed then display.hideTimer=not form.showTimer or nil elseif display.type~="chat"then display.countdown=form.showTimer or nil end
     end
     local sticky=form.sticky;if sticky~=nil and not tostring(sticky):match("^%s*$")then sticky=Number(sticky,"sticky seconds",0,60);display.sticky=sticky>0 and sticky or nil end
-    if display.type=="bar"then display.ticks=ns.ParseTicks(form.ticks);display.barColor=LookColor(form.barColor,previous.barColor)end
+    if display.type=="bar"or display.type=="ability"and display.style=="bar"then display.ticks=ns.ParseTicks(form.ticks);display.barColor=LookColor(form.barColor,previous.barColor)end
     if display.type~="chat"then display.textColor=LookColor(form.textColor,previous.textColor)end
     if form.hideOnUse~=nil then display.hideOnUse=(form.hideOnUse==true and display.spellID~=nil)or nil end
     if form.voiceCountdown~=nil then local v=tonumber(form.voiceCountdown)or 0;assert(v>=0 and v<=10,"Choose a spoken countdown");display.voiceCountdown=v>0 and v or nil end
@@ -281,10 +281,14 @@ function ns.SaveRule(ctx,form,reference)
         local sets=ns.Get(data.scopePresets[scope],spec)or{};local dynamic=form.action=="defensive"
         if dynamic then assert(sets[form.preset],"Create or choose a defensive set for this content and specialization")end
         local duration=Number(form.duration or 4,"duration",0.1,120);local lead=Number(form.leadTime or 2,"lead time",0,120)
-        local display={type=dynamic and"icon"or(form.action or"text"),text=tostring(form.text or""),dur=duration,sound=tostring(form.sound or""),tts=form.tts==true}
+        -- "none" on a boss ability: the reminder is only its text alert (ability icon and text, own anchor).
+        local alertOnly=form.action=="none"
+        if alertOnly then assert(form.alertOn,"Turn on the text alert or choose an action");form.abilityStyle=form.alertStyle;form.text=tostring(form.alertText or"")end
+        local display={type=dynamic and"icon"or alertOnly and"ability"or(form.action or"text"),text=tostring(form.text or""),dur=duration,sound=tostring(form.sound or""),tts=form.tts==true}
         if display.type=="icon"and not dynamic then display.spellID=Integer(form.displaySpellID,"display spell ID")end
         -- Bars and circles take an optional custom icon; blank uses the mechanic's own icon.
-        if(display.type=="bar"or display.type=="circle")then local id=tostring(form.displaySpellID or""):match("^%s*(.-)%s*$");display.spellID=id~=""and Integer(id,"display spell ID")or ctx.spell end
+        if display.type=="ability"then display.style=(form.abilityStyle=="text"or form.abilityStyle=="bar")and form.abilityStyle or nil end
+        if(display.type=="bar"or display.type=="circle"or display.type=="ability")then local id=tostring(form.displaySpellID or""):match("^%s*(.-)%s*$");display.spellID=id~=""and Integer(id,"display spell ID")or ctx.spell end
         if display.type=="raidframeGlow"then display.glowTarget=Name(form.glowTarget)end
         local previous=reference and reference.section~="abilityBindings"and type(reference.entry.display)=="table"and reference.entry.display
         -- Extra raid-frame glows (NSRT glowunit) are kept across edits when the editor did not show them.
@@ -327,7 +331,15 @@ function ns.SaveRule(ctx,form,reference)
             local diff=scope=="mythic"and 8 or Integer(ctx.difficulty,"raid difficulty");assert(diff==8 or diff==15 or diff==16,"Choose Mythic+, Heroic or Mythic")
             local entry=ns.Clone(reference and reference.section=="raidReminders"and reference.entry or{});entry.name=Name(form.name);entry.enabled=form.enabled~=false;entry.content=scope;entry.trigger=trigger;entry.target=target;entry.display=display
             entry.difficulties=form.preserveDifficulties and entry.difficulties or{[diff]=true}
-            entry.defensive=dynamic and{specID=spec,preset=form.preset,scope=scope}or nil;entry.catalog={npcID=ctx.npc,groupId=ctx.group,abilityID=trigger.spellID or ctx.spell}
+            -- A defensive can name one spell of the set instead of the first ready one by priority.
+            local defSpell=tostring(form.defSpell or""):match("^%s*(.-)%s*$")
+            entry.defensive=dynamic and{specID=spec,preset=form.preset,scope=scope,spell=defSpell~=""and Integer(defSpell,"defensive spell ID")or nil}or nil
+            -- Boss ability alert shown next to the reminder, on its own anchor.
+            if form.alertOn and display.type~="ability"then
+                local text=tostring(form.alertText or""):match("^%s*(.-)%s*$");assert(#text<=200,"Alert text is at most 200 characters")
+                entry.alert={text=text~=""and text or nil,style=(form.alertStyle=="text"or form.alertStyle=="bar")and form.alertStyle or nil}
+            elseif form.alertOn~=nil then entry.alert=nil end
+            entry.catalog={npcID=ctx.npc,groupId=ctx.group,abilityID=trigger.spellID or ctx.spell}
             data.raidReminders=data.raidReminders or{};data.raidReminders[encounter]=ns.Get(data.raidReminders,encounter)or{};data.raidReminders[encounter][key]=entry
             if reference and reference.section=="abilityBindings"then ns.Get(ns.Get(data.abilityBindings,spec),encounter)[ctx.spell]=nil end
         end
