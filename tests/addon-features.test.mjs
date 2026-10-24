@@ -381,17 +381,17 @@ local key;for k in pairs(ns.UIControls)do if k=='tl-ability:2'then key=k end end
 assert(ns.UIState.tlPick and ns.UIControls['tl-pick-note']and ns.UIControls['tl-pick-defensive'],'cast picker')
 local pick=ns.UIState.tlPick
 env.click('tl-pick-note');assert(ns.UIState.tab=='raid'and ns.UIState.ability==pick.spell,'ability opened on the Raids page')
-assert(ns.UIState.form.action=='ability'and ns.UIState.form.counter==tostring(pick.cast),'note for this cast')
-env.input('rule:text','Stack in middle');env.click('save-rule')
+assert(ns.UIState.form.action=='none'and ns.UIState.form.alertOn and ns.UIState.form.counter==tostring(pick.cast),'note for this cast: the text alert only')
+env.input('rule:alertText','Stack in middle');env.click('save-rule')
 local found;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.display and v.display.text=='Stack in middle'then found=v end end end
 assert(found and found.trigger.spellID==pick.spell and found.trigger.counterGroups[1][1].value==pick.cast,'note bound to the boss ability and cast')
 assert(found.display.type=='ability'and found.display.spellID==pick.spell and found.display.style==nil and found.display.hideTimer==nil,'a boss ability alert with the ability icon and seconds left')
 assert(ns.MinimumAddon(ns.Active().data)=='0.7.3')
 -- The same alert as a bar with a timer, or as text only.
-env.select('rule:abilityStyle','Bar with timer');env.click('save-rule')
+env.select('rule:alertStyle','Bar with timer');env.click('save-rule')
 found=nil;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.display and v.display.text=='Stack in middle'then found=v end end end
 assert(found.display.style=='bar'and ns.Validate(ns.Active()),'bar style saved')
-env.select('rule:abilityStyle','Text only');env.click('save-rule')
+env.select('rule:alertStyle','Text only');env.click('save-rule')
 found=nil;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.display and v.display.text=='Stack in middle'then found=v end end end
 assert(found.display.style=='text','text style saved')
 `));
@@ -415,7 +415,7 @@ ns.TimelineZoom(1);assert(s.tlSpan==120)
 `));
 test('a simulated pull plays the boss timeline through the reminders outside combat',()=>run(`
 env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2')
-local pick=ns.UIState.tlPick;env.click('tl-pick-note');env.input('rule:text','Stack in middle');env.click('save-rule')
+local pick=ns.UIState.tlPick;env.click('tl-pick-note');env.input('rule:alertText','Stack in middle');env.click('save-rule')
 env.click('tab:timeline');env.click('tl-simulate');assert(ns.Simulating(),'simulation running')
 assert(ns.UIControls['tl-simulate'],'stop button')
 local before=#env.shown;for _=1,math.ceil(pick.at)+1 do env.advance(1)end
@@ -431,9 +431,15 @@ assert(ns.UIState.form.alertOn,'a defensive on a boss ability offers the ability
 env.select('rule:preset','Raid');env.input('rule:counter','');env.input('rule:alertText','Tank Hit');env.click('save-rule')
 -- NSR pair: the defensive call and, separately, the boss ability with the text on its own anchor.
 local saved;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.defensive then saved=v end end end
-assert(saved and saved.alert and saved.alert.text=='Tank Hit'and saved.alert.style==nil and ns.Validate(ns.Active())and ns.MinimumAddon(ns.Active().data)=='0.7.3','alert saved with the defensive')
+assert(saved and saved.defensive.spell==nil and saved.alert and saved.alert.text=='Tank Hit'and saved.alert.style==nil and ns.Validate(ns.Active())and ns.MinimumAddon(ns.Active().data)=='0.7.3','alert saved with the defensive')
 env.shown={};ns.ShowAbilityAlert(saved);local al=env.shown[1]
 assert(al and al.type=='ability'and al.text=='Tank Hit'and al.spellID==saved.trigger.spellID and al.small and al.tts==false,'alert goes to the ability anchor with a small icon')
+-- Both blocks at once, and the defensive bound to one spell of the set instead of the priority.
+assert(ns.UIControls['rule:alertOn']and ns.UIControls['rule:defSpell'],'text alert and personal defensive are shown together')
+env.select('rule:defSpell',ns.SpellLabel(22812));env.click('save-rule')
+saved=nil;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.defensive then saved=v end end end
+assert(saved.defensive.spell==22812 and saved.alert.text=='Tank Hit'and ns.Validate(ns.Active()),'one spell of the set, alert kept')
+env.shown={};ns.ShowAbilityAlert(saved);ns.RenderDefensive(saved);assert(env.shown[1]and env.shown[1].type=='ability'and env.shown[2]and env.shown[2].spellID==22812,'one fire shows the text alert and the chosen defensive')
 env.click('tab:timeline');ns.UIState.tlSpan=600;ns.UIState.tlStart=0;env.click('tab:timeline')
 local ok,bad=0,0
 for k,c in pairs(ns.UIControls)do if k:match('^tl%-cd:')then if c.label and c.label:GetText()=='!'then bad=bad+1 else ok=ok+1 end end end

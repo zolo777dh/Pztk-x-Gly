@@ -169,7 +169,7 @@ function ns.Validate(profile)
             if not Scope(entry.content)then return false end
             if entry.defensive~=nil then
                 local d=entry.defensive
-                if type(d)~="table"or not Scope(d.scope)or type(d.preset)~="string"or not ID(d.specID)then return false end
+                if type(d)~="table"or not Scope(d.scope)or type(d.preset)~="string"or not ID(d.specID)or(d.spell~=nil and not ID(d.spell))then return false end
             end
             if trigger.counterGroups~=nil then
                 if type(trigger.counterGroups)~="table"then return false end
@@ -224,7 +224,7 @@ function ns.MinimumAddon(data)
     local need="0.3.0"
     -- Boss ability alerts are shown only from 0.7.3.
     for _,entries in pairs(type(data)=="table"and type(data.raidReminders)=="table"and data.raidReminders or{})do
-        for _,e in pairs(type(entries)=="table"and entries or{})do if type(e)=="table"and(e.alert~=nil or type(e.display)=="table"and e.display.type=="ability")then return "0.7.3"end end
+        for _,e in pairs(type(entries)=="table"and entries or{})do if type(e)=="table"and(e.alert~=nil or type(e.display)=="table"and e.display.type=="ability"or type(e.defensive)=="table"and e.defensive.spell~=nil)then return "0.7.3"end end
     end
     for _,entries in pairs(type(data)=="table"and type(data.raidReminders)=="table"and data.raidReminders or{})do
         for _,e in pairs(type(entries)=="table"and entries or{})do

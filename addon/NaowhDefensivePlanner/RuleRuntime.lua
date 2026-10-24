@@ -99,7 +99,7 @@ function ns.RenderDefensive(binding, trash)
         if ns.Display then ns.Display(custom)end;return
     end
     if ns.Covered(preset)then return end
-    local spells=ns.Pick(preset)
+    local spells=dynamic and dynamic.spell and{dynamic.spell}or ns.Pick(preset)
     if #spells==0 then
         local external=binding.external==true or(settings.fallbackOn==true and binding.external~=false)
         if external then ns.CallExternal()end

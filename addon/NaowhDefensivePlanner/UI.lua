@@ -308,6 +308,9 @@ local function InitialForm(ctx,reference)
     local prefillCounter=not reference and state.newCounter;local prefillAction=not reference and state.newAction;state.newCounter=nil;state.newAction=nil
     local dynamic=e.defensive
     local action=dynamic and"defensive"or reference and reference.section=="raidReminders"and(d.type or"text")or prefillAction or"defensive"
+    -- On a boss ability the text alert is its own block; a reminder that is only that alert has no other action.
+    local alertOnly=ctx.spell~=nil and action=="ability"
+    if alertOnly then action="none"end
     local recipient="everyone";local player,role
     local tg=type(e.target)=="table"and e.target or{}
     local targetGroups=(function()local o={};for g in pairs(tg.subgroups or{})do o[#o+1]=tostring(g)end;table.sort(o);return table.concat(o,",")end)()
@@ -329,9 +332,9 @@ local function InitialForm(ctx,reference)
         elseif e.target.names then recipient="player";player=next(e.target.names)
         elseif not e.target.all then recipient="preserve"end
     end
-    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,percent=t.percent or 50,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=((d.type or action)=="bar"or(d.type or action)=="circle"or(d.type or action)=="ability")and d.hideTimer~=true or d.countdown==true,abilityStyle=d.style or"icon",alertOn=e.alert~=nil or(not reference and ctx.spell~=nil and ctx.kind~="trash"and action=="defensive"),alertText=e.alert and e.alert.text or"",alertStyle=e.alert and e.alert.style or"icon",sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
+    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,percent=t.percent or 50,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=((d.type or action)=="bar"or(d.type or action)=="circle"or(d.type or action)=="ability"or action=="none")and d.hideTimer~=true or d.countdown==true,abilityStyle=d.style or"icon",alertOn=alertOnly or e.alert~=nil or(not reference and ctx.spell~=nil and ctx.kind~="trash"and action=="defensive"),alertText=alertOnly and(d.text or"")or e.alert and e.alert.text or"",alertStyle=alertOnly and d.style or e.alert and e.alert.style or"icon",defSpell=dynamic and dynamic.spell and tostring(dynamic.spell)or"",sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
 end
-local actionLabels={defensive="Defensive priority set",ability="Boss ability alert",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
+local actionLabels={defensive="Personal defensive",none="Nothing else (text alert only)",ability="Boss ability alert",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
 local roleLabels={TANK="Tank",HEALER="Healer",DAMAGER="Damage"}
 -- One plain sentence describing what the reminder will do.
 local function Summary(ctx,form)
@@ -424,28 +427,37 @@ local function DrawInspector(parent,ctx,rules)
         if form.recipient=="noteslot"then field("NOTE LINE TAG · E.G. Soak","noteTag",186);field("POSITION","noteIndex",186,204);cy=cy+54 end
         if form.recipient=="position"then if form.role~="MELEE"and form.role~="RANGED"then form.role="MELEE"end;select("POSITION","role",{{value="MELEE",label="Melee"},{value="RANGED",label="Ranged"}});cy=cy+54 end
     end
-    heading("SHOW")
+    -- On a boss ability, like NSR: the text alert (ability icon and your text, own anchor) and the
+    -- personal defensive (whole set by priority, or one spell of it) are two blocks, both can be on.
+    local mechanic=ctx.spell~=nil and ctx.kind~="trash"
+    if mechanic then
+        heading("TEXT ALERT · OWN ANCHOR")
+        W.Toggle(content,"Show the boss ability with my text",form.alertOn,6,cy,384,function(v)collect();form.alertOn=v;Refresh()end,"rule:alertOn");cy=cy+32
+        if form.alertOn then
+            field("TEXT · E.G. TANK HIT · BLANK = ABILITY NAME","alertText");cy=cy+54
+            select("STYLE","alertStyle",{{value="icon",label="Icon and text"},{value="text",label="Text only"},{value="bar",label="Bar with timer"}});cy=cy+54
+        end
+    end
+    heading(mechanic and"PERSONAL DEFENSIVE AND OTHER ACTIONS"or"SHOW")
     if ctx.kind~="trash"then
-        local actions={};for _,k in ipairs({"defensive","ability","icon","text","bar","circle","chat","raidframeGlow"})do actions[#actions+1]={value=k,label=actionLabels[k]}end
+        local actions={};for _,k in ipairs(mechanic and{"defensive","none","icon","text","bar","circle","chat","raidframeGlow"}or{"defensive","ability","icon","text","bar","circle","chat","raidframeGlow"})do actions[#actions+1]={value=k,label=actionLabels[k]}end
         select("ACTION","action",actions);cy=cy+54
     end
     if form.action=="defensive"then
-        local sets=rowsOptions(ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec));table.insert(sets,1,{value="",label="Choose defensive set..."});select("DEFENSIVE SET","preset",sets);cy=cy+54
+        local all=ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec)
+        local sets=rowsOptions(all);table.insert(sets,1,{value="",label="Choose defensive set..."});select("DEFENSIVE SET","preset",sets,186);
+        -- One spell of the set instead of the first ready one by priority.
+        local spells={{value="",label="Priority: first ready"}};local chosen=all and all[form.preset]
+        for _,id in ipairs(chosen and chosen.list or{})do spells[#spells+1]={value=tostring(id),label=name(id)}end
+        if form.defSpell~=""then local known=false;for _,o in ipairs(spells)do if o.value==form.defSpell then known=true end end;if not known then spells[#spells+1]={value=form.defSpell,label=name(tonumber(form.defSpell))}end end
+        select("SPELL","defSpell",spells,186,204);cy=cy+54
     elseif form.action=="icon"then field("DISPLAY SPELL ID","displaySpellID");cy=cy+54
     elseif form.action=="bar"or form.action=="circle"then field("ICON SPELL ID · BLANK USES THE MECHANIC","displaySpellID");cy=cy+54
     elseif form.action=="ability"then
         -- Shown on its own anchor (Display > Unlock anchor), like NSRT: text only, icon and text, or a bar with a timer.
         select("STYLE","abilityStyle",{{value="icon",label="Icon and text"},{value="text",label="Text only"},{value="bar",label="Bar with timer"}},186);field("ICON SPELL ID · BLANK = ABILITY","displaySpellID",186,204);cy=cy+54
     end
-    -- NSR-style pair: the boss ability with your text on its own anchor, next to the defensive call.
-    if ctx.spell and ctx.kind~="trash"and form.action~="ability"then
-        W.Toggle(content,"Also show the boss ability and my text (own anchor)",form.alertOn,6,cy,384,function(v)collect();form.alertOn=v;Refresh()end,"rule:alertOn");cy=cy+32
-        if form.alertOn then
-            field("ALERT TEXT · E.G. TANK HIT · BLANK = ABILITY NAME","alertText");cy=cy+54
-            select("ALERT STYLE","alertStyle",{{value="icon",label="Icon and text"},{value="text",label="Text only"},{value="bar",label="Bar with timer"}});cy=cy+54
-        end
-    end
-    field("TEXT · BLANK USES THE SPELL NAME","text");cy=cy+54
+    if form.action~="none"then field("TEXT · BLANK USES THE SPELL NAME","text");cy=cy+54 end
     local sounds={{value="",label="None"},{value="voice:use-a-defensive",label="Say: Use a defensive"},{value="voice:move-out",label="Say: Move out"},{value="voice:dispel-me",label="Say: Dispel me"},{value="sound:567397",label="Raid warning sound"}}
     local known=false;for _,o in ipairs(sounds)do if o.value==form.sound then known=true end end
     if not known then sounds[#sounds+1]={value=form.sound,label="Imported sound"}end
@@ -460,9 +472,9 @@ local function DrawInspector(parent,ctx,rules)
             return o
         end
         select("TEXT COLOUR","textColor",colors("textColor"),186);field("STAY AFTER TIMER (S)","sticky",186,204);cy=cy+54
-        if form.action=="bar"or form.action=="ability"and form.abilityStyle=="bar"then select("BAR COLOUR","barColor",colors("barColor"),186);field("TICKS (S LEFT) · E.G. 5, 10","ticks",186,204);cy=cy+54 end
+        if form.action=="bar"or form.action=="ability"and form.abilityStyle=="bar"or form.action=="none"and form.alertOn and form.alertStyle=="bar"then select("BAR COLOUR","barColor",colors("barColor"),186);field("TICKS (S LEFT) · E.G. 5, 10","ticks",186,204);cy=cy+54 end
         if form.action~="raidframeGlow"then
-            W.Toggle(content,(form.action=="bar"or form.action=="circle"or form.action=="ability")and"Show seconds left"or"Show seconds left after the text",form.showTimer,6,cy,384,function(v)form.showTimer=v end,"rule:showTimer");cy=cy+32
+            W.Toggle(content,(form.action=="bar"or form.action=="circle"or form.action=="ability"or form.action=="none")and"Show seconds left"or"Show seconds left after the text",form.showTimer,6,cy,384,function(v)form.showTimer=v end,"rule:showTimer");cy=cy+32
             select("SPOKEN COUNTDOWN","voiceCountdown",{{value=0,label="Off"},{value=3,label="Last 3 seconds"},{value=5,label="Last 5 seconds"}},186);cy=cy+54
         end
         if form.action=="icon"or form.action=="bar"or form.action=="circle"then
@@ -479,8 +491,8 @@ local function DrawInspector(parent,ctx,rules)
     end
     content:SetHeight(cy+8)
     W.Button(p,L("Test"),12,462,76,function()collect();local spell=tonumber(form.displaySpellID);if form.action=="defensive"then local preset=ns.ScopePresets(ns.Active(),ctx.scope,ctx.spec)[form.preset];spell=preset and preset.list[1]end;local preview={type=spell and"icon"or"text",spellID=spell,text=form.text~=""and form.text or"Reminder preview",dur=tonumber(form.duration)or 4,sound=form.sound,tts=form.tts}
-        if form.action~="defensive"and form.action~="chat"and form.action~="raidframeGlow"then preview.type=form.action;if form.action=="ability"and form.abilityStyle~="icon"then preview.style=form.abilityStyle end;preview.spellID=spell or(form.action~="text"and ctx.spell)or nil;local ok,error=pcall(ns.ApplyLook,preview,form,state.reference and state.reference.entry.display);if not ok then return notify(tostring(error):gsub("^.-:%d+: ",""),true)end end
-        if form.alertOn and form.action~="ability"and ctx.spell then ns.Display({type="ability",spellID=ctx.spell,text=form.alertText~=""and form.alertText or nil,style=form.alertStyle~="icon"and form.alertStyle or nil,dur=tonumber(form.leadTime)or 3,small=true,tts=false})end
+        if form.action~="defensive"and form.action~="chat"and form.action~="raidframeGlow"then preview.type=form.action;if form.action=="ability"and form.abilityStyle~="icon"then preview.style=form.abilityStyle end;if form.action=="none"then preview.type="ability";preview.spellID=ctx.spell;preview.text=form.alertText~=""and form.alertText or nil;preview.style=form.alertStyle~="icon"and form.alertStyle or nil end;preview.spellID=spell or(form.action~="text"and ctx.spell)or nil;local ok,error=pcall(ns.ApplyLook,preview,form,state.reference and state.reference.entry.display);if not ok then return notify(tostring(error):gsub("^.-:%d+: ",""),true)end end
+        if form.alertOn and form.action~="ability"and form.action~="none"and ctx.spell then ns.Display({type="ability",spellID=ctx.spell,text=form.alertText~=""and form.alertText or nil,style=form.alertStyle~="icon"and form.alertStyle or nil,dur=tonumber(form.leadTime)or 3,small=true,tts=false})end
         ns.Display(preview);notify("Display preview; verify the mechanic in game")end,false,"test-rule",{align="CENTER"})
     W.Button(p,L("Delete"),96,462,86,function()local a,b=ns.DeleteRule(ctx,state.reference);if a then state.ruleDrafts[ruleKey(ctx,state.ruleKey)]=nil;state.reference=nil;state.ruleKey="new";state.form=InitialForm(ctx)end;done(a,b,"Reminder deleted")end,false,"delete-rule",{kind="danger",align="CENTER"})
     W.Button(p,L("Save reminder"),258,462,170,function()collect();local key,error=ns.SaveRule(ctx,form,state.reference);if key then state.ruleDrafts[ruleKey(ctx,state.ruleKey)]=nil;state.ruleDrafts[ruleKey(ctx,key)]=nil;state.ruleKey=key;state.form=nil end;done(key,error,"Reminder saved")end,true,"save-rule",{kind="primary",align="CENTER"})

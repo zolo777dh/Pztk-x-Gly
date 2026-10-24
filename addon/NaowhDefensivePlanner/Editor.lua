@@ -281,7 +281,10 @@ function ns.SaveRule(ctx,form,reference)
         local sets=ns.Get(data.scopePresets[scope],spec)or{};local dynamic=form.action=="defensive"
         if dynamic then assert(sets[form.preset],"Create or choose a defensive set for this content and specialization")end
         local duration=Number(form.duration or 4,"duration",0.1,120);local lead=Number(form.leadTime or 2,"lead time",0,120)
-        local display={type=dynamic and"icon"or(form.action or"text"),text=tostring(form.text or""),dur=duration,sound=tostring(form.sound or""),tts=form.tts==true}
+        -- "none" on a boss ability: the reminder is only its text alert (ability icon and text, own anchor).
+        local alertOnly=form.action=="none"
+        if alertOnly then assert(form.alertOn,"Turn on the text alert or choose an action");form.abilityStyle=form.alertStyle;form.text=tostring(form.alertText or"")end
+        local display={type=dynamic and"icon"or alertOnly and"ability"or(form.action or"text"),text=tostring(form.text or""),dur=duration,sound=tostring(form.sound or""),tts=form.tts==true}
         if display.type=="icon"and not dynamic then display.spellID=Integer(form.displaySpellID,"display spell ID")end
         -- Bars and circles take an optional custom icon; blank uses the mechanic's own icon.
         if display.type=="ability"then display.style=(form.abilityStyle=="text"or form.abilityStyle=="bar")and form.abilityStyle or nil end
@@ -328,7 +331,9 @@ function ns.SaveRule(ctx,form,reference)
             local diff=scope=="mythic"and 8 or Integer(ctx.difficulty,"raid difficulty");assert(diff==8 or diff==15 or diff==16,"Choose Mythic+, Heroic or Mythic")
             local entry=ns.Clone(reference and reference.section=="raidReminders"and reference.entry or{});entry.name=Name(form.name);entry.enabled=form.enabled~=false;entry.content=scope;entry.trigger=trigger;entry.target=target;entry.display=display
             entry.difficulties=form.preserveDifficulties and entry.difficulties or{[diff]=true}
-            entry.defensive=dynamic and{specID=spec,preset=form.preset,scope=scope}or nil
+            -- A defensive can name one spell of the set instead of the first ready one by priority.
+            local defSpell=tostring(form.defSpell or""):match("^%s*(.-)%s*$")
+            entry.defensive=dynamic and{specID=spec,preset=form.preset,scope=scope,spell=defSpell~=""and Integer(defSpell,"defensive spell ID")or nil}or nil
             -- Boss ability alert shown next to the reminder, on its own anchor.
             if form.alertOn and display.type~="ability"then
                 local text=tostring(form.alertText or""):match("^%s*(.-)%s*$");assert(#text<=200,"Alert text is at most 200 characters")
