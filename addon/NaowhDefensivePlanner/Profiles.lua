@@ -174,7 +174,9 @@ function ns.Validate(profile)
                     end
                 end
             end
-            if trigger.type ~= "pull" and trigger.type ~= "prepull" and trigger.type ~= "stage" and trigger.type ~= "bwtimer" and trigger.type ~= "bwmsg" then return false end
+            if trigger.type ~= "pull" and trigger.type ~= "prepull" and trigger.type ~= "stage" and trigger.type ~= "bwtimer" and trigger.type ~= "bwmsg" and trigger.type ~= "bosshp" and trigger.type ~= "aura" then return false end
+            if trigger.type=="bosshp"and not Number(trigger.percent,1,99)then return false end
+            if trigger.type=="aura"and not ID(trigger.spellID)then return false end
             if trigger.type=="prepull"and not Number(trigger.delay,0.1,3600)then return false end
             if not Number(trigger.delay,0,7200,true)or not Number(trigger.leadTime,0,120,true)or not Number(trigger.stage,0.01,100,true)then return false end
             if (trigger.type=="bwtimer"or trigger.type=="bwmsg")and not ID(trigger.spellID)then return false end
@@ -214,9 +216,11 @@ function ns.MinimumAddon(data)
     for _,entries in pairs(type(data)=="table"and type(data.raidReminders)=="table"and data.raidReminders or{})do
         for _,e in pairs(type(entries)=="table"and entries or{})do
             -- Rotations and note slots are read only from 0.7.0; older addons would show them to everyone.
-            if type(e)=="table"and type(e.target)=="table"and(e.target.rotation~=nil or e.target.noteSlot~=nil)then return "0.7.0"end
-            if type(e)=="table"and type(e.display)=="table"and(e.display.hideOnUse~=nil or e.display.voiceCountdown~=nil)then need="0.6.7"end
-            if type(e)=="table"and type(e.display)=="table"and need~="0.6.7"then for _,key in ipairs(lookKeys)do if e.display[key]~=nil then need="0.6.5"end end end
+            -- Boss health and aura triggers are read only from 0.7.1.
+            if type(e)=="table"and type(e.trigger)=="table"and(e.trigger.type=="bosshp"or e.trigger.type=="aura")then return "0.7.1"end
+            if type(e)=="table"and type(e.target)=="table"and(e.target.rotation~=nil or e.target.noteSlot~=nil)then need="0.7.0"end
+            if need~="0.7.0"and type(e)=="table"and type(e.display)=="table"and(e.display.hideOnUse~=nil or e.display.voiceCountdown~=nil)then need="0.6.7"end
+            if type(e)=="table"and type(e.display)=="table"and need~="0.6.7"and need~="0.7.0"then for _,key in ipairs(lookKeys)do if e.display[key]~=nil then need="0.6.5"end end end
             if need=="0.3.0"and type(e)=="table"and(type(e.trigger)=="table"and e.trigger.type=="prepull"or type(e.display)=="table"and(e.display.glowTargets~=nil or e.display.glowColor~=nil))then need="0.3.3"end
         end
     end
@@ -348,7 +352,7 @@ function ns.ExportActive()
 end
 -- One boss of the active profile: its reminders, ability bindings of every spec and the sets they
 -- use. Importing it replaces that boss in the receiver's active profile.
-function ns.ExportBoss(encounter,label)
+local function BossPart(encounter,label)
     local profile=ns.Active();if not profile then return nil,"No active profile"end
     encounter=tonumber(encounter);if not encounter then return nil,"Choose a boss"end
     local d=profile.data;local part={format=profile.format,addon=profile.addon,client=profile.client,minimumAddon=profile.minimumAddon,name=tostring(profile.name).." · "..tostring(label or encounter),part={encounter=encounter},data={}}
@@ -359,5 +363,35 @@ function ns.ExportBoss(encounter,label)
     if not next(part.data.raidReminders[encounter])and not next(part.data.abilityBindings)then return nil,"Nothing planned on this boss yet"end
     -- Older versions would add a boss string as a whole profile, so it needs 0.7.0.
     local need=ns.MinimumAddon(part.data);part.minimumAddon=Newer("0.7.0",need)and"0.7.0"or need
+    return part
+end
+function ns.ExportBoss(encounter,label)
+    local part,err=BossPart(encounter,label);if not part then return nil,err end
     return ns.Encode(part)
+end
+-- Templates: named copies of one boss plan (e.g. "Prog" and "Farm"), kept per game client.
+-- Applying one replaces that boss in the active profile, with a History snapshot first.
+function ns.Templates(encounter)
+    local out={};for i,t in ipairs(ns.Store().templates or{})do if t.client==ns.Client()and(not encounter or t.encounter==tonumber(encounter))then out[#out+1]={index=i,name=t.name,encounter=t.encounter,time=t.time}end end
+    return out
+end
+function ns.SaveTemplate(encounter,name,label)
+    name=type(name)=="string"and name:match("^%s*(.-)%s*$")or"";if name==""or #name>60 then return nil,"Enter a template name (up to 60 characters)"end
+    local part,err=BossPart(encounter,label);if not part then return nil,err end
+    local store=ns.Store();store.templates=store.templates or{}
+    local list=store.templates;local slot
+    for i,t in ipairs(list)do if t.client==ns.Client()and t.encounter==part.part.encounter and t.name==name then slot=i end end
+    if not slot then local n=0;for _,t in ipairs(list)do if t.client==ns.Client()then n=n+1 end end;if n>=50 then return nil,"Delete a template first (50 per client)"end;slot=#list+1 end
+    list[slot]={name=name,client=ns.Client(),encounter=part.part.encounter,time=time and time()or 0,part=part}
+    return name
+end
+function ns.ApplyTemplate(index)
+    if (InCombatLockdown and InCombatLockdown())or ns.encounter then return nil,"Apply after combat and the encounter"end
+    local t=(ns.Store().templates or{})[index];if not t or t.client~=ns.Client()then return nil,"Template not found"end
+    local name,err=ImportPart(ns.Clone(t.part));if not name then return nil,err end
+    ns.Reset();return t.name
+end
+function ns.DeleteTemplate(index)
+    local list=ns.Store().templates or{};local t=list[index];if not t or t.client~=ns.Client()then return nil,"Template not found"end
+    table.remove(list,index);return t.name
 end

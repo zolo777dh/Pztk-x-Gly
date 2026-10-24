@@ -298,10 +298,13 @@ function ns.SaveRule(ctx,form,reference)
             local e=ns.Clone(old);e.name=Name(form.name);e.enabled=form.enabled~=false;e.content="mythic";e.preset=form.preset;e.display=display;e.difficulties={[8]=true};e.trigger={type="exboss",mapID=map,spellID=spell,timeleft=lead};e.catalog={npcID=ctx.npc,groupId=ctx.group}
             data.integrationRules[spec][key]=e
         else
-            local encounter=Integer(ctx.encounter,"encounter ID");local triggerType=form.trigger or"bwtimer";assert(({pull=true,prepull=true,stage=true,bwtimer=true,bwmsg=true})[triggerType],"Choose a trigger")
+            local encounter=Integer(ctx.encounter,"encounter ID");local triggerType=form.trigger or"bwtimer";assert(({pull=true,prepull=true,stage=true,bwtimer=true,bwmsg=true,bosshp=true,aura=true})[triggerType],"Choose a trigger")
             if scope=="mythic"then assert(triggerType=="bwtimer"or triggerType=="bwmsg","M+ reminders bind to a mechanic")end
             local trigger={type=triggerType,leadTime=lead,delay=triggerType=="prepull"and Number(form.delay,"seconds before pull",0.1,3600)or Number(form.delay or 0,"delay",0,7200),counterGroups=ns.ParseCounter(form.counter)}
             if triggerType=="stage"then trigger.stage=Number(form.phase or 1,"phase",1,100)end
+            -- Game-state triggers fire once per pull: boss health below a percent, an aura landing on you.
+            if triggerType=="bosshp"then trigger={type="bosshp",percent=Number(form.percent,"boss health %",1,99)}end
+            if triggerType=="aura"then trigger={type="aura",spellID=Integer(form.triggerSpell,"aura spell ID")}end
             local spell=ctx.spell or tonumber(form.triggerSpell)
             if triggerType=="bwtimer"or triggerType=="bwmsg"then trigger.spellID=Integer(spell,"boss ability spell ID")end
             local target

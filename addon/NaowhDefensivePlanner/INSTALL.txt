@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.7.0 — in-game editor and reminder engine
+Naowh Defensive Planner 0.7.1 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -182,6 +182,15 @@ Cooldowns lane: which spell of each planned defensive set will be ready at each 
 from cooldowns, charges and the set priority; a red ! marks a call with nothing ready.
 Recipients also include Rotation by cast (names in order, or note:Tag to read the note
 line "Tag: name name"), Position in a note line, Raid group and Class.
+Boss health below: fires once per pull when a boss drops under the percent you set.
+Aura on me: fires each time an aura with that spell ID lands on you. Health or auras
+the game hides read as unknown, and the reminder stays quiet.
+Abilities no boss mod announces fire their bound reminders at the expected times,
+until a boss mod announces them for real.
+Last pull lane (Timeline): your casts of set spells on the last pull, and a red x on
+each defensive call with no matching cast within 8 seconds. Raid / Mine switches
+between the whole plan and only your reminders. Templates save named versions of a
+boss plan (e.g. Prog, Farm); Apply replaces the plan and keeps the old one in History.
 Import modes (Profiles): Add as new, Merge into the profile of the same name, or
 Replace it. Export boss (Timeline) makes a string with only that boss; importing it
 replaces only that boss in your active profile. History keeps the last 10 versions

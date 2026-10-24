@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.7.0"
+ns.version = "0.7.1"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -159,10 +159,11 @@ function ns.Fire(entry, display, occurrence)
     if ns.Display then ns.Display(display or entry.display or {}) end
 end
 function ns.Reset()
-    ns.Cancel(); ns.generation = ns.generation + 1; ns.occurrences = {}; ns.encounter = nil; ns.phase = nil; ns.simulation = nil
+    ns.Cancel(); ns.generation = ns.generation + 1; ns.occurrences = {}; ns.encounter = nil; ns.phase = nil; ns.simulation = nil; ns.expectedFallback = nil
     if ns.ResetProviders then ns.ResetProviders() end
     if ns.SuspendAuraSounds then ns.SuspendAuraSounds()end
     if ns.HideDisplays then ns.HideDisplays() end
+    if ns.StopStateTriggers then ns.StopStateTriggers() end
 end
 -- Reminders of an encounter: the profile's, plus timers read from the active notes for this pull.
 ns.noteEntries = {}
@@ -197,6 +198,9 @@ function ns.Begin(encounter, difficulty, map)
     ns.Anchor("pull"); ns.Anchor("stage", 1)
     if ns.ReplayProviderTimers then ns.ReplayProviderTimers(firstBars) end
     if ns.StartBuiltinTimers then ns.StartBuiltinTimers() end
+    if ns.StartStateTriggers then ns.StartStateTriggers() end
+    if ns.StartExpectedFallback then ns.StartExpectedFallback() end
+    if ns.StartPullLog then ns.StartPullLog() end
 end
 -- Pre-pull reminders run before ENCOUNTER_START, so the encounter comes from the
 -- Encounter Journal pins on the player's map: only bosses this profile plans
@@ -377,6 +381,7 @@ end
 function ns.Mechanic(spell, duration, identity, encounter, skipDefensive, repeatEvent)
     if not ns.Plain(spell, "number") or (duration ~= nil and not ns.Plain(duration, "number")) then return end
     if (encounter or ns.encounter) == ns.encounter then ns.RecordMechanic(spell, duration) end
+    if ns.expectedFallback and not (type(identity)=="string" and identity:match("^EXP")) then ns.ExpectedAnnounced(spell) end
     if ns.Conflict() or not ns.Plain(identity) or not ns.Plain(encounter) then return end
     local profile, spec = ns.Active(), ns.Spec()
     if not profile then return end

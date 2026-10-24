@@ -103,7 +103,7 @@ events:SetScript("OnEvent",function(_,event,a,b,c,d,e)
     elseif event=="ENCOUNTER_START"then ns.RefreshContext();ns.Begin(a,c,ns.map)
     elseif event=="START_PLAYER_COUNTDOWN"then ns.Countdown(b)
     elseif event=="CANCEL_PLAYER_COUNTDOWN"then ns.Countdown(nil)
-    elseif event=="ENCOUNTER_END"then if ns.FinishRecording then ns.FinishRecording(e==1)end;ns.Reset()
+    elseif event=="ENCOUNTER_END"then if ns.FinishRecording then ns.FinishRecording(e==1)end;if ns.FinishPullLog then ns.FinishPullLog(e==1)end;ns.Reset()
     elseif event=="PLAYER_REGEN_ENABLED"then ns.Cancel("trash:")
     else
         if event=="PLAYER_SPECIALIZATION_CHANGED"and a~="player"then return end

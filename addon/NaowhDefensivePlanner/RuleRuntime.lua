@@ -107,6 +107,7 @@ function ns.RenderDefensive(binding, trash)
     end
     local display=ns.DefensiveDisplay(spells,binding.display,binding.sound)
     if ns.Display then ns.Display(display)end
+    if ns.LogDefensiveCall then ns.LogDefensiveCall(spells,binding.name)end
 end
 
 -- Text on screen, spoken phrase (nil when the ability uses a sound), voice switch and sound of one ability.

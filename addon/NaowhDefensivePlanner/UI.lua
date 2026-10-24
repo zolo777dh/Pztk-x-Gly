@@ -12,7 +12,7 @@ local WIDTH,HEIGHT,SIDEBAR,TOP=1120,720,176,60
 -- UI drafts are local SavedVariables, separate from the active runtime profile.
 -- Navigation never commits a partial reminder or silently throws its inputs away.
 local workspace,owner,profileName
-local viewFields={"mode","difficulty","group","entity","ability","ruleKey","timed","form","reference","context","ruleDrafts","setKey","setRows","setName","setDrafts","newSpell","settings","settingFields","manual","profileName","importText","confirmDelete","confirmCopy","scrolls","setScope","tlGroup","tlBoss","tlDifficulty","callout","drafts"}
+local viewFields={"mode","difficulty","group","entity","ability","ruleKey","timed","form","reference","context","ruleDrafts","setKey","setRows","setName","setDrafts","newSpell","settings","settingFields","manual","profileName","importText","confirmDelete","confirmCopy","scrolls","setScope","tlGroup","tlBoss","tlDifficulty","tlTemplateName","callout","drafts"}
 local formKeys={"name","leadTime","delay","phase","counter","duration","text","displaySpellID","player","glowTarget","sticky","ticks","glowNames"}
 local specTabs={mythic=true,raid=true,sets=true,timeline=true}
 local function viewKey()return state.tab..":"..tostring(specTabs[state.tab]and state.spec or"general")end
@@ -27,6 +27,7 @@ local function capture()
         elseif key=="new-spell"then state.newSpell=c:GetText()
         elseif key=="profile-name"then state.profileName=c:GetText()
         elseif key=="profile-string"then state.importText=c:GetText()
+        elseif key=="tl-template-name"then state.tlTemplateName=c:GetText()
         elseif key:match("^rule:")and c.GetText and c.GetObjectType and c:GetObjectType()=="EditBox"then
             if state.form then state.form[key:sub(6)]=c:GetText()end
         elseif key:match("^setting:")and c.GetObjectType and c:GetObjectType()=="EditBox"then
@@ -110,6 +111,8 @@ end
 ---------------------------------------------------------------------------
 -- Reminder counts. A context is one ability (or the timed list) of one entity.
 local timedTypes={pull=true,stage=true,prepull=true}
+-- Reminders that fire on a game state, not at a time: listed with the timed ones, off the axis.
+local stateTypes={bosshp=true,aura=true}
 local function entityContext(content,g,n,ability)
     return {scope=content,spec=state.spec,map=g and g.mapID,group=g and g.id,npc=n and n.id,kind=n and n.kind or"boss",encounter=n and(n.encounterId or(content=="raid"and n.id)),difficulty=content=="mythic"and 8 or state.difficulty,spell=ability and ability.id,abilityName=ability and name(ability.id,ability.name)}
 end
@@ -131,7 +134,7 @@ end
 local function timedRules(ctx)
     local out={};if not ctx.encounter then return out end
     local all=ns.Clone(ctx);all.spell=nil
-    for _,r in ipairs(ns.RuleOptions(all))do if r.entry.trigger and timedTypes[r.entry.trigger.type]then out[#out+1]=r end end
+    for _,r in ipairs(ns.RuleOptions(all))do if r.entry.trigger and(timedTypes[r.entry.trigger.type]or stateTypes[r.entry.trigger.type])then out[#out+1]=r end end
     return out
 end
 local function abilityCount(content,g,n,a)return #ns.RuleOptions(entityContext(content,g,n,a))end
@@ -306,7 +309,7 @@ local function InitialForm(ctx,reference)
         elseif e.target.names then recipient="player";player=next(e.target.names)
         elseif not e.target.all then recipient="preserve"end
     end
-    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=(d.type=="bar"or d.type=="circle")and d.hideTimer~=true or d.countdown==true,sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
+    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,percent=t.percent or 50,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=(d.type=="bar"or d.type=="circle")and d.hideTimer~=true or d.countdown==true,sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
 end
 local actionLabels={defensive="Defensive priority set",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
 local roleLabels={TANK="Tank",HEALER="Healer",DAMAGER="Damage"}
@@ -317,6 +320,8 @@ local function Summary(ctx,form)
     elseif t=="pull"then when=tostring(form.delay).."s after pull"
     elseif t=="prepull"then when=tostring(form.delay).."s before pull"
     elseif t=="stage"then when=tostring(form.delay).."s into phase "..tostring(form.phase)
+    elseif t=="bosshp"then when="When the boss falls below "..tostring(form.percent).."% health"
+    elseif t=="aura"then when="When aura "..tostring(form.triggerSpell).." lands on you"
     elseif t=="bwmsg"then when="On the "..ability.." message"..((tonumber(form.delay)or 0)>0 and(" +"..tostring(form.delay).."s")or"")
     else when=tostring(form.leadTime).."s before "..ability end
     if form.counter and form.counter~=""and ctx.kind~="trash"then when=when.." (casts "..form.counter..")"end
@@ -370,7 +375,7 @@ local function DrawInspector(parent,ctx,rules)
     heading("WHEN")
     if ctx.kind~="trash"then
         local triggers={{value="bwtimer",label="Boss mod timer bar"},{value="bwmsg",label="Boss mod message"}}
-        if ctx.scope=="raid"then triggers[#triggers+1]={value="pull",label="Time from pull"};triggers[#triggers+1]={value="prepull",label="Before pull (countdown)"};triggers[#triggers+1]={value="stage",label="Time from phase"}end
+        if ctx.scope=="raid"then triggers[#triggers+1]={value="pull",label="Time from pull"};triggers[#triggers+1]={value="prepull",label="Before pull (countdown)"};triggers[#triggers+1]={value="stage",label="Time from phase"};triggers[#triggers+1]={value="bosshp",label="Boss health below"};triggers[#triggers+1]={value="aura",label="Aura on me"}end
         select("TRIGGER","trigger",triggers);cy=cy+54
         -- Timed reminders pick the boss ability their boss mod timer or message belongs to.
         if not ctx.spell and(form.trigger=="bwtimer"or form.trigger=="bwmsg")then
@@ -379,11 +384,13 @@ local function DrawInspector(parent,ctx,rules)
             else field("BOSS ABILITY SPELL ID","triggerSpell");cy=cy+54 end
         end
     end
-    if form.trigger=="pull"or form.trigger=="stage"or form.trigger=="prepull"then
+    if form.trigger=="bosshp"then field("BOSS HEALTH % · FIRES ONCE BELOW IT","percent",186);cy=cy+54
+    elseif form.trigger=="aura"then field("AURA SPELL ID ON YOU","triggerSpell",186);cy=cy+54
+    elseif form.trigger=="pull"or form.trigger=="stage"or form.trigger=="prepull"then
         field(form.trigger=="prepull"and"SECONDS BEFORE PULL"or"SECONDS FROM ANCHOR","delay",186);if form.trigger=="stage"then field("PHASE","phase",186,204)end;cy=cy+54
     elseif ctx.kind~="trash"then field("DELAY AFTER EVENT (S)","delay",186);field("WARN BEFORE (S)","leadTime",186,204);cy=cy+54 end
     if ctx.kind=="trash"or form.trigger=="pull"or form.trigger=="stage"or form.trigger=="prepull"then field("WARN BEFORE (SECONDS)","leadTime",186);cy=cy+54 end
-    if ctx.kind~="trash"then field("WHICH CASTS · BLANK = EVERY, E.G. >1 OR 2,4","counter");cy=cy+54 end
+    if ctx.kind~="trash"and not stateTypes[form.trigger]then field("WHICH CASTS · BLANK = EVERY, E.G. >1 OR 2,4","counter");cy=cy+54 end
     if ctx.scope=="raid"and form.action~="defensive"then
         heading("WHO")
         local targets={{value="everyone",label="Everyone"},{value="spec",label="Selected specialization"},{value="role",label="Role"},{value="position",label="Melee or ranged"},{value="player",label="Player"},{value="group",label="Raid group"},{value="class",label="Class"},{value="rotation",label="Rotation by cast"},{value="noteslot",label="Position in a note line"}}
@@ -495,7 +502,7 @@ local function DrawMechanics(parent)
         W.Caption(mechanics,L("Timed"),8,my+8,200);my=my+28
         -- Existing pull/phase reminders remain visible even when no spell is attached.
         for _,r in ipairs(timedRules(ctx))do
-            local t=r.entry.trigger;local at=t.type=="prepull"and("-"..tostring(t.delay).."s")or t.type=="stage"and("P"..tostring(t.stage).." "..tostring(t.delay).."s")or(tostring(t.delay).."s")
+            local t=r.entry.trigger;local at=t.type=="bosshp"and("HP<"..tostring(t.percent).."%")or t.type=="aura"and("Aura "..tostring(t.spellID))or t.type=="prepull"and("-"..tostring(t.delay).."s")or t.type=="stage"and("P"..tostring(t.stage).." "..tostring(t.delay).."s")or(tostring(t.delay).."s")
             W.Button(mechanics,at.."  "..(r.entry.name or"Timed reminder"),0,my,210,function()state.timed=true;state.ruleKey=r.key;state.form=nil;Refresh()end,state.ruleKey==r.key and state.timed,"timed:"..r.key,{h=32,marker=true});my=my+36
         end
         W.Button(mechanics,L("+ Timed reminder"),0,my,210,function()state.timed=true;state.ruleKey=nil;state.form=nil;Refresh()end,state.timed and state.ruleKey=="new","new-timed",{h=32,kind="outline"});my=my+38
@@ -685,10 +692,16 @@ local function DrawTimeline(parent)
     -- times that ability was recorded on your pulls.
     local mech={}
     do local all=ns.Clone(ctx);all.spell=nil
-        for _,r in ipairs(ns.RuleOptions(all))do local t=r.entry.trigger;if t and not timedTypes[t.type]and t.spellID then mech[#mech+1]={r=r,spell=t.spellID}end end
+        for _,r in ipairs(ns.RuleOptions(all))do local t=r.entry.trigger;if t and not timedTypes[t.type]and not stateTypes[t.type]and t.spellID then mech[#mech+1]={r=r,spell=t.spellID}end end
         for _,a in ipairs(allowedAbilities("raid",n))do for _,r in ipairs(ns.RuleOptions(entityContext("raid",g,n,a)))do if r.section=="abilityBindings"then mech[#mech+1]={r=r,spell=a.id}end end end
     end
     state.difficulty=saved
+    -- "Mine" hides reminders meant for other players, as the raid lead's plan reaches each one.
+    if state.tlMine then
+        local function mine(e)return not e.target or ns.Target(e.target)end
+        local r2,m2={},{};for _,r in ipairs(rules)do if mine(r.entry)then r2[#r2+1]=r end end;for _,m in ipairs(mech)do if m.r.section=="abilityBindings"or mine(m.r.entry)then m2[#m2+1]=m end end
+        rules,mech=r2,m2
+    end
     local function open(key,at,spell)
         local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=not spell;state.ability=spell;state.ruleKey=key;state.form=nil;state.timedPrefill=at;Refresh()
     end
@@ -721,6 +734,10 @@ local function DrawTimeline(parent)
     local planned=#uses>0 and ns.PlanDefensives and ns.PlanDefensives(uses)or{}
     local missing=0;for _,u in ipairs(planned)do if #u.spells==0 then missing=missing+1 end end
     if #planned>0 then lanes[#lanes+1]={key="cds",label=L("Cooldowns")}end
+    -- Last pull: your casts of set spells and the defensive calls nobody followed (Analysis.lua).
+    local pullLog=ns.PullLog and ns.PullLog(ctx.encounter,state.tlDifficulty)
+    local analysis,followed={},0
+    if pullLog and(#(pullLog.calls or{})>0 or #(pullLog.casts or{})>0)then analysis,followed=ns.AnalysePull(pullLog);lanes[#lanes+1]={key="last",label=L("Last pull")}else pullLog=nil end
     for _,r in ipairs(rules)do local t=r.entry.trigger;maxT=math.max(maxT,(tonumber(t.delay)or 0)+30)
         if t.type=="stage"then local found=false;for _,l in ipairs(lanes)do if l.key=="stage"..tostring(t.stage)then found=true end end;if not found then lanes[#lanes+1]={key="stage"..tostring(t.stage),label=L("Phase").." "..tostring(t.stage)}end end
     end
@@ -738,7 +755,7 @@ local function DrawTimeline(parent)
     local function shown(t)return t>=from-1 and t<=from+span+1 end
     local function stamp(t)local a=math.abs(t);return(t<0 and"-"or"")..string.format("%d:%02d",math.floor(a/60),a%60)end
     local step=span<=60 and 10 or span<=120 and 15 or 30
-    local top,laneH,bossH=40,44,62
+    local top,laneH,bossH=40,#lanes>4 and 36 or 44,62
     local height=0;for _,lane in ipairs(lanes)do height=height+(lane.key=="boss"and bossH or laneH)end
     local axisY=top+height+4
     for t=math.ceil(from/step)*step,from+span,step do local x=X(t);W.Rect(card,x,top,1,height,t==0 and C.accent or t%60==0 and C.line or C.raised);local l=W.Label(card,stamp(t),x-20,axisY,40,10,t==0 and C.accent or C.faint);l:SetJustifyH("CENTER")end
@@ -787,8 +804,19 @@ local function DrawTimeline(parent)
                 end
             end end
         end
+        if lane.key=="last"then
+            for j,c in ipairs(pullLog.casts or{})do if j<=120 and shown(c.at)then
+                local x=X(c.at)
+                W.Icon(card,c.spell,x-9,mid,18)
+                W.Button(card,"",x-9,mid,18,function()end,false,"tl-cast:"..j,{kind="ghost",h=18,tooltip=name(c.spell)..L(" · you cast it at ")..stamp(math.floor(c.at))})
+            end end
+            for j,a in ipairs(analysis)do if not a.cast and shown(a.call.at)then
+                local x=X(a.call.at)
+                W.Button(card,"x",x-9,mid,18,function()end,false,"tl-miss:"..j,{kind="danger",h=18,align="CENTER",tooltip=(a.call.label or L("Defensive call")).." · "..stamp(math.floor(a.call.at))..L(" · no spell of the call was cast within ")..ns.AnalysisFollowWindow..L(" s")})
+            end end
+        end
         for _,r in ipairs(rules)do local t=r.entry.trigger
-            local laneKey=(t.type=="stage")and("stage"..tostring(t.stage))or"pull"
+            local laneKey=(t.type=="stage")and("stage"..tostring(t.stage))or timedTypes[t.type]and"pull"
             local at=(t.type=="prepull"and-(tonumber(t.delay)or 0)or tonumber(t.delay)or 0)
             if laneKey==lane.key and shown(at)then
                 local x=X(at)
@@ -799,6 +827,7 @@ local function DrawTimeline(parent)
         y=y+h
     end
     if simT and shown(simT)then W.Rect(card,X(simT),top,2,height,C.warning)end
+    W.Segmented(card,{{value="all",label=L("Raid")},{value="mine",label=L("Mine")}},state.tlMine and"mine"or"all",440,6,124,function(v)state.tlMine=v=="mine"or nil;Refresh()end,"tl-view")
     W.Button(card,simOn and L("Stop simulation")or L("Simulate pull"),570,6,140,function()
         if simOn then ns.StopSimulation();notify(L("Simulation stopped"))else local ok,err=ns.SimulatePull(ctx.encounter,state.tlDifficulty);if not ok then return notify(L(err),true)end;state.tlStart=0;notify(L("Simulating the pull · reminders fire as on a real pull"))end
         Refresh()
@@ -836,11 +865,16 @@ local function DrawTimeline(parent)
     W.Segmented(card,{{value=60,label="1m"},{value=120,label="2m"},{value=240,label="4m"}},span,770,6,140,function(v)state.tlSpan=v;Refresh()end,"tl-zoom")
     local list=W.Card(parent,0,458,920,134,L("Reminders on this boss"))
     W.Button(list,L("Send to group"),752,6,156,function()local count,err=ns.SendReminders(ctx.encounter,state.tlDifficulty);done(count,err,(tonumber(count)or 0)..L(" reminders sent to the group"))end,false,"tl-send",{h=24,glyph="players"})
+    W.Button(list,state.tlTemplates and L("Close templates")or L("Templates"),488,6,124,function()state.tlTemplates=not state.tlTemplates or nil;state.tlPick=nil;Refresh()end,state.tlTemplates,"tl-templates",{h=24,align="CENTER",tooltip=L("Named versions of this boss plan, e.g. Prog and Farm")})
     -- One-boss string: importing it replaces only this boss in the receiver's active profile.
     W.Button(list,L("Export boss"),620,6,124,function()local v,err=ns.ExportBoss(ctx.encounter,n.name);if v then state.tab="profiles";loadView();state.importText=v;notify(L("Boss export ready on the Profiles page · Ctrl+C copies it"));Refresh()else notify(err,true)end end,false,"tl-export-boss",{h=24,align="CENTER",tooltip=L("A string with only this boss: its reminders, ability bindings and the sets they use.")})
     if not recorded then W.Label(list,L("Pull the boss once (BigWigs, DBM or built-in timers) to place its abilities and their reminders in time."),300,12,310,10,C.faint)
     elseif recorded.expected then W.Label(list,L("Expected times. A recorded pull replaces them."),300,12,310,10,C.faint)end
-    if missing>0 then W.Label(list,missing..L(" defensive calls have nothing ready (red ! on the Cooldowns lane)"),300,24,310,10,C.danger)end
+    do local parts={}
+        if missing>0 then parts[#parts+1]=missing..L(" calls have nothing ready (red !)")end
+        if pullLog and #analysis>0 then parts[#parts+1]=L("Last pull: ")..followed.."/"..#analysis..L(" calls followed")end
+        if #parts>0 then W.Label(list,table.concat(parts," · "),300,24,310,10,missing>0 and C.danger or C.muted)end
+    end
     -- A clicked boss ability: bind a defensive set or write a note for that cast.
     local pick=state.tlPick;if pick and(pick.encounter~=ctx.encounter or pick.difficulty~=state.tlDifficulty or not recorded)then pick=nil end
     if pick then
@@ -853,11 +887,23 @@ local function DrawTimeline(parent)
         W.Button(list,L("Timed here"),688,98,110,function()state.tlPick=nil;state.timedSpell=pick.spell;open(nil,pick.at)end,false,"tl-pick-timed",{align="CENTER",h=26})
         W.Button(list,L("Cancel"),804,98,104,function()state.tlPick=nil;Refresh()end,false,"tl-pick-cancel",{kind="ghost",align="CENTER",h=26})
     end
+    local templatesOpen=state.tlTemplates and not pick
+    if templatesOpen then
+        W.Input(list,state.tlTemplateName or"",12,98,180,"tl-template-name",false,{h=26})
+        W.Button(list,L("Save plan"),198,98,96,function()local v,err=ns.SaveTemplate(ctx.encounter,read("tl-template-name"),n.name);if v then state.tlTemplateName=nil end;done(v,err,L("Template saved: ")..tostring(v))end,false,"tl-template-save",{kind="primary",align="CENTER",h=26})
+        local tpl=ns.Templates(ctx.encounter)
+        if #tpl==0 then W.Label(list,L("No templates for this boss yet."),304,104,300,11,C.faint)end
+        for i,t in ipairs(tpl)do if i<=3 then
+            local x=304+(i-1)*204
+            W.Button(list,L("Apply ")..t.name,x,98,166,function()local v,err=ns.ApplyTemplate(t.index);done(v,err,L("Template applied · the previous plan is in History"))end,false,"tl-template-apply:"..i,{align="CENTER",h=26,tooltip=L("Replaces this boss plan in the active profile")})
+            W.Button(list,"x",x+170,98,26,function()done(ns.DeleteTemplate(t.index),nil,L("Template deleted"))end,false,"tl-template-delete:"..i,{kind="danger",align="CENTER",h=26})
+        end end
+    end
     if #rules==0 and #mech==0 then W.Label(list,L("No reminders on this boss yet. Add one with + Timed reminder or on the Raids page."),12,36,700,12,C.muted)end
     local i=0
-    local rows=pick and 4 or 6
+    local rows=(pick or templatesOpen)and 4 or 6
     for _,r in ipairs(rules)do i=i+1;if i<=rows then
-        local t=r.entry.trigger;local at=t.type=="prepull"and("-"..tostring(t.delay).."s")or t.type=="stage"and("P"..tostring(t.stage).." "..tostring(t.delay).."s")or(tostring(t.delay).."s")
+        local t=r.entry.trigger;local at=t.type=="bosshp"and("HP<"..tostring(t.percent).."%")or t.type=="aura"and("Aura "..tostring(t.spellID))or t.type=="prepull"and("-"..tostring(t.delay).."s")or t.type=="stage"and("P"..tostring(t.stage).." "..tostring(t.delay).."s")or(tostring(t.delay).."s")
         W.Button(list,at.."  ·  "..(r.entry.name or L("Timed reminder")),12+((i-1)%2)*452,32+math.floor((i-1)/2)*34,440,function()open(r.key)end,false,"tl-row:"..r.key,{kind="ghost",h=30,glyph="clock"})
     end end
     for _,m in ipairs(mech)do i=i+1;if i<=rows then
