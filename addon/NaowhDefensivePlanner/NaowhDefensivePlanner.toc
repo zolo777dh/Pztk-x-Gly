@@ -24,6 +24,7 @@ Providers.lua
 BossTimers.lua
 BossTimerData.lua
 Journal.lua
+LogTimelines.lua
 Simulate.lua
 Planner.lua
 Triggers.lua

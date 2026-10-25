@@ -7,6 +7,9 @@ game events, and uses public facts about encounters that they made visible.
 
 - Blizzard Entertainment's Encounter Journal, read in game: the raid boss list, boss
   ability names, icons and the category strips on the Timeline.
+- Warcraft Logs (Archon): the base boss timelines (LogTimelines.lua) are median cast
+  times computed by NDP's own script from public kills, read through the Warcraft
+  Logs v2 API. Thanks to the raiders who upload their logs.
 - BigWigs and LittleWigs, by Funkeh, Nebula, Justwait, Delk and the BigWigsMods team.
   The built-in raid timers and the Mythic+ catalog use encounter facts (spell IDs and
   timings) read from their public modules. NDP also listens to BigWigs events when it

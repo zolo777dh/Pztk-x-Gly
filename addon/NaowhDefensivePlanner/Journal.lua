@@ -217,3 +217,15 @@ function ns.JournalDungeonAbilities(encounter)
     local b = ns.JournalBoss(encounter)
     return b and b.abilities or {}
 end
+
+-- Base timeline before your own pull: the median of public kills on Warcraft Logs
+-- (LogTimelines.lua, built by tools/build-wcl-timelines.mjs), in the recorded-timeline shape.
+-- Normal and LFR use the Heroic times.
+function ns.ExpectedTimeline(encounter, difficulty)
+    local boss = ns.LogTimelines and ns.LogTimelines[tonumber(encounter)]
+    local data = boss and (boss[difficulty] or ((difficulty == 14 or difficulty == 17) and boss[15]))
+    if not data or not data.events or #data.events == 0 then return nil end
+    local phases = {}
+    for _, p in ipairs(data.phases or {}) do phases[#phases + 1] = { name = p.name, at = p.at } end
+    return { events = data.events, length = data.length, phases = phases, kills = data.kills, expected = true }
+end

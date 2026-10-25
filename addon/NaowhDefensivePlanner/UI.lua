@@ -141,9 +141,9 @@ local function allowedAbilities(content,n)
         local allowed=true;if content=="raid"and a.difficulties then allowed=false;for _,d in ipairs(a.difficulties)do if d==(state.difficulty==15 and"heroic"or"mythic")then allowed=true end end end
         if allowed then out[#out+1]=a end
     end
-    -- Raid bosses also list every ability of your recorded pull, so each one can be bound.
+    -- Raid bosses also list every ability of their timeline, so each one can be bound.
     local enc=content=="raid"and n and(n.encounterId or n.id)
-    local recorded=enc and ns.RecordedTimeline(enc,state.difficulty)
+    local recorded=enc and(ns.RecordedTimeline(enc,state.difficulty)or ns.ExpectedTimeline(enc,state.difficulty))
     if recorded then
         local seen={};for _,a in ipairs(out)do seen[a.id]=true end
         for _,ev in ipairs(recorded.events or{})do if not seen[ev[2]]then seen[ev[2]]=true;out[#out+1]={id=ev[2]}end end
@@ -761,9 +761,9 @@ local function DrawTimeline(parent)
     local function open(key,at,spell)
         local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=not spell;state.ability=spell;state.ruleKey=key;state.form=nil;state.timedPrefill=at;Refresh()
     end
-    -- Your recorded pull (or one shared in a boss export) places the abilities in time; before
-    -- it, the Boss lane lists the boss's abilities without times.
-    local recorded=ns.RecordedTimeline(ctx.encounter,state.tlDifficulty)
+    -- Your recorded pull (or one shared in a boss export) places the abilities in time, else the
+    -- Warcraft Logs base; without either, the Boss lane lists the abilities without times.
+    local recorded=ns.RecordedTimeline(ctx.encounter,state.tlDifficulty)or ns.ExpectedTimeline(ctx.encounter,state.tlDifficulty)
     local untimed={}
     if not recorded then local sd=state.difficulty;state.difficulty=state.tlDifficulty;untimed=allowedAbilities("raid",n);state.difficulty=sd end
     local function occurrences(m)
@@ -775,7 +775,7 @@ local function DrawTimeline(parent)
     W.Button(parent,L("+ Timed reminder"),760,56,160,function()open(nil)end,false,"tl-new",{kind="outline",align="CENTER"})
     local card=W.Card(parent,0,100,920,350,n.name.." · "..(state.tlDifficulty==16 and L("Mythic")or L("Heroic")))
     local lanes={{key="pull",label=L("Pull")}};local maxT=300
-    if recorded then table.insert(lanes,1,{key="boss",label=recorded.shared and L("Boss (shared)")or L("Boss")});maxT=math.max(maxT,(tonumber(recorded.length)or 0)+10)
+    if recorded then table.insert(lanes,1,{key="boss",label=recorded.expected and L("Boss (logs)")or recorded.shared and L("Boss (shared)")or L("Boss")});maxT=math.max(maxT,(tonumber(recorded.length)or 0)+10)
     elseif #untimed>0 then table.insert(lanes,1,{key="boss",label=L("Boss")})end
     if #mech>0 then lanes[#lanes+1]={key="mech",label=L("Mechanics")}end
     -- Cooldowns lane: which spell of each planned defensive set will be ready at each call.
@@ -943,6 +943,7 @@ local function DrawTimeline(parent)
     -- One-boss string: importing it replaces only this boss in the receiver's active profile.
     W.Button(list,L("Export boss"),620,6,124,function()local v,err=ns.ExportBoss(ctx.encounter,n.name);if v then state.tab="profiles";loadView();state.importText=v;notify(L("Boss export ready on the Profiles page · Ctrl+C copies it"));Refresh()else notify(err,true)end end,false,"tl-export-boss",{h=24,align="CENTER",tooltip=L("A string with only this boss: its reminders, ability bindings and the sets they use.")})
     if not recorded then W.Label(list,L("Pull the boss once (BigWigs, DBM or built-in timers) to place its abilities and their reminders in time."),300,12,310,10,C.faint)
+    elseif recorded.expected then W.Label(list,L("Median times of ")..tostring(recorded.kills or 0)..L(" public kills (Warcraft Logs). Your own pull replaces them."),300,12,310,10,C.faint)
     elseif recorded.shared then W.Label(list,L("Times from a shared boss export. Your own recorded pull replaces them."),300,12,310,10,C.faint)end
     do local parts={}
         if missing>0 then parts[#parts+1]=missing..L(" calls have nothing ready (red !)")end

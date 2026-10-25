@@ -60,6 +60,7 @@ ns.Credits={
     "Naowh Smart Reminders (Naowh): the reminder ideas and the string format NDP still reads",
     "Timeline Reminders (Bart): the !TR2: strings NDP can import",
     "Blizzard Encounter Journal: boss abilities, icons and categories",
+    "Warcraft Logs: public kills behind the base boss timelines",
     "Mythic Dungeon Tools (Nnoggie) and Raider.IO: dungeon and enemy IDs",
     "LibStub, LibSerialize (Ross Nichols), LibDeflate (Haoqian He), LibCustomGlow (Benjamin Staneck)",
     "URW Gothic font by URW++",

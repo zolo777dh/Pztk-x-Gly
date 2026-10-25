@@ -174,8 +174,10 @@ The Mechanics lane shows reminders and defensive sets tied to boss abilities at
 the times those abilities happened on your recorded pull. + Timed reminder can
 also make a "Boss mod timer bar" or "Boss mod message" reminder for a chosen
 boss ability.
-Before your first pull the Boss lane lists the boss's abilities without times (the
-spells the built-in timers announce, then the game's Encounter Journal). Left-click
+Before your first pull the Boss lane shows the "Boss (logs)" base: the median
+cast times of public kills on Warcraft Logs, built by tools/build-wcl-timelines.mjs
+into LogTimelines.lua. A boss without that base lists its abilities without times
+(the spells the built-in timers announce, then the game's Encounter Journal). Left-click
 one to plan it for every cast: Defensive set or Note (your own text, e.g. Stack in
 middle). After a recorded pull the lane shows each cast in time, and a click plans
 that cast: Defensive set, Note, Every cast or Timed here.
