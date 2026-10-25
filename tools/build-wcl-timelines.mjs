@@ -4,9 +4,11 @@
 // phase, and each cast (the 1st, 2nd... of an ability in a phase) gets its median time over
 // the kills, placed after the median start of its phase. Casts seen in fewer than half of the
 // kills are left out. Spell IDs from the logs are matched by name to the spells the built-in
-// timers announce, so reminders bound on the Timeline fire on a real pull.
+// timers announce, and only those spells are kept, so every cast on the Timeline is one a
+// reminder can bind to and that fires on a real pull.
 //
-// Usage: WCL_CLIENT_ID=... WCL_CLIENT_SECRET=... node tools/build-wcl-timelines.mjs [kills=20]
+// Usage: WCL_CLIENT_ID=... WCL_CLIENT_SECRET=... node tools/build-wcl-timelines.mjs [kills=20] [--raw file.json]
+//        node tools/build-wcl-timelines.mjs --from-raw file.json   (rebuild without the API)
 // Create the API client at https://www.warcraftlogs.com/api/clients (free).
 import fs from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';
@@ -56,11 +58,28 @@ export function aggregate(kills,{share=0.5}={}){
  return {length:Math.round(median(kills.map(k=>k.length))),kills:kills.length,phases,events:out};
 }
 
-// Log spell IDs named like an announced spell take the announced ID.
-export function mapSpells(timeline,announced,names){
- const byName=new Map();for(const id of announced){const n=names[id];if(n&&!byName.has(n.toLowerCase()))byName.set(n.toLowerCase(),id);}
- const set=new Set(announced);
- return {...timeline,events:timeline.events.map(([at,spell])=>{if(set.has(spell))return [at,spell];const n=names[spell];return [at,(n&&byName.get(n.toLowerCase()))||spell];})};
+// The casts of one kill as announced spells: a log spell ID named like an announced spell
+// takes its ID, other spells are dropped, and a repeat within 3 s (two log spells of one
+// ability, or a cast and its channel) counts once.
+export function announcedCasts(casts,announced,names){
+ const set=new Set(announced),byName=new Map();
+ for(const id of announced){const n=names[id]?.toLowerCase();if(n&&!byName.has(n))byName.set(n,id);}
+ const last=new Map(),out=[];
+ for(const c of [...casts].sort((a,b)=>a.at-b.at)){
+  const spell=set.has(c.spell)?c.spell:byName.get(names[c.spell]?.toLowerCase());if(!spell)continue;
+  if(last.has(spell)&&c.at-last.get(spell)<3)continue;last.set(spell,c.at);out.push({at:c.at,spell});
+ }
+ return out;
+}
+// Raw kills ({bosses:[{id,name,spells,difficulties:{15:[kill...]}}], names}) to timelines.
+export function timelinesFrom(raw,log=()=>{}){
+ const timelines={};
+ for(const boss of raw.bosses)for(const diff of DIFFICULTIES){
+  const kills=(boss.difficulties[diff.game]||[]).map(k=>({...k,casts:announcedCasts(k.casts,boss.spells,raw.names)}));
+  const tl=aggregate(kills);log(boss.name+' '+diff.name+': '+kills.length+' kills, '+(tl?tl.events.length:0)+' casts');
+  if(tl&&tl.events.length)(timelines[boss.id]??={})[diff.game]=tl;
+ }
+ return timelines;
 }
 
 export function client({id,secret,fetch=globalThis.fetch}){
@@ -88,7 +107,7 @@ async function rankings(api,encounter,difficulty,limit){
 
 async function kill(api,{code,fight}){
  const head=await api.query(`query($c:String!,$f:[Int]!){reportData{report(code:$c){
-  fights(fightIDs:$f){id startTime endTime kill phaseTransitions{id startTime}}
+  fights(fightIDs:$f){id encounterID startTime endTime kill phaseTransitions{id startTime}}
   phases{encounterID phases{id name}}
   masterData{actors(type:"NPC"){id subType}}}}}`,{c:code,f:[fight]});
  const report=head.reportData.report,f=report?.fights?.[0];if(!f||!f.kill)return null;
@@ -103,7 +122,7 @@ async function kill(api,{code,fight}){
  const fromBoss=raw.filter(e=>(e.type==='begincast'||e.type==='cast')&&(!bosses.size||bosses.has(e.sourceID)));
  const begins=new Set(fromBoss.filter(e=>e.type==='begincast').map(e=>e.abilityGameID));
  const casts=fromBoss.filter(e=>begins.has(e.abilityGameID)?e.type==='begincast':e.type==='cast').map(e=>({at:(e.timestamp-f.startTime)/1000,spell:e.abilityGameID}));
- const named={};for(const e of report.phases||[])for(const p of e.phases||[])named[p.id]=p.name;
+ const named={};for(const e of report.phases||[])if(e.encounterID===f.encounterID)for(const p of e.phases||[])named[p.id]=p.name;
  const phases=(f.phaseTransitions||[]).map(p=>({id:p.id,name:named[p.id],at:Math.max(0,(p.startTime-f.startTime)/1000)}));
  return {length:(f.endTime-f.startTime)/1000,phases:phases.length?phases:[{id:1,at:0}],casts};
 }
@@ -128,25 +147,35 @@ export function lua(timelines,info){
  lines.push('}','');return lines.join('\n');
 }
 
-export async function build({api,bosses,kills=20,log=()=>{}}){
- const timelines={},ids=new Set();const raw=[];
- for(const boss of bosses)for(const diff of DIFFICULTIES){
-  const list=[];
-  for(const r of await rankings(api,boss.id,diff.wcl,kills)){const k=await kill(api,r).catch(e=>{log('  skipped '+r.code+': '+e.message);return null;});if(k)list.push(k);}
-  const tl=aggregate(list);log(boss.name+' '+diff.name+': '+list.length+' kills, '+(tl?tl.events.length:0)+' casts');
-  if(tl&&tl.events.length){raw.push({boss,diff,tl});for(const e of tl.events)ids.add(e[1]);boss.spells.forEach(s=>ids.add(s));}
+// Reads the kills through the API; returns the raw set for timelinesFrom.
+export async function fetchRaw({api,bosses,kills=20,log=()=>{}}){
+ const raw={bosses:[],names:{}},ids=new Set();
+ for(const boss of bosses){
+  const entry={...boss,difficulties:{}};raw.bosses.push(entry);boss.spells.forEach(s=>ids.add(s));
+  for(const diff of DIFFICULTIES){
+   const list=[];
+   for(const r of await rankings(api,boss.id,diff.wcl,kills)){const k=await kill(api,r).catch(e=>{log('  skipped '+r.code+': '+e.message);return null;});if(k){list.push(k);k.casts.forEach(c=>ids.add(c.spell));}}
+   entry.difficulties[diff.game]=list;log(boss.name+' '+diff.name+': '+list.length+' kills read');
+  }
  }
- const names=await abilityNames(api,[...ids]);
- for(const {boss,diff,tl}of raw)(timelines[boss.id]??={})[diff.game]=mapSpells(tl,boss.spells,names);
- return timelines;
+ raw.names=await abilityNames(api,[...ids]);
+ return raw;
 }
+export async function build(opts){return timelinesFrom(await fetchRaw(opts),opts.log);}
 
 if(import.meta.url===pathToFileURL(process.argv[1]).href){
- const id=process.env.WCL_CLIENT_ID,secret=process.env.WCL_CLIENT_SECRET;
- if(!id||!secret){console.error('Set WCL_CLIENT_ID and WCL_CLIENT_SECRET (https://www.warcraftlogs.com/api/clients).');process.exit(1);}
- const kills=Math.max(3,Math.min(100,Number(process.argv[2])||20));
- const bosses=bossTimerSpells(await fs.readFile('addon/NaowhDefensivePlanner/BossTimerData.lua','utf8'));
- const timelines=await build({api:client({id,secret}),bosses,kills,log:console.log});
- await fs.writeFile('addon/NaowhDefensivePlanner/LogTimelines.lua',lua(timelines,{built:new Date().toISOString().slice(0,10),kills}));
+ const args=process.argv.slice(2),flag=name=>{const i=args.indexOf(name);return i>=0?args.splice(i,2)[1]:null;};
+ const fromRaw=flag('--from-raw'),rawOut=flag('--raw');let raw,kills;
+ if(fromRaw){raw=JSON.parse(await fs.readFile(fromRaw,'utf8'));kills=raw.kills||0;}
+ else{
+  const id=process.env.WCL_CLIENT_ID,secret=process.env.WCL_CLIENT_SECRET;
+  if(!id||!secret){console.error('Set WCL_CLIENT_ID and WCL_CLIENT_SECRET (https://www.warcraftlogs.com/api/clients).');process.exit(1);}
+  kills=Math.max(3,Math.min(100,Number(args[0])||20));
+  const bosses=bossTimerSpells(await fs.readFile('addon/NaowhDefensivePlanner/BossTimerData.lua','utf8'));
+  raw=await fetchRaw({api:client({id,secret}),bosses,kills,log:console.log});raw.kills=kills;raw.built=new Date().toISOString().slice(0,10);
+  if(rawOut){await fs.writeFile(rawOut,JSON.stringify(raw));console.log('Wrote '+rawOut);}
+ }
+ const timelines=timelinesFrom(raw,console.log);
+ await fs.writeFile('addon/NaowhDefensivePlanner/LogTimelines.lua',lua(timelines,{built:raw.built||new Date().toISOString().slice(0,10),kills}));
  console.log('Wrote addon/NaowhDefensivePlanner/LogTimelines.lua');
 }
