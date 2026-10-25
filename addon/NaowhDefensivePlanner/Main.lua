@@ -85,7 +85,7 @@ function ns.Command(message)
         local p=ns.ProviderStatus and ns.ProviderStatus()or{}
         ns.Print(ns.version.." · "..ns.Client().." · profile "..tostring(ns.Store().active or"none").." · spec "..tostring(ns.Catalog.specs[ns.Spec()or 0]or"unknown"))
         ns.Print("Combat source: "..(p.BigWigs and"BigWigs"or p.DBM and"DBM"or"none")..(p.EXBoss and" + ExBoss"or"").." · conflict: "..(ns.Conflict()or"none"))
-    elseif command=="test"then ns.Display({type="icon",spellID=22812,text="Use a defensive",dur=4})
+    elseif command=="test"then ns.Display({type="icon",defensive=true,spellID=22812,text="Use a defensive",dur=4})
     elseif command=="anchors"or command=="anchor"or command=="move"then if ns.ToggleAnchors then ns.Print(ns.ToggleAnchors()and"Anchor unlocked: drag it, then /ndp anchors to lock."or"Anchor locked.")end
     elseif command=="pull"then
         local seconds=tonumber(rest)or 10

@@ -75,7 +75,7 @@ local function Settings(s)
     if s.outline~=nil and not({none=true,outline=true,thick=true,mono=true})[s.outline]then return false end
     if(type(s.font)=="string"and #s.font>120)or(type(s.barTexture)=="string"and #s.barTexture>120)then return false end
     local anchors={CENTER=true,TOP=true,BOTTOM=true,LEFT=true,RIGHT=true,TOPLEFT=true,TOPRIGHT=true,BOTTOMLEFT=true,BOTTOMRIGHT=true}
-    for _,name in ipairs({"pos","abilityPos"})do local pos=s[name]
+    for _,name in ipairs({"pos","abilityPos","barPos"})do local pos=s[name]
         if pos~=nil then
             if type(pos)~="table"or not Number(pos.x,-10000,10000,true)or not Number(pos.y,-10000,10000,true)then return false end
             for _,key in ipairs({"point","relPoint"})do if pos[key]~=nil and not anchors[pos[key]]then return false end end

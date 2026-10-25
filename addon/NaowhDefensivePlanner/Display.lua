@@ -153,10 +153,13 @@ local function Release(index)
 end
 -- Reminders grow to the right from a fixed left edge, so one icon sits where the first of two would.
 -- Positions saved before 0.6.4 were the center of a 340 px anchor box: its left edge is 170 px to the left.
--- Boss ability alerts (icon, note text and seconds left, like boss mod bars) have their own anchor.
+-- Three anchors for the whole profile: defensives ("main"), text and icon alerts ("ability":
+-- boss ability alerts and every other icon or text reminder), and bars ("bar"). Every reminder
+-- goes to the anchor of its look, so one position covers all abilities.
 function ns.ReminderOrigin(group)
     local s=ns.Settings and ns.Settings()or{}
     if group=="ability"then local p=type(s.abilityPos)=="table"and s.abilityPos or{};return tonumber(p.x)or 200,tonumber(p.y)or 180 end
+    if group=="bar"then local p=type(s.barPos)=="table"and s.barPos or{};return tonumber(p.x)or-120,tonumber(p.y)or 30 end
     local p=type(s.pos)=="table"and s.pos or{}
     local x,y=tonumber(p.x)or 0,tonumber(p.y)or 100
     if p.point~="LEFT"then x=x-170 end
@@ -257,7 +260,7 @@ function ns.Display(display)
     -- Boss ability alerts come in three looks, as in NSRT: icon and text (default), text only, or a bar with a timer.
     local ability=display.type=="ability"
     local bar=display.type=="bar"or(ability and display.style=="bar")
-    local r=Region();r.group=ability and"ability"or"main"
+    local r=Region();r.group=bar and"bar"or display.defensive and"main"or"ability"
     if ability then spells={display.spellID or 0}end
     local count=(display.type=="text"or(ability and display.style=="text")or settings.showIcon==false)and 0 or math.min(bar and 1 or 6,#spells);if(display.type=="circle"or bar)and count==0 and settings.showIcon~=false and display.spellID then count=1;spells={display.spellID}end
     if display.type=="circle"and count==0 and settings.showIcon~=false then count=1;spells={0}end
@@ -358,9 +361,11 @@ local function AnchorSpell()
     return set and set.list and set.list[1]or 22812
 end
 local anchorInfo={
-    main={setting="pos",label="Reminders · drag the icon · /ndp anchors locks",color={0.2,0.76,0.65,1},point="LEFT"},
-    ability={setting="abilityPos",label="Boss ability alerts · drag the icon",color={1,0.67,0,1}},
+    main={setting="pos",label="Defensives · drag · /ndp anchors locks",color={0.2,0.76,0.65,1},point="LEFT"},
+    ability={setting="abilityPos",label="Text and icon · drag",color={1,0.67,0,1}},
+    bar={setting="barPos",label="Bars · drag",color={0.4,0.6,1,1}},
 }
+ns.AnchorGroups={"main","ability","bar"}
 local function MakeAnchor(group)
     local info=anchorInfo[group]
     local a=CreateFrame("Frame",nil,UIParent);a:SetFrameStrata("DIALOG");a:SetMovable(true);a:EnableMouse(true);a:RegisterForDrag("LeftButton");a:SetClampedToScreen(true)
@@ -380,29 +385,33 @@ local function MakeAnchor(group)
     end)
     a:Hide();anchors[group]=a;return a
 end
-function ns.ToggleAnchors()
-    local main=anchors.main or MakeAnchor("main");local ability=anchors.ability or MakeAnchor("ability")
-    if main:IsShown()then main:Hide();ability:Hide();return false end
+-- The size of an anchor: an icon for defensives and text alerts, a bar for bars.
+local function AnchorSize(group)
     local settings=ns.Settings and ns.Settings()or{};local size=tonumber(settings.iconSize)or 42
-    local _,texture=Spell(AnchorSpell());main.icon:SetTexture(texture or 134400);ability.icon:SetTexture(134400)
+    if group=="bar"then return math.max(60,tonumber(settings.barWidth)or 240),math.max(8,tonumber(settings.barHeight)or size)end
+    local edge=group=="ability"and(tonumber(settings.abilityIconSize)or 28)or size
+    return edge,edge
+end
+function ns.ToggleAnchors()
+    for _,group in ipairs(ns.AnchorGroups)do if not anchors[group]then MakeAnchor(group)end end
+    if anchors.main:IsShown()then for _,a in pairs(anchors)do a:Hide()end;return false end
+    local _,texture=Spell(AnchorSpell());anchors.main.icon:SetTexture(texture or 134400);anchors.ability.icon:SetTexture(134400)
+    anchors.bar.icon:SetTexture("Interface\\TargetingFrame\\UI-StatusBar");anchors.bar.icon:SetTexCoord(0,1,0,1);anchors.bar.icon:SetVertexColor(1,0.55,0.1,0.9)
     for group,a in pairs(anchors)do
-        local edge=group=="ability"and(tonumber(settings.abilityIconSize)or 28)or size
-        a:SetSize(edge,edge);local x,y=ns.ReminderOrigin(group)
+        a:SetSize(AnchorSize(group));local x,y=ns.ReminderOrigin(group)
         a:ClearAllPoints();a:SetPoint("LEFT",UIParent,"CENTER",x,y);a:Show()
     end
     return true
 end
 -- Unlock modes of UI suites: EllesmereUI lets any addon add elements to its Unlock Mode
 -- (EllesmereUI:RegisterUnlockElements, its documented way for "elements from any addon").
--- NDP adds its two anchors, reminders and boss ability alerts, as frames at the spot where
+-- NDP adds its three anchors, defensives, text and icon, and bars, as frames at the spot where
 -- the first icon appears; moving one there saves the same position as dragging NDP's own anchor.
 local proxies={}
 local function Proxy(group)
     local f=proxies[group]
     if not f then f=CreateFrame("Frame",nil,UIParent);f:SetClampedToScreen(true);proxies[group]=f end
-    local settings=ns.Settings and ns.Settings()or{}
-    local edge=group=="ability"and(tonumber(settings.abilityIconSize)or 28)or tonumber(settings.iconSize)or 42
-    local x,y=ns.ReminderOrigin(group);f:SetSize(edge,edge);f:ClearAllPoints();f:SetPoint("LEFT",UIParent,"CENTER",x,y)
+    local x,y=ns.ReminderOrigin(group);f:SetSize(AnchorSize(group));f:ClearAllPoints();f:SetPoint("LEFT",UIParent,"CENTER",x,y)
     return f
 end
 local function SaveOrigin(group,frame)
@@ -412,13 +421,14 @@ local function SaveOrigin(group,frame)
     local ok,err=ns.EditProfile(function(data)data.settings=data.settings or{};data.settings[info.setting]={point=info.point,relPoint="CENTER",x=math.floor(left-ux+0.5),y=math.floor(y-uy+0.5)}end)
     if not ok then ns.Print(err)end;if ns.RefreshWorkspace then ns.RefreshWorkspace()end
 end
-local moverKeys={NDP_Reminders="main",NDP_AbilityAlerts="ability"}
+local moverKeys={NDP_Reminders="main",NDP_AbilityAlerts="ability",NDP_Bars="bar"}
+local moverLabels={main="NDP defensives",ability="NDP text and icon",bar="NDP bars"}
 function ns.RegisterMovers()
     local eui=_G.EllesmereUI
     if ns.moversRegistered or type(eui)~="table"or type(eui.RegisterUnlockElements)~="function"then return false end
     local elements={}
     for key,group in pairs(moverKeys)do
-        elements[#elements+1]={key=key,label=group=="ability"and"NDP boss ability alerts"or"NDP reminders",noResize=true,
+        elements[#elements+1]={key=key,label=moverLabels[group],noResize=true,
             getFrame=function()return Proxy(group)end,
             getSize=function()local f=Proxy(group);return f:GetWidth(),f:GetHeight()end,
             isHidden=function()return false end,

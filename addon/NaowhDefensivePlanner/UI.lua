@@ -447,7 +447,7 @@ local function DrawInspector(parent,ctx,rules)
     -- personal defensive (whole set by priority, or one spell of it) are two blocks, both can be on.
     local mechanic=ctx.spell~=nil and ctx.kind~="trash"
     if mechanic then
-        heading("TEXT ALERT · OWN ANCHOR")
+        heading("TEXT ALERT · TEXT AND ICON OR BAR ANCHOR")
         W.Toggle(content,"Show the boss ability with my text",form.alertOn,6,cy,384,function(v)collect();form.alertOn=v;Refresh()end,"rule:alertOn");cy=cy+32
         if form.alertOn then
             field("TEXT · E.G. TANK HIT · BLANK = ABILITY NAME","alertText");cy=cy+54
@@ -653,7 +653,7 @@ ns.ApplyUIPrefs=ApplyPrefs
 local function DrawSettings(parent)
     W.Label(parent,L("Settings"),0,0,200,20,C.text,true);W.Label(parent,L("Profile settings save with the button. Window, theme and font apply at once and are not exported."),130,6,560,12,C.muted)
     local s=state.settings or ns.Clone(ns.Settings());state.settings=s;state.settingFields=state.settingFields or{}
-    W.Button(parent,L("Show a sample"),740,0,180,function()ns.Display({type="icon",spellID=22812,text=L("Use a defensive"),dur=4,tts=s.voiceOn});notify(L("Preview uses currently saved settings"))end,false,"preview-display",{align="CENTER",border=C.accent})
+    W.Button(parent,L("Show a sample"),740,0,180,function()ns.Display({type="icon",defensive=true,spellID=22812,text=L("Use a defensive"),dur=4,tts=s.voiceOn});notify(L("Preview uses currently saved settings"))end,false,"preview-display",{align="CENTER",border=C.accent})
     local col,top,cw=304,40,296
     local reminders=W.Card(parent,0,top,cw,268,L("Reminders"))
     local flags={{"Enable reminders","enabled",reminders},{"Show spell icons","showIcon",reminders},{"Show reminder text","showText",reminders},{"Glow the called spell on your bars","cdmGlow",reminders},{"Call external if nothing is ready","fallbackOn",reminders}}
@@ -666,9 +666,9 @@ local function DrawSettings(parent)
         local v=(f[2]=="x"or f[2]=="y")and s.pos and s.pos[f[2]]or s[f[2]];local y=34+row*36;row=row+1
         W.Label(look,L(f[1]),12,y+8,170,13);W.Input(look,state.settingFields[f[2]]or v or f[3],cw-102,y,90,"setting:"..f[2])
     end end
-    W.Button(look,ns.AnchorsUnlocked and ns.AnchorsUnlocked()and L("Lock anchor")or L("Unlock anchor"),12,178,132,function()if ns.ToggleAnchors then ns.ToggleAnchors()end;Refresh()end,false,"display-anchor",{h=28,align="CENTER"})
-    W.Button(look,L("Reset position"),152,178,132,function()done(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="LEFT",relPoint="CENTER",x=-170,y=100}end),nil,L("Position reset"))end,false,"display-reset",{kind="outline",h=28,align="CENTER"})
-    W.Label(look,ns.moversRegistered and L("Unlock the anchor to drag it, or move it in EllesmereUI Unlock Mode.")or L("Position is relative to the screen center; unlock the anchor to drag it."),12,220,cw-24,11,C.muted)
+    W.Button(look,ns.AnchorsUnlocked and ns.AnchorsUnlocked()and L("Lock anchors")or L("Unlock anchors"),12,178,132,function()if ns.ToggleAnchors then ns.ToggleAnchors()end;Refresh()end,false,"display-anchor",{h=28,align="CENTER"})
+    W.Button(look,L("Reset position"),152,178,132,function()done(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="LEFT",relPoint="CENTER",x=-170,y=100};data.settings.abilityPos=nil;data.settings.barPos=nil end),nil,L("Positions reset"))end,false,"display-reset",{kind="outline",h=28,align="CENTER"})
+    W.Label(look,L("Three anchors for the whole profile: defensives, text and icon, bars.")..(ns.moversRegistered and L(" Also in EllesmereUI Unlock Mode.")or""),12,220,cw-24,11,C.muted)
     local sound=W.Card(parent,col*2,top,cw-8,112,L("Sound and voice"))
     W.Toggle(sound,L("Speak reminders"),s.voiceOn~=false,12,34,cw-32,function(v)s.voiceOn=v end,"setting:voiceOn")
     W.Label(sound,L("Voice volume"),12,78,170,13);W.Input(sound,state.settingFields.voiceVol or s.voiceVol or 100,cw-110,70,90,"setting:voiceVol")

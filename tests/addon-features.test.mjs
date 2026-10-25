@@ -229,13 +229,13 @@ assert(b.point.x==200 and b.point.y==180,'ability anchor default')
 b.GetLeft=function()return 700 end;b.GetCenter=function()return 710,740 end
 b.scripts.OnDragStop(b);local q=ns.Settings().abilityPos;assert(q.x==-260 and q.y==200 and ns.Settings().pos.x==40)
 assert(not ns.ToggleAnchors())
-ns.RealDisplay({type='ability',spellID=1257717,text='Tank Hit',dur=5});ns.RealDisplay({type='icon',spellID=22812,text='Barkskin',dur=5})
+ns.RealDisplay({type='ability',spellID=1257717,text='Tank Hit',dur=5});ns.RealDisplay({type='icon',defensive=true,spellID=22812,text='Barkskin',dur=5})
 local alert,plain;for _,f in ipairs(env.frames)do if f.group=='ability'and f.shown then alert=f elseif f.group=='main'and f.shown then plain=f end end
 assert(alert and plain,'both shown');assert(alert.point.x==-260 and alert.point.y==200 and plain.point.x==40 and plain.point.y==60,'each stacks on its own anchor')
 assert(alert.text.text=='Tank Hit'and alert.clock.shown and alert.clock.text=='(5)'and alert.icons[1].w==28,'ability alert: small icon, text and (seconds) as in NSRT')
 ns.HideDisplays()
 ns.RealDisplay({type='ability',style='bar',spellID=1257717,text='Tank Hit',dur=5});ns.RealDisplay({type='ability',style='text',spellID=1257717,text='Soak',dur=5})
-local barAlert,textAlert;for _,f in ipairs(env.frames)do if f.group=='ability'and f.shown then if f.text.text=='Soak'then textAlert=f else barAlert=f end end end
+local barAlert,textAlert;for _,f in ipairs(env.frames)do if f.group=='ability'and f.shown and f.text.text=='Soak'then textAlert=f elseif f.group=='bar'and f.shown then barAlert=f end end
 assert(barAlert.bar.shown and barAlert.icons[1].shown,'bar style: icon and a timer bar')
 assert(not textAlert.bar.shown and not textAlert.icons[1].shown and textAlert.clock.shown,'text style: no icon, no bar')
 ns.HideDisplays()
@@ -656,7 +656,7 @@ assert(text and text.font=='Fonts/Expressway.ttf'and text.fontFlags=='THICKOUTLI
 ns.HideDisplays()
 -- EllesmereUI Unlock Mode: two elements; moving one saves NDP's own anchor position.
 local got;EllesmereUI={RegisterUnlockElements=function(self,elements,folder)got=elements;self.folder=folder end}
-assert(ns.RegisterMovers()and #got==2 and EllesmereUI.folder=='NaowhDefensivePlanner')
+assert(ns.RegisterMovers()and #got==3 and EllesmereUI.folder=='NaowhDefensivePlanner')
 local main;for _,e in ipairs(got)do if e.key=='NDP_Reminders'then main=e end end
 local pos=main.loadPosition('NDP_Reminders');assert(pos.point=='LEFT'and pos.relPoint=='CENTER')
 local f=main.getFrame('NDP_Reminders');assert(f and f:GetWidth()>0)
@@ -665,4 +665,21 @@ main.savePosition('NDP_Reminders','LEFT','CENTER',100,-50)
 local s=ns.Settings().pos;assert(s.x==100 and s.y==-50 and s.point=='LEFT','position saved: '..tostring(s.x)..','..tostring(s.y))
 assert(not ns.RegisterMovers(),'registered once')
 EllesmereUI=nil;LibStub=stub
+`));
+test('three anchors for the whole profile: defensives, text and icon, bars',()=>run(`
+assert(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point='LEFT',relPoint='CENTER',x=-300,y=0};data.settings.abilityPos={x=50,y=200};data.settings.barPos={x=10,y=-100}end))
+assert(ns.Validate(ns.Active()),'barPos validates')
+local function region(text)for i=#env.frames,1,-1 do local f=env.frames[i];if f.kind=='Text'and f.text==text and f.parent and f.parent.point then return f.parent end end end
+ns.RealDisplay(ns.DefensiveDisplay({22812},{text='Def'}))
+ns.RealDisplay({type='text',text='Stack',dur=4,tts=false})
+ns.RealDisplay({type='ability',spellID=1,text='Hit',dur=4,tts=false})
+ns.RealDisplay({type='ability',style='bar',spellID=1,text='Soak',dur=4,tts=false})
+ns.RealDisplay({type='bar',spellID=1,text='Beam',dur=4,tts=false})
+local d;for i=#env.frames,1,-1 do local f=env.frames[i];if f.kind=='Text'and(f.text or''):sub(1,3)=='Def'and f.parent and f.parent.point then d=f.parent;break end end;assert(d and d.point.x==-300,'defensive on its anchor')
+assert(region('Stack').point.x==50 and region('Hit').point.x==50,'text and icon reminders share one anchor')
+assert(region('Soak').point.x==10 and region('Beam').point.x==10,'every bar on the bar anchor')
+assert(region('Soak').point.y~=region('Beam').point.y,'bars stack')
+ns.HideDisplays()
+assert(ns.ToggleAnchors());local n=0;for _,f in ipairs(env.frames)do if f.text and(f.text=='Defensives · drag · /ndp anchors locks'or f.text=='Text and icon · drag'or f.text=='Bars · drag')then n=n+1 end end;assert(n==3,'three anchors to drag, got '..n)
+assert(not ns.ToggleAnchors())
 `));

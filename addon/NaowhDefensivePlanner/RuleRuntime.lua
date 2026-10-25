@@ -39,7 +39,7 @@ end
 function ns.DefensiveDisplay(spells,base,bindingSound)
     local settings=ns.Settings()
     local display=Copy(base)
-    display.type="icon"
+    display.type="icon";display.defensive=true
     display.spells,display.spellID=spells,spells[1]
     display.dur=display.dur or settings.lingerSec or 5
     local spoken,labels,sound={},{},nil
