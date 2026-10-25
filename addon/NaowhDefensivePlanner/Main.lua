@@ -80,6 +80,7 @@ function ns.Command(message)
         ns.Print("Thanks to the authors whose work this addon builds on:")
         for _,line in ipairs(ns.Credits)do print("  "..line)end
     elseif command=="debug"or command=="diag"or command=="diagnostics"then ns.ShowDiagnostics()
+    elseif command=="mem"or command=="memory"then for _,line in ipairs(ns.MemoryReport())do print("  "..line)end
     elseif command=="status"then
         local p=ns.ProviderStatus and ns.ProviderStatus()or{}
         ns.Print(ns.version.." · "..ns.Client().." · profile "..tostring(ns.Store().active or"none").." · spec "..tostring(ns.Catalog.specs[ns.Spec()or 0]or"unknown"))
@@ -133,3 +134,19 @@ events:SetScript("OnEvent",function(_,event,a,b,c,d,e)
     end
     if ns.RefreshAuraSounds then ns.RefreshAuraSounds()end
 end)
+-- /ndp mem: the addon's memory before and after a garbage collection, and the size of each
+-- part of the saved data (compressed), to see what holds it.
+function ns.MemoryReport()
+    local lines={}
+    local name="NaowhDefensivePlanner"
+    local function usage()if UpdateAddOnMemoryUsage then UpdateAddOnMemoryUsage()end;return GetAddOnMemoryUsage and GetAddOnMemoryUsage(name)end
+    local before=usage()
+    collectgarbage("collect")
+    local after=usage()
+    if before and after then lines[#lines+1]=string.format("Memory: %.1f MB, %.1f MB after collecting garbage",before/1024,after/1024)end
+    local store=ns.Store();local parts={}
+    for key,value in pairs(store)do if type(value)=="table"then local packed=ns.Pack(value);parts[#parts+1]={key=key,size=packed and #packed or 0}end end
+    table.sort(parts,function(a,b)return a.size>b.size end)
+    for i,p in ipairs(parts)do if i<=8 then lines[#lines+1]=string.format("%s: %.1f KB saved (compressed)",p.key,p.size/1024)end end
+    return lines
+end

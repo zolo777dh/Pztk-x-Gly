@@ -472,6 +472,18 @@ assert(found and found.target.rotation.note=='Soak','rotation saved')
 local text=assert(ns.Export());if LibStub('LibDeflate').DecompressDeflate then assert(ns.DecodeProfiles(text),'exports and validates')end
 assert(ns.Validate(ns.Active()),'profile with a rotation validates')
 `));
+test('saved data stays small: history is compressed, old import copies are dropped, /ndp mem reports the parts',()=>run(`
+local store=ns.Store();store.migrationSources={x=string.rep('a',100000)};store.importReports={x={}}
+store=ns.Store();assert(store.migrationSources==nil and store.importReports==nil,'unused import copies dropped')
+ns.Active().data.raidReminders[3379]={m={name='Keep me',enabled=true,content='raid',difficulties={[15]=true},trigger={type='pull',delay=5},target={all=true},display={type='text',text='x',dur=3}}}
+store.history={{name=ns.Active().name,client='retail',time=1,reason='old',profile=ns.Clone(ns.Active())}}
+ns.Snapshot(ns.Active(),'new')
+for _,h in ipairs(store.history)do assert(h.packed and h.profile==nil,'snapshots kept compressed')end
+local name=ns.Active().name;ns.Active().data.raidReminders[3379]=nil
+assert(ns.RestoreSnapshot(2)==name and ns.Active().data.raidReminders[3379].m.name=='Keep me','a compressed snapshot restores, old ones too')
+local lines=ns.MemoryReport();local found=false;for _,l in ipairs(lines)do if l:find('profiles:',1,true)then found=true end end;assert(found,'parts listed')
+SlashCmdList.NDP('mem')
+`));
 test('imports merge into or replace a same-name profile, a boss string replaces one boss, and History restores',()=>run(`
 local p=ns.Active();local n0=0;for _ in pairs(ns.Store().profiles)do n0=n0+1 end
 local function rem(name)return{name=name,enabled=true,content='raid',difficulties={[15]=true},trigger={type='pull',delay=10},target={all=true},display={type='text',text=name,dur=4}}end

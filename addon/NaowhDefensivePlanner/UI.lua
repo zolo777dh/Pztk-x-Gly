@@ -1018,7 +1018,7 @@ local function classColor(class)
     local c=class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class];if c then return{c.r,c.g,c.b,1}end;return C.text
 end
 ---------------------------------------------------------------------------
-local commands={{"/ndp","open or close the window"},{"/ndp status","state and combat source"},{"/ndp test","test a defensive reminder"},{"/ndp diag","diagnostics report"},{"/ndp sets · mythic · raid","open a section"},
+local commands={{"/ndp","open or close the window"},{"/ndp status","state and combat source"},{"/ndp test","test a defensive reminder"},{"/ndp diag","diagnostics report"},{"/ndp mem","memory use and what holds it"},{"/ndp sets · mythic · raid","open a section"},
     {"/ndp notes · tools · players","raid sections"},{"/ndp qol · combat","quality of life, combat tools"},{"/ndp note","show or hide the note frame"},{"/ndp clear · pclear","take the shared / personal note off"},{"/ndp anchors","move the reminder anchor"},
     {"/ndp pull 10 · rc","pull timer, ready check"},{"/ndp break 10","break timer (0 ends it)"},{"/ndp inv · arrange","guild invites, arrange groups"},{"/ndp promote","give assist from your list"},
     {"/ndp nick Name","set your nickname"},{"/ndp versions","addon version check"},{"/ndp roster · export","roster, export the profile"},{"/ndp wipe","reset all data (asks to confirm)"},{"/ndp credits","thanks to the authors whose work NDP builds on"}}
