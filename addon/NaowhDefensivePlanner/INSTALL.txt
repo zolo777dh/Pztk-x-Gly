@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.8.1 — in-game editor and reminder engine
+Naowh Defensive Planner 0.8.2 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -36,6 +36,7 @@ COMMANDS
 /ndp                      open or close the window
 /ndp help                 list of commands
 /ndp status | test | diag  state, test reminder, diagnostics report
+/ndp mem                  memory use and the size of each part of the saved data
 /ndp sets | mythic | raid | tl | notes | debuffs | settings
                           open a section
 /ndp note                 show or hide the note frame

@@ -11,8 +11,12 @@ function ns.Store()
     NaowhDefensivePlannerDB = NaowhDefensivePlannerDB or { clients = {} }
     NaowhDefensivePlannerDB.clients = NaowhDefensivePlannerDB.clients or {}
     local client = ns.Client()
-    NaowhDefensivePlannerDB.clients[client] = NaowhDefensivePlannerDB.clients[client] or {profiles={},history={}}
-    return NaowhDefensivePlannerDB.clients[client]
+    local store = NaowhDefensivePlannerDB.clients[client] or {profiles={},history={}}
+    NaowhDefensivePlannerDB.clients[client] = store
+    -- Before 0.8.2 every import kept its whole source string and report here, unused and never
+    -- trimmed; with NSR or NSRT profiles that is megabytes.
+    store.migrationSources, store.importReports = nil, nil
+    return store
 end
 local function Data(value, seen, depth, budget)
     if depth > 32 then return false end
@@ -277,7 +281,22 @@ function ns.Snapshot(profile,reason)
     table.insert(store.history,1,{name=profile.name,client=profile.client or ns.Client(),time=time and time()or 0,reason=reason,profile=ns.Clone(profile)})
     local kept,n={},0
     for _,h in ipairs(store.history)do if h.client~=ns.Client()then kept[#kept+1]=h elseif n<10 then n=n+1;kept[#kept+1]=h end end
+    -- Snapshots are kept compressed: ten full profile copies as tables cost many megabytes.
+    for _,h in ipairs(kept)do if h.profile and not h.packed then local packed=ns.Pack(h.profile);if packed then h.packed,h.profile=packed,nil end end end
     store.history=kept
+end
+-- A table as a compressed string and back (LibSerialize + LibDeflate), or nil without them.
+function ns.Pack(value)
+    local ser,ld=LibStub and LibStub("LibSerialize",true),LibStub and LibStub("LibDeflate",true)
+    if not(ser and ld and ser.Deserialize and ld.DecompressDeflate)then return nil end
+    local ok,packed=pcall(function()return ld:CompressDeflate(ser:Serialize(value))end)
+    return ok and packed or nil
+end
+function ns.Unpack(packed)
+    local ser,ld=LibStub and LibStub("LibSerialize",true),LibStub and LibStub("LibDeflate",true)
+    local raw=ser and ld and type(packed)=="string"and ld:DecompressDeflate(packed)
+    if not raw then return nil end
+    local ok,value=ser:Deserialize(raw);return ok and value or nil
 end
 function ns.History()
     local out={};for i,h in ipairs(ns.Store().history or{})do if h.client==ns.Client()then out[#out+1]={index=i,name=h.name,time=h.time,reason=h.reason}end end
@@ -287,7 +306,8 @@ function ns.RestoreSnapshot(index)
     if (InCombatLockdown and InCombatLockdown())or ns.encounter then return nil,"Restore after combat and the encounter"end
     local store=ns.Store();local h=store.history and store.history[index]
     if not h or h.client~=ns.Client()then return nil,"Snapshot not found"end
-    local copy=ns.Clone(h.profile)
+    local copy=h.packed and ns.Unpack(h.packed)or ns.Clone(h.profile)
+    if type(copy)~="table"then return nil,"Snapshot could not be read"end
     if store.profiles[h.name]then ns.Snapshot(store.profiles[h.name],"before restore")end
     store.profiles[h.name]=copy;store.active=h.name;ns.Reset()
     return h.name
@@ -361,7 +381,6 @@ function ns.Import(input,mode)
         if i==1 or base==active then selected=name end
     end
     store.active = selected
-    if report then store.importReports=store.importReports or{};store.importReports[selected]=report;store.migrationSources=store.migrationSources or{};store.migrationSources[selected]=input end
     ns.Reset()
     return selected,nil,report,#profiles
 end
