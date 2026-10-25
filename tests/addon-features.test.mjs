@@ -336,8 +336,12 @@ local f=ns.UIState.form;assert(f.recipient=='position'and f.role=='RANGED'and f.
 -- A recorded pull draws the boss lane; clicking an ability opens a reminder at its time.
 local enc;for e in pairs(ns.Active().data.raidReminders)do enc=e end
 ns.Store().timelines={[ns.Client()..':'..enc..':15']={events={{42,22812},{90,61336}},length=180}}
-env.click('tab:timeline');assert(ns.UIControls['tl-ability:2'],'boss lane drawn');env.click('tl-ability:2');env.click('tl-pick-timed')
-assert(ns.UIState.tab=='raid'and tonumber(ns.UIState.form.delay)==90,'ability time prefilled')
+env.click('tab:timeline');assert(ns.UIControls['tl-ability:2'],'boss lane drawn');env.click('tl-ability:2')
+-- The quick editor on the spot: a note shown 5 s, warned 4 s early, pinned to the time on the lane.
+env.click('tl-quick-what:note');env.input('tl-quick-text','Spread');env.input('tl-quick-show','5');env.input('tl-quick-warn','4');env.click('tl-quick-fixed');env.click('tl-quick-save')
+local quick;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.display and v.display.text=='Spread'then quick=v end end end
+assert(quick and quick.trigger.type=='pull'and quick.trigger.delay==90 and quick.trigger.leadTime==4 and quick.display.dur==5 and ns.UIState.tlPick==nil,'saved at the ability time without leaving the Timeline: '..tostring(ns.UIState.message))
+for _,es in pairs(ns.Active().data.raidReminders)do for k,v in pairs(es)do if v==quick then es[k]=nil end end end
 -- Sending needs a group; receiving stores the plan under the sender (real libraries only).
 if LibStub('LibSerialize').Deserialize then
 local ok,err=ns.SendReminders(enc,15);assert(not ok and err:match('group'),'needs a group')
@@ -381,9 +385,9 @@ ${pulled}
 env.click('tab:timeline');env.click('tab:timeline')
 local marks=0;for k in pairs(ns.UIControls)do if k:match('^tl%-ability:')then marks=marks+1 end end;assert(marks==8,'recorded boss casts on the Boss lane, got '..marks)
 local key;for k in pairs(ns.UIControls)do if k=='tl-ability:2'then key=k end end;assert(key);env.click(key)
-assert(ns.UIState.tlPick and ns.UIControls['tl-pick-note']and ns.UIControls['tl-pick-defensive'],'cast picker')
+assert(ns.UIState.tlPick and ns.UIControls['tl-quick-save']and ns.UIControls['tl-quick-what:note'],'cast picker')
 local pick=ns.UIState.tlPick
-env.click('tl-pick-note');assert(ns.UIState.tab=='raid'and ns.UIState.ability==pick.spell,'ability opened on the Raids page')
+env.click('tl-quick-what:note');env.click('tl-quick-more');assert(ns.UIState.tab=='raid'and ns.UIState.ability==pick.spell,'ability opened on the Raids page')
 assert(ns.UIState.form.action=='none'and ns.UIState.form.alertOn and ns.UIState.form.counter==tostring(pick.cast),'note for this cast: the text alert only')
 env.input('rule:alertText','Stack in middle');env.click('save-rule')
 local found;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.display and v.display.text=='Stack in middle'then found=v end end end
@@ -402,10 +406,10 @@ test('the timeline zooms with Ctrl + wheel and the slider moves it before and af
 ${pulled}
 env.click('tab:timeline');env.click('tab:timeline')
 local s=ns.UIState;assert(s.tlSpan==nil or s.tlSpan==120)
-env.click('tl-zoom-in');assert(s.tlSpan==90,'zoom in, got '..tostring(s.tlSpan))
-env.click('tl-zoom-out');env.click('tl-zoom-out');assert(s.tlSpan==180)
-s.tlStart=0;env.click('tl-left');assert(s.tlStart<0,'slider goes before the pull')
-env.click('tl-right');env.click('tl-right');assert(s.tlStart>0,'and past it')
+assert(not ns.UIControls['tl-zoom-in']and not ns.UIControls['tl-left'],'no extra zoom or arrow buttons')
+ns.TimelineZoom(1);assert(s.tlSpan==90,'zoom in, got '..tostring(s.tlSpan))
+ns.TimelineZoom(-1);ns.TimelineZoom(-1);assert(s.tlSpan==180)
+s.tlStart=0;env.click('tl-track:1');assert(s.tlStart<0,'slider goes before the pull')
 env.click('tl-track:20');local far=s.tlStart;assert(far>200,'track click jumps, got '..far)
 -- Holding the left button on the thumb drags the view live: the thumb follows every frame, the page a few times a second.
 local cx,down=500,true;function GetCursorPosition()return cx,300 end;function IsMouseButtonDown()return down end;ns.RefreshWorkspace();far=s.tlStart
@@ -425,7 +429,7 @@ ns.TimelineZoom(1);assert(s.tlSpan==120)
 test('a simulated pull plays the boss timeline through the reminders outside combat',()=>run(`
 ${pulled}
 env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2')
-local pick=ns.UIState.tlPick;env.click('tl-pick-note');env.input('rule:alertText','Stack in middle');env.click('save-rule')
+local pick=ns.UIState.tlPick;env.click('tl-quick-what:note');env.click('tl-quick-more');env.input('rule:alertText','Stack in middle');env.click('save-rule')
 env.click('tab:timeline');env.click('tl-simulate');assert(ns.Simulating(),'simulation running')
 assert(ns.UIControls['tl-simulate'],'stop button')
 local before=#env.shown;for _=1,math.ceil(pick.at)+1 do env.advance(1)end
@@ -437,7 +441,7 @@ env.click('tl-simulate');assert(not ns.Simulating(),'stopped')
 test('the cooldowns lane predicts the spell for each defensive call and flags calls with nothing ready',()=>run(`
 ${pulled}
 assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
-env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2');env.click('tl-pick-defensive')
+env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2');env.click('tl-quick-more')
 assert(ns.UIState.form.alertOn,'a defensive on a boss ability offers the ability alert by default')
 env.select('rule:preset','Raid');env.input('rule:counter','');env.input('rule:alertText','Tank Hit');env.click('save-rule')
 -- NSR pair: the defensive call and, separately, the boss ability with the text on its own anchor.
@@ -488,7 +492,7 @@ test('imports merge into or replace a same-name profile, a boss string replaces 
 local p=ns.Active();local n0=0;for _ in pairs(ns.Store().profiles)do n0=n0+1 end
 local function rem(name)return{name=name,enabled=true,content='raid',difficulties={[15]=true},trigger={type='pull',delay=10},target={all=true},display={type='text',text=name,dur=4}}end
 p.data.raidReminders[3379]={x=rem('X')}
-env.click('tab:timeline');env.click('tab:timeline');env.click('tl-export-boss')
+env.click('tab:timeline');env.click('tab:timeline');env.select('tl-share','Export boss')
 assert(ns.UIState.tab=='profiles'and ns.UIState.importText:sub(1,6)=='!NDP1:','boss string shown on the Profiles page')
 env.click('profile-import-mode:merge');assert(ns.UIState.importMode=='merge')
 assert(not ns.ExportBoss(3420),'empty boss refused')
@@ -544,8 +548,8 @@ local has=false;for _,a in ipairs(row.abilities)do if a.id==1390101 then has=tru
 assert(ns.EncounterScope(3901)=='raid')
 env.click('tab:timeline');env.click('tab:timeline')
 local marks=0;for k in pairs(ns.UIControls)do if k:match('^tl%-ability:')then marks=marks+1 end end;assert(marks>=7,'abilities without times, got '..marks)
-env.click('tl-ability:1');local pick=ns.UIState.tlPick;assert(pick and pick.at==nil and ns.UIControls['tl-pick-note']and not ns.UIControls['tl-pick-timed'],'untimed pick')
-env.click('tl-pick-note');assert(ns.UIState.ability==pick.spell and ns.UIState.form.counter=='','a note for every cast')
+env.click('tl-ability:1');local pick=ns.UIState.tlPick;assert(pick and pick.at==nil and ns.UIControls['tl-quick-save']and not ns.UIControls['tl-quick-fixed'],'untimed pick')
+env.click('tl-quick-what:note');env.click('tl-quick-more');assert(ns.UIState.ability==pick.spell and ns.UIState.form.counter=='','a note for every cast')
 -- The journal is read once per build; a new build reads it again.
 j.raids[1].name='Old';assert(ns.ScanJournal()and ns.Journal().raids[1].name=='Old');ns.Journal().build='1';assert(ns.ScanJournal()and ns.Journal().raids[1].name=='Fixture Raid')
 `));
@@ -557,7 +561,7 @@ assert(ns.ExpectedTimeline(3379,14)and not ns.ExpectedTimeline(3379,16),'Normal 
 assert(ns.SimulationTimeline(3379,15)==nil or ns.SimulationTimeline(3379,15).expected,'simulation plays the base')
 env.click('tab:timeline');env.click('tab:timeline')
 local marks=0;for k in pairs(ns.UIControls)do if k:match('^tl%-ability:')then marks=marks+1 end end;assert(marks==3,'base casts on the Boss lane, got '..marks)
-env.click('tl-ability:2');assert(ns.UIState.tlPick.at==19 and ns.UIState.tlPick.cast==1 and ns.UIControls['tl-pick-timed'])
+env.click('tl-ability:2');assert(ns.UIState.tlPick.at==19 and ns.UIState.tlPick.cast==1 and ns.UIControls['tl-quick-fixed'])
 assert(not ns.ExportBoss(3379,'x'),'nothing planned: the base alone is never exported')
 ${pulled}
 assert(not ns.SimulationTimeline(3379,15).expected,'your pull wins')
@@ -566,13 +570,11 @@ test('in a phase that starts at a different time on each pull, Timed here follow
 ns.LogTimelines[3379]={[15]={length=300,kills=20,phases={{id=2,name='Stage Two',at=100,vary=true}},events={{9,1260837},{98,1257717,anchor=2},{120,1260837,anchor=2},{115,1276710,spread=4}}}}
 env.click('tab:timeline');env.click('tab:timeline')
 assert(ns.UIControls['tl-phase:1'],'phase change drawn')
-env.click('tl-ability:1');assert(ns.UIControls['tl-pick-timed']and not ns.UIState.tlPick.anchor,'a cast before the phase stays timed from the pull')
-env.click('tl-ability:2');assert(ns.UIState.tlPick.anchor and not ns.UIControls['tl-pick-timed'],'the anchor itself: plan it by its boss timer')
-env.click('tl-ability:4');assert(not ns.UIControls['tl-pick-timed'],'a cast that moves between kills has no time to pin')
+env.click('tl-ability:1');assert(ns.UIControls['tl-quick-fixed']and not ns.UIState.tlPick.anchor,'a cast before the phase stays timed from the pull')
+env.click('tl-ability:2');assert(ns.UIState.tlPick.anchor and not ns.UIControls['tl-quick-fixed'],'the anchor itself: plan it by its boss timer')
+env.click('tl-ability:4');assert(not ns.UIControls['tl-quick-fixed'],'a cast that moves between kills has no time to pin')
 env.click('tl-ability:3');local a=ns.UIState.tlPick.anchor;assert(a and a.spell==1257717 and a.cast==1 and a.offset==22,'timed from the first steady cast of the phase')
-env.click('tl-pick-timed')
-local form=ns.UIState.form;assert(ns.UIState.ability==1257717 and form.trigger=='bwmsg'and tonumber(form.delay)==20 and form.counter=='1','2 s before the cast, after the anchor message')
-env.select('rule:action','Text');env.input('rule:text','Big hit soon');env.click('save-rule')
+env.click('tl-quick-what:note');env.input('tl-quick-text','Big hit soon');env.input('tl-quick-warn','2');env.click('tl-quick-fixed');env.click('tl-quick-save')
 local saved;for _,v in pairs(ns.Active().data.raidReminders[3379]or{})do if v.trigger.type=='bwmsg'and v.trigger.spellID==1257717 then saved=v end end
 assert(saved and saved.trigger.delay==20,'saved on the anchor message: '..tostring(ns.UIState.message))
 -- On the pull it waits for the anchor, however late the phase comes.
@@ -612,10 +614,55 @@ local p=ns.Active();p.data.raidReminders[enc]={a={name='Mine',enabled=true,conte
 env.click('tab:timeline');assert(ns.UIControls['tl-marker:b'])
 env.click('tl-view:mine');assert(ns.UIControls['tl-marker:a']and not ns.UIControls['tl-marker:b'],'Mine hides the other player')
 env.click('tl-view:all');assert(ns.UIControls['tl-marker:b'])
-env.click('tl-templates');env.input('tl-template-name','Prog');env.click('tl-template-save')
+env.select('tl-share','Templates');env.input('tl-template-name','Prog');env.click('tl-template-save')
 assert(#ns.Templates(enc)==1,'template saved')
 p.data.raidReminders[enc]={}
 env.click('tab:timeline');env.click('tl-template-apply:1');assert(ns.Active().data.raidReminders[enc].a,'template restores the plan')
 assert(#ns.History()>=1,'applying keeps a snapshot')
 env.click('tl-template-delete:1');assert(#ns.Templates(enc)==0)
+`));
+test('list scrollbars drag with the mouse and jump where the track is pressed',()=>run(`
+local W=ns.Widgets
+local child,scroll=W.Scroll(UIParent,0,0,300,200,'test-list')
+function scroll:GetVerticalScrollRange()return 400 end;scroll.UpdateThumb()
+local grip,track=scroll.ThumbGrip,scroll.ThumbTrack;assert(grip:IsShown()and track:IsShown(),'thumb shown when the list overflows')
+assert(grip:GetFrameLevel()>track:GetFrameLevel(),'thumb above its track')
+local cy,down=500,true;function GetCursorPosition()return 10,cy end;function IsMouseButtonDown()return down end
+grip.scripts.OnMouseDown(grip,'LeftButton')
+local d;for i=#env.frames,1,-1 do local f=env.frames[i];if f.scripts.OnUpdate and f.parent==nil then d=f;break end end;assert(d,'drag driver')
+cy=450;d.scripts.OnUpdate(d,0.02);local moved=scroll:GetVerticalScroll();assert(moved>0,'dragging down scrolls down, got '..moved)
+cy=600;d.scripts.OnUpdate(d,0.02);assert(scroll:GetVerticalScroll()==0,'and stops at the top')
+cy=0;d.scripts.OnUpdate(d,0.02);assert(scroll:GetVerticalScroll()==400,'and at the bottom')
+down=false;d.scripts.OnUpdate(d,0.02);assert(d.scripts.OnUpdate==nil,'release ends the drag')
+GetCursorPosition,IsMouseButtonDown=nil,nil
+`));
+test('text and bar look come from Settings and LibSharedMedia; NDP anchors join EllesmereUI Unlock Mode',()=>run(`
+local lsm={media={font={['Expressway']='Fonts/Expressway.ttf'},statusbar={['Smooth']='Tex/Smooth'}}}
+function lsm:Register(kind,name,file)self.media[kind]=self.media[kind]or{};self.media[kind][name]=file end
+function lsm:List(kind)local o={};for k in pairs(self.media[kind]or{})do o[#o+1]=k end;table.sort(o);return o end
+function lsm:Fetch(kind,name)return self.media[kind]and self.media[kind][name]end
+local stub=LibStub;LibStub=setmetatable({},{__call=function(_,name,silent)if name=='LibSharedMedia-3.0'then return lsm end;return stub(name,silent)end,__index=stub})
+ns.RegisterMedia();assert(lsm.media.font['URW Gothic Demi'],'NDP shares its font')
+local fonts={};for _,o in ipairs(ns.FontChoices())do fonts[o.value]=true end;assert(fonts['lsm:Expressway'],'shared fonts listed')
+local bars={};for _,o in ipairs(ns.BarTextureChoices())do bars[o.value]=true end;assert(bars['lsm:Smooth']and bars.flat,'shared textures listed')
+assert(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.font='lsm:Expressway';data.settings.outline='thick';data.settings.barTexture='lsm:Smooth';data.settings.barWidth=300;data.settings.barHeight=20 end))
+assert(ns.Validate(ns.Active()),'look settings validate')
+
+ns.RealDisplay({type='bar',spellID=22812,text='Soak',dur=5,tts=false})
+local bar;for i=#env.frames,1,-1 do local f=env.frames[i];if f.kind=='StatusBar'and f.shown then bar=f;break end end
+assert(bar and bar.w==300 and bar.h==20,'bar size from Settings: '..tostring(bar and bar.w)..'x'..tostring(bar and bar.h)..' '..tostring(ns.Settings().barWidth))
+local text;for i=#env.frames,1,-1 do local f=env.frames[i];if f.kind=='Text'and f.text=='Soak'then text=f;break end end
+assert(text and text.font=='Fonts/Expressway.ttf'and text.fontFlags=='THICKOUTLINE','font and outline from Settings')
+ns.HideDisplays()
+-- EllesmereUI Unlock Mode: two elements; moving one saves NDP's own anchor position.
+local got;EllesmereUI={RegisterUnlockElements=function(self,elements,folder)got=elements;self.folder=folder end}
+assert(ns.RegisterMovers()and #got==2 and EllesmereUI.folder=='NaowhDefensivePlanner')
+local main;for _,e in ipairs(got)do if e.key=='NDP_Reminders'then main=e end end
+local pos=main.loadPosition('NDP_Reminders');assert(pos.point=='LEFT'and pos.relPoint=='CENTER')
+local f=main.getFrame('NDP_Reminders');assert(f and f:GetWidth()>0)
+function f:GetLeft()return 740 end;function f:GetCenter()return 760,350 end;function UIParent:GetCenter()return 640,400 end
+main.savePosition('NDP_Reminders','LEFT','CENTER',100,-50)
+local s=ns.Settings().pos;assert(s.x==100 and s.y==-50 and s.point=='LEFT','position saved: '..tostring(s.x)..','..tostring(s.y))
+assert(not ns.RegisterMovers(),'registered once')
+EllesmereUI=nil;LibStub=stub
 `));

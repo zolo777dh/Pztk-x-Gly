@@ -668,11 +668,19 @@ local function DrawSettings(parent)
     end end
     W.Button(look,ns.AnchorsUnlocked and ns.AnchorsUnlocked()and L("Lock anchor")or L("Unlock anchor"),12,178,132,function()if ns.ToggleAnchors then ns.ToggleAnchors()end;Refresh()end,false,"display-anchor",{h=28,align="CENTER"})
     W.Button(look,L("Reset position"),152,178,132,function()done(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.pos={point="LEFT",relPoint="CENTER",x=-170,y=100}end),nil,L("Position reset"))end,false,"display-reset",{kind="outline",h=28,align="CENTER"})
-    W.Label(look,L("Position is relative to the screen center; unlock the anchor to drag it."),12,220,cw-24,11,C.muted)
-    local sound=W.Card(parent,col*2,top,cw-8,268,L("Sound and voice"))
+    W.Label(look,ns.moversRegistered and L("Unlock the anchor to drag it, or move it in EllesmereUI Unlock Mode.")or L("Position is relative to the screen center; unlock the anchor to drag it."),12,220,cw-24,11,C.muted)
+    local sound=W.Card(parent,col*2,top,cw-8,112,L("Sound and voice"))
     W.Toggle(sound,L("Speak reminders"),s.voiceOn~=false,12,34,cw-32,function(v)s.voiceOn=v end,"setting:voiceOn")
     W.Label(sound,L("Voice volume"),12,78,170,13);W.Input(sound,state.settingFields.voiceVol or s.voiceVol or 100,cw-110,70,90,"setting:voiceVol")
-    W.Label(sound,L("Boss mechanics require matching provider messages/timers. ExBoss supplies trash countdowns. Readiness uses public game APIs."),12,118,cw-32,11,C.muted)
+    -- Text and bars: font, outline and bar texture, from LibSharedMedia when another addon has it.
+    local bars=W.Card(parent,col*2,top+122,cw-8,146,L("Text and bars"))
+    local half=math.floor((cw-8-36)/2)
+    W.Select(bars,L("Font"),ns.FontChoices(),s.font or"",12,30,half,function(v)s.font=v~=""and v or nil end,"setting:font")
+    W.Select(bars,L("Outline"),{{value="none",label=L("None")},{value="outline",label=L("Outline")},{value="thick",label=L("Thick")},{value="mono",label=L("Monochrome")}},s.outline or"outline",24+half,30,half,function(v)s.outline=v end,"setting:outline")
+    W.Select(bars,L("Bar texture"),ns.BarTextureChoices(),s.barTexture or"",12,84,half,function(v)s.barTexture=v~=""and v or nil end,"setting:barTexture")
+    W.Caption(bars,L("BAR W x H"),24+half,84,half)
+    W.Input(bars,state.settingFields.barWidth or s.barWidth or 240,24+half,100,math.floor(half/2)-3,"setting:barWidth")
+    W.Input(bars,state.settingFields.barHeight or s.barHeight or"",24+half+math.floor(half/2)+3,100,math.floor(half/2)-3,"setting:barHeight")
     local covered=W.Card(parent,col,top+280,cw,232,L("Already covered"))
     W.Toggle(covered,L("Skip when a defensive is already up"),s.coveredSkip==true and s.coveredSkipDefaultOn~=false,12,34,cw-24,function(v)s.coveredSkip=v;s.coveredSkipDefaultOn=v end,"setting:coveredSkip")
     W.Label(covered,L("Counts as cast for (sec)"),12,82,170,13);W.Input(covered,state.settingFields.coveredCastWindow or s.coveredCastWindow or 3,cw-102,74,90,"setting:coveredCastWindow")
@@ -695,6 +703,8 @@ local function DrawSettings(parent)
         s.voicePhrases=s.voicePhrases or{}
         for _,key in ipairs(ns.VoicePhraseKeys)do local t=tostring(read("setting:phrase:"..key)or""):match("^%s*(.-)%s*$");assert(#t<=100,L("Use at most 100 characters for a phrase"));s.voicePhrases[key]=t~=""and t or nil end
         if not next(s.voicePhrases)then s.voicePhrases=nil end
+        local bw=tonumber(read("setting:barWidth"));assert(bw and bw>=60 and bw<=1000,L("Enter 60-1000 for the bar width"));s.barWidth=bw
+        local bh=tostring(read("setting:barHeight")or""):match("^%s*(.-)%s*$");if bh==""then s.barHeight=nil else bh=tonumber(bh);assert(bh and bh>=8 and bh<=200,L("Enter 8-200 for the bar height, or leave it blank for the icon size"));s.barHeight=bh end
         local window=tonumber(read("setting:coveredCastWindow"));assert(window and window>=0 and window<=60,L("Enter 0-60 seconds for the cast window"));s.coveredCastWindow=window
         for _,f in ipairs(fields)do local number=tonumber(read("setting:"..f[2]));assert(number,L("Enter a number for ")..L(f[1]));if f[2]=="x"or f[2]=="y"then s.pos=s.pos or{point="CENTER",relPoint="CENTER"};s.pos[f[2]]=number else s[f[2]]=number end end;data.settings=s
     end);done(v,e,L("Settings saved"))end,true,"save-settings",{kind="primary",align="CENTER",h=40})
@@ -935,12 +945,10 @@ local function DrawTimeline(parent)
         if simOn then ns.StopSimulation();notify(L("Simulation stopped"))else local ok,err=ns.SimulatePull(ctx.encounter,state.tlDifficulty);if not ok then return notify(L(err),true)end;state.tlStart=0;notify(L("Simulating the pull · reminders fire as on a real pull"))end
         Refresh()
     end,simOn,"tl-simulate",{h=22,align="CENTER",kind=simOn and"danger"or"outline",tooltip=L("Plays this timeline from the pull with your reminders, as on a real pull. Outside combat only.")})
-    -- Slider: arrows step by a quarter window, the track jumps to where it is clicked, the
-    -- thumb can be dragged, and the mouse wheel over the axis scrolls it.
+    -- Slider: the track jumps to where it is clicked, the thumb can be dragged, and the mouse
+    -- wheel over the axis scrolls it (Ctrl + wheel zooms).
     local sy=axisY+18;local total=maxStart-minStart+span
     local function moveTo(t)state.tlStart=math.floor(math.max(minStart,math.min(t,maxStart))+0.5);Refresh()end
-    W.Button(card,"<",x0-34,sy-6,26,function()moveTo(from-span/4)end,false,"tl-left",{h=20,align="CENTER",tooltip=L("Earlier")})
-    W.Button(card,">",x0+w+8,sy-6,26,function()moveTo(from+span/4)end,false,"tl-right",{h=20,align="CENTER",tooltip=L("Later")})
     W.RoundRect(card,x0,sy,w,8,C.raised,4)
     local segs=20
     for k=1,segs do local t=minStart+(k-0.5)*total/segs-span/2
@@ -979,14 +987,18 @@ local function DrawTimeline(parent)
         local function go()local d=state.tlWheel or 0;state.tlWheel,state.tlWheelQueued=nil,nil;moveTo((state.tlStart or from)-d*span/8)end
         if C_Timer and C_Timer.After then state.tlWheelQueued=true;C_Timer.After(0,go)else go()end
     end)end
-    W.Button(card,"-",716,6,24,function()zoom(-1)end,false,"tl-zoom-out",{h=22,align="CENTER",tooltip=L("Zoom out · Ctrl + mouse wheel down")})
-    W.Button(card,"+",742,6,24,function()zoom(1)end,false,"tl-zoom-in",{h=22,align="CENTER",tooltip=L("Zoom in · Ctrl + mouse wheel up")})
     W.Segmented(card,{{value=60,label="1m"},{value=120,label="2m"},{value=240,label="4m"}},span,770,6,140,function(v)state.tlSpan=v;Refresh()end,"tl-zoom")
     local list=W.Card(parent,0,458,920,134,L("Reminders on this boss"))
-    W.Button(list,L("Send to group"),752,6,156,function()local count,err=ns.SendReminders(ctx.encounter,state.tlDifficulty);done(count,err,(tonumber(count)or 0)..L(" reminders sent to the group"))end,false,"tl-send",{h=24,glyph="players"})
-    W.Button(list,state.tlTemplates and L("Close templates")or L("Templates"),488,6,124,function()state.tlTemplates=not state.tlTemplates or nil;state.tlPick=nil;Refresh()end,state.tlTemplates,"tl-templates",{h=24,align="CENTER",tooltip=L("Named versions of this boss plan, e.g. Prog and Farm")})
-    -- One-boss string: importing it replaces only this boss in the receiver's active profile.
-    W.Button(list,L("Export boss"),620,6,124,function()local v,err=ns.ExportBoss(ctx.encounter,n.name);if v then state.tab="profiles";loadView();state.importText=v;notify(L("Boss export ready on the Profiles page · Ctrl+C copies it"));Refresh()else notify(err,true)end end,false,"tl-export-boss",{h=24,align="CENTER",tooltip=L("A string with only this boss: its reminders, ability bindings and the sets they use.")})
+    -- Sharing and plan versions sit in one menu: send to the group, a one-boss string (importing
+    -- it replaces only this boss in the receiver's profile), and named templates.
+    local function share(v)
+        if v=="send"then local count,err=ns.SendReminders(ctx.encounter,state.tlDifficulty);done(count,err,(tonumber(count)or 0)..L(" reminders sent to the group"))
+        elseif v=="export"then local text,err=ns.ExportBoss(ctx.encounter,n.name);if text then state.tab="profiles";loadView();state.importText=text;notify(L("Boss export ready on the Profiles page · Ctrl+C copies it"))else notify(err,true)end
+        elseif v=="templates"then state.tlTemplates=not state.tlTemplates or nil;state.tlPick=nil end
+        Refresh()
+    end
+    local menu=W.Select(list,nil,{{value="send",label=L("Send to group")},{value="export",label=L("Export boss")},{value="templates",label=state.tlTemplates and L("Close templates")or L("Templates")}},nil,752,6,156,share,"tl-share",{h=24})
+    menu.label:SetText(L("Share and plans"))
     if not recorded then W.Label(list,L("Pull the boss once (BigWigs, DBM or built-in timers) to place its abilities and their reminders in time."),300,12,310,10,C.faint)
     elseif recorded.expected then W.Label(list,L("Median times of ")..tostring(recorded.kills or 0)..L(" public kills (Warcraft Logs). Your own pull replaces them."),300,12,310,10,C.faint)
     elseif recorded.shared then W.Label(list,L("Times from a shared boss export. Your own recorded pull replaces them."),300,12,310,10,C.faint)end
@@ -995,25 +1007,63 @@ local function DrawTimeline(parent)
         if pullLog and #analysis>0 then parts[#parts+1]=L("Last pull: ")..followed.."/"..#analysis..L(" calls followed")end
         if #parts>0 then W.Label(list,table.concat(parts," · "),300,24,310,10,missing>0 and C.danger or C.muted)end
     end
-    -- A clicked boss ability: bind a defensive set or write a note for that cast.
+    -- A clicked boss ability: one small editor on the spot. What to show (a defensive set, a
+    -- note, or a bar counting down to the cast), how long it stays, how early it warns, and
+    -- whether it is this cast or every cast. It fires from the live boss timer of that cast;
+    -- "Fixed time" pins it to the time on the lane instead (or, in a phase that depends on the
+    -- raid, to the cast that starts that phase). More options opens the full editor.
     local pick=state.tlPick;if pick and(pick.encounter~=ctx.encounter or pick.difficulty~=state.tlDifficulty or(pick.at and not recorded))then pick=nil end
     if pick then
-        local function plan(action,every)state.tlPick=nil;state.newAction=action=="text"and"ability"or action;state.newCounter=not every and pick.cast or nil;local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=false;state.ability=pick.spell;state.ruleKey="new";state.form=nil;Refresh()end
-        W.Icon(list,pick.spell,12,102,20)
-        W.Label(list,name(pick.spell)..(pick.at and(" #"..pick.cast..string.format(" · %d:%02d",math.floor(pick.at/60),math.floor(pick.at%60)))or L(" · every cast")),38,106,250,11,C.text,true)
-        W.Button(list,L("Defensive set"),300,98,140,function()plan("defensive")end,false,"tl-pick-defensive",{kind="primary",align="CENTER",h=26})
-        W.Button(list,L("Note"),446,98,110,function()plan("text")end,false,"tl-pick-note",{align="CENTER",h=26})
-        W.Button(list,L("Every cast"),562,98,120,function()plan("text",true)end,false,"tl-pick-every",{align="CENTER",h=26,tooltip=L("A note for every cast of this ability")})
-        -- Timed here: from the pull, or in a phase that depends on the raid, after the cast that
-        -- anchors that phase (its boss mod message), so the reminder follows the real phase.
         local anchor=pick.anchor
-        if pick.at and anchor and anchor.offset>0 then W.Button(list,L("Timed here"),688,98,110,function()
-            state.tlPick=nil;state.newTrigger="bwmsg";state.newCounter=anchor.cast;state.newName=name(pick.spell)
-            state.timedPrefill=math.max(0,math.floor((anchor.offset-2)*10+0.5)/10)
-            local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=false;state.ability=anchor.spell;state.ruleKey="new";state.form=nil;Refresh()
-        end,false,"tl-pick-timed",{align="CENTER",h=26,tooltip=L("2 s before this cast: after ")..name(anchor.spell).." #"..anchor.cast..string.format(" +%.1fs",anchor.offset)..L(", since this phase starts at a different time on each pull")})
-        elseif pick.at and not anchor and not pick.moves then W.Button(list,L("Timed here"),688,98,110,function()state.tlPick=nil;state.timedSpell=pick.spell;open(nil,pick.at)end,false,"tl-pick-timed",{align="CENTER",h=26,tooltip=L("A reminder at this time from the pull")})end
-        W.Button(list,L("Cancel"),804,98,104,function()state.tlPick=nil;Refresh()end,false,"tl-pick-cancel",{kind="ghost",align="CENTER",h=26})
+        local canFix=pick.at and(anchor and anchor.offset>0 or not anchor and not pick.moves)
+        local profile=ns.Active();local sets=ns.ScopePresets(profile,"raid",state.spec)or{}
+        local setOptions={};for key,set in pairs(sets)do setOptions[#setOptions+1]={value=key,label=set.name or key}end;table.sort(setOptions,function(x,y)return x.label<y.label end)
+        local q=state.tlQuick
+        if not q or q.spell~=pick.spell or q.cast~=pick.cast then
+            q={spell=pick.spell,cast=pick.cast,what=#setOptions>0 and"defensive"or"note",preset=ns.ScopeActive(profile,"raid",state.spec),text="",show=4,warn=3,every=pick.at==nil,fixed=false}
+            state.tlQuick=q
+        end
+        if not sets[q.preset]and setOptions[1]then q.preset=setOptions[1].value end
+        local function keep()local c=ns.UIControls["tl-quick-text"];if c then q.text=c:GetText()end;c=ns.UIControls["tl-quick-show"];if c then q.show=c:GetText()end;c=ns.UIControls["tl-quick-warn"];if c then q.warn=c:GetText()end end
+        local function full(action)
+            keep();state.tlPick=nil;state.tlQuick=nil;state.newAction=action;state.newCounter=not q.every and pick.cast or nil
+            local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=false;state.ability=pick.spell;state.ruleKey="new";state.form=nil;Refresh()
+        end
+        local function save()
+            keep()
+            local show,warn=tonumber(q.show),tonumber(q.warn)
+            if not show or show<=0 or show>120 then return notify(L("Enter 0.1-120 seconds for how long it shows"),true)end
+            if not warn or warn<0 or warn>120 then return notify(L("Enter 0-120 seconds for how early it warns"),true)end
+            local spell,counter=pick.spell,(not q.every)and pick.cast or nil
+            local fixed=q.fixed and canFix
+            if fixed and anchor then spell,counter=anchor.spell,anchor.cast end
+            local sd=state.difficulty;state.difficulty=state.tlDifficulty
+            local cx=entityContext("raid",g,n,{id=spell});state.difficulty=sd
+            local form=InitialForm(cx,nil)
+            form.name=name(pick.spell);form.duration=show;form.leadTime=warn;form.counter=counter and tostring(counter)or""
+            if q.what=="defensive"then form.action="defensive";form.preset=q.preset;form.alertOn=true;form.alertText=""
+            else form.action="none";form.alertOn=true;form.alertText=q.text or"";form.alertStyle=q.what=="bar"and"bar"or"icon"end
+            if fixed and anchor then form.trigger="bwmsg";form.delay=math.max(0,math.floor((anchor.offset-warn)*10+0.5)/10)
+            elseif fixed then form.trigger="pull";form.delay=pick.at
+            else form.trigger="bwtimer";form.delay=0 end
+            local key,err=ns.SaveRule(cx,form,nil)
+            if key then state.tlPick=nil;state.tlQuick=nil end
+            done(key,err,L("Reminder saved on ")..name(pick.spell))
+        end
+        W.Icon(list,pick.spell,12,32,20)
+        W.Label(list,name(pick.spell)..(pick.at and(" #"..pick.cast..string.format(" · %d:%02d",math.floor(pick.at/60),math.floor(pick.at%60)))or L(" · every cast")),38,36,330,12,C.text,true)
+        if pick.at then W.Toggle(list,L("Every cast"),q.every,380,30,150,function(v)keep();q.every=v end,"tl-quick-every")end
+        if canFix then W.Toggle(list,L("Fixed time"),q.fixed,548,30,150,function(v)keep();q.fixed=v end,"tl-quick-fixed")end
+        W.Segmented(list,{{value="defensive",label=L("Defensive")},{value="note",label=L("Note")},{value="bar",label=L("Bar")}},q.what,12,62,276,function(v)keep();q.what=v;Refresh()end,"tl-quick-what")
+        if q.what=="defensive"then
+            if #setOptions>0 then W.Select(list,nil,setOptions,q.preset,296,63,220,function(v)keep();q.preset=v end,"tl-quick-set",{h=30})
+            else W.Label(list,L("No defensive set for this specialization yet"),296,72,220,11,C.danger)end
+        else W.Input(list,q.text or"",296,63,220,"tl-quick-text",false,{h=30});if q.text==""then W.Label(list,q.what=="bar"and L("bar text, blank = ability name")or L("e.g. Stack in middle"),306,98,210,10,C.faint)end end
+        W.Label(list,L("Show (s)"),528,72,60,11,C.muted);W.Input(list,q.show,584,63,46,"tl-quick-show",false,{h=30})
+        W.Label(list,L("Warn (s)"),640,72,60,11,C.muted);W.Input(list,q.warn,694,63,46,"tl-quick-warn",false,{h=30})
+        W.Button(list,L("Save"),752,63,76,save,false,"tl-quick-save",{kind="primary",align="CENTER",h=30})
+        W.Button(list,"",834,63,34,function()full(q.what=="defensive"and"defensive"or"ability")end,false,"tl-quick-more",{h=30,glyph="settings",tooltip=L("More options: who sees it, sound, voice, colors")})
+        W.Button(list,"",874,63,34,function()state.tlPick=nil;state.tlQuick=nil;Refresh()end,false,"tl-quick-cancel",{kind="ghost",h=30,glyph="close",tooltip=L("Cancel")})
     end
     local templatesOpen=state.tlTemplates and not pick
     if templatesOpen then
@@ -1027,9 +1077,9 @@ local function DrawTimeline(parent)
             W.Button(list,"x",x+170,98,26,function()done(ns.DeleteTemplate(t.index),nil,L("Template deleted"))end,false,"tl-template-delete:"..i,{kind="danger",align="CENTER",h=26})
         end end
     end
-    if #rules==0 and #mech==0 then W.Label(list,L("No reminders on this boss yet. Add one with + Timed reminder or on the Raids page."),12,36,700,12,C.muted)end
+    if #rules==0 and #mech==0 and not pick then W.Label(list,L("No reminders on this boss yet. Add one with + Timed reminder or on the Raids page."),12,36,700,12,C.muted)end
     local i=0
-    local rows=(pick or templatesOpen)and 4 or 6
+    local rows=pick and 0 or templatesOpen and 4 or 6
     for _,r in ipairs(rules)do i=i+1;if i<=rows then
         local t=r.entry.trigger;local at=t.type=="bosshp"and("HP<"..tostring(t.percent).."%")or t.type=="aura"and("Aura "..tostring(t.spellID))or t.type=="prepull"and("-"..tostring(t.delay).."s")or t.type=="stage"and("P"..tostring(t.stage).." "..tostring(t.delay).."s")or(tostring(t.delay).."s")
         W.Button(list,at.."  ·  "..(r.entry.name or L("Timed reminder")),12+((i-1)%2)*452,32+math.floor((i-1)/2)*34,440,function()open(r.key)end,false,"tl-row:"..r.key,{kind="ghost",h=30,glyph="clock"})

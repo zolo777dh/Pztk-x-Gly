@@ -77,7 +77,7 @@ local function forwardWheel(f,parent)
     else f:EnableMouseWheel(false)end
 end
 W.ForwardWheel=forwardWheel
-local resetScripts={"OnClick","OnEnter","OnLeave","OnEscapePressed","OnEnterPressed","OnTextChanged","OnKeyDown","OnUpdate","OnEditFocusGained","OnEditFocusLost","OnMouseWheel","OnVerticalScroll","OnScrollRangeChanged","OnReceiveDrag","OnMouseUp"}
+local resetScripts={"OnClick","OnEnter","OnLeave","OnEscapePressed","OnEnterPressed","OnTextChanged","OnKeyDown","OnUpdate","OnEditFocusGained","OnEditFocusLost","OnMouseWheel","OnVerticalScroll","OnScrollRangeChanged","OnReceiveDrag","OnMouseUp","OnMouseDown"}
 function W.Frame(kind,unused,parent,template)
     if not W.building then local f=CreateFrame(kind,nil,parent,template);if kind=="Button"or kind=="EditBox"then forwardWheel(f,parent)end;return f end
     -- A ScrollFrame retains its scroll child. Never recycle that child into a
@@ -306,24 +306,57 @@ function W.Segmented(parent,options,value,x,y,w,callback,prefix)
     return frame
 end
 ---------------------------------------------------------------------------
--- Plain scroll frame with mouse wheel and a thin thumb instead of the stock template.
+-- Dragging with the left button held: move(dx,dy) gets the cursor travel in UI units since
+-- the press, every frame, until the button is let go (then finish). One lasting frame drives
+-- it, so a page redrawn under the cursor does not end the drag.
+local dragDriver
+function W.Drag(scale,move,finish)
+    if not(GetCursorPosition and CreateFrame)then return end
+    dragDriver=dragDriver or CreateFrame("Frame")
+    scale=(type(scale)=="number"and scale>0)and scale or 1
+    local sx,sy=GetCursorPosition()
+    dragDriver:SetScript("OnUpdate",function(self,elapsed)
+        local x,y=GetCursorPosition();local dx,dy=(x-sx)/scale,(y-sy)/scale
+        if not(IsMouseButtonDown and IsMouseButtonDown("LeftButton"))then self:SetScript("OnUpdate",nil);if finish then finish(dx,dy)end;return end
+        move(dx,dy,elapsed or 0)
+    end)
+end
+-- Plain scroll frame with mouse wheel and a thin thumb instead of the stock template. The
+-- thumb can be dragged, and a press on its track jumps there and keeps dragging.
 local function wheel(scroll,thumbParent,x,top,h)
-    local thumb=Texture(thumbParent,"ARTWORK");thumb:SetTexture(WHITE);thumb:SetVertexColor(unpack(W.colors.lineStrong));thumb:SetWidth(3)
+    local level=thumbParent.GetFrameLevel and thumbParent:GetFrameLevel()or 1
+    local track=W.Frame("Button",nil,thumbParent);track:SetWidth(12);track:SetPoint("TOPLEFT",thumbParent,"TOPLEFT",x-5,-top);track:SetHeight(h);track:SetFrameLevel(level+20)
+    local grip=W.Frame("Button",nil,thumbParent);grip:SetWidth(12);grip:SetFrameLevel(level+21)
+    local thumb=Texture(grip,"ARTWORK");thumb:SetTexture(WHITE);thumb:SetVertexColor(unpack(W.colors.lineStrong));thumb:SetWidth(3);thumb:SetPoint("TOP",grip,"TOP",0,0);thumb:SetPoint("BOTTOM",grip,"BOTTOM",0,0)
+    local size=h
+    local function range()local r=scroll.GetVerticalScrollRange and scroll:GetVerticalScrollRange()or 0;return type(r)=="number"and r or 0 end
     local function update()
-        local range=scroll.GetVerticalScrollRange and scroll:GetVerticalScrollRange()or 0;local view=scroll:GetHeight()or h
-        if type(range)~="number"or range<=1 then thumb:Hide();return end
-        local size=math.max(24,h*view/(view+range));local offset=(h-size)*math.min(1,(scroll:GetVerticalScroll()or 0)/range)
-        thumb:Show();thumb:ClearAllPoints();thumb:SetHeight(size);thumb:SetPoint("TOPLEFT",thumbParent,"TOPLEFT",x,-(top+offset))
+        local r=range();local view=scroll:GetHeight()or h
+        if r<=1 then grip:Hide();track:Hide();return end
+        size=math.max(24,h*view/(view+r));local offset=(h-size)*math.min(1,(scroll:GetVerticalScroll()or 0)/r)
+        grip:Show();track:Show();grip:ClearAllPoints();grip:SetHeight(size);grip:SetPoint("TOPLEFT",thumbParent,"TOPLEFT",x-5,-(top+offset))
     end
+    local function set(v)local r=range();scroll:SetVerticalScroll(math.max(0,math.min(r,v)));update()end
+    local function drag(start)
+        local per=range()/math.max(1,h-size)
+        W.Drag(grip:GetEffectiveScale(),function(_,dy)set(start-dy*per)end)
+    end
+    grip:SetScript("OnMouseDown",function(_,button)if button and button~="LeftButton"then return end;drag(scroll:GetVerticalScroll()or 0)end)
+    track:SetScript("OnMouseDown",function(self,button)
+        if button and button~="LeftButton"then return end
+        local _,cy=GetCursorPosition();local t=self:GetTop();local s=self:GetEffectiveScale()or 1
+        if type(cy)=="number"and type(t)=="number"then set(range()*((t-cy/s-size/2)/math.max(1,h-size)))end
+        drag(scroll:GetVerticalScroll()or 0)
+    end)
     scroll:EnableMouseWheel(true)
     scroll.wheelHandler=function(self,delta)
-        local range=self.GetVerticalScrollRange and self:GetVerticalScrollRange()or 0;if type(range)~="number"then range=0 end
-        self:SetVerticalScroll(math.max(0,math.min(range,(self:GetVerticalScroll()or 0)-delta*48)))
+        local r=self.GetVerticalScrollRange and self:GetVerticalScrollRange()or 0;if type(r)~="number"then r=0 end
+        self:SetVerticalScroll(math.max(0,math.min(r,(self:GetVerticalScroll()or 0)-delta*48)))
         if self.UpdateThumb then self.UpdateThumb()end
     end
     scroll:SetScript("OnMouseWheel",scroll.wheelHandler)
     scroll:SetScript("OnVerticalScroll",update);scroll:SetScript("OnScrollRangeChanged",update)
-    scroll.UpdateThumb=update;update()
+    scroll.UpdateThumb=update;scroll.ThumbGrip=grip;scroll.ThumbTrack=track;update()
 end
 W.Wheel=wheel
 function W.Scroll(parent,x,y,w,h,key,color)

@@ -128,6 +128,8 @@ events:SetScript("OnEvent",function(_,event,a,b,c,d,e)
         if event=="PLAYER_SPECIALIZATION_CHANGED"and a~="player"then return end
         if event=="PLAYER_ENTERING_WORLD"or event=="PLAYER_SPECIALIZATION_CHANGED"then ns.Reset()end
         if event=="ADDON_LOADED"and a=="NaowhDefensivePlanner"and ns.ApplyUIPrefs then ns.ApplyUIPrefs()end
+        -- Shared fonts and textures, and the unlock mode of a UI suite, once those addons are in.
+        if event=="PLAYER_ENTERING_WORLD"then if ns.RegisterMedia then ns.RegisterMedia()end;if ns.RegisterMovers then ns.RegisterMovers()end end
         -- The window only ever shows the current specialization.
         if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.WorkspaceWindow and ns.WorkspaceWindow:IsShown()then ns.OpenWorkspace()end
         ns.RefreshContext();ns.ConnectProviders();local conflict=ns.Conflict();if conflict then ns.Cancel();if ns.HideDisplays then ns.HideDisplays()end end;if conflict and warning~=conflict then warning=conflict;ns.Print("Paused: disable "..conflict.." and reload to use Naowh Defensive Planner.")elseif not conflict then warning=nil end
