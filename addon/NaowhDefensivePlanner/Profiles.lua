@@ -308,7 +308,28 @@ local function ImportPart(part)
     d.abilityBindings=d.abilityBindings or{}
     for spec,byEnc in pairs(from.abilityBindings or{})do d.abilityBindings[spec]=d.abilityBindings[spec]or{};d.abilityBindings[spec][enc]=ns.Clone(ns.Get(byEnc,enc))end
     for _,key in ipairs({"presets","scopePresets"})do if type(from[key])=="table"then d[key]=d[key]or{};Merge(d[key],from[key])end end
+    ns.ImportTimelines(enc,part.part.timelines)
     return target.name
+end
+-- A boss export carries the sender's recorded pulls of that boss, so the receiver sees the
+-- abilities in time before their own first pull. Your own recording is never replaced.
+function ns.ImportTimelines(enc,timelines)
+    if type(timelines)~="table"then return 0 end
+    local store=ns.Store();store.timelines=store.timelines or{};local added=0
+    for diff,t in pairs(timelines)do
+        diff=tonumber(diff)
+        local ok=(diff==14 or diff==15 or diff==16 or diff==17)and type(t)=="table"and type(t.events)=="table"and #t.events>0 and #t.events<=300 and tonumber(t.length)
+        if ok then for _,ev in ipairs(t.events)do if type(ev)~="table"or not tonumber(ev[1])or ev[1]<0 or ev[1]>3600 or not tonumber(ev[2])or ev[2]<=0 or ev[2]%1~=0 then ok=false end end end
+        local key=ns.Client()..":"..enc..":"..tostring(diff)
+        local own=store.timelines[key]
+        if ok and(not own or own.shared)then
+            local events={};for _,ev in ipairs(t.events)do events[#events+1]={tonumber(ev[1]),tonumber(ev[2])}end
+            table.sort(events,function(x,y)return x[1]<y[1]end)
+            store.timelines[key]={events=events,length=math.max(0,math.min(3600,math.floor(tonumber(t.length)))),kill=t.kill==true,at=time and time()or 0,shared=true}
+            added=added+1
+        end
+    end
+    return added
 end
 -- mode: "copy" (default: every profile is added, a clashing name gets a number), "merge" (into the
 -- profile of the same name, imported entries win) or "replace" (the same-name profile is replaced).
@@ -374,6 +395,9 @@ local function BossPart(encounter,label)
     for spec,byEnc in pairs(d.abilityBindings or{})do local b=ns.Get(byEnc,encounter);if b then part.data.abilityBindings[spec]={[encounter]=ns.Clone(b)}end end
     for _,key in ipairs({"presets","scopePresets","activePreset","scopeActivePreset","contentDifficulties","settings"})do if d[key]~=nil then part.data[key]=ns.Clone(d[key])end end
     if not next(part.data.raidReminders[encounter])and not next(part.data.abilityBindings)then return nil,"Nothing planned on this boss yet"end
+    for _,diff in ipairs({14,15,16,17})do local t=ns.RecordedTimeline(encounter,diff)
+        if t and t.events and #t.events>0 then part.part.timelines=part.part.timelines or{};part.part.timelines[diff]={events=ns.Clone(t.events),length=t.length,kill=t.kill}end
+    end
     -- Older versions would add a boss string as a whole profile, so it needs 0.7.0.
     local need=ns.MinimumAddon(part.data);part.minimumAddon=Newer("0.7.0",need)and"0.7.0"or need
     return part

@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.7.3 — in-game editor and reminder engine
+Naowh Defensive Planner 0.8.0 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -88,8 +88,9 @@ A game sound when a debuff is applied, stacks or falls off (the game allows only
 sounds here, not speech).
 "Add racial debuffs" fills in the season dungeon debuffs (Mythic+) or raid boss
 debuffs (Raids) that Stoneform or Shadowmeld can clear; the alert plays only
-while the racial is ready. The raid list is picked from the debuff names and is
-not confirmed in game yet.
+while the racial is ready. The raid list comes from the Encounter Journal (the
+abilities it marks magic, curse, poison, disease or bleed) and is empty until the
+journal has been read; it is not confirmed in game yet.
 
 Navigation preserves your selected encounter, specialization, defensive-set draft,
 reminder fields, settings draft and scroll position. Drafts are saved locally on
@@ -173,10 +174,17 @@ The Mechanics lane shows reminders and defensive sets tied to boss abilities at
 the times those abilities happened on your recorded pull. + Timed reminder can
 also make a "Boss mod timer bar" or "Boss mod message" reminder for a chosen
 boss ability.
-Expected boss timeline: every raid boss shows a "Boss (exp.)" lane with its
-abilities at their usual times before you pull. Left-click an ability to plan that
-cast: Defensive set, Note (your own text, e.g. Stack in middle), Every cast, or
-Timed here. A recorded pull replaces the expected times.
+Before your first pull the Boss lane lists the boss's abilities without times (the
+spells the built-in timers announce, then the game's Encounter Journal). Left-click
+one to plan it for every cast: Defensive set or Note (your own text, e.g. Stack in
+middle). After a recorded pull the lane shows each cast in time, and a click plans
+that cast: Defensive set, Note, Every cast or Timed here.
+NDP needs no data from other reminder addons: raid bosses, ability names, icons
+and categories come from the game's Encounter Journal, read out of combat when the
+window opens (once per game build); times come from your own pulls. Export boss
+also carries your recorded pulls of that boss, so a raid lead's export shows the
+abilities in time for the whole raid before their first pull. Your own pull always
+replaces a shared one.
 Simulate pull: plays the boss timeline through your reminders outside combat, so you
 see and hear every call as on the pull. A simulated pull records nothing.
 Cooldowns lane: which spell of each planned defensive set will be ready at each call,
@@ -186,8 +194,6 @@ line "Tag: name name"), Position in a note line, Raid group and Class.
 Boss health below: fires once per pull when a boss drops under the percent you set.
 Aura on me: fires each time an aura with that spell ID lands on you. Health or auras
 the game hides read as unknown, and the reminder stays quiet.
-Abilities no boss mod announces fire their bound reminders at the expected times,
-until a boss mod announces them for real.
 Last pull lane (Timeline): your casts of set spells on the last pull, and a red x on
 each defensive call with no matching cast within 8 seconds. Raid / Mine switches
 between the whole plan and only your reminders. Templates save named versions of a
@@ -205,8 +211,9 @@ The kill (or the longest pull) is kept, and the Timeline page shows it as a
 pull with BigWigs, DBM or the built-in raid timers before the lane appears.
 NSRT-style note lines also work: time:90;ph:2;text:Soak;spellid:123;tag:Name Name;
 glowunit:Name;dur:5. The time counts from the start of the phase; no tag means everyone.
-Boss lane strips: raid damage (orange), tank (blue), soak (yellow), adds (green),
-movement (purple), boss buff (pink), event (grey).
+Boss lane strips follow the Encounter Journal icons: tank (blue), interrupt (green),
+dispel (purple: magic, curse, poison, disease, bleed), enrage (pink) and healer
+alert (orange).
 Note timers: lines like {time:1:30} Soak - Name in the shared or personal note
 show as reminders on the pull. Who can be a name, {everyone}, class:, spec:,
 role:, group: or type:melee / type:ranged. Turn them off or set how early they
@@ -271,9 +278,11 @@ The Display page previews a reminder and unlocks the anchor so you can drag it.
 
 CLIENTS / DATA
 Targets remain Retail 12.1.5.70448 and Forever 1.60.1.70425. Client workspaces are
-separate. The bundled eight-dungeon / twenty-boss catalog is Retail reference data
-from the supplied LittleWigs/ExBoss and NSRT sources. Only evidenced timer/message
-keys are offered for M+. Forever uses imported or manually added encounters.
+separate. The bundled eight-dungeon catalog is Retail reference data from
+LittleWigs, ExBoss and MDT IDs; only evidenced timer/message keys are offered for M+.
+Raid bosses and their abilities come from the game's Encounter Journal; the raid
+Stoneform list is the journal's magic, curse, poison, disease and bleed abilities.
+Forever uses imported or manually added encounters.
 Add mechanic accepts explicit map/NPC/encounter/spell IDs from your game client.
 Provider packages are separate. The supplied ExBoss build requires EXBossData,
 ExwindCore, EXBOSS-Locale and its required EXBOSS-LocaleBase dependency.

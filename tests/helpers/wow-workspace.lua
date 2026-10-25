@@ -81,6 +81,38 @@ function issecretvalue()return false end
 C_SpellBook={IsSpellKnown=function()return true end}
 C_Spell={GetSpellCooldown=function()return{startTime=0,duration=0,isEnabled=true,isActive=false}end,GetSpellInfo=function(id)return {name=(NaowhDefensivePlanner and NaowhDefensivePlanner.Catalog.spellNames[id])or('Spell '..id),iconID=134400}end,GetSpellTexture=function()return 134400 end}
 C_AddOns={IsAddOnLoaded=function()return false end,GetAddOnMetadata=function()return'test'end}
+-- A small Encounter Journal for Journal.lua: one raid and one dungeon. Each ability is
+-- {spellID, title, icon flags, mythic only}.
+env.journal={
+ raids={{id=1300,name='Fixture Raid',bosses={
+  {enc=3379,name='Nymrissa Wavecaller',abilities={{1260837,'Abyssal Rain',{2}},{1268562,'Water Jet',{0},true},{1313393,'Chilling Frost',{2,7}}}},
+  {enc=3455,name='Vashnik the Malignant',abilities={{1280935,'Dripping Fangs',{0}},{1281907,'Plague Froth',{2,9}},{1282117,'Adaptive Infection',{10}},{1294994,'Stygian Infection',{9},true}}},
+  {enc=3445,name='Entombed Sentinels',abilities={{1284487,'Bloodvenom Injection',{0,9}},{1284483,'Blighted Blood',{9}},{1296878,'Shifting Protovenom',{9},true},{1284458,'Empowering Slam',{0}},{1284434,'Toxic Droplets',{}}}},
+  {enc=3901,name='Journal Only Boss',abilities={{1390001,'Fixture Smash',{0}},{1390002,'Fixture Curse',{8}}}},
+ }}},
+ dungeons={{id=1310,name='Murder Row',mapID=2813,bosses={{enc=3103,name='Xathuux the Annihilator',abilities={{1390101,'Fixture Fel Blast',{6}}}}}}},
+}
+do
+ local tier,diff=1,14
+ local function find(instance)for _,list in pairs(env.journal)do for _,x in ipairs(list)do if x.id==instance then return x end end end end
+ local function ability(id)for _,list in pairs(env.journal)do for _,x in ipairs(list)do for _,b in ipairs(x.bosses)do
+  if math.floor(id/1000)==b.enc then return b,id%1000 end end end end end
+ function EJ_GetNumTiers()return 2 end
+ function EJ_GetCurrentTier()return tier end
+ function EJ_SelectTier(t)tier=t end
+ function EJ_GetDifficulty()return diff end
+ function EJ_SetDifficulty(d)diff=d end
+ function EJ_SelectInstance()end
+ function EJ_GetInstanceByIndex(i,raid)if tier~=2 then return nil end;local x=(raid and env.journal.raids or env.journal.dungeons)[i];if x then return x.id,x.name,'',0,0,0,0,0,'',true,x.mapID end end
+ function EJ_GetEncounterInfoByIndex(i,instance)local x=find(instance);local b=x and x.bosses[i];if b then return b.name,'',b.enc+100000,b.enc*1000,'',instance,b.enc,instance end end
+ C_EncounterJournal={
+  GetSectionInfo=function(id)local b,k=ability(id);if not b then return nil end
+   if k==0 then return{spellID=0,title=b.name,headerType=0,abilityIcon=0,firstChildSectionID=b.enc*1000+1}end
+   local a=b.abilities[k];if not a then return nil end
+   return{spellID=a[1],title=a[2],headerType=1,abilityIcon=5000+k,filteredByDifficulty=a[4]==true and diff~=16,siblingSectionID=b.abilities[k+1]and id+1 or nil}end,
+  GetSectionIconFlags=function(id)local b,k=ability(id);local a=b and b.abilities[k];return a and a[3]end,
+ }
+end
 SlashCmdList={}
 local timers={}
 C_Timer={NewTimer=function(delay,fn)local t={at=env.time+delay,fn=fn};function t:Cancel()self.cancelled=true end;timers[#timers+1]=t;return t end}

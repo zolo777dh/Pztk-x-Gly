@@ -105,10 +105,9 @@ local function done(value,error,message)
     state.message=message or"Saved";state.error=false;Refresh();return true
 end
 local function name(spell,fallback)
-    if ns.BossAbilityName and ns.BossAbilityName[spell]then return ns.BossAbilityName[spell]end
     local result=ns.SpellLabel and ns.SpellLabel(spell)
     if result and not result:match("^Spell %d+$")and result~="Reminder"then return result end
-    return fallback or ns.Catalog.spellNames[spell]or("Spell "..tostring(spell))
+    return fallback or(ns.AbilityName and ns.AbilityName(spell))or ns.Catalog.spellNames[spell]or("Spell "..tostring(spell))
 end
 local function rowsOptions(t)
     local rows={};for k,p in pairs(t or{})do rows[#rows+1]={value=k,label=p.name or tostring(k)}end
@@ -127,9 +126,10 @@ end
 ---------------------------------------------------------------------------
 -- Reminder counts. A context is one ability (or the timed list) of one entity.
 local timedTypes={pull=true,stage=true,prepull=true}
--- Boss ability categories (BossTimelines.lua) and their strip colours on the Boss lane.
-local categoryColors={raid={0.95,0.55,0.25,1},tank={0.35,0.6,1,1},soak={0.95,0.85,0.3,1},adds={0.3,0.85,0.45,1},move={0.75,0.5,0.95,1},buff={0.95,0.4,0.6,1},event={0.55,0.6,0.68,1}}
-local categoryLabels={raid="raid damage",tank="tank",soak="soak",adds="adds",move="movement",buff="boss buff",event="event"}
+-- Boss ability categories from the Encounter Journal flags (Journal.lua) and their strip
+-- colours on the Boss lane.
+local categoryColors={raid={0.95,0.55,0.25,1},tank={0.35,0.6,1,1},interrupt={0.3,0.85,0.45,1},dispel={0.75,0.5,0.95,1},buff={0.95,0.4,0.6,1}}
+local categoryLabels={raid="healer alert",tank="tank",interrupt="interrupt",dispel="dispel",buff="enrage"}
 -- Reminders that fire on a game state, not at a time: listed with the timed ones, off the axis.
 local stateTypes={bosshp=true,aura=true}
 local function entityContext(content,g,n,ability)
@@ -141,12 +141,12 @@ local function allowedAbilities(content,n)
         local allowed=true;if content=="raid"and a.difficulties then allowed=false;for _,d in ipairs(a.difficulties)do if d==(state.difficulty==15 and"heroic"or"mythic")then allowed=true end end end
         if allowed then out[#out+1]=a end
     end
-    -- Raid bosses also list every ability of their expected timeline, so each one can be bound.
+    -- Raid bosses also list every ability of your recorded pull, so each one can be bound.
     local enc=content=="raid"and n and(n.encounterId or n.id)
-    local expected=enc and ns.ExpectedTimeline and ns.ExpectedTimeline(enc,state.difficulty)
-    if expected then
+    local recorded=enc and ns.RecordedTimeline(enc,state.difficulty)
+    if recorded then
         local seen={};for _,a in ipairs(out)do seen[a.id]=true end
-        for _,ev in ipairs(expected.events)do if not seen[ev[2]]then seen[ev[2]]=true;out[#out+1]={id=ev[2]}end end
+        for _,ev in ipairs(recorded.events or{})do if not seen[ev[2]]then seen[ev[2]]=true;out[#out+1]={id=ev[2]}end end
     end
     return out
 end
@@ -761,8 +761,11 @@ local function DrawTimeline(parent)
     local function open(key,at,spell)
         local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=not spell;state.ability=spell;state.ruleKey=key;state.form=nil;state.timedPrefill=at;Refresh()
     end
-    -- A recorded pull wins; otherwise the expected timeline of the boss is shown.
-    local recorded=ns.RecordedTimeline(ctx.encounter,state.tlDifficulty)or(ns.ExpectedTimeline and ns.ExpectedTimeline(ctx.encounter,state.tlDifficulty))
+    -- Your recorded pull (or one shared in a boss export) places the abilities in time; before
+    -- it, the Boss lane lists the boss's abilities without times.
+    local recorded=ns.RecordedTimeline(ctx.encounter,state.tlDifficulty)
+    local untimed={}
+    if not recorded then local sd=state.difficulty;state.difficulty=state.tlDifficulty;untimed=allowedAbilities("raid",n);state.difficulty=sd end
     local function occurrences(m)
         local out,count={},0;local t=m.r.entry.trigger or{}
         local want;for _,group in ipairs(type(t.counterGroups)=="table"and t.counterGroups or{})do for _,p in ipairs(group)do if p.op=="="then want=tonumber(p.value)end end end
@@ -772,7 +775,8 @@ local function DrawTimeline(parent)
     W.Button(parent,L("+ Timed reminder"),760,56,160,function()open(nil)end,false,"tl-new",{kind="outline",align="CENTER"})
     local card=W.Card(parent,0,100,920,350,n.name.." · "..(state.tlDifficulty==16 and L("Mythic")or L("Heroic")))
     local lanes={{key="pull",label=L("Pull")}};local maxT=300
-    if recorded then table.insert(lanes,1,{key="boss",label=recorded.expected and L("Boss (exp.)")or L("Boss")});maxT=math.max(maxT,(tonumber(recorded.length)or 0)+10)end
+    if recorded then table.insert(lanes,1,{key="boss",label=recorded.shared and L("Boss (shared)")or L("Boss")});maxT=math.max(maxT,(tonumber(recorded.length)or 0)+10)
+    elseif #untimed>0 then table.insert(lanes,1,{key="boss",label=L("Boss")})end
     if #mech>0 then lanes[#lanes+1]={key="mech",label=L("Mechanics")}end
     -- Cooldowns lane: which spell of each planned defensive set will be ready at each call.
     local uses={}
@@ -820,7 +824,16 @@ local function DrawTimeline(parent)
         local h=lane.key=="boss"and bossH or laneH
         local mid=y+math.floor(h/2)-9
         W.Label(card,lane.label,12,mid+4,80,12,C.muted);W.RoundRect(card,x0,mid+7,w,4,C.raised,2)
-        if lane.key=="boss"then
+        if lane.key=="boss"and not recorded then
+            -- No pull yet: the abilities in two rows at the start of the lane, without times.
+            for j,a in ipairs(untimed)do if j<=56 then
+                local x=x0+8+((j-1)%28)*28;local iy=j<=28 and mid-10 or mid+12
+                W.Icon(card,a.id,x,iy,20)
+                local category=ns.AbilityCategory and ns.AbilityCategory(a.id,ctx.encounter)
+                if category and categoryColors[category]then W.Rect(card,x,iy+20,20,2,categoryColors[category])end
+                W.Button(card,"",x,iy,20,function()state.tlPick={spell=a.id,encounter=ctx.encounter,difficulty=state.tlDifficulty};Refresh()end,false,"tl-ability:"..j,{kind="ghost",h=20,tooltip=name(a.id,a.name)..(category and(" · "..L(categoryLabels[category]))or"")..L(" · no time until a recorded pull · click to plan it")})
+            end end
+        elseif lane.key=="boss"then
             -- Casts that would overlap move to a second row, so every icon stays clickable.
             local lastX={-100,-100}
             for j,ev in ipairs(recorded.events or{})do if shown(ev[1])then
@@ -828,7 +841,7 @@ local function DrawTimeline(parent)
                 local iy=row==1 and mid-10 or mid+12
                 W.Icon(card,ev[2],x-10,iy,20)
                 -- A strip under the icon shows what the ability asks of the raid.
-                local category=ns.BossAbilityCategory and ns.BossAbilityCategory[ev[2]]
+                local category=ns.AbilityCategory and ns.AbilityCategory(ev[2],ctx.encounter)
                 if category and categoryColors[category]then W.Rect(card,x-10,iy+20,20,2,categoryColors[category])end
                 local cast=0;for k=1,j do if recorded.events[k][2]==ev[2]then cast=cast+1 end end
                 W.Button(card,"",x-10,iy,20,function()state.tlPick={spell=ev[2],at=ev[1],cast=cast,encounter=ctx.encounter,difficulty=state.tlDifficulty};Refresh()end,false,"tl-ability:"..j,{kind="ghost",h=20,tooltip=name(ev[2]).." #"..cast.." · "..stamp(ev[1])..(category and(" · "..L(categoryLabels[category]))or"")..L(" · click to plan this cast")})
@@ -930,22 +943,22 @@ local function DrawTimeline(parent)
     -- One-boss string: importing it replaces only this boss in the receiver's active profile.
     W.Button(list,L("Export boss"),620,6,124,function()local v,err=ns.ExportBoss(ctx.encounter,n.name);if v then state.tab="profiles";loadView();state.importText=v;notify(L("Boss export ready on the Profiles page · Ctrl+C copies it"));Refresh()else notify(err,true)end end,false,"tl-export-boss",{h=24,align="CENTER",tooltip=L("A string with only this boss: its reminders, ability bindings and the sets they use.")})
     if not recorded then W.Label(list,L("Pull the boss once (BigWigs, DBM or built-in timers) to place its abilities and their reminders in time."),300,12,310,10,C.faint)
-    elseif recorded.expected then W.Label(list,L("Expected times. A recorded pull replaces them."),300,12,310,10,C.faint)end
+    elseif recorded.shared then W.Label(list,L("Times from a shared boss export. Your own recorded pull replaces them."),300,12,310,10,C.faint)end
     do local parts={}
         if missing>0 then parts[#parts+1]=missing..L(" calls have nothing ready (red !)")end
         if pullLog and #analysis>0 then parts[#parts+1]=L("Last pull: ")..followed.."/"..#analysis..L(" calls followed")end
         if #parts>0 then W.Label(list,table.concat(parts," · "),300,24,310,10,missing>0 and C.danger or C.muted)end
     end
     -- A clicked boss ability: bind a defensive set or write a note for that cast.
-    local pick=state.tlPick;if pick and(pick.encounter~=ctx.encounter or pick.difficulty~=state.tlDifficulty or not recorded)then pick=nil end
+    local pick=state.tlPick;if pick and(pick.encounter~=ctx.encounter or pick.difficulty~=state.tlDifficulty or(pick.at and not recorded))then pick=nil end
     if pick then
         local function plan(action,every)state.tlPick=nil;state.newAction=action=="text"and"ability"or action;state.newCounter=not every and pick.cast or nil;local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=false;state.ability=pick.spell;state.ruleKey="new";state.form=nil;Refresh()end
         W.Icon(list,pick.spell,12,102,20)
-        W.Label(list,name(pick.spell).." #"..pick.cast..string.format(" · %d:%02d",math.floor(pick.at/60),pick.at%60),38,106,250,11,C.text,true)
+        W.Label(list,name(pick.spell)..(pick.at and(" #"..pick.cast..string.format(" · %d:%02d",math.floor(pick.at/60),pick.at%60))or L(" · every cast")),38,106,250,11,C.text,true)
         W.Button(list,L("Defensive set"),300,98,140,function()plan("defensive")end,false,"tl-pick-defensive",{kind="primary",align="CENTER",h=26})
         W.Button(list,L("Note"),446,98,110,function()plan("text")end,false,"tl-pick-note",{align="CENTER",h=26})
         W.Button(list,L("Every cast"),562,98,120,function()plan("text",true)end,false,"tl-pick-every",{align="CENTER",h=26,tooltip=L("A note for every cast of this ability")})
-        W.Button(list,L("Timed here"),688,98,110,function()state.tlPick=nil;state.timedSpell=pick.spell;open(nil,pick.at)end,false,"tl-pick-timed",{align="CENTER",h=26})
+        if pick.at then W.Button(list,L("Timed here"),688,98,110,function()state.tlPick=nil;state.timedSpell=pick.spell;open(nil,pick.at)end,false,"tl-pick-timed",{align="CENTER",h=26})end
         W.Button(list,L("Cancel"),804,98,104,function()state.tlPick=nil;Refresh()end,false,"tl-pick-cancel",{kind="ghost",align="CENTER",h=26})
     end
     local templatesOpen=state.tlTemplates and not pick

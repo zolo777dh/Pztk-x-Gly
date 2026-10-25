@@ -5,6 +5,8 @@ This addon would not exist without the work of other addon authors. NDP is its o
 code and does not include their addons, but it learned from them, reads the same
 game events, and uses public facts about encounters that they made visible.
 
+- Blizzard Entertainment's Encounter Journal, read in game: the raid boss list, boss
+  ability names, icons and the category strips on the Timeline.
 - BigWigs and LittleWigs, by Funkeh, Nebula, Justwait, Delk and the BigWigsMods team.
   The built-in raid timers and the Mythic+ catalog use encounter facts (spell IDs and
   timings) read from their public modules. NDP also listens to BigWigs events when it
@@ -12,13 +14,14 @@ game events, and uses public facts about encounters that they made visible.
 - Deadly Boss Mods, by the DBM team, and EXBoss. NDP listens to their timer events
   when they are installed. The Mythic+ catalog uses facts (encounter and spell IDs,
   durations) from the EXBoss data files.
-- Northern Sky Raid Tools, by Reloe and Rav. The note line format
-  (time:;ph:;text:;tag:) and the boss ability categories follow NSRT, written anew
-  from those facts. NDP reads NSRT export strings.
+- Northern Sky Raid Tools, by Reloe and Rav. NDP reads and writes the NSRT note line
+  format (time:;ph:;text:;tag:) and reads NSRT export strings. Since 0.8.0 no NSRT
+  data (boss lists, ability categories) is bundled.
 - Naowh Smart Reminders, by Naowh. The defensive reminder ideas and the old string
   format, which NDP still reads.
-- Timeline Reminders, by Bart. The expected boss timelines on the Timeline page are
-  facts (spell IDs and seconds) from its community timelines. NDP reads !TR2: strings.
+- Timeline Reminders, by Bart. NDP reads !TR2: export strings. Since 0.8.0 its
+  community timelines are no longer bundled: boss timelines come from your own pulls
+  or a shared boss export.
 - Mythic Dungeon Tools, by Nnoggie, and Raider.IO: dungeon, enemy and map IDs.
 - Method guides were used only as names for reference; no guide text is included.
 
