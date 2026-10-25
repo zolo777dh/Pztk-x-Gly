@@ -51,6 +51,9 @@ FONTS AND MEDIA
 - Sound: spoken cues use the game's own text-to-speech, and alert sounds are the
   game's built-in sound files referenced by ID. No third-party audio is bundled.
 - Spell icons, names and fonts shown in game come from the World of Warcraft client.
+- Works with, but does not include: LibSharedMedia-3.0 (fonts and bar textures that other
+  addons share) and EllesmereUI (NDP's anchors join its Unlock Mode through its public
+  RegisterUnlockElements call). No code from either is copied.
 
 World of Warcraft is a trademark of Blizzard Entertainment, Inc. This addon is not
 made or endorsed by Blizzard Entertainment or by the authors listed above.

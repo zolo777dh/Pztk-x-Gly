@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.8.3"
+ns.version = "0.8.4"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -360,7 +360,7 @@ function ns.Defensive(binding, lead, key, valid)
         local presetKey = binding.preset or ns.Get(profile.data.activePreset, spec)
         local preset = ns.Get(ns.Get(profile.data.presets, spec), presetKey)
         local spells = ns.Pick(preset)
-        if #spells > 0 and ns.Display then ns.Display({type="icon",spells=spells,spellID=spells[1],text=binding.display and binding.display.text or "Use defensive",dur=binding.display and binding.display.dur or 5,sound=binding.sound}) end
+        if #spells > 0 and ns.Display then ns.Display({type="icon",defensive=true,spells=spells,spellID=spells[1],text=binding.display and binding.display.text or "Use defensive",dur=binding.display and binding.display.dur or 5,sound=binding.sound}) end
     end)
 end
 -- Boss timeline from your own pulls: the time of each boss mod timer or message, kept per boss and

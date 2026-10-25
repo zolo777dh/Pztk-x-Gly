@@ -45,6 +45,40 @@ local function Spell(spell)
     return "Spell " .. tostring(spell), 134400
 end
 ns.SpellLabel=Spell
+-- Fonts and bar textures: the addon's own, the game's, and whatever LibSharedMedia-3.0 lists
+-- when another addon loads it (EllesmereUI, ElvUI, BigWigs...). NDP registers its URW Gothic
+-- there too, so other addons can use it.
+local FLAT,BLIZZARD="Interface\\Buttons\\WHITE8X8","Interface\\TargetingFrame\\UI-StatusBar"
+local function Media()return LibStub and LibStub("LibSharedMedia-3.0",true)end
+function ns.RegisterMedia()
+    local lsm=Media();if not lsm or ns.mediaRegistered then return end
+    ns.mediaRegistered=true
+    local fonts="Interface\\AddOns\\NaowhDefensivePlanner\\Media\\Fonts\\"
+    pcall(lsm.Register,lsm,"font","URW Gothic Demi",fonts.."URWGothic-Demi.ttf")
+    pcall(lsm.Register,lsm,"font","URW Gothic Book",fonts.."URWGothic-Book.ttf")
+end
+-- Choices for the Settings page: {value,label}. The first ones are always there.
+function ns.FontChoices()
+    local out={{value="",label="Window font"},{value="game",label="Game font"}}
+    local lsm=Media();if lsm and lsm.List then for _,name in ipairs(lsm:List("font")or{})do out[#out+1]={value="lsm:"..name,label=name}end end
+    return out
+end
+function ns.BarTextureChoices()
+    local out={{value="",label="Blizzard"},{value="flat",label="Flat"}}
+    local lsm=Media();if lsm and lsm.List then for _,name in ipairs(lsm:List("statusbar")or{})do out[#out+1]={value="lsm:"..name,label=name}end end
+    return out
+end
+local function FontFile(choice)
+    if type(choice)=="string"and choice:sub(1,4)=="lsm:"then local lsm=Media();local ok,file=pcall(function()return lsm and lsm:Fetch("font",choice:sub(5),true)end);if ok and file then return file end end
+    if choice=="game"then return STANDARD_TEXT_FONT or"Fonts\\FRIZQT__.TTF"end
+    return ns.Widgets and ns.Widgets.Font(true)
+end
+local function BarTexture(choice)
+    if choice=="flat"then return FLAT end
+    if type(choice)=="string"and choice:sub(1,4)=="lsm:"then local lsm=Media();local ok,file=pcall(function()return lsm and lsm:Fetch("statusbar",choice:sub(5),true)end);if ok and file then return file end end
+    return BLIZZARD
+end
+local outlines={none="",outline="OUTLINE",thick="THICKOUTLINE",mono="OUTLINE, MONOCHROME"}
 -- Reminder look follows Naowh Smart Reminders: spell icons in a row and the call-out text
 -- beside them. Only countdown bars and reminders with a visible timer redraw while shown.
 local function Region()
@@ -119,10 +153,13 @@ local function Release(index)
 end
 -- Reminders grow to the right from a fixed left edge, so one icon sits where the first of two would.
 -- Positions saved before 0.6.4 were the center of a 340 px anchor box: its left edge is 170 px to the left.
--- Boss ability alerts (icon, note text and seconds left, like boss mod bars) have their own anchor.
+-- Three anchors for the whole profile: defensives ("main"), text and icon alerts ("ability":
+-- boss ability alerts and every other icon or text reminder), and bars ("bar"). Every reminder
+-- goes to the anchor of its look, so one position covers all abilities.
 function ns.ReminderOrigin(group)
     local s=ns.Settings and ns.Settings()or{}
     if group=="ability"then local p=type(s.abilityPos)=="table"and s.abilityPos or{};return tonumber(p.x)or 200,tonumber(p.y)or 180 end
+    if group=="bar"then local p=type(s.barPos)=="table"and s.barPos or{};return tonumber(p.x)or-120,tonumber(p.y)or 30 end
     local p=type(s.pos)=="table"and s.pos or{}
     local x,y=tonumber(p.x)or 0,tonumber(p.y)or 100
     if p.point~="LEFT"then x=x-170 end
@@ -223,16 +260,16 @@ function ns.Display(display)
     -- Boss ability alerts come in three looks, as in NSRT: icon and text (default), text only, or a bar with a timer.
     local ability=display.type=="ability"
     local bar=display.type=="bar"or(ability and display.style=="bar")
-    local r=Region();r.group=ability and"ability"or"main"
+    local r=Region();r.group=bar and"bar"or display.defensive and"main"or"ability"
     if ability then spells={display.spellID or 0}end
     local count=(display.type=="text"or(ability and display.style=="text")or settings.showIcon==false)and 0 or math.min(bar and 1 or 6,#spells);if(display.type=="circle"or bar)and count==0 and settings.showIcon~=false and display.spellID then count=1;spells={display.spellID}end
     if display.type=="circle"and count==0 and settings.showIcon~=false then count=1;spells={0}end
     -- Alerts that go with a defensive use a small icon (Display > ability icon size).
     local iconSize=(display.small or ability)and(tonumber(settings.abilityIconSize)or 28)or tonumber(settings.iconSize)or 42;local gap=4
     for i,icon in ipairs(r.icons)do if i<=count then local _,texture=Spell(spells[i]);icon:SetSize(iconSize,iconSize);icon:ClearAllPoints();icon:SetPoint("LEFT",r,"LEFT",(i-1)*(iconSize+gap),0);icon:SetTexture(texture or 134400);icon:Show()else icon:Hide()end end
-    local font,_,flags=r.text:GetFont();if ns.Widgets then font=ns.Widgets.Font(true)end
+    local font=FontFile(settings.font)or r.text:GetFont();local outline=outlines[settings.outline or"outline"]or"OUTLINE"
     local size=(display.small or ability)and math.min(tonumber(settings.textSize)or 18,16)or tonumber(settings.textSize)or 18
-    if type(font)=="string"then r.text:SetFont(font,size,"OUTLINE");r.clock:SetFont(font,size,"OUTLINE")end
+    if type(font)=="string"then r.text:SetFont(font,size,outline);r.clock:SetFont(font,size,outline)end
     local tc=GlowColor(display.textColor)or{1,1,1,1};r.text:SetTextColor(tc[1],tc[2],tc[3],tc[4]);r.clock:SetTextColor(tc[1],tc[2],tc[3],tc[4])
     local left=count>0 and count*(iconSize+gap)+(bar and 0 or 6)or 0
     local dur=math.max(0.1,math.min(120,tonumber(display.dur)or 5))
@@ -241,21 +278,22 @@ function ns.Display(display)
     local clock=display.hideTimer~=true and(bar or ability or display.countdown==true)and display.type~="circle"
     r.text:ClearAllPoints()
     if bar then
-        local width=math.max(120,tonumber(settings.barWidth)or 240)
-        r.bar:ClearAllPoints();r.bar:SetPoint("LEFT",r,"LEFT",left,0);r.bar:SetSize(width,iconSize)
+        local width=math.max(60,tonumber(settings.barWidth)or 240);local height=math.max(8,tonumber(settings.barHeight)or iconSize)
+        r.bar:SetStatusBarTexture(BarTexture(settings.barTexture))
+        r.bar:ClearAllPoints();r.bar:SetPoint("LEFT",r,"LEFT",left,0);r.bar:SetSize(width,height)
         local bc=GlowColor(display.barColor)or{1,0.55,0.1,1};r.bar:SetStatusBarColor(bc[1],bc[2],bc[3],bc[4]);r.bar:SetValue(1);r.bar:Show()
         local n=0
         for _,t in ipairs(type(display.ticks)=="table"and display.ticks or{})do
             if type(t)=="number"and t>0 and t<dur then
                 n=n+1;local mark=r.ticks[n]
                 if not mark then mark=r.bar:CreateTexture(nil,"OVERLAY");mark:SetColorTexture(1,1,1,0.9);r.ticks[n]=mark end
-                mark:ClearAllPoints();mark:SetSize(2,iconSize);mark:SetPoint("LEFT",r.bar,"LEFT",math.floor(t/dur*width),0);mark:Show()
+                mark:ClearAllPoints();mark:SetSize(2,height);mark:SetPoint("LEFT",r.bar,"LEFT",math.floor(t/dur*width),0);mark:Show()
             end
         end
         for i=n+1,#r.ticks do r.ticks[i]:Hide()end
         r.text:SetPoint("LEFT",r.bar,"LEFT",6,0);r.text:SetText(text)
         r.clock:ClearAllPoints();r.clock:SetPoint("RIGHT",r.bar,"RIGHT",-6,0)
-        r.height=iconSize;r:SetSize(left+width,r.height)
+        r.height=math.max(iconSize,height);r:SetSize(left+width,r.height)
     else
         r.text:SetPoint("LEFT",r,"LEFT",left,0);r.text:SetText(text)
         r.clock:ClearAllPoints();r.clock:SetPoint("LEFT",r.text,"RIGHT",6,0)
@@ -323,9 +361,11 @@ local function AnchorSpell()
     return set and set.list and set.list[1]or 22812
 end
 local anchorInfo={
-    main={setting="pos",label="Reminders · drag the icon · /ndp anchors locks",color={0.2,0.76,0.65,1},point="LEFT"},
-    ability={setting="abilityPos",label="Boss ability alerts · drag the icon",color={1,0.67,0,1}},
+    main={setting="pos",label="Defensives · drag · /ndp anchors locks",color={0.2,0.76,0.65,1},point="LEFT"},
+    ability={setting="abilityPos",label="Text and icon · drag",color={1,0.67,0,1}},
+    bar={setting="barPos",label="Bars · drag",color={0.4,0.6,1,1}},
 }
+ns.AnchorGroups={"main","ability","bar"}
 local function MakeAnchor(group)
     local info=anchorInfo[group]
     local a=CreateFrame("Frame",nil,UIParent);a:SetFrameStrata("DIALOG");a:SetMovable(true);a:EnableMouse(true);a:RegisterForDrag("LeftButton");a:SetClampedToScreen(true)
@@ -345,15 +385,66 @@ local function MakeAnchor(group)
     end)
     a:Hide();anchors[group]=a;return a
 end
-function ns.ToggleAnchors()
-    local main=anchors.main or MakeAnchor("main");local ability=anchors.ability or MakeAnchor("ability")
-    if main:IsShown()then main:Hide();ability:Hide();return false end
+-- The size of an anchor: an icon for defensives and text alerts, a bar for bars.
+local function AnchorSize(group)
     local settings=ns.Settings and ns.Settings()or{};local size=tonumber(settings.iconSize)or 42
-    local _,texture=Spell(AnchorSpell());main.icon:SetTexture(texture or 134400);ability.icon:SetTexture(134400)
+    if group=="bar"then return math.max(60,tonumber(settings.barWidth)or 240),math.max(8,tonumber(settings.barHeight)or size)end
+    local edge=group=="ability"and(tonumber(settings.abilityIconSize)or 28)or size
+    return edge,edge
+end
+function ns.ToggleAnchors()
+    for _,group in ipairs(ns.AnchorGroups)do if not anchors[group]then MakeAnchor(group)end end
+    if anchors.main:IsShown()then for _,a in pairs(anchors)do a:Hide()end;return false end
+    local _,texture=Spell(AnchorSpell());anchors.main.icon:SetTexture(texture or 134400);anchors.ability.icon:SetTexture(134400)
+    anchors.bar.icon:SetTexture("Interface\\TargetingFrame\\UI-StatusBar");anchors.bar.icon:SetTexCoord(0,1,0,1);anchors.bar.icon:SetVertexColor(1,0.55,0.1,0.9)
     for group,a in pairs(anchors)do
-        local edge=group=="ability"and(tonumber(settings.abilityIconSize)or 28)or size
-        a:SetSize(edge,edge);local x,y=ns.ReminderOrigin(group)
+        a:SetSize(AnchorSize(group));local x,y=ns.ReminderOrigin(group)
         a:ClearAllPoints();a:SetPoint("LEFT",UIParent,"CENTER",x,y);a:Show()
     end
     return true
 end
+-- Unlock modes of UI suites: EllesmereUI lets any addon add elements to its Unlock Mode
+-- (EllesmereUI:RegisterUnlockElements, its documented way for "elements from any addon").
+-- NDP adds its three anchors, defensives, text and icon, and bars, as frames at the spot where
+-- the first icon appears; moving one there saves the same position as dragging NDP's own anchor.
+local proxies={}
+local function Proxy(group)
+    local f=proxies[group]
+    if not f then f=CreateFrame("Frame",nil,UIParent);f:SetClampedToScreen(true);proxies[group]=f end
+    local x,y=ns.ReminderOrigin(group);f:SetSize(AnchorSize(group));f:ClearAllPoints();f:SetPoint("LEFT",UIParent,"CENTER",x,y)
+    return f
+end
+local function SaveOrigin(group,frame)
+    local left=frame:GetLeft();local _,y=frame:GetCenter();local ux,uy=UIParent:GetCenter()
+    if not(left and y and ux)then return end
+    local info=anchorInfo[group]
+    local ok,err=ns.EditProfile(function(data)data.settings=data.settings or{};data.settings[info.setting]={point=info.point,relPoint="CENTER",x=math.floor(left-ux+0.5),y=math.floor(y-uy+0.5)}end)
+    if not ok then ns.Print(err)end;if ns.RefreshWorkspace then ns.RefreshWorkspace()end
+end
+local moverKeys={NDP_Reminders="main",NDP_AbilityAlerts="ability",NDP_Bars="bar"}
+local moverLabels={main="NDP defensives",ability="NDP text and icon",bar="NDP bars"}
+function ns.RegisterMovers()
+    local eui=_G.EllesmereUI
+    if ns.moversRegistered or type(eui)~="table"or type(eui.RegisterUnlockElements)~="function"then return false end
+    local elements={}
+    for key,group in pairs(moverKeys)do
+        elements[#elements+1]={key=key,label=moverLabels[group],noResize=true,
+            getFrame=function()return Proxy(group)end,
+            getSize=function()local f=Proxy(group);return f:GetWidth(),f:GetHeight()end,
+            isHidden=function()return false end,
+            loadPosition=function()local x,y=ns.ReminderOrigin(group);return{point="LEFT",relPoint="CENTER",x=x,y=y}end,
+            savePosition=function(_,point,relPoint,x,y)
+                local f=Proxy(group);if not(point and x and y)then return end
+                f:ClearAllPoints();f:SetPoint(point,UIParent,relPoint or point,x,y);SaveOrigin(group,f)
+            end,
+            clearPosition=function()
+                local info=anchorInfo[group];ns.EditProfile(function(data)if data.settings then data.settings[info.setting]=nil end end);Proxy(group)
+            end,
+            applyPosition=function()Proxy(group)end,
+        }
+    end
+    local ok=pcall(eui.RegisterUnlockElements,eui,elements,"NaowhDefensivePlanner")
+    ns.moversRegistered=ok
+    return ok
+end
+
