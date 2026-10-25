@@ -16,17 +16,18 @@ local viewFields={"mode","difficulty","group","entity","ability","ruleKey","time
 -- Dragging the Timeline thumb. The page is redrawn as the view moves, which replaces the thumb,
 -- so a lasting frame follows the cursor while the left button is held and moves the view live.
 local dragDriver
-function ns.StartTimelineDrag(startX,base,perPixel,apply)
+-- While the thumb is held only the thumb moves (preview); the whole page, which rebuilds
+-- every icon and reminder of the boss, is redrawn at most four times a second and once on
+-- release, so dragging does not cost frames.
+function ns.StartTimelineDrag(startX,base,perPixel,preview,apply)
     dragDriver=dragDriver or CreateFrame("Frame")
-    local last,wait=math.floor(base+0.5),0
-    local function step()
-        local t=math.floor(base+(GetCursorPosition()-startX)*perPixel+0.5)
-        if t~=last then last=t;apply(t)end
-    end
+    local last,drawn,wait,since=math.floor(base+0.5),math.floor(base+0.5),0,0
     dragDriver:SetScript("OnUpdate",function(self,elapsed)
-        wait=wait+(elapsed or 0)
-        if not(IsMouseButtonDown and IsMouseButtonDown("LeftButton"))then self:SetScript("OnUpdate",nil);step();return end
-        if wait>=0.03 then wait=0;step()end
+        elapsed=elapsed or 0;wait=wait+elapsed;since=since+elapsed
+        local t=math.floor(base+(GetCursorPosition()-startX)*perPixel+0.5)
+        if not(IsMouseButtonDown and IsMouseButtonDown("LeftButton"))then self:SetScript("OnUpdate",nil);if t~=drawn then apply(t)end;return end
+        if t~=last and wait>=0.016 then wait=0;last=t;preview(t)end
+        if last~=drawn and since>=0.25 then since=0;drawn=last;apply(last)end
     end)
 end
 local formKeys={"alertText","name","leadTime","delay","phase","counter","duration","text","displaySpellID","player","glowTarget","sticky","ticks","glowNames"}
@@ -923,7 +924,14 @@ local function DrawTimeline(parent)
         thumb:SetScript("OnMouseDown",function(self,button)
             if button and button~="LeftButton"then return end
             local scale=self:GetEffectiveScale()or 1
-            ns.StartTimelineDrag(GetCursorPosition(),from,(maxStart-minStart)/(math.max(1,w-tw)*scale),moveTo)
+            -- The preview moves the thumb drawn last, which a redraw replaces.
+            local function preview(t)
+                t=math.max(minStart,math.min(t,maxStart));state.tlStart=t
+                local th=ns.UIControls["tl-thumb"];if not th then return end
+                local x=x0+(w-tw)*((maxStart>minStart)and(t-minStart)/(maxStart-minStart)or 0)
+                th:ClearAllPoints();th:SetPoint("TOPLEFT",x,-(sy-2))
+            end
+            ns.StartTimelineDrag(GetCursorPosition(),from,(maxStart-minStart)/(math.max(1,w-tw)*scale),preview,moveTo)
         end)
     end
     -- Ctrl + wheel zooms around the middle of the view, the wheel alone scrolls.
@@ -933,7 +941,14 @@ local function DrawTimeline(parent)
         i=math.max(1,math.min(#levels,i-delta));local mid=from+span/2;state.tlSpan=levels[i];state.tlStart=math.floor(mid-levels[i]/2+0.5);Refresh()
     end
     ns.TimelineZoom=zoom
-    if card.EnableMouseWheel then card:EnableMouseWheel(true);card:SetScript("OnMouseWheel",function(_,delta)if IsControlKeyDown and IsControlKeyDown()then zoom(delta)else moveTo(from-delta*span/8)end end)end
+    -- Wheel steps add up and redraw once per frame, so a fast spin is one redraw, not ten.
+    if card.EnableMouseWheel then card:EnableMouseWheel(true);card:SetScript("OnMouseWheel",function(_,delta)
+        if IsControlKeyDown and IsControlKeyDown()then zoom(delta);return end
+        state.tlWheel=(state.tlWheel or 0)+delta
+        if state.tlWheelQueued then return end
+        local function go()local d=state.tlWheel or 0;state.tlWheel,state.tlWheelQueued=nil,nil;moveTo((state.tlStart or from)-d*span/8)end
+        if C_Timer and C_Timer.After then state.tlWheelQueued=true;C_Timer.After(0,go)else go()end
+    end)end
     W.Button(card,"-",716,6,24,function()zoom(-1)end,false,"tl-zoom-out",{h=22,align="CENTER",tooltip=L("Zoom out · Ctrl + mouse wheel down")})
     W.Button(card,"+",742,6,24,function()zoom(1)end,false,"tl-zoom-in",{h=22,align="CENTER",tooltip=L("Zoom in · Ctrl + mouse wheel up")})
     W.Segmented(card,{{value=60,label="1m"},{value=120,label="2m"},{value=240,label="4m"}},span,770,6,140,function(v)state.tlSpan=v;Refresh()end,"tl-zoom")

@@ -407,12 +407,17 @@ env.click('tl-zoom-out');env.click('tl-zoom-out');assert(s.tlSpan==180)
 s.tlStart=0;env.click('tl-left');assert(s.tlStart<0,'slider goes before the pull')
 env.click('tl-right');env.click('tl-right');assert(s.tlStart>0,'and past it')
 env.click('tl-track:20');local far=s.tlStart;assert(far>200,'track click jumps, got '..far)
--- Holding the left button on the thumb drags the view live, even though each move redraws the page.
+-- Holding the left button on the thumb drags the view live: the thumb follows every frame, the page a few times a second.
 local cx,down=500,true;function GetCursorPosition()return cx,300 end;function IsMouseButtonDown()return down end;ns.RefreshWorkspace();far=s.tlStart
 local thumb=ns.UIControls['tl-thumb'];assert(thumb:GetFrameLevel()>ns.UIControls['tl-track:1']:GetFrameLevel(),'thumb above the track')
 thumb.scripts.OnMouseDown(thumb,'LeftButton')
 local d;for i=#env.frames,1,-1 do local f=env.frames[i];if f.scripts.OnUpdate and f.parent==nil then d=f;break end end;assert(d,'drag driver')
+local draws=0;local ro=ns.RuleOptions;ns.RuleOptions=function(...)draws=draws+1;return ro(...)end
+local x0=ns.UIControls['tl-thumb'].point.x
 cx=300;d.scripts.OnUpdate(d,0.05);local dragged=s.tlStart;assert(dragged<far,'thumb drag moves the view, got '..dragged)
+assert(draws==0 and ns.UIControls['tl-thumb'].point.x<x0,'a quick move only slides the thumb, no page redraw')
+cx=290;for _=1,5 do d.scripts.OnUpdate(d,0.06)end;assert(draws>0,'the page follows within a quarter second');dragged=s.tlStart
+ns.RuleOptions=ro
 cx=200;down=false;d.scripts.OnUpdate(d,0.01);assert(s.tlStart<dragged and d.scripts.OnUpdate==nil,'release ends the drag at the cursor')
 GetCursorPosition,IsMouseButtonDown=nil,nil
 ns.TimelineZoom(1);assert(s.tlSpan==120)

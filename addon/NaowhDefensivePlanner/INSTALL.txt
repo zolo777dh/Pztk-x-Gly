@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.8.0 — in-game editor and reminder engine
+Naowh Defensive Planner 0.8.1 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
