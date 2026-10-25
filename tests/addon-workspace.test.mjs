@@ -23,6 +23,23 @@ env.click('tab:profiles');env.click('tab:settings');assert(ns.UIControls['settin
 ns.WorkspaceWindow:Hide();ns.Open();assert(ns.UIControls['setting:x']:GetText()=='125');env.click('save-settings')
 assert(ns.Settings().iconSize==57 and ns.Settings().pos.x==125 and ns.Settings().voiceOn and ns.Settings().bossSource=='dbm')
 `));
+test('saving settings keeps anchors moved on screen and the saved values stay after a reload',()=>run(`
+env.click('tab:settings');env.input('setting:iconSize','50')
+local function move(key,x,y)assert(ns.EditProfile(function(data)data.settings=data.settings or{};data.settings[key]={point='LEFT',relPoint='CENTER',x=x,y=y}end));ns.RefreshWorkspace()end
+move('pos',-300,40);move('abilityPos',220,-60);move('barPos',-90,10)
+assert(ns.UIControls['setting:x']:GetText()=='-300','X input must follow the dragged anchor')
+assert(ns.UIControls['setting:iconSize']:GetText()=='50','Typed value must survive a drag')
+env.click('save-settings');assert(not ns.UIState.error,ns.UIState.message)
+local s=ns.Settings();assert(s.iconSize==50)
+assert(s.pos.x==-300 and s.pos.y==40 and s.pos.point=='LEFT','Defensive anchor was reset by saving')
+assert(s.abilityPos.x==220 and s.barPos.x==-90,'Alert or bar anchor was reset by saving')
+env.click('display-reset');assert(ns.UIControls['setting:x']:GetText()=='-170');env.input('setting:textSize','18');env.click('save-settings')
+s=ns.Settings();assert(s.textSize==18 and s.pos.x==-170 and s.abilityPos==nil and s.barPos==nil,'Reset position was undone by saving')
+env.input('setting:y','140');env.click('save-settings');assert(ns.Settings().pos.y==140 and ns.Settings().pos.x==-170)
+env.reload();env.click('tab:settings')
+s=ns.Settings();assert(s.iconSize==50 and s.textSize==18 and s.pos.y==140)
+assert(ns.UIControls['setting:iconSize']:GetText()=='50' and ns.UIControls['setting:y']:GetText()=='140')
+`));
 test('scroll viewports keep their visible anchored content through repeated page changes',()=>run(`
 for i=1,8 do
  for _,tab in ipairs({'mythic','raid','profiles','settings'})do

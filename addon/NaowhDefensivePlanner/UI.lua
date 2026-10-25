@@ -12,7 +12,7 @@ local WIDTH,HEIGHT,SIDEBAR,TOP=1120,720,176,60
 -- UI drafts are local SavedVariables, separate from the active runtime profile.
 -- Navigation never commits a partial reminder or silently throws its inputs away.
 local workspace,owner,profileName
-local viewFields={"mode","difficulty","group","entity","ability","ruleKey","timed","form","reference","context","ruleDrafts","setKey","setRows","setName","setDrafts","newSpell","settings","settingFields","manual","profileName","importText","confirmDelete","confirmCopy","scrolls","setScope","tlGroup","tlBoss","tlDifficulty","tlTemplateName","callout","drafts"}
+local viewFields={"mode","difficulty","group","entity","ability","ruleKey","timed","form","reference","context","ruleDrafts","setKey","setRows","setName","setDrafts","newSpell","settings","settingsBase","settingFields","manual","profileName","importText","confirmDelete","confirmCopy","scrolls","setScope","tlGroup","tlBoss","tlDifficulty","tlTemplateName","callout","drafts"}
 -- Dragging the Timeline thumb. The page is redrawn as the view moves, which replaces the thumb,
 -- so a lasting frame follows the cursor while the left button is held and moves the view live.
 local dragDriver
@@ -650,9 +650,36 @@ local function ApplyPrefs()
     local p=UIPrefs();W.SetTheme(p.theme);W.SetFont(p.font)
 end
 ns.ApplyUIPrefs=ApplyPrefs
+-- The page edits a draft of the profile settings. Whatever the player has not changed keeps
+-- following the saved profile, so anchors dragged on screen, Reset position or EllesmereUI moves
+-- are never written back with old values when the page is saved.
+local settingDefaults={iconSize=42,textSize=14,voiceVol=100,x=0,y=100,barWidth=240,barHeight="",coveredCastWindow=3}
+local function SettingText(settings,key)
+    if key=="x"or key=="y"then local p=type(settings.pos)=="table"and settings.pos or{};return tostring(p[key]or settingDefaults[key])end
+    local phrase=key:match("^phrase:(.+)$");if phrase then return tostring(type(settings.voicePhrases)=="table"and settings.voicePhrases[phrase]or"")end
+    local v=settings[key];if v==nil then v=settingDefaults[key]end;return tostring(v==nil and""or v)
+end
+local function Same(a,b)
+    if type(a)~="table"or type(b)~="table"then return a==b end
+    for k,v in pairs(a)do if not Same(v,b[k])then return false end end
+    for k in pairs(b)do if a[k]==nil then return false end end
+    return true
+end
+local function SettingsDraft()
+    local saved=ns.Clone(ns.Settings())
+    local s,base=state.settings,state.settingsBase
+    if not s or not base then s=ns.Clone(saved);state.settings=s;state.settingFields={}
+    else
+        local keys={};for _,t in ipairs({s,base,saved})do for k in pairs(t)do keys[k]=true end end
+        for k in pairs(keys)do if Same(s[k],base[k])then s[k]=ns.Clone(saved[k])end end
+        state.settingFields=state.settingFields or{}
+        for key,text in pairs(state.settingFields)do if text==SettingText(base,key)then state.settingFields[key]=nil end end
+    end
+    state.settingsBase=saved;return s
+end
 local function DrawSettings(parent)
     W.Label(parent,L("Settings"),0,0,200,20,C.text,true);W.Label(parent,L("Profile settings save with the button. Window, theme and font apply at once and are not exported."),130,6,560,12,C.muted)
-    local s=state.settings or ns.Clone(ns.Settings());state.settings=s;state.settingFields=state.settingFields or{}
+    local s=SettingsDraft()
     W.Button(parent,L("Show a sample"),740,0,180,function()ns.Display({type="icon",defensive=true,spellID=22812,text=L("Use a defensive"),dur=4,tts=s.voiceOn});notify(L("Preview uses currently saved settings"))end,false,"preview-display",{align="CENTER",border=C.accent})
     local col,top,cw=304,40,296
     local reminders=W.Card(parent,0,top,cw,268,L("Reminders"))
@@ -693,21 +720,22 @@ local function DrawSettings(parent)
     W.Label(window_,L("Naowh.ttf is not shipped: put your own copy in Media/Fonts and restart the game."),12,142,cw-24,11,C.muted)
     -- Phrases the built-in cues speak; blank keeps the default.
     local phrases=W.Card(parent,col*2,top+280,cw-8,184,L("Voice phrases"))
-    s.voicePhrases=s.voicePhrases or{}
+    local phrases_=s.voicePhrases or{}
     for i,key in ipairs(ns.VoicePhraseKeys)do local y=32+(i-1)*29
         W.Label(phrases,L(ns.CueDefault(key)),12,y+6,112,11,C.muted)
-        W.Input(phrases,state.settingFields["phrase:"..key]or s.voicePhrases[key]or"",124,y,cw-8-160,"setting:phrase:"..key,false,{h=24})
+        W.Input(phrases,state.settingFields["phrase:"..key]or phrases_[key]or"",124,y,cw-8-160,"setting:phrase:"..key,false,{h=24})
         W.Button(phrases,"",cw-8-32,y+2,20,function()capture();local t=state.settingFields["phrase:"..key];ns.Speak(t and t~=""and t or ns.CueDefault(key))end,false,"phrase-hear:"..i,{h=20,glyph="play",tooltip=L("Hear it")})
     end
     W.Button(parent,L("Save settings"),col*2,top+472,cw-8,function()local v,e=ns.EditProfile(function(data)
+        local s=SettingsDraft()
         s.voicePhrases=s.voicePhrases or{}
         for _,key in ipairs(ns.VoicePhraseKeys)do local t=tostring(read("setting:phrase:"..key)or""):match("^%s*(.-)%s*$");assert(#t<=100,L("Use at most 100 characters for a phrase"));s.voicePhrases[key]=t~=""and t or nil end
         if not next(s.voicePhrases)then s.voicePhrases=nil end
         local bw=tonumber(read("setting:barWidth"));assert(bw and bw>=60 and bw<=1000,L("Enter 60-1000 for the bar width"));s.barWidth=bw
         local bh=tostring(read("setting:barHeight")or""):match("^%s*(.-)%s*$");if bh==""then s.barHeight=nil else bh=tonumber(bh);assert(bh and bh>=8 and bh<=200,L("Enter 8-200 for the bar height, or leave it blank for the icon size"));s.barHeight=bh end
         local window=tonumber(read("setting:coveredCastWindow"));assert(window and window>=0 and window<=60,L("Enter 0-60 seconds for the cast window"));s.coveredCastWindow=window
-        for _,f in ipairs(fields)do local number=tonumber(read("setting:"..f[2]));assert(number,L("Enter a number for ")..L(f[1]));if f[2]=="x"or f[2]=="y"then s.pos=s.pos or{point="CENTER",relPoint="CENTER"};s.pos[f[2]]=number else s[f[2]]=number end end;data.settings=s
-    end);done(v,e,L("Settings saved"))end,true,"save-settings",{kind="primary",align="CENTER",h=40})
+        for _,f in ipairs(fields)do local number=tonumber(read("setting:"..f[2]));assert(number,L("Enter a number for ")..L(f[1]));if f[2]=="x"or f[2]=="y"then s.pos=s.pos or{point="CENTER",relPoint="CENTER"};s.pos[f[2]]=number else s[f[2]]=number end end;data.settings=ns.Clone(s)
+    end);if v then state.settings=nil;state.settingsBase=nil;state.settingFields={}end;done(v,e,L("Settings saved"))end,true,"save-settings",{kind="primary",align="CENTER",h=40})
 end
 ---------------------------------------------------------------------------
 local function DrawProfiles(parent)
