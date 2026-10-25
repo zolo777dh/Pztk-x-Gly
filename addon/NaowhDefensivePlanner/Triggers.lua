@@ -52,33 +52,3 @@ function ns.StartStateTriggers()
     if #watch.hp>0 then frame:RegisterEvent("UNIT_HEALTH")end
     if #watch.aura>0 then frame:RegisterUnitEvent("UNIT_AURA","player")end
 end
--- Expected-time fallback: an ability no boss mod announces still drives the reminders bound to
--- it, from its expected times this pull (a 10 s bar, then the message). The first real
--- announcement of that ability cancels its fallback.
-local LEAD=10
-function ns.ExpectedAnnounced(spell)
-    if ns.expectedFallback and ns.expectedFallback[spell]then ns.expectedFallback[spell]=nil;ns.Cancel("exp:"..spell..":")end
-end
-function ns.StartExpectedFallback()
-    ns.expectedFallback=nil
-    if not ns.encounter or ns.simulation or ns.simStarting or not ns.ExpectedTimeline or not ns.UnannouncedAbilities then return end
-    local profile=ns.Active();if not profile then return end
-    local encounter=ns.encounter
-    local bound={}
-    for _,entry in pairs(ns.EncounterEntries(profile,encounter)or{})do local t=type(entry)=="table"and entry.trigger;if t and(t.type=="bwtimer"or t.type=="bwmsg")and ns.UnannouncedAbilities[t.spellID]then bound[t.spellID]=true end end
-    for _,byEnc in pairs(profile.data.abilityBindings or{})do for spell in pairs(ns.Get(byEnc,encounter)or{})do spell=tonumber(spell);if spell and ns.UnannouncedAbilities[spell]then bound[spell]=true end end end
-    if not next(bound)then return end
-    local timeline=ns.ExpectedTimeline(encounter,ns.difficulty);if not timeline then return end
-    ns.expectedFallback=bound
-    local function call(spell,duration,identity,skip)
-        local recording=ns.recording;ns.recording=nil -- expected times never enter the recorded pull
-        ns.Mechanic(spell,duration,identity,encounter,skip);ns.recording=recording
-    end
-    for i,ev in ipairs(timeline.events)do local at,spell=tonumber(ev[1])or 0,ev[2]
-        if bound[spell]and at>0 then
-            local start=math.max(0,at-LEAD)
-            ns.Schedule("exp:"..spell..":bar:"..i,start,function()call(spell,at-start,"EXP:"..i)end)
-            ns.Schedule("exp:"..spell..":msg:"..i,at,function()call(spell,nil,"EXPMSG:"..spell,true)end)
-        end
-    end
-end

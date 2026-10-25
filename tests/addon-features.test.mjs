@@ -1,5 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossTimelines','Simulate','Planner','Triggers','Analysis','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+// A recorded Heroic pull of the first raid boss, for the Timeline tests.
+const pulled=`ns.Store().timelines={['retail:3379:15']={events={{8,1260837},{18,1257717},{25,1276710},{37,1313393},{41,1260837},{44,1276710},{50,1257717},{60,1268562}},length=480,kill=true}};if ns.RefreshWorkspace then ns.RefreshWorkspace()end`;
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.RealDisplay=ns.Display;ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
  if(process.env.DOCTOR_LUA51){const d=await fs.mkdtemp(path.join(os.tmpdir(),'pztk-workspace-'));try{await fs.writeFile(d+'/test.lua',script);execFileSync(process.env.DOCTOR_LUA51,[d+'/test.lua'],{encoding:'utf8'});}finally{await fs.rm(d,{recursive:true,force:true});}return;}
  const {lua,lauxlib,lualib,to_luastring}=fengari,L=lauxlib.luaL_newstate();lualib.luaL_openlibs(L);try{if(lauxlib.luaL_loadstring(L,to_luastring(script))!==lua.LUA_OK||lua.lua_pcall(L,0,0,0)!==lua.LUA_OK)throw Error(lua.lua_tojsstring(L,-1));}finally{lua.lua_close(L);}
@@ -149,12 +151,12 @@ env.click('tab:raid');env.click('mode:debuffs');assert(ns.UIState.tab=='raid'and
 assert(ns.UIControls['tab:debuffs']==nil,'Debuffs must not be a sidebar section')
 ns.UIControls['debuffs-racial']:Click();for _,r in ipairs(ns.Widgets.menu.rows)do if r.shown and r.label.text:find('Stoneform',1,true)then r:Click()break end end
 local raid,mythic=0,0;for _,r in ipairs(ns.DebuffRules(104))do if r.rule.trigger.scope=='raid'then raid=raid+1;assert(r.rule.trigger.mapID==0)else mythic=mythic+1 end end
-assert(raid>=15 and mythic==0,raid..' '..mythic)
+assert(raid==8 and mythic==0,raid..' '..mythic)
 local found=false;for k in pairs(ns.UIControls)do if k:match('^debuff%-group:Vashnik')then found=true end end;assert(found,'Raid alerts are grouped by boss')
 env.click('debuff-new');env.input('debuff:spellID','1290336');env.click('debuff-save')
 local saved;for _,r in ipairs(ns.DebuffRules(104))do if r.rule.trigger.spellID==1290336 then saved=r end end;assert(saved and saved.rule.trigger.scope=='raid')
 env.click('tab:mythic');env.click('mode:debuffs');for k in pairs(ns.UIControls)do assert(not k:match('^debuff%-group:Vashnik'),'Raid alerts leaked into Mythic+')end
-env.reload();assert(#ns.DebuffRules(104)>=16,'Raid debuff alerts did not survive a reload')
+env.reload();assert(#ns.DebuffRules(104)>=9,'Raid debuff alerts did not survive a reload')
 ns.WorkspaceWindow:Hide();SlashCmdList.NDP('debuffs');assert(ns.UIState.mode=='debuffs')
 `));
 test('an open list closes on a click anywhere outside it',()=>run(`
@@ -374,9 +376,10 @@ ns.Store().timelines={[ns.Client()..':'..enc..':15']={events={{20,found.trigger.
 env.click('tab:timeline');local marks=0;for k in pairs(ns.UIControls)do if k:match('^tl%-mech:')then marks=marks+1 end end;assert(marks==2,'two casts on the Mechanics lane, got '..marks)
 local key;for k in pairs(ns.UIControls)do if k:match('^tl%-mech:')then key=k end end;env.click(key);assert(ns.UIState.tab=='raid'and ns.UIState.reference and ns.UIState.reference.entry.name=='Soak','marker opens the reminder')
 `));
-test('the timeline shows the expected boss abilities; a click plans a defensive or a note for that cast',()=>run(`
+test('the timeline shows the boss abilities of your recorded pull; a click plans a defensive or a note for that cast',()=>run(`
+${pulled}
 env.click('tab:timeline');env.click('tab:timeline')
-local marks=0;for k in pairs(ns.UIControls)do if k:match('^tl%-ability:')then marks=marks+1 end end;assert(marks>5,'expected boss abilities on the Boss lane, got '..marks)
+local marks=0;for k in pairs(ns.UIControls)do if k:match('^tl%-ability:')then marks=marks+1 end end;assert(marks==8,'recorded boss casts on the Boss lane, got '..marks)
 local key;for k in pairs(ns.UIControls)do if k=='tl-ability:2'then key=k end end;assert(key);env.click(key)
 assert(ns.UIState.tlPick and ns.UIControls['tl-pick-note']and ns.UIControls['tl-pick-defensive'],'cast picker')
 local pick=ns.UIState.tlPick
@@ -396,6 +399,7 @@ found=nil;for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(e
 assert(found.display.style=='text','text style saved')
 `));
 test('the timeline zooms with Ctrl + wheel and the slider moves it before and after the pull',()=>run(`
+${pulled}
 env.click('tab:timeline');env.click('tab:timeline')
 local s=ns.UIState;assert(s.tlSpan==nil or s.tlSpan==120)
 env.click('tl-zoom-in');assert(s.tlSpan==90,'zoom in, got '..tostring(s.tlSpan))
@@ -414,6 +418,7 @@ GetCursorPosition,IsMouseButtonDown=nil,nil
 ns.TimelineZoom(1);assert(s.tlSpan==120)
 `));
 test('a simulated pull plays the boss timeline through the reminders outside combat',()=>run(`
+${pulled}
 env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2')
 local pick=ns.UIState.tlPick;env.click('tl-pick-note');env.input('rule:alertText','Stack in middle');env.click('save-rule')
 env.click('tab:timeline');env.click('tl-simulate');assert(ns.Simulating(),'simulation running')
@@ -421,10 +426,11 @@ assert(ns.UIControls['tl-simulate'],'stop button')
 local before=#env.shown;for _=1,math.ceil(pick.at)+1 do env.advance(1)end
 local seen=false;for i=before+1,#env.shown do local d=env.shown[i];if d and d.text=='Stack in middle'then seen=true end end
 assert(seen,'the note fired during the simulated pull')
-assert(not ns.RecordedTimeline(pick.encounter,pick.difficulty),'a simulation records nothing')
+assert(#ns.RecordedTimeline(pick.encounter,pick.difficulty).events==8,'a simulation records nothing')
 env.click('tl-simulate');assert(not ns.Simulating(),'stopped')
 `));
 test('the cooldowns lane predicts the spell for each defensive call and flags calls with nothing ready',()=>run(`
+${pulled}
 assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))
 env.click('tab:timeline');env.click('tab:timeline');env.click('tl-ability:2');env.click('tl-pick-defensive')
 assert(ns.UIState.form.alertOn,'a defensive on a boss ability offers the ability alert by default')
@@ -507,15 +513,53 @@ aura=nil;f.scripts.OnEvent(f,'UNIT_AURA','player');aura={};f.scripts.OnEvent(f,'
 env.click('tab:timeline');env.click('tab:timeline')
 ns.Reset();hp=5;f.scripts.OnEvent(f,'UNIT_HEALTH','boss1');assert(count('Lust now')==1,'nothing after the pull')
 `));
-test('reminders on an ability no boss mod announces fire at its expected times until a boss mod announces it',()=>run(`
-local tl=ns.ExpectedTimeline(3379,15);local first;for _,ev in ipairs(tl.events)do if ev[2]==235774 and not first then first=ev[1]end end;assert(first,'Summon Murlocs on the expected timeline')
-ns.Active().data.raidReminders[3379]={m={name='Adds',enabled=true,content='raid',difficulties={[15]=true},trigger={type='bwmsg',spellID=235774,delay=0},target={all=true},display={type='text',text='Adds up',dur=3}}}
-local function count()local n=0;for _,d in ipairs(env.shown)do if d.text=='Adds up'then n=n+1 end end;return n end
-ns.Begin(3379,15);for _=1,math.ceil(first)+1 do env.advance(1)end
-assert(count()==1,'fired at the expected time, got '..count())
-assert(not ns.recording or #ns.recording==0,'expected times are not recorded')
-ns.Mechanic(235774,nil,'BW:x',3379);env.advance(1);assert(count()==2,'the real message fires it')
-for _=1,200 do env.advance(1)end;assert(count()==2,'fallback cancelled after a real announcement')
+test('before a pull the Boss lane lists the boss abilities without times; the journal adds bosses, names and categories',()=>run(`
+ns.LogTimelines[3379]=nil -- a boss without a Warcraft Logs base
+local j=ns.Journal();assert(j and #j.raids==1 and #j.dungeons==1,'journal read when the window opened')
+local raids=ns.CatalogGroups('raid');assert(raids[1].name=='Fixture Raid'and #raids[1].bosses==4,'raid list from the journal')
+local nym=raids[1].bosses[1];assert(nym.id==3379 and nym.abilities[1].id==1276710,'built-in timer spells first')
+local seen={};for _,a in ipairs(nym.abilities)do assert(not seen[a.id],'no duplicate '..a.id);seen[a.id]=true end
+local only=raids[1].bosses[4];assert(only.name=='Journal Only Boss'and only.abilities[1].id==1390001,'a boss without built-in timers still gets its journal abilities')
+assert(ns.AbilityCategory(1268562)=='tank'and ns.AbilityCategory(1260837)=='raid'and ns.AbilityCategory(1281907)=='dispel'and ns.AbilityCategory(1390002)=='dispel'and ns.AbilityCategory(1284434)==nil,'categories from the journal flags')
+local water;for _,a in ipairs(j.raids[1].bosses[1].abilities)do if a.id==1268562 then water=a end end;assert(#water.difficulties==1 and water.difficulties[1]=='mythic','mythic-only ability')
+local row;for _,g in ipairs(ns.CatalogGroups('mythic'))do for _,n in ipairs(g.npcs)do if n.encounterId==3103 then row=n end end end
+local has=false;for _,a in ipairs(row.abilities)do if a.id==1390101 then has=true end end;assert(has,'dungeon bosses gain journal abilities')
+assert(ns.EncounterScope(3901)=='raid')
+env.click('tab:timeline');env.click('tab:timeline')
+local marks=0;for k in pairs(ns.UIControls)do if k:match('^tl%-ability:')then marks=marks+1 end end;assert(marks>=7,'abilities without times, got '..marks)
+env.click('tl-ability:1');local pick=ns.UIState.tlPick;assert(pick and pick.at==nil and ns.UIControls['tl-pick-note']and not ns.UIControls['tl-pick-timed'],'untimed pick')
+env.click('tl-pick-note');assert(ns.UIState.ability==pick.spell and ns.UIState.form.counter=='','a note for every cast')
+-- The journal is read once per build; a new build reads it again.
+j.raids[1].name='Old';assert(ns.ScanJournal()and ns.Journal().raids[1].name=='Old');ns.Journal().build='1';assert(ns.ScanJournal()and ns.Journal().raids[1].name=='Fixture Raid')
+`));
+test('the Warcraft Logs base places the abilities in time before your own pull, which replaces it',()=>run(`
+assert(ns.LogTimelinesInfo.kills==20 and ns.ExpectedTimeline(3420,16),'the shipped base covers the raid')
+ns.LogTimelines[3379]={[15]={length=300,kills=20,phases={},events={{9,1260837},{19,1257717},{40,1260837}}}}
+local tl=ns.ExpectedTimeline(3379,15);assert(tl and tl.expected and tl.kills==20 and #tl.events==3)
+assert(ns.ExpectedTimeline(3379,14)and not ns.ExpectedTimeline(3379,16),'Normal uses the Heroic base')
+assert(ns.SimulationTimeline(3379,15)==nil or ns.SimulationTimeline(3379,15).expected,'simulation plays the base')
+env.click('tab:timeline');env.click('tab:timeline')
+local marks=0;for k in pairs(ns.UIControls)do if k:match('^tl%-ability:')then marks=marks+1 end end;assert(marks==3,'base casts on the Boss lane, got '..marks)
+env.click('tl-ability:2');assert(ns.UIState.tlPick.at==19 and ns.UIState.tlPick.cast==1 and ns.UIControls['tl-pick-timed'])
+assert(not ns.ExportBoss(3379,'x'),'nothing planned: the base alone is never exported')
+${pulled}
+assert(not ns.SimulationTimeline(3379,15).expected,'your pull wins')
+`));
+test('a boss export carries the recorded pull, so the receiver sees the abilities in time; their own pull replaces it',()=>run(`
+${pulled}
+ns.Active().data.raidReminders[3379]={m={name='Adds',enabled=true,content='raid',difficulties={[15]=true},trigger={type='bwmsg',spellID=1276710,delay=0},target={all=true},display={type='text',text='Adds up',dur=3}}}
+local text=assert(ns.ExportBoss(3379,'Nymrissa'))
+ns.Store().timelines={}
+assert(ns.Import(text),'boss import')
+local t=ns.RecordedTimeline(3379,15);assert(t and t.shared and #t.events==8 and t.length==480,'shared timeline stored')
+assert(ns.SimulationTimeline(3379,15)==t)
+env.click('tab:timeline');env.click('tab:timeline');local found=false;for k in pairs(ns.UIControls)do if k=='tl-ability:8'then found=true end end;assert(found)
+-- A bad timeline in a string is ignored; your own pull wins over a shared one.
+assert(ns.ImportTimelines(3379,{[15]={events={{-1,5}},length=10}})==0)
+ns.encounter,ns.difficulty,ns.pullTime,ns.recording=3379,15,GetTime(),{{5,1260837}};assert(ns.FinishRecording(false))
+t=ns.RecordedTimeline(3379,15);assert(not t.shared and #t.events==1,'own pull replaced the shared one')
+assert(ns.ImportTimelines(3379,{[15]={events={{5,1}},length=10}})==0,'a shared timeline never replaces your own')
+ns.encounter,ns.difficulty=nil,nil
 `));
 test('the last pull lane compares defensive calls with your casts; Mine hides other players reminders; templates save and apply a boss plan',()=>run(`
 assert(ns.SaveSet('raid',104,nil,'Raid',{{spellID=22812}}))

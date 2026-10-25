@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.7.3"
+ns.version = "0.8.0"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -171,7 +171,7 @@ function ns.Fire(entry, display, occurrence)
     if ns.Display then ns.Display(display or entry.display or {}) end
 end
 function ns.Reset()
-    ns.Cancel(); ns.generation = ns.generation + 1; ns.occurrences = {}; ns.encounter = nil; ns.phase = nil; ns.simulation = nil; ns.expectedFallback = nil
+    ns.Cancel(); ns.generation = ns.generation + 1; ns.occurrences = {}; ns.encounter = nil; ns.phase = nil; ns.simulation = nil
     if ns.ResetProviders then ns.ResetProviders() end
     if ns.SuspendAuraSounds then ns.SuspendAuraSounds()end
     if ns.HideDisplays then ns.HideDisplays() end
@@ -211,7 +211,6 @@ function ns.Begin(encounter, difficulty, map)
     if ns.ReplayProviderTimers then ns.ReplayProviderTimers(firstBars) end
     if ns.StartBuiltinTimers then ns.StartBuiltinTimers() end
     if ns.StartStateTriggers then ns.StartStateTriggers() end
-    if ns.StartExpectedFallback then ns.StartExpectedFallback() end
     if ns.StartPullLog then ns.StartPullLog() end
 end
 -- Pre-pull reminders run before ENCOUNTER_START, so the encounter comes from the
@@ -381,6 +380,7 @@ function ns.FinishRecording(kill)
     local key = ns.Client() .. ":" .. ns.encounter .. ":" .. ns.difficulty
     local length = GetTime() - started
     local old = store.timelines[key]
+    if old and old.shared then old = nil end -- your own pull replaces a shared one
     if old and old.kill and not kill then return false end
     if old and not kill and (old.length or 0) >= length then return false end
     table.sort(events, function(a, b) return a[1] < b[1] end)
@@ -394,7 +394,6 @@ end
 function ns.Mechanic(spell, duration, identity, encounter, skipDefensive, repeatEvent)
     if not ns.Plain(spell, "number") or (duration ~= nil and not ns.Plain(duration, "number")) then return end
     if (encounter or ns.encounter) == ns.encounter then ns.RecordMechanic(spell, duration) end
-    if ns.expectedFallback and not (type(identity)=="string" and identity:match("^EXP")) then ns.ExpectedAnnounced(spell) end
     if ns.Conflict() or not ns.Plain(identity) or not ns.Plain(encounter) then return end
     local profile, spec = ns.Active(), ns.Spec()
     if not profile then return end

@@ -159,10 +159,15 @@ function ns.DeleteSet(scope,spec,key)
 end
 function ns.EncounterScope(encounter)
     for _,d in ipairs(ns.Catalog.dungeons)do for _,n in ipairs(d.npcs)do if n.encounterId==encounter then return "mythic"end end end
-    for _,r in ipairs(ns.Catalog.raids)do for _,b in ipairs(r.bosses)do if b.id==encounter then return "raid"end end end
+    for _,r in ipairs(ns.RaidGroups())do for _,b in ipairs(r.bosses)do if b.id==encounter then return "raid"end end end
 end
 function ns.CatalogGroups(scope)
-    local out=ns.Client()=="retail"and ns.Clone(scope=="mythic"and ns.Catalog.dungeons or ns.Catalog.raids)or{}
+    local out=ns.Client()=="retail"and ns.Clone(scope=="mythic"and ns.Catalog.dungeons or ns.RaidGroups())or{}
+    -- Dungeon bosses also list their Encounter Journal abilities (Journal.lua).
+    if scope=="mythic"then for _,g in ipairs(out)do for _,n in ipairs(g.npcs or{})do if n.encounterId then
+        local seen={};for _,a in ipairs(n.abilities)do seen[a.id]=true end
+        for _,a in ipairs(ns.JournalDungeonAbilities(n.encounterId))do if not seen[a.id]then seen[a.id]=true;n.abilities[#n.abilities+1]={id=a.id,name=a.name}end end
+    end end end end
     local p=ns.Active();local manual=p and p.data.manualCatalog and p.data.manualCatalog[scope]or{}
     for _,g in ipairs(manual)do out[#out+1]=ns.Clone(g)end
     -- Imported encounters without a bundled reference remain editable.
@@ -424,7 +429,7 @@ function ns.AddRacialDebuffs(spec,racial,scope)
         local rules=data.integrationRules[spec];local have={};local added=0
         for _,r in pairs(rules)do local t=r.trigger or{};if t.type=="auraSound"then have[t.mapID..":"..t.spellID]=true end end
         local raid=scope=="raid"
-        for _,d in ipairs((raid and ns.RaidRacialDebuffs or ns.RacialDebuffs)or{})do for _,e in ipairs(d.list)do
+        for _,d in ipairs((raid and ns.RaidRacialDebuffs()or ns.RacialDebuffs)or{})do for _,e in ipairs(d.list)do
             local map=raid and 0 or d.mapID
             if e[3]==racial and not have[map..":"..e[1]]then
                 have[map..":"..e[1]]=true

@@ -33,6 +33,8 @@ function ns.Diagnostics()
 end
 function ns.Open()
     ns.ConnectProviders()
+    -- Boss abilities and the raid list come from the game's Encounter Journal (Journal.lua).
+    if ns.ScanJournal then pcall(ns.ScanJournal)end
     if ns.RefreshAuraSounds then ns.RefreshAuraSounds()end
     ns.OpenWorkspace()
 end
@@ -54,9 +56,11 @@ local planned={bosses=true,keys=true,trace=true,observed=true,cds=true,calls=tru
 ns.Credits={
     "BigWigs and LittleWigs (Funkeh, Nebula, Justwait, Delk and the BigWigsMods team): encounter timings",
     "Deadly Boss Mods (DBM team) and EXBoss: boss mod events NDP listens to",
-    "Northern Sky Raid Tools (Reloe, Rav): note line format and ability categories",
+    "Northern Sky Raid Tools (Reloe, Rav): the note line format NDP reads and writes",
     "Naowh Smart Reminders (Naowh): the reminder ideas and the string format NDP still reads",
-    "Timeline Reminders (Bart): community boss timelines",
+    "Timeline Reminders (Bart): the !TR2: strings NDP can import",
+    "Blizzard Encounter Journal: boss abilities, icons and categories",
+    "Warcraft Logs: public kills behind the base boss timelines",
     "Mythic Dungeon Tools (Nnoggie) and Raider.IO: dungeon and enemy IDs",
     "LibStub, LibSerialize (Ross Nichols), LibDeflate (Haoqian He), LibCustomGlow (Benjamin Staneck)",
     "URW Gothic font by URW++",

@@ -283,7 +283,7 @@ end)
 ---------------------------------------------------------------------------
 local function bossOptions()
     local out={{value=0,label=L("No boss")}}
-    for _,r in ipairs(ns.Catalog.raids or{})do for _,b in ipairs(r.bosses or{})do out[#out+1]={value=b.id,label=b.name}end end
+    for _,r in ipairs(ns.RaidGroups())do for _,b in ipairs(r.bosses or{})do out[#out+1]={value=b.id,label=b.name}end end
     return out
 end
 local function sorted(list)

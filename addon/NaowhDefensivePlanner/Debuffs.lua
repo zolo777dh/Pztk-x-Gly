@@ -19,18 +19,20 @@ ns.RacialDebuffs={
     {mapID=2859,name="The Blinding Vale",list={{1235640,"Thornblade","stoneform"},{1259365,"Bloodthorn Roots","stoneform"},{1241058,"Grievous Thrash","stoneform"},{1247685,"Thornspike","stoneform"},{1238066,"Thornblade (trash)","stoneform"},{1242135,"Grievous Gash","stoneform"},{1250937,"Toxic Spew","stoneform"}}},
     {mapID=2923,name="Voidscar Arena",list={{1267894,"Savage Leap","stoneform"},{1299133,"Ferocious Leap","stoneform"},{1250043,"Melt Armor","stoneform"},{1249238,"Fire Spit","stoneform"},{1289258,"Corrosive Essence","stoneform"},{1311778,"Rip and Slice","stoneform"},{1300138,"Void Beam","shadowmeld"}}},
 }
--- Raid boss debuffs for Stoneform, picked by their names (venom, blight, bleed, curse...).
--- Dispel types and aura IDs are not confirmed: the IDs are the boss timer spells from the NSRT
--- timelines in resources/raid-catalog.json. Spread and soak debuffs are left out on purpose.
-ns.RaidRacialDebuffs={
-    {encounterID=3445,name="Entombed Sentinels",list={{1284487,"Bloodvenom Injection","stoneform"},{1284483,"Blighted Blood","stoneform"},{1296878,"Shifting Protovenom","stoneform"}}},
-    {encounterID=3455,name="Vashnik the Malignant",list={{1280935,"Dripping Fangs","stoneform"},{1294994,"Stygian Infection","stoneform"},{1281910,"Plague Froth","stoneform"}}},
-    {encounterID=3470,name="Nek'zali the Soulcoiler",list={{1287434,"Essence Rend","stoneform"}}},
-    {encounterID=3497,name="The Lost Explorers",list={{1297024,"Binding Anguish","stoneform"},{1301667,"Dark Whispers","stoneform"},{1286922,"Icebound Flames","stoneform"}}},
-    {encounterID=3420,name="Sszorak",list={{1277002,"Ravage","stoneform"}}},
-    {encounterID=3429,name="The Coiled Altar",list={{1282287,"Venomfang","stoneform"},{1299684,"Sever","stoneform"},{1286620,"Soul Sever","stoneform"},{1307292,"Blighted Sever","stoneform"}}},
-    {encounterID=3492,name="Ula'tek",list={{1301117,"Grasping Fangs","stoneform"}}},
-}
+-- Raid boss debuffs for Stoneform come from the game's Encounter Journal (Journal.lua): the
+-- abilities it marks as magic, curse, poison, disease or bleed, grouped by boss. Empty until
+-- the journal has been read (the window reads it out of combat).
+local stoneformFlags={[7]=true,[8]=true,[9]=true,[10]=true,[13]=true}
+function ns.RaidRacialDebuffs()
+    local out={}
+    for _,g in ipairs((ns.Journal()or{}).raids or{})do for _,b in ipairs(g.bosses or{})do
+        local list={}
+        for _,a in ipairs(b.abilities or{})do local hit=false;for _,f in ipairs(a.flags or{})do if stoneformFlags[f]then hit=true end end
+            if hit then list[#list+1]={a.id,a.name or("Spell "..a.id),"stoneform"}end end
+        if #list>0 then out[#out+1]={encounterID=b.id,name=b.name,list=list}end
+    end end
+    return out
+end
 local racialSpell={stoneform=20594,shadowmeld=58984}
 -- The game plays debuff alerts itself and needs a sound file, so these are game sounds
 -- (Display.lua), not speech.
@@ -47,8 +49,8 @@ local function instanceName(map)
 end
 -- Raid alerts are grouped by the boss that casts the debuff.
 local function raidBoss(spell)
-    for _,d in ipairs(ns.RaidRacialDebuffs)do for _,e in ipairs(d.list)do if e[1]==spell then return d.name end end end
-    for _,season in ipairs(ns.Catalog.raids or{})do for _,b in ipairs(season.bosses or{})do for _,a in ipairs(b.abilities or{})do if a.id==spell then return b.name end end end end
+    for _,d in ipairs(ns.RaidRacialDebuffs())do for _,e in ipairs(d.list)do if e[1]==spell then return d.name end end end
+    for _,g in ipairs(ns.RaidGroups())do for _,b in ipairs(g.bosses or{})do for _,a in ipairs(b.abilities or{})do if a.id==spell then return b.name end end end end
     return L("Other raid debuffs")
 end
 local function count(list,racial)local n=0;for _,d in ipairs(list)do for _,e in ipairs(d.list)do if e[3]==racial then n=n+1 end end end;return n end
@@ -74,7 +76,7 @@ function ns.DrawDebuffs(parent)
     local status=ns.AuraSoundStatus and ns.AuraSoundStatus()or"";W.Label(parent,(status:match("^[^\n]*")or"")..L(" · changes apply outside combat"),0,46,500,11,C.faint)
     local rules=scoped(spec,raid)
     -- Bundled racial lists and an additive copy from the other specs of this class.
-    local source=raid and ns.RaidRacialDebuffs or ns.RacialDebuffs;local racials={}
+    local source=raid and ns.RaidRacialDebuffs()or ns.RacialDebuffs;local racials={}
     for _,r in ipairs({"stoneform","shadowmeld"})do local n=count(source,r);if n>0 then racials[#racials+1]={value=r,label=L(r=="stoneform"and"Add Stoneform list"or"Add Shadowmeld list").." ("..n..")"..(known(racialSpell[r])and""or" - "..L("not your racial"))}end end
     W.Select(parent,nil,racials,nil,520,40,200,function(v)
         local added,err=ns.AddRacialDebuffs(spec,v,scope);kit.done(added,err,(tonumber(added)or 0)..L(" debuff alerts added"))end,"debuffs-racial")

@@ -1,4 +1,4 @@
--- Pull simulation: plays a boss timeline (your recorded pull, or the expected one) through the
+-- Pull simulation: plays a boss timeline (your recorded pull, one shared in a boss export, or the Warcraft Logs base) through the
 -- normal reminder engine outside combat, so every reminder, voice and glow shows exactly as it
 -- would on the pull. Each ability gets a 10 s boss mod bar before its cast and a message on it.
 local _, ns = ...
@@ -6,7 +6,7 @@ local LEAD = 10
 local function now() return GetTime() end
 
 function ns.SimulationTimeline(encounter, difficulty)
-    return ns.RecordedTimeline(encounter, difficulty) or (ns.ExpectedTimeline and ns.ExpectedTimeline(encounter, difficulty))
+    return ns.RecordedTimeline(encounter, difficulty) or ns.ExpectedTimeline(encounter, difficulty)
 end
 function ns.Simulating() return ns.simulation ~= nil end
 function ns.StopSimulation()
