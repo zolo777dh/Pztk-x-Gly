@@ -15,6 +15,12 @@ test('base timelines take the median time of each cast per phase and drop casts 
  assert.deepEqual(tl.events,[[11,1],[41,1],[116,2]],'the stray 3rd cast and the once-seen spell 9 are dropped');
  assert.equal(aggregate([]),null);
 });
+test('a phase that comes back is its own stretch of the fight, timed from its own start',()=>{
+ const k=(p2,p3,extra=[])=>({length:200,phases:[{id:1,at:0},{id:2,at:p2,name:'Maelstrom'},{id:1,at:p3}],casts:[{at:30,spell:7},{at:p3+30,spell:7},...extra]});
+ const tl=aggregate([k(100,130),k(110,140),k(120,150,[{at:10,spell:8}])]);
+ assert.deepEqual(tl.phases,[{id:2,name:'Maelstrom',at:110},{id:1,name:'Phase 1',at:140}]);
+ assert.deepEqual(tl.events,[[30,7],[170,7]],'the second stage-1 cast sits 30 s after the second stage 1, not at 30 s');
+});
 test('casts are kept only as announced spells, matched by name, and a repeat within 3 s counts once',()=>{
  const out=announcedCasts([{at:5,spell:100},{at:5.2,spell:999},{at:9,spell:200},{at:12,spell:300},{at:20,spell:100}],[200,999],{100:'Tank Smash',999:'tank smash',200:'Other',300:'Unknown'});
  assert.deepEqual(out,[{at:5,spell:999},{at:9,spell:200},{at:20,spell:999}]);

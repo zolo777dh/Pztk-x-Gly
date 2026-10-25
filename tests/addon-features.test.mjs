@@ -514,6 +514,7 @@ env.click('tab:timeline');env.click('tab:timeline')
 ns.Reset();hp=5;f.scripts.OnEvent(f,'UNIT_HEALTH','boss1');assert(count('Lust now')==1,'nothing after the pull')
 `));
 test('before a pull the Boss lane lists the boss abilities without times; the journal adds bosses, names and categories',()=>run(`
+ns.LogTimelines[3379]=nil -- a boss without a Warcraft Logs base
 local j=ns.Journal();assert(j and #j.raids==1 and #j.dungeons==1,'journal read when the window opened')
 local raids=ns.CatalogGroups('raid');assert(raids[1].name=='Fixture Raid'and #raids[1].bosses==4,'raid list from the journal')
 local nym=raids[1].bosses[1];assert(nym.id==3379 and nym.abilities[1].id==1276710,'built-in timer spells first')
@@ -532,6 +533,7 @@ env.click('tl-pick-note');assert(ns.UIState.ability==pick.spell and ns.UIState.f
 j.raids[1].name='Old';assert(ns.ScanJournal()and ns.Journal().raids[1].name=='Old');ns.Journal().build='1';assert(ns.ScanJournal()and ns.Journal().raids[1].name=='Fixture Raid')
 `));
 test('the Warcraft Logs base places the abilities in time before your own pull, which replaces it',()=>run(`
+assert(ns.LogTimelinesInfo.kills==20 and ns.ExpectedTimeline(3420,16),'the shipped base covers the raid')
 ns.LogTimelines[3379]={[15]={length=300,kills=20,phases={},events={{9,1260837},{19,1257717},{40,1260837}}}}
 local tl=ns.ExpectedTimeline(3379,15);assert(tl and tl.expected and tl.kills==20 and #tl.events==3)
 assert(ns.ExpectedTimeline(3379,14)and not ns.ExpectedTimeline(3379,16),'Normal uses the Heroic base')

@@ -30,31 +30,38 @@ export function median(list){
 }
 const round=x=>Math.round(x*10)/10;
 
-// One kill: {length, phases:[{id,at}], casts:[{at,spell}]} in seconds from the pull.
+// One kill: {length, phases:[{id,name,at}], casts:[{at,spell}]} in seconds from the pull.
+// Phases can come back (stage 1, intermission, stage 1 again), so each stretch of the fight
+// is a segment by its order: the k-th phase change, kept when most kills have the same phase
+// there. Casts are timed from the start of their segment.
 export function aggregate(kills,{share=0.5}={}){
  if(!kills.length)return null;
  const need=Math.max(1,Math.ceil(kills.length*share));
- // Phase starts: the median over the kills that reached each phase.
- const phaseIds=[...new Set(kills.flatMap(k=>k.phases.map(p=>p.id)))].sort((a,b)=>a-b);
- const phaseStart={};
- for(const id of phaseIds){const at=kills.map(k=>k.phases.find(p=>p.id===id)?.at).filter(v=>v!=null);if(at.length>=need)phaseStart[id]=id===phaseIds[0]?0:median(at);}
- const slots=new Map();
- for(const k of kills){
-  const phases=[...k.phases].sort((a,b)=>a.at-b.at),count=new Map();
-  for(const c of [...k.casts].sort((a,b)=>a.at-b.at)){
-   let ph=phases[0]||{id:1,at:0};for(const p of phases)if(p.at<=c.at)ph=p;
-   const n=(count.get(ph.id+':'+c.spell)||0)+1;count.set(ph.id+':'+c.spell,n);
-   const key=ph.id+':'+c.spell+':'+n;if(!slots.has(key))slots.set(key,{phase:ph.id,spell:c.spell,rel:[]});
-   slots.get(key).rel.push(c.at-ph.at);
-  }
+ const segs=kills.map(k=>{const p=[...k.phases].sort((a,b)=>a.at-b.at);return p.length?p:[{id:1,at:0}];});
+ const segments=[];
+ for(let n=0;n<Math.max(...segs.map(p=>p.length));n++){
+  const ids=new Map();for(const p of segs)if(p[n])ids.set(p[n].id,(ids.get(p[n].id)||0)+1);
+  const [id,count]=[...ids].sort((a,b)=>b[1]-a[1])[0];if(count<need)break;
+  const at=segs.filter(p=>p[n]?.id===id).map(p=>p[n].at);
+  segments.push({id,at:n===0?0:median(at),name:segs.find(p=>p[n]?.id===id&&p[n].name)?.[n].name||'Phase '+id});
  }
+ const slots=new Map();
+ kills.forEach((k,ki)=>{
+  const phases=segs[ki],count=new Map();
+  for(const c of [...k.casts].sort((a,b)=>a.at-b.at)){
+   let n=0;for(let x=0;x<phases.length;x++)if(phases[x].at<=c.at)n=x;
+   if(!segments[n]||segments[n].id!==phases[n].id)continue;
+   const m=(count.get(n+':'+c.spell)||0)+1;count.set(n+':'+c.spell,m);
+   const key=n+':'+c.spell+':'+m;if(!slots.has(key))slots.set(key,{seg:n,spell:c.spell,rel:[]});
+   slots.get(key).rel.push(c.at-phases[n].at);
+  }
+ });
  const events=[];
- for(const s of slots.values()){if(s.rel.length<need||phaseStart[s.phase]==null)continue;events.push([round(phaseStart[s.phase]+median(s.rel)),s.spell]);}
+ for(const s of slots.values()){if(s.rel.length<need)continue;events.push([round(segments[s.seg].at+median(s.rel)),s.spell]);}
  events.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
  // A repeat of one spell within 2 s of the last is the same cast seen twice.
  const out=[];for(const e of events){const last=out.findLast(x=>x[1]===e[1]);if(!last||e[0]-last[0]>=2)out.push(e);}
- const phaseName=id=>kills.flatMap(k=>k.phases).find(p=>p.id===id&&p.name)?.name||'Phase '+id;
- const phases=phaseIds.filter((id,i)=>i>0&&phaseStart[id]!=null).map(id=>({id,name:phaseName(id),at:round(phaseStart[id])}));
+ const phases=segments.slice(1).map(p=>({id:p.id,name:p.name,at:round(p.at)}));
  return {length:Math.round(median(kills.map(k=>k.length))),kills:kills.length,phases,events:out};
 }
 
