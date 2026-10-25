@@ -562,6 +562,24 @@ assert(not ns.ExportBoss(3379,'x'),'nothing planned: the base alone is never exp
 ${pulled}
 assert(not ns.SimulationTimeline(3379,15).expected,'your pull wins')
 `));
+test('in a phase that starts at a different time on each pull, Timed here follows a cast of that phase, not the pull',()=>run(`
+ns.LogTimelines[3379]={[15]={length=300,kills=20,phases={{id=2,name='Stage Two',at=100,vary=true}},events={{9,1260837},{98,1257717,anchor=2},{120,1260837,anchor=2},{115,1276710,spread=4}}}}
+env.click('tab:timeline');env.click('tab:timeline')
+assert(ns.UIControls['tl-phase:1'],'phase change drawn')
+env.click('tl-ability:1');assert(ns.UIControls['tl-pick-timed']and not ns.UIState.tlPick.anchor,'a cast before the phase stays timed from the pull')
+env.click('tl-ability:2');assert(ns.UIState.tlPick.anchor and not ns.UIControls['tl-pick-timed'],'the anchor itself: plan it by its boss timer')
+env.click('tl-ability:4');assert(not ns.UIControls['tl-pick-timed'],'a cast that moves between kills has no time to pin')
+env.click('tl-ability:3');local a=ns.UIState.tlPick.anchor;assert(a and a.spell==1257717 and a.cast==1 and a.offset==22,'timed from the first steady cast of the phase')
+env.click('tl-pick-timed')
+local form=ns.UIState.form;assert(ns.UIState.ability==1257717 and form.trigger=='bwmsg'and tonumber(form.delay)==20 and form.counter=='1','2 s before the cast, after the anchor message')
+env.select('rule:action','Text');env.input('rule:text','Big hit soon');env.click('save-rule')
+local saved;for _,v in pairs(ns.Active().data.raidReminders[3379]or{})do if v.trigger.type=='bwmsg'and v.trigger.spellID==1257717 then saved=v end end
+assert(saved and saved.trigger.delay==20,'saved on the anchor message: '..tostring(ns.UIState.message))
+-- On the pull it waits for the anchor, however late the phase comes.
+ns.Begin(3379,15);ns.Mechanic(1257717,nil,'MSG',3379,true)
+local scheduled=false;for k in pairs(ns.timers)do if k:match('^message:MSG:')then scheduled=true end end;assert(scheduled,'reminder waits 20 s after the anchor message')
+ns.Reset()
+`));
 test('a boss export carries the recorded pull, so the receiver sees the abilities in time; their own pull replaces it',()=>run(`
 ${pulled}
 ns.Active().data.raidReminders[3379]={m={name='Adds',enabled=true,content='raid',difficulties={[15]=true},trigger={type='bwmsg',spellID=1276710,delay=0},target={all=true},display={type='text',text='Adds up',dur=3}}}

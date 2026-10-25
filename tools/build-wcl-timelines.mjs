@@ -1,9 +1,10 @@
 // Builds the addon's base boss timelines (addon/NaowhDefensivePlanner/LogTimelines.lua) from
 // public kills on Warcraft Logs, through its v2 API. For each raid boss with built-in timers
 // and each difficulty, the top kills are read; every boss cast is timed from the start of its
-// phase, and each cast (the 1st, 2nd... of an ability in a phase) gets its median time over
-// the kills, placed after the median start of its phase. Casts seen in fewer than half of the
-// kills are left out. Spell IDs from the logs are matched by name to the spells the built-in
+// phase, casts are grouped by time across the kills, and each group gets its median time,
+// placed after the median start of its phase. Casts in a phase that starts at a different
+// time in each kill (boss health) are tied to a cast of that phase instead of the pull. Casts
+// seen in fewer than half of the kills are left out. Spell IDs from the logs are matched by name to the spells the built-in
 // timers announce, and only those spells are kept, so every cast on the Timeline is one a
 // reminder can bind to and that fires on a real pull.
 //
@@ -33,7 +34,31 @@ const round=x=>Math.round(x*10)/10;
 // One kill: {length, phases:[{id,name,at}], casts:[{at,spell}]} in seconds from the pull.
 // Phases can come back (stage 1, intermission, stage 1 again), so each stretch of the fight
 // is a segment by its order: the k-th phase change, kept when most kills have the same phase
-// there. Casts are timed from the start of their segment.
+// there. Casts are timed from the start of their segment and grouped by time across the kills
+// (at most one cast of each kill per group, within 3 s), so a kill with one cast more or less
+// does not shift the later ones. A group seen in at least half of the kills is one cast on the
+// timeline, at its median time.
+// A phase that starts at a different time in each kill (spread over 0.75 s: boss health,
+// healing) is not timed from the pull in the game: each cast in it names an anchor, the first
+// steady cast of that phase (or the cast that starts it), and a reminder on it waits for that
+// cast instead of a time from the pull.
+const WINDOW=3,STEADY=0.75,MOVING=1.5;
+const spread=list=>{const m=median(list);return median(list.map(x=>Math.abs(x-m)));};
+function groups(items,field,need){
+ const all=[];
+ for(const it of [...items].sort((a,b)=>a[field]-b[field])){
+  const g=all.find(g=>it[field]-g.first<=WINDOW&&!g.kills.has(it.kill));
+  if(g){g.items.push(it);g.kills.add(it.kill);}else all.push({first:it[field],items:[it],kills:new Set([it.kill])});
+ }
+ const kept=[],left=[];for(const g of all)if(g.kills.size>=need)kept.push(g);else left.push(...g.items);
+ return {kept,left};
+}
+// What no group took, by its order in each kill: a cast that moves more than the window.
+function byOrder(items,field,need){
+ const seen=new Map(),all=new Map();
+ for(const it of [...items].sort((a,b)=>a[field]-b[field])){const n=(seen.get(it.kill)||0)+1;seen.set(it.kill,n);if(!all.has(n))all.set(n,[]);all.get(n).push(it);}
+ return [...all.values()].filter(g=>g.length>=need).map(items=>({items}));
+}
 export function aggregate(kills,{share=0.5}={}){
  if(!kills.length)return null;
  const need=Math.max(1,Math.ceil(kills.length*share));
@@ -43,26 +68,38 @@ export function aggregate(kills,{share=0.5}={}){
   const ids=new Map();for(const p of segs)if(p[n])ids.set(p[n].id,(ids.get(p[n].id)||0)+1);
   const [id,count]=[...ids].sort((a,b)=>b[1]-a[1])[0];if(count<need)break;
   const at=segs.filter(p=>p[n]?.id===id).map(p=>p[n].at);
-  segments.push({id,at:n===0?0:median(at),name:segs.find(p=>p[n]?.id===id&&p[n].name)?.[n].name||'Phase '+id});
+  segments.push({id,at:n===0?0:median(at),vary:n>0&&spread(at)>STEADY,name:segs.find(p=>p[n]?.id===id&&p[n].name)?.[n].name||'Phase '+id});
  }
- const slots=new Map();
+ const pools=new Map();
  kills.forEach((k,ki)=>{
-  const phases=segs[ki],count=new Map();
-  for(const c of [...k.casts].sort((a,b)=>a.at-b.at)){
+  const phases=segs[ki];
+  for(const c of k.casts){
    let n=0;for(let x=0;x<phases.length;x++)if(phases[x].at<=c.at)n=x;
    if(!segments[n]||segments[n].id!==phases[n].id)continue;
-   const m=(count.get(n+':'+c.spell)||0)+1;count.set(n+':'+c.spell,m);
-   const key=n+':'+c.spell+':'+m;if(!slots.has(key))slots.set(key,{seg:n,spell:c.spell,rel:[]});
-   slots.get(key).rel.push(c.at-phases[n].at);
+   const next=segments[n+1]&&phases[n+1]?.id===segments[n+1].id?c.at-phases[n+1].at:null;
+   const key=n+':'+c.spell;if(!pools.has(key))pools.set(key,{seg:n,spell:c.spell,items:[]});
+   pools.get(key).items.push({kill:ki,rel:c.at-phases[n].at,next});
   }
  });
  const events=[];
- for(const s of slots.values()){if(s.rel.length<need)continue;events.push([round(segments[s.seg].at+median(s.rel)),s.spell]);}
- events.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+ for(const p of pools.values()){
+  const {kept,left}=groups(p.items,'rel',need);
+  for(const g of kept){const rel=g.items.map(i=>i.rel);events.push({at:round(segments[p.seg].at+median(rel)),spell:p.spell,seg:p.seg,spread:spread(rel)});}
+  // A cast whose time follows the next phase (the cast that starts it) is timed from that phase.
+  const after=groups(left.filter(i=>i.next!==null),'next',need);
+  for(const g of after.kept){const rel=g.items.map(i=>i.next);events.push({at:round(segments[p.seg+1].at+median(rel)),spell:p.spell,seg:p.seg+1,spread:spread(rel)});}
+  const rest=left.filter(i=>!after.kept.some(g=>g.items.includes(i)));
+  for(const g of byOrder(rest,'rel',need)){const rel=g.items.map(i=>i.rel);events.push({at:round(segments[p.seg].at+median(rel)),spell:p.spell,seg:p.seg,spread:spread(rel)});}
+ }
+ events.sort((a,b)=>a.at-b.at||a.spell-b.spell);
  // A repeat of one spell within 2 s of the last is the same cast seen twice.
- const out=[];for(const e of events){const last=out.findLast(x=>x[1]===e[1]);if(!last||e[0]-last[0]>=2)out.push(e);}
- const phases=segments.slice(1).map(p=>({id:p.id,name:p.name,at:round(p.at)}));
- return {length:Math.round(median(kills.map(k=>k.length))),kills:kills.length,phases,events:out};
+ const out=[];for(const e of events){const last=out.findLast(x=>x.spell===e.spell);if(!last||e.at-last.at>=2)out.push(e);}
+ // Anchors: the first steady cast of each phase whose start varies.
+ const anchor=new Map();
+ out.forEach((e,i)=>{if(segments[e.seg].vary&&e.spread<=1&&!anchor.has(e.seg))anchor.set(e.seg,i);});
+ const timeline=out.map(e=>{const x=[e.at,e.spell];const a=segments[e.seg].vary?anchor.get(e.seg):undefined;if(a!==undefined)x.anchor=a+1;if(e.spread>MOVING)x.spread=round(e.spread);return x;});
+ const phases=segments.slice(1).map(p=>{const x={id:p.id,name:p.name,at:round(p.at)};if(p.vary)x.vary=true;return x;});
+ return {length:Math.round(median(kills.map(k=>k.length))),kills:kills.length,phases,events:timeline};
 }
 
 // The casts of one kill as announced spells: a log spell ID named like an announced spell
@@ -141,14 +178,14 @@ async function abilityNames(api,ids){
 }
 
 export function lua(timelines,info){
- const t=x=>'{'+x.map(([a,s])=>'{'+a+','+s+'}').join(',')+'}';
+ const t=x=>'{'+x.map(e=>'{'+e[0]+','+e[1]+(e.anchor?',anchor='+e.anchor:'')+(e.spread?',spread='+e.spread:'')+'}').join(',')+'}';
  const lines=['-- Generated by tools/build-wcl-timelines.mjs: base boss timelines from public kills on',
   '-- Warcraft Logs (median cast times over the top kills of each boss and difficulty). Your own',
   '-- recorded pull, or one shared in a boss export, always replaces them. Spell IDs are the ones',
   '-- the built-in timers announce where the names match.','local _, ns = ...',
   'ns.LogTimelinesInfo = { built = '+JSON.stringify(info.built)+', kills = '+info.kills+' }','ns.LogTimelines = {'];
  for(const [enc,byDiff]of Object.entries(timelines)){
-  const parts=Object.entries(byDiff).map(([d,x])=>'['+d+']={length='+x.length+',kills='+x.kills+',phases={'+x.phases.map(p=>'{id='+p.id+',name='+JSON.stringify(p.name)+',at='+p.at+'}').join(',')+'},events='+t(x.events)+'}');
+  const parts=Object.entries(byDiff).map(([d,x])=>'['+d+']={length='+x.length+',kills='+x.kills+',phases={'+x.phases.map(p=>'{id='+p.id+',name='+JSON.stringify(p.name)+',at='+p.at+(p.vary?',vary=true':'')+'}').join(',')+'},events='+t(x.events)+'}');
   lines.push('    ['+enc+'] = {'+parts.join(',')+'},');
  }
  lines.push('}','');return lines.join('\n');
