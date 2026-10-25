@@ -220,7 +220,9 @@ end
 
 -- Base timeline before your own pull: the median of public kills on Warcraft Logs
 -- (LogTimelines.lua, built by tools/build-wcl-timelines.mjs), in the recorded-timeline shape.
--- Normal and LFR use the Heroic times.
+-- Normal and LFR use the Heroic times. A cast in a phase that starts at a different time on
+-- each pull carries `anchor` (the index of the cast it is timed from), and one that moves
+-- between kills carries `spread` in seconds; phases like that carry `vary`.
 function ns.ExpectedTimeline(encounter, difficulty)
     local boss = ns.LogTimelines and ns.LogTimelines[tonumber(encounter)]
     local data = boss and (boss[difficulty] or ((difficulty == 14 or difficulty == 17) and boss[15]))

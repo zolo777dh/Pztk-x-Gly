@@ -157,6 +157,20 @@ local function timedRules(ctx)
     for _,r in ipairs(ns.RuleOptions(all))do if r.entry.trigger and(timedTypes[r.entry.trigger.type]or stateTypes[r.entry.trigger.type])then out[#out+1]=r end end
     return out
 end
+-- The cast a timeline cast in a raid-dependent phase is timed from (LogTimelines.lua): its
+-- spell, which cast of that spell it is on the pull, and the seconds after it.
+local function Anchor(timeline,index)
+    local ev=timeline and timeline.events and timeline.events[index];local a=ev and tonumber(ev.anchor)
+    local base=a and timeline.events[a]
+    if not base then return nil end
+    local cast=0;for k=1,a do if timeline.events[k][2]==base[2]then cast=cast+1 end end
+    return {index=a,spell=base[2],cast=cast,offset=ev[1]-base[1]}
+end
+-- The phase of the timeline at a time, when its start depends on the raid.
+local function VaryingPhase(timeline,at)
+    local found;for _,p in ipairs(timeline and timeline.phases or{})do if(tonumber(p.at)or 0)<=at then found=p end end
+    return found and found.vary and found or nil
+end
 local function abilityCount(content,g,n,a)return #ns.RuleOptions(entityContext(content,g,n,a))end
 local function entityCount(content,g,n)
     local total=0;for _,a in ipairs(allowedAbilities(content,n))do total=total+abilityCount(content,g,n,a)end
@@ -307,6 +321,7 @@ local function InitialForm(ctx,reference)
     -- A new timed reminder opened from a recorded boss ability starts at that ability's time.
     local prefill=not reference and state.timedPrefill;state.timedPrefill=nil;local prefillSpell=not reference and state.timedSpell;state.timedSpell=nil
     local prefillCounter=not reference and state.newCounter;local prefillAction=not reference and state.newAction;state.newCounter=nil;state.newAction=nil
+    local prefillTrigger=not reference and state.newTrigger;local prefillName=not reference and state.newName;state.newTrigger=nil;state.newName=nil
     local dynamic=e.defensive
     local action=dynamic and"defensive"or reference and reference.section=="raidReminders"and(d.type or"text")or prefillAction or"defensive"
     -- On a boss ability the text alert is its own block; a reminder that is only that alert has no other action.
@@ -333,7 +348,7 @@ local function InitialForm(ctx,reference)
         elseif e.target.names then recipient="player";player=next(e.target.names)
         elseif not e.target.all then recipient="preserve"end
     end
-    return {name=e.name or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,percent=t.percent or 50,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=((d.type or action)=="bar"or(d.type or action)=="circle"or(d.type or action)=="ability"or action=="none")and d.hideTimer~=true or d.countdown==true,abilityStyle=d.style or"icon",alertOn=alertOnly or e.alert~=nil or(not reference and ctx.spell~=nil and ctx.kind~="trash"and action=="defensive"),alertText=alertOnly and(d.text or"")or e.alert and e.alert.text or"",alertStyle=alertOnly and d.style or e.alert and e.alert.style or"icon",defSpell=dynamic and dynamic.spell and tostring(dynamic.spell)or"",sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
+    return {name=e.name or prefillName or(ctx.abilityName or"New reminder"),enabled=e.enabled~=false,preset=dynamic and dynamic.preset or e.preset,action=action,trigger=t.type=="exboss"and"bwtimer"or t.type or prefillTrigger or"bwtimer",leadTime=t.timeleft or t.leadTime or e.leadTime or 2,delay=t.delay or prefill or 0,triggerSpell=t.spellID or prefillSpell or"",phase=t.stage or 1,percent=t.percent or 50,counter=prefillCounter and tostring(prefillCounter)or ns.CounterText(t.counterGroups),duration=d.dur or 4,text=d.text or"",sound=d.sound or"",tts=d.tts==true,displaySpellID=d.spellID or"",glowTarget=d.glowTarget or"",showTimer=((d.type or action)=="bar"or(d.type or action)=="circle"or(d.type or action)=="ability"or action=="none")and d.hideTimer~=true or d.countdown==true,abilityStyle=d.style or"icon",alertOn=alertOnly or e.alert~=nil or(not reference and ctx.spell~=nil and ctx.kind~="trash"and action=="defensive"),alertText=alertOnly and(d.text or"")or e.alert and e.alert.text or"",alertStyle=alertOnly and d.style or e.alert and e.alert.style or"icon",defSpell=dynamic and dynamic.spell and tostring(dynamic.spell)or"",sticky=d.sticky or"",ticks=table.concat(d.ticks or{},", "),textColor=ns.LookColorKey(d.textColor),barColor=ns.LookColorKey(d.barColor),glowNames=table.concat(d.glowTargets or{}," "),glowColor=ns.LookColorKey(d.glowColor),hideOnUse=d.hideOnUse==true,voiceCountdown=d.voiceCountdown or 0,recipient=recipient,role=role or"HEALER",player=player or"",groups=targetGroups,class=targetClass,rotation=targetRotation,noteTag=targetSlot and targetSlot.note or"",noteIndex=targetSlot and targetSlot.index or 1,preserveDifficulties=e.difficulties and ns.Clone(e.difficulties)or nil}
 end
 local actionLabels={defensive="Personal defensive",none="Nothing else (text alert only)",ability="Boss ability alert",icon="Spell icon",text="Text",bar="Countdown bar",circle="Circle",chat="Sound only",raidframeGlow="Player frame glow"}
 local roleLabels={TANK="Tank",HEALER="Healer",DAMAGER="Damage"}
@@ -820,6 +835,13 @@ local function DrawTimeline(parent)
     local height=0;for _,lane in ipairs(lanes)do height=height+(lane.key=="boss"and bossH or laneH)end
     local axisY=top+height+4
     for t=math.ceil(from/step)*step,from+span,step do local x=X(t);W.Rect(card,x,top,1,height,t==0 and C.accent or t%60==0 and C.line or C.raised);local l=W.Label(card,stamp(t),x-20,axisY,40,10,t==0 and C.accent or C.faint);l:SetJustifyH("CENTER")end
+    -- Phase changes: a line over the lanes; a phase that depends on the raid is marked with ~.
+    for k,p in ipairs(recorded and recorded.phases or{})do local at=tonumber(p.at)
+        if at and shown(at)then local x=X(at);W.Rect(card,x,top,1,height,p.vary and C.danger or C.accent)
+            local l=W.Label(card,(p.vary and"~ "or"")..tostring(p.name or L("Phase")),x+3,top-12,140,10,p.vary and C.danger or C.muted);l:SetJustifyH("LEFT")
+            W.Button(card,"",x-4,top-14,10,function()end,false,"tl-phase:"..k,{kind="ghost",h=12,tooltip=tostring(p.name or L("Phase"))..L(" · ")..stamp(at)..(p.vary and L(" · starts at a different time on each pull (boss health); casts after it are timed from a cast of this phase")or L(" · starts at the same time on every pull"))})
+        end
+    end
     local y=top
     for i,lane in ipairs(lanes)do
         local h=lane.key=="boss"and bossH or laneH
@@ -845,7 +867,13 @@ local function DrawTimeline(parent)
                 local category=ns.AbilityCategory and ns.AbilityCategory(ev[2],ctx.encounter)
                 if category and categoryColors[category]then W.Rect(card,x-10,iy+20,20,2,categoryColors[category])end
                 local cast=0;for k=1,j do if recorded.events[k][2]==ev[2]then cast=cast+1 end end
-                W.Button(card,"",x-10,iy,20,function()state.tlPick={spell=ev[2],at=ev[1],cast=cast,encounter=ctx.encounter,difficulty=state.tlDifficulty};Refresh()end,false,"tl-ability:"..j,{kind="ghost",h=20,tooltip=name(ev[2]).." #"..cast.." · "..stamp(ev[1])..(category and(" · "..L(categoryLabels[category]))or"")..L(" · click to plan this cast")})
+                -- In a phase that starts at a different time on each pull (boss health), a cast is
+                -- timed from the first steady cast of that phase, not from the pull.
+                local anchor,tip=Anchor(recorded,j),""
+                if anchor and anchor.index~=j then tip=L(" · after ")..name(anchor.spell).." #"..anchor.cast..string.format(" +%.1fs",anchor.offset)..L(" (the phase depends on the raid)")
+                elseif anchor then tip=L(" · starts a phase that depends on the raid")end
+                if tonumber(ev.spread)then tip=tip..L(" · moves about ")..string.format("%.0f",ev.spread)..L(" s between kills")end
+                W.Button(card,"",x-10,iy,20,function()state.tlPick={spell=ev[2],at=ev[1],cast=cast,anchor=anchor,moves=tonumber(ev.spread)~=nil,encounter=ctx.encounter,difficulty=state.tlDifficulty};Refresh()end,false,"tl-ability:"..j,{kind="ghost",h=20,tooltip=name(ev[2]).." #"..cast.." · "..stamp(ev[1])..tip..(category and(" · "..L(categoryLabels[category]))or"")..L(" · click to plan this cast")})
             end end
         end
         if lane.key=="mech"then
@@ -893,7 +921,9 @@ local function DrawTimeline(parent)
             local at=(t.type=="prepull"and-(tonumber(t.delay)or 0)or tonumber(t.delay)or 0)
             if laneKey==lane.key and shown(at)then
                 local x=X(at)
-                W.Button(card,"",x-11,mid-2,22,function()open(r.key)end,false,"tl-marker:"..r.key,{h=22,radius=11,kind="primary",tooltip=(r.entry.name or L("Timed reminder")).." · "..tostring(at).."s"})
+                -- A time from the pull inside a phase that depends on the raid drifts from the real cast.
+                local drift=t.type=="pull"and recorded and VaryingPhase(recorded,at)
+                W.Button(card,"",x-11,mid-2,22,function()open(r.key)end,false,"tl-marker:"..r.key,{h=22,radius=11,kind=drift and"danger"or"primary",tooltip=(r.entry.name or L("Timed reminder")).." · "..tostring(at).."s"..(drift and(L(" · ")..(drift.name or L("Phase"))..L(" starts at a different time on each pull: plan it from a boss cast of that phase on the Boss lane"))or"")})
                 W.Label(card,r.entry.name or"",x+14,mid-9,120,10,C.soft)
             end
         end
@@ -970,11 +1000,19 @@ local function DrawTimeline(parent)
     if pick then
         local function plan(action,every)state.tlPick=nil;state.newAction=action=="text"and"ability"or action;state.newCounter=not every and pick.cast or nil;local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=false;state.ability=pick.spell;state.ruleKey="new";state.form=nil;Refresh()end
         W.Icon(list,pick.spell,12,102,20)
-        W.Label(list,name(pick.spell)..(pick.at and(" #"..pick.cast..string.format(" · %d:%02d",math.floor(pick.at/60),pick.at%60))or L(" · every cast")),38,106,250,11,C.text,true)
+        W.Label(list,name(pick.spell)..(pick.at and(" #"..pick.cast..string.format(" · %d:%02d",math.floor(pick.at/60),math.floor(pick.at%60)))or L(" · every cast")),38,106,250,11,C.text,true)
         W.Button(list,L("Defensive set"),300,98,140,function()plan("defensive")end,false,"tl-pick-defensive",{kind="primary",align="CENTER",h=26})
         W.Button(list,L("Note"),446,98,110,function()plan("text")end,false,"tl-pick-note",{align="CENTER",h=26})
         W.Button(list,L("Every cast"),562,98,120,function()plan("text",true)end,false,"tl-pick-every",{align="CENTER",h=26,tooltip=L("A note for every cast of this ability")})
-        if pick.at then W.Button(list,L("Timed here"),688,98,110,function()state.tlPick=nil;state.timedSpell=pick.spell;open(nil,pick.at)end,false,"tl-pick-timed",{align="CENTER",h=26})end
+        -- Timed here: from the pull, or in a phase that depends on the raid, after the cast that
+        -- anchors that phase (its boss mod message), so the reminder follows the real phase.
+        local anchor=pick.anchor
+        if pick.at and anchor and anchor.offset>0 then W.Button(list,L("Timed here"),688,98,110,function()
+            state.tlPick=nil;state.newTrigger="bwmsg";state.newCounter=anchor.cast;state.newName=name(pick.spell)
+            state.timedPrefill=math.max(0,math.floor((anchor.offset-2)*10+0.5)/10)
+            local diff=state.tlDifficulty;state.tab="raid";loadView();state.group=g.id;state.entity=n.id;state.difficulty=diff;state.mode="mechanics";state.timed=false;state.ability=anchor.spell;state.ruleKey="new";state.form=nil;Refresh()
+        end,false,"tl-pick-timed",{align="CENTER",h=26,tooltip=L("2 s before this cast: after ")..name(anchor.spell).." #"..anchor.cast..string.format(" +%.1fs",anchor.offset)..L(", since this phase starts at a different time on each pull")})
+        elseif pick.at and not anchor and not pick.moves then W.Button(list,L("Timed here"),688,98,110,function()state.tlPick=nil;state.timedSpell=pick.spell;open(nil,pick.at)end,false,"tl-pick-timed",{align="CENTER",h=26,tooltip=L("A reminder at this time from the pull")})end
         W.Button(list,L("Cancel"),804,98,104,function()state.tlPick=nil;Refresh()end,false,"tl-pick-cancel",{kind="ghost",align="CENTER",h=26})
     end
     local templatesOpen=state.tlTemplates and not pick

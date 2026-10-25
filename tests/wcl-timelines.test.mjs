@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';
 import {aggregate,announcedCasts,bossTimerSpells,build,client,lua,median} from '../tools/build-wcl-timelines.mjs';
 
+const ev=(at,spell,extra={})=>Object.assign([at,spell],extra);
 test('base timelines take the median time of each cast per phase and drop casts most kills never saw',()=>{
  assert.equal(median([3,1,2]),2);assert.equal(median([1,2,3,4]),2.5);
  const kills=[
@@ -10,16 +11,31 @@ test('base timelines take the median time of each cast per phase and drop casts 
  ];
  const tl=aggregate(kills);
  assert.equal(tl.length,300);assert.equal(tl.kills,3);
- assert.deepEqual(tl.phases,[{id:2,name:'Intermission',at:110}]);
- // Phase 2 casts sit after the median phase start (110), at their median offset in the phase (6).
- assert.deepEqual(tl.events,[[11,1],[41,1],[116,2]],'the stray 3rd cast and the once-seen spell 9 are dropped');
+ assert.deepEqual(tl.phases,[{id:2,name:'Intermission',at:110,vary:true}],'a phase starting at 100-120 s depends on the raid');
+ // Phase 2 casts sit after the median phase start (110), at their median offset in the phase (6),
+ // and the first steady cast of that phase is the anchor of its casts.
+ assert.deepEqual(tl.events,[ev(11,1),ev(41,1),ev(116,2,{anchor:3})],'the stray 3rd cast and the once-seen spell 9 are dropped');
  assert.equal(aggregate([]),null);
 });
 test('a phase that comes back is its own stretch of the fight, timed from its own start',()=>{
  const k=(p2,p3,extra=[])=>({length:200,phases:[{id:1,at:0},{id:2,at:p2,name:'Maelstrom'},{id:1,at:p3}],casts:[{at:30,spell:7},{at:p3+30,spell:7},...extra]});
  const tl=aggregate([k(100,130),k(110,140),k(120,150,[{at:10,spell:8}])]);
- assert.deepEqual(tl.phases,[{id:2,name:'Maelstrom',at:110},{id:1,name:'Phase 1',at:140}]);
- assert.deepEqual(tl.events,[[30,7],[170,7]],'the second stage-1 cast sits 30 s after the second stage 1, not at 30 s');
+ assert.deepEqual(tl.phases,[{id:2,name:'Maelstrom',at:110,vary:true},{id:1,name:'Phase 1',at:140,vary:true}]);
+ assert.deepEqual(tl.events,[ev(30,7),ev(170,7,{anchor:2})],'the second stage-1 cast sits 30 s after the second stage 1, not at 30 s');
+});
+test('a phase on a timer stays timed from the pull, and casts are grouped by time, not by their number',()=>{
+ // Kill 2 has one cast of spell 5 more at 20 s; counting by number would put its later casts a slot off.
+ const k=(casts)=>({length:120,phases:[{id:1,at:0},{id:2,at:60,name:'Stage Two'}],casts:casts.map(at=>({at,spell:5}))});
+ const tl=aggregate([k([10,30,70]),k([10,20,30.5,70.5]),k([10.5,30,70])]);
+ assert.deepEqual(tl.phases,[{id:2,name:'Stage Two',at:60}],'the same start in every kill: no anchor needed');
+ assert.deepEqual(tl.events,[ev(10,5),ev(30,5),ev(70,5)]);
+});
+test('a cast that starts a health phase is timed from that phase, and a cast that moves is marked',()=>{
+ const k=(p2,pyre)=>({length:300,phases:[{id:1,at:0},{id:2,at:p2,name:'Eclipse'}],casts:[{at:p2-4,spell:3},{at:p2+10,spell:4},{at:p2+pyre,spell:6}]});
+ const tl=aggregate([k(130,36),k(180,41),k(230,46),k(200,51),k(160,56)]);
+ assert.deepEqual(tl.phases,[{id:2,name:'Eclipse',at:180,vary:true}]);
+ // Spell 3 wanders between 126 and 226 s from the pull but always comes 4 s before stage two.
+ assert.deepEqual(tl.events,[ev(176,3,{anchor:1}),ev(190,4,{anchor:1}),ev(226,6,{anchor:1,spread:5})],'spell 6 is kept by its order and marked as moving by 5 s');
 });
 test('casts are kept only as announced spells, matched by name, and a repeat within 3 s counts once',()=>{
  const out=announcedCasts([{at:5,spell:100},{at:5.2,spell:999},{at:9,spell:200},{at:12,spell:300},{at:20,spell:100}],[200,999],{100:'Tank Smash',999:'tank smash',200:'Other',300:'Unknown'});
