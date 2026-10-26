@@ -50,8 +50,9 @@ function NaowhDefensivePlanner_OnAddonCompartmentClick()ns.Open()end
 local sections={sets="sets",defensives="sets",mythic="mythic",["m+"]="mythic",raid="raid",raids="raid",overview="overview",tl="timeline",timeline="timeline",
     notes="notes",reminders="notes",r="notes",preminders="notes",pr="notes",alerts="alerts",auras="debuffs",debuffs="debuffs",assign="assign",assignments="assign",
     tools="raidtools",raidtools="raidtools",rt="raidtools",players="players",qol="qol",combat="combat",interrupts="combat",kicks="combat",pace="combat",nicks="players",display="display",profiles="profiles",settings="settings",config="settings"}
--- Commands from the old addons that are not rebuilt yet: say so instead of silently opening the window.
-local planned={bosses=true,keys=true,trace=true,observed=true,cds=true,calls=true,cd=true,invite=true}
+-- Pull trace and plan reports (NSR trace / observed / keys / cds / calls / bosses), shown in the
+-- Diagnostics report box so they can be copied.
+local reports={trace="TraceText",observed="ObservedText",keys="KeysText",cds="CooldownsText",cd="CooldownsText",bosses="BossesText"}
 -- Shown by /ndp credits; the full list with licenses is in CREDITS.txt.
 ns.Credits={
     "BigWigs and LittleWigs (Funkeh, Nebula, Justwait, Delk and the BigWigsMods team): encounter timings",
@@ -102,12 +103,17 @@ function ns.Command(message)
     elseif command=="pclear"or command=="pc"then ns.UnloadNote("personal");ns.Print("Personal note cleared.")
     elseif command=="break"or command=="brb"then local ok,err=ns.StartBreak(tonumber(rest)or 10);if not ok then ns.Print(err)end
     elseif command=="inv"then local n,err=ns.InviteGuild();ns.Print(n and(n.." guild invites sent.")or err)
-    elseif command=="arrange"then local ok,err=ns.ArrangeGroups();ns.Print(ok and"Arranging groups."or err)
+    elseif command=="arrange"then local ok,err=ns.ArrangeGroups(rest=="note"and"note"or rest=="split"and"split"or rest=="evenodd"and"evenodd"or nil);ns.Print(ok and"Arranging groups."or err)
     elseif command=="promote"then local n,err=ns.PromoteAssistants();ns.Print(n and(n.." players promoted.")or err)
     elseif command=="nick"or command=="nickname"then local ok,err=ns.SetMyNickname(rest);ns.Print(ok and("Nickname: "..(rest~=""and rest or"none"))or err)
     elseif command=="versions"or command=="vc"then ns.CheckVersions();ns.OpenWorkspace("players")
     elseif sections[command]then ns.OpenWorkspace(sections[command])
-    elseif planned[command]then ns.Print("/ndp "..command.." is not rebuilt yet; see the Diagnostics page for what is available.")
+    elseif command=="trace"and(rest=="on"or rest=="off")then ns.SetTrace(rest=="on");ns.Print("Pull trace "..rest..".")
+    elseif command=="trace"and rest=="clear"then ns.ClearTrace();ns.Print("Pull trace cleared.")
+    elseif reports[command]then ns.ShowText(ns[reports[command]]())
+    elseif command=="calls"then ns.ShowText(ns.CallsText(rest))
+    elseif command=="invite"then local n,err=ns.InviteFromNote();ns.Print(n and(n.." invites sent from the note.")or err)
+    elseif command=="starter"then local n,err=ns.CreateStarterSets();ns.Print(n and("Starter set created for "..(n==2 and"Mythic+ and raids"or"one content")..". Review it on the Defensive sets page.")or err)
     else ns.Print("Unknown command: "..command..". Type /ndp help.")end
 end
 SlashCmdList.NDP=function(message)ns.Command(message)end
@@ -122,7 +128,7 @@ events:SetScript("OnEvent",function(_,event,a,b,c,d,e)
     elseif event=="ENCOUNTER_START"then ns.RefreshContext();ns.Begin(a,c,ns.map)
     elseif event=="START_PLAYER_COUNTDOWN"then ns.Countdown(b)
     elseif event=="CANCEL_PLAYER_COUNTDOWN"then ns.Countdown(nil)
-    elseif event=="ENCOUNTER_END"then if ns.FinishRecording then ns.FinishRecording(e==1)end;if ns.FinishPullLog then ns.FinishPullLog(e==1)end;ns.Reset()
+    elseif event=="ENCOUNTER_END"then if ns.TraceEnd then ns.TraceEnd(e==1)end;if ns.FinishRecording then ns.FinishRecording(e==1)end;if ns.FinishPullLog then ns.FinishPullLog(e==1)end;ns.Reset()
     elseif event=="PLAYER_REGEN_ENABLED"then ns.Cancel("trash:")
     else
         if event=="PLAYER_SPECIALIZATION_CHANGED"and a~="player"then return end

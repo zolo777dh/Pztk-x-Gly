@@ -102,6 +102,31 @@ function ns.SaveSet(scope,spec,key,name,rows)
         sets[key]=p;if not ns.Get(data.scopeActivePreset[scope],spec)then data.scopeActivePreset[scope][spec]=key end;return key
     end)
 end
+-- Starter set (NSR ships ready sets): the catalog's personal defensives this character knows, the
+-- short, frequent ones first and the big ones and immunities last. Externals and raid cooldowns
+-- (Pain Suppression, Blessing of Protection...) are left out.
+ns.StarterOrder={22812,1966,11426,235313,235450,19236,108416,108271,363916,198589,115203,122783,122278,109304,498,48707,48792,104773,
+    61336,118038,184364,5277,31224,55342,108978,47585,374348,871,12975,55233,86659,186265,45438,642}
+function ns.StarterRows()
+    local known=C_SpellBook and(C_SpellBook.IsSpellKnownOrInSpellBook or C_SpellBook.IsSpellKnown)or IsPlayerSpell
+    local rows={}
+    if not known then return rows end
+    for _,spell in ipairs(ns.StarterOrder)do local ok,value=pcall(known,spell);if ok and ns.Plain(value,"boolean")and value then rows[#rows+1]={spellID=spell,enabled=true}end end
+    return rows
+end
+-- /ndp starter: a "Starter" set for Mythic+ and raids, when that content has no set yet.
+function ns.CreateStarterSets()
+    local spec=ns.Spec();local rows=ns.StarterRows()
+    if not spec then return nil,"No specialization yet"end
+    if #rows==0 then return nil,"No known personal defensives in the catalog for this character"end
+    local profile=ns.Active();local made=0
+    for _,scope in ipairs({"mythic","raid"})do
+        local sets=profile and ns.ScopePresets and ns.ScopePresets(profile,scope,spec)
+        if not(sets and next(sets))then local ok,err=ns.SaveSet(scope,spec,nil,"Starter",rows);if not ok then return nil,err end;made=made+1 end
+    end
+    if made==0 then return nil,"Both Mythic+ and raids already have sets; use Starter set on the Defensive sets page"end
+    return made
+end
 local function References(data,scope,spec,key)
     local count=0
     for _,b in pairs(ns.Get(data.integrationRules,spec)or{})do if scope=="mythic"and b.preset==key then count=count+1 end end

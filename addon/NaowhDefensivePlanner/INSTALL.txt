@@ -1,4 +1,4 @@
-Naowh Defensive Planner 0.8.5 — in-game editor and reminder engine
+Naowh Defensive Planner 0.9.0 — in-game editor and reminder engine
 (formerly Puzatik Reminders / PztkReminders)
 
 INSTALL
@@ -45,12 +45,21 @@ COMMANDS
 /ndp pull 10 | rc         pull timer, ready check (needs lead or assist)
 /ndp break 10             break timer for the group (0 ends it)
 /ndp inv | arrange        invite guild members, arrange raid groups
+/ndp invite               invite the players listed in the shared note
+/ndp arrange note | split | evenodd
+                          sort raid groups from the note, or split them
 /ndp promote              give assist to the names on the Raid tools list
 /ndp nick Name | versions set your nickname, check the group's addon versions
 /ndp roster | export      copy the group roster, export the active profile
+/ndp trace                what the last three pulls did (on | off | clear)
+/ndp observed | keys      boss mod timings and spell IDs of the last pull
+/ndp cds                  which spells of your defensive sets are ready now
+/ndp calls [encounter]    the reminders that reach you on a boss
+/ndp bosses               every boss the active profile plans something for
+/ndp starter              starter defensive sets for your specialization
 /ndp wipe                 reset all data (asks for /ndp wipe confirm)
-Former NSR (/nutank) and NSRT (/ns, /nsrt) commands are /ndp subcommands. The few
-that are not rebuilt (bosses, keys, trace, observed, cds, calls, invite by note) say so.
+/ndp credits              thanks to the authors whose work NDP builds on
+Former NSR (/nutank) and NSRT (/ns, /nsrt) commands are /ndp subcommands.
 
 LOOK AND FONT
 The interface text is English. URW Gothic (Book / Demi) ships with the addon. The
@@ -290,13 +299,40 @@ Add mechanic accepts explicit map/NPC/encounter/spell IDs from your game client.
 Provider packages are separate. The supplied ExBoss build requires EXBossData,
 ExwindCore, EXBOSS-Locale and its required EXBOSS-LocaleBase dependency.
 
+PULL TRACE (Diagnostics, /ndp trace)
+Every pull is traced: each boss mod timer bar and message with its time from the
+pull, each phase change, and every reminder with what it did: shown, or skipped
+and why (turned off, other difficulty, not for you, already covered, no spell of
+the set ready, paused by another reminder addon). The last three pulls are kept.
+One wipe is enough to see which call did not come. Pull trace, Observed and Your
+calls on the Diagnostics page put the reports in the copyable box; /ndp trace off
+stops it. /ndp keys lists the spell IDs the boss mod used, marked "planned" when a
+reminder of yours uses that ID.
+
+STARTER SET
+Defensive sets > Starter set fills in the catalog's personal defensives your
+character knows, the short and frequent ones first (Barkskin, Feint, Ice Barrier...)
+and the big ones and immunities last. Externals and raid cooldowns are left out.
+Review it and Save set. /ndp starter saves one for Mythic+ and raids where that
+content has no set yet.
+
+INVITE AND ARRANGE FROM THE NOTE
+The shared note can list the raid: "Group 1: Name Name Name" (or "G1:") up to
+group 8, and "Invite: Name Name" for extras. Raid tools > Invite from note invites
+everyone listed who is not in the group yet; Arrange from note moves the listed
+players into their groups and leaves the rest where they are. Nicknames work.
+
+NICKNAMES ON UNIT FRAMES
+Players > Show nicknames on Blizzard party and raid frames. ElvUI: the tag
+[ndp:nick]. Other addons and WeakAuras can call NDPAPI:GetName(unit or name).
+
 LIMITS
 No combat or active-encounter editing. No automatic ability presses. Native aura
 sounds need the corresponding public game API. Several source behaviors remain
 unavailable; imports retain and report them. Dungeon reminders run in every
 dungeon difficulty (Normal, Heroic, Mythic, Mythic+, Timewalking). "Already
-covered" (Settings) skips a call-out while a defensive of the set is up. QoL, Ready Check, group management, nickname engines and
-pace-comparison modules are outside this reminder addon. No live WoW test was
-available in the build environment. Notes sync, boss alert lists, aura
-tracking, assignments, break timers, invites and nicknames from NSR / NSRT are being
-rebuilt in this addon's own code; their pages show what already works and what is next. Use supported providers and verify in game.
+covered" (Settings) skips a call-out while a defensive of the set is up.
+Not included: timers for small adds, glows from other players' auras on raid
+frames (the game hides those auras in Midnight), NSRT's boss-specific assignment
+scripts, and a Russian translation. No live WoW test was available in the build
+environment: verify encounter reminders in game before you rely on them.
