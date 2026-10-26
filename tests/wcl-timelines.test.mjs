@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';
-import {aggregate,announcedCasts,bossTimerSpells,build,client,lua,median} from '../tools/build-wcl-timelines.mjs';
+import {aggregate,announcedCasts,bossTimerSpells,build,client,fetchRaw,lua,median} from '../tools/build-wcl-timelines.mjs';
 
 const ev=(at,spell,extra={})=>Object.assign([at,spell],extra);
 test('base timelines take the median time of each cast per phase and drop casts most kills never saw',()=>{
@@ -55,7 +55,7 @@ test('build reads rankings, kills and cast events through the Warcraft Logs API 
   if(query.includes('fightRankings'))data={worldData:{encounter:{name:'B',fightRankings:{rankings:v.d===4?[{report:{code:'A',fightID:1}},{report:{code:'B',fightID:2}},{report:{code:'A',fightID:1}}]:[]}}}};
   else if(query.includes('phaseTransitions'))data={reportData:{report:{fights:[{id:v.f[0],encounterID:3379,startTime:1000,endTime:201000,kill:true,phaseTransitions:[{id:1,startTime:1000},{id:2,startTime:101000}]}],phases:[{encounterID:9999,phases:[{id:2,name:'Other boss phase'}]},{encounterID:3379,phases:[{id:2,name:'Stage Two'}]}],masterData:{actors:[{id:5,subType:'Boss'},{id:6,subType:'NPC'}]}}}};
   else if(query.includes('events('))data={reportData:{report:{events:{data:[{type:'begincast',timestamp:11000,sourceID:5,abilityGameID:777},{type:'cast',timestamp:12000,sourceID:5,abilityGameID:777},{type:'cast',timestamp:31000,sourceID:5,abilityGameID:888},{type:'cast',timestamp:15000,sourceID:6,abilityGameID:555}],nextPageTimestamp:null}}}};
-  else if(query.includes('gameData'))data={gameData:{ability:{name:{777:'Big Hit',888:'Swirl',1257717:'Big Hit'}[v.i]}}};
+  else if(query.includes('gameData')){const known={777:'Big Hit',888:'Swirl',1257717:'Big Hit'};data={gameData:Object.fromEntries([...query.matchAll(/a(\d+):ability/g)].map(m=>[m[0].slice(0,-8),known[m[1]]?{name:known[m[1]]}:null]))};}
   else throw Error('unexpected query');
   return {ok:true,json:async()=>({data})};
  };
@@ -71,4 +71,21 @@ test('build reads rankings, kills and cast events through the Warcraft Logs API 
   if(process.env.DOCTOR_LUA51)execFileSync(process.env.DOCTOR_LUA51,['-e','ns={};local f=assert(loadfile("'+d+'/t.lua"));f(nil,ns)']);}
  finally{await fs.rm(d,{recursive:true,force:true});}
  const shipped=await fs.readFile('addon/NaowhDefensivePlanner/LogTimelines.lua','utf8');assert.match(shipped,/ns\.LogTimelines = \{/);
+});
+test('a rate limited query waits and retries, and a cut off run keeps the bosses it already read',async()=>{
+ let limited=2;const waits=[];
+ const fetch=async(url,opts)=>{
+  if(url.endsWith('/oauth/token'))return {ok:true,json:async()=>({access_token:'t'})};
+  if(limited>0){limited--;return {ok:false,status:429,headers:{get:()=>'45'}};}
+  return {ok:true,json:async()=>({data:{worldData:{encounter:{fightRankings:{rankings:[]}}}}})};
+ };
+ const api=client({id:'x',secret:'y',fetch,sleep:async ms=>{waits.push(ms);}});
+ const done={kills:3,names:{1:'Old'},bosses:[{id:7,difficulties:{15:[{length:1,phases:[{id:1,at:0}],casts:[]},{length:1,phases:[{id:1,at:0}],casts:[]},{length:1,phases:[{id:1,at:0}],casts:[]}]}}]};
+ const saved=[];
+ const raw=await fetchRaw({api,bosses:[{id:7,name:'B',spells:[]}],kills:3,done,save:async r=>{saved.push(r.bosses[0].difficulties[16]?.length);}});
+ assert.deepEqual(waits,[45000,45000],'waits as long as the API asks, then retries');
+ assert.equal(raw.bosses[0].difficulties[15],done.bosses[0].difficulties[15],'Heroic kept from the earlier run');
+ assert.deepEqual(raw.bosses[0].difficulties[16],[],'Mythic read again');
+ assert.deepEqual(saved,[0],'saved after the boss and difficulty it read');
+ assert.equal(raw.names[1],'Old');
 });

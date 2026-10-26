@@ -9,6 +9,7 @@
 // reminder can bind to and that fires on a real pull.
 //
 // Usage: WCL_CLIENT_ID=... WCL_CLIENT_SECRET=... node tools/build-wcl-timelines.mjs [kills=20] [--raw file.json]
+//        (with --raw, a run cut off by the API limit picks up from that file when run again)
 //        node tools/build-wcl-timelines.mjs --from-raw file.json   (rebuild without the API)
 // Create the API client at https://www.warcraftlogs.com/api/clients (free).
 import fs from 'node:fs/promises';
@@ -126,14 +127,22 @@ export function timelinesFrom(raw,log=()=>{}){
  return timelines;
 }
 
-export function client({id,secret,fetch=globalThis.fetch}){
- let token;
+// The API allows a number of points per hour; past it a query gets HTTP 429 and waits for the
+// limit to come back (up to an hour and a half in all).
+export function client({id,secret,fetch=globalThis.fetch,sleep=ms=>new Promise(r=>setTimeout(r,ms)),log=()=>{}}){
+ let token,waited=0;
  async function query(q,variables={}){
   if(!token){
    const r=await fetch(TOKEN,{method:'POST',headers:{authorization:'Basic '+Buffer.from(id+':'+secret).toString('base64'),'content-type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials'});
    if(!r.ok)throw Error('Warcraft Logs token request failed: HTTP '+r.status);token=(await r.json()).access_token;
   }
-  const r=await fetch(API,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({query:q,variables})});
+  let r;
+  for(;;){
+   r=await fetch(API,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({query:q,variables})});
+   if(r.status!==429||waited>=5400)break;
+   const wait=Math.min(300,Math.max(30,Number(r.headers?.get?.('retry-after'))||60));waited+=wait;
+   log('  rate limited, waiting '+wait+' s');await sleep(wait*1000);
+  }
   if(!r.ok)throw Error('Warcraft Logs query failed: HTTP '+r.status);
   const body=await r.json();if(body.errors?.length)throw Error('Warcraft Logs: '+body.errors.map(e=>e.message).join('; '));
   return body.data;
@@ -141,11 +150,15 @@ export function client({id,secret,fetch=globalThis.fetch}){
  return {query};
 }
 
+// A rankings page holds 50 kills, so more are read page by page.
 async function rankings(api,encounter,difficulty,limit){
- const d=await api.query('query($e:Int!,$d:Int!){worldData{encounter(id:$e){name fightRankings(difficulty:$d,metric:execution)}}}',{e:encounter,d:difficulty});
- const list=d.worldData.encounter?.fightRankings?.rankings||[];
  const seen=new Set(),out=[];
- for(const r of list){const key=r.report?.code+':'+r.report?.fightID;if(!r.report?.code||seen.has(key))continue;seen.add(key);out.push({code:r.report.code,fight:r.report.fightID});if(out.length>=limit)break;}
+ for(let page=1;page<=10&&out.length<limit;page++){
+  const d=await api.query('query($e:Int!,$d:Int!,$p:Int!){worldData{encounter(id:$e){name fightRankings(difficulty:$d,metric:execution,page:$p)}}}',{e:encounter,d:difficulty,p:page});
+  const ranks=d.worldData.encounter?.fightRankings,list=ranks?.rankings||[];
+  for(const r of list){const key=r.report?.code+':'+r.report?.fightID;if(!r.report?.code||seen.has(key))continue;seen.add(key);out.push({code:r.report.code,fight:r.report.fightID});if(out.length>=limit)break;}
+  if(!list.length||!ranks.hasMorePages)break;
+ }
  return out;
 }
 
@@ -171,9 +184,13 @@ async function kill(api,{code,fight}){
  return {length:(f.endTime-f.startTime)/1000,phases:phases.length?phases:[{id:1,at:0}],casts};
 }
 
+// Names are read 50 at a time, one alias per ability.
 async function abilityNames(api,ids){
  const names={};
- for(const id of ids){const d=await api.query('query($i:Int!){gameData{ability(id:$i){name}}}',{i:id});if(d.gameData.ability?.name)names[id]=d.gameData.ability.name;}
+ for(let i=0;i<ids.length;i+=50){
+  const part=ids.slice(i,i+50),d=await api.query('{gameData{'+part.map(id=>'a'+id+':ability(id:'+id+'){name}').join(' ')+'}}');
+  for(const id of part)if(d.gameData['a'+id]?.name)names[id]=d.gameData['a'+id].name;
+ }
  return names;
 }
 
@@ -191,18 +208,21 @@ export function lua(timelines,info){
  lines.push('}','');return lines.join('\n');
 }
 
-// Reads the kills through the API; returns the raw set for timelinesFrom.
-export async function fetchRaw({api,bosses,kills=20,log=()=>{}}){
- const raw={bosses:[],names:{}},ids=new Set();
+// Reads the kills through the API; returns the raw set for timelinesFrom. A boss and difficulty
+// already read in `done` (an earlier, cut off run) is kept, and `save` gets the set after each.
+export async function fetchRaw({api,bosses,kills=20,log=()=>{},done=null,save=async()=>{}}){
+ const raw={bosses:[],names:{...done?.names}},ids=new Set();
  for(const boss of bosses){
   const entry={...boss,difficulties:{}};raw.bosses.push(entry);boss.spells.forEach(s=>ids.add(s));
   for(const diff of DIFFICULTIES){
+   const had=done?.bosses?.find(b=>b.id===boss.id)?.difficulties?.[diff.game];
+   if(had&&had.length>=kills){entry.difficulties[diff.game]=had;had.forEach(k=>k.casts.forEach(c=>ids.add(c.spell)));log(boss.name+' '+diff.name+': '+had.length+' kills kept');continue;}
    const list=[];
    for(const r of await rankings(api,boss.id,diff.wcl,kills)){const k=await kill(api,r).catch(e=>{log('  skipped '+r.code+': '+e.message);return null;});if(k){list.push(k);k.casts.forEach(c=>ids.add(c.spell));}}
-   entry.difficulties[diff.game]=list;log(boss.name+' '+diff.name+': '+list.length+' kills read');
+   entry.difficulties[diff.game]=list;log(boss.name+' '+diff.name+': '+list.length+' kills read');await save(raw);
   }
  }
- raw.names=await abilityNames(api,[...ids]);
+ Object.assign(raw.names,await abilityNames(api,[...ids].filter(id=>!raw.names[id])));
  return raw;
 }
 export async function build(opts){return timelinesFrom(await fetchRaw(opts),opts.log);}
@@ -216,7 +236,10 @@ if(import.meta.url===pathToFileURL(process.argv[1]).href){
   if(!id||!secret){console.error('Set WCL_CLIENT_ID and WCL_CLIENT_SECRET (https://www.warcraftlogs.com/api/clients).');process.exit(1);}
   kills=Math.max(3,Math.min(100,Number(args[0])||20));
   const bosses=bossTimerSpells(await fs.readFile('addon/NaowhDefensivePlanner/BossTimerData.lua','utf8'));
-  raw=await fetchRaw({api:client({id,secret}),bosses,kills,log:console.log});raw.kills=kills;raw.built=new Date().toISOString().slice(0,10);
+  // With --raw, a cut off run picks up from the kills already in that file.
+  const done=rawOut?await fs.readFile(rawOut,'utf8').then(JSON.parse).catch(()=>null):null;
+  const save=async r=>{if(rawOut)await fs.writeFile(rawOut,JSON.stringify({...r,kills,partial:true}));};
+  raw=await fetchRaw({api:client({id,secret,log:console.log}),bosses,kills,log:console.log,done:done?.kills===kills?done:null,save});raw.kills=kills;raw.built=new Date().toISOString().slice(0,10);
   if(rawOut){await fs.writeFile(rawOut,JSON.stringify(raw));console.log('Wrote '+rawOut);}
  }
  const timelines=timelinesFrom(raw,console.log);

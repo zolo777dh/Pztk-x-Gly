@@ -554,7 +554,7 @@ env.click('tl-quick-what:note');env.click('tl-quick-more');assert(ns.UIState.abi
 j.raids[1].name='Old';assert(ns.ScanJournal()and ns.Journal().raids[1].name=='Old');ns.Journal().build='1';assert(ns.ScanJournal()and ns.Journal().raids[1].name=='Fixture Raid')
 `));
 test('the Warcraft Logs base places the abilities in time before your own pull, which replaces it',()=>run(`
-assert(ns.LogTimelinesInfo.kills==20 and ns.ExpectedTimeline(3420,16),'the shipped base covers the raid')
+assert(ns.LogTimelinesInfo.kills>=20 and ns.ExpectedTimeline(3420,16),'the shipped base covers the raid')
 ns.LogTimelines[3379]={[15]={length=300,kills=20,phases={},events={{9,1260837},{19,1257717},{40,1260837}}}}
 local tl=ns.ExpectedTimeline(3379,15);assert(tl and tl.expected and tl.kills==20 and #tl.events==3)
 assert(ns.ExpectedTimeline(3379,14)and not ns.ExpectedTimeline(3379,16),'Normal uses the Heroic base')
