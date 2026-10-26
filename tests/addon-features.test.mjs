@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 // A recorded Heroic pull of the first raid boss, for the Timeline tests.
 const pulled=`ns.Store().timelines={['retail:3379:15']={events={{8,1260837},{18,1257717},{25,1276710},{37,1313393},{41,1260837},{44,1276710},{50,1257717},{60,1268562}},length=480,kill=true}};if ns.RefreshWorkspace then ns.RefreshWorkspace()end`;
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.RealDisplay=ns.Display;ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
@@ -682,4 +682,51 @@ assert(region('Soak').point.y~=region('Beam').point.y,'bars stack')
 ns.HideDisplays()
 assert(ns.ToggleAnchors());local n=0;for _,f in ipairs(env.frames)do if f.text and(f.text=='Defensives · drag · /ndp anchors locks'or f.text=='Text and icon · drag'or f.text=='Bars · drag')then n=n+1 end end;assert(n==3,'three anchors to drag, got '..n)
 assert(not ns.ToggleAnchors())
+`));
+test('pull trace: boss mod events and every reminder, shown or skipped with the reason; observed, keys, calls, bosses and cds reports',()=>run(`
+env.click('tab:raid');env.click('new-timed');env.input('rule:name','Burn');env.select('rule:action','Text');env.input('rule:text','Lust now');env.click('save-rule')
+local enc;for e,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.name=='Burn'then enc=tonumber(e)end end end;assert(enc,'saved')
+assert(ns.TraceOn(),'trace is on by default')
+ns.Begin(enc,15);env.advance(2);ns.Mechanic(1260837,10,'BW:1',enc);ns.Mechanic(1260837,nil,'MSG',enc,true);env.advance(30)
+local frames=0;for _,f in ipairs(env.frames)do if f.events.ENCOUNTER_END and f.scripts.OnEvent then f.scripts.OnEvent(f,'ENCOUNTER_END',enc,'x',15,20,0);frames=frames+1 end end;assert(frames>0)
+local text=ns.TraceText()
+assert(text:find('Pull ')and text:find('wipe'),'pull header: '..text)
+assert(text:find('bar 10s')and text:find('message'),'boss mod events in the trace')
+assert(text:find('show')and text:find('Burn'),'the reminder that showed: '..text)
+assert(ns.ObservedText():find('x2'),'observed counts both events')
+assert(ns.KeysText():find('1260837')and ns.KeysText():find('1 bars, 1 messages'),'keys report')
+assert(ns.CallsText(enc):find('Burn'),'calls lists the reminder')
+assert(ns.BossesText():find(tostring(enc)),'bosses lists the planned boss')
+-- A reminder for someone else is skipped, with the reason.
+for _,es in pairs(ns.Active().data.raidReminders)do for _,v in pairs(es)do if v.name=='Burn'then v.enabled=false end end end
+ns.Begin(enc,15);env.advance(30);assert(ns.TraceText():find('turned off'),'skip reason')
+assert(#ns.TracePulls()==2,'two pulls kept')
+for _=1,3 do ns.Begin(enc,15)end;assert(#ns.TracePulls()==3,'only the last three')
+ns.Command('trace off');ns.Begin(enc,15);assert(#ns.TracePulls()==3 and not ns.TraceOn())
+ns.Command('trace on');ns.Command('trace clear');assert(#ns.TracePulls()==0)
+ns.Command('trace');assert(ns.UIControls['diag-text']:GetText():find('No pull traced'),'trace shown in the report box')
+env.click('diag-observed');env.click('diag-calls');env.click('diag-trace')
+`));
+test('starter set: known personal defensives, short ones first; /ndp starter makes one for Mythic+ and raids',()=>run(`
+local rows=ns.StarterRows();assert(#rows>10,'known catalog defensives')
+assert(rows[1].spellID==22812,'Barkskin first');local last=rows[#rows].spellID;assert(last==642,'Divine Shield last')
+for _,r in ipairs(rows)do assert(r.spellID~=33206 and r.spellID~=1022,'no externals')end
+env.click('tab:mythic');env.click('mode:sets');env.click('starter-set');env.click('save-set')
+local sets=ns.ScopePresets(ns.Active(),'mythic',ns.Spec());local found;for _,s in pairs(sets)do if s.name=='Starter'then found=s end end;assert(found and #found.list==#rows,'saved from the page')
+local n=ns.CreateStarterSets();assert(n==1,'only raids were missing: '..tostring(n))
+local ok,err=ns.CreateStarterSets();assert(not ok and err:find('already'))
+`));
+test('invite and arrange from the note; nicknames for unit frames through NDPAPI',()=>run(`
+assert(ns.SetNickname('Healbot','Doc'))
+local n=ns.Notes();n.live={text='Group 1: Tester Doc\\nG2: Tanky\\nInvite: Extra, Doc'}
+local g=ns.NoteGroups();assert(g.tester==1 and g.healbot==1 and g.tanky==2,'groups with the nickname resolved')
+local list=ns.NoteInvites();assert(#list==4 and list[1]=='Extra'and list[2]=='Healbot','invites: '..table.concat(list,','))
+local invited={};C_PartyInfo={InviteUnit=function(name)invited[#invited+1]=name end}
+assert(ns.InviteFromNote()==3,'everyone but yourself')
+n.live={text='nothing'};local ok,err=ns.InviteFromNote();assert(not ok and err:find('No names'))
+assert(not ns.ArrangeGroups('note'))
+assert(NDPAPI:GetName('Healbot')=='Doc'and NDPAPI.GetName('Healbot-Realm')=='Doc'and NDPAPI:GetName('Nobody')=='Nobody')
+assert(ns.SetMyNickname('Boss'));assert(NDPAPI:GetName('player')=='Boss','own nickname for the player unit')
+env.click('tab:players');env.click('players-frames');assert(ns.PlayersData().frames==true)
+env.click('tab:raidtools');assert(ns.UIControls['rt-inv-note']and ns.UIControls['rt-arrange-note'])
 `));

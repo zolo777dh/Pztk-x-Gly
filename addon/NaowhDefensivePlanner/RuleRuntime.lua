@@ -98,14 +98,17 @@ function ns.RenderDefensive(binding, trash)
         if settings.voiceOn==false then custom.tts=false end
         if ns.Display then ns.Display(custom)end;return
     end
-    if ns.Covered(preset)then return end
+    local covered,by=ns.Covered(preset)
+    if covered then if ns.Trace then ns.Trace("skip",ns.TraceName(binding).."  ·  already covered by "..ns.TraceLabel(by))end;return end
     local spells=dynamic and dynamic.spell and{dynamic.spell}or ns.Pick(preset)
     if #spells==0 then
         local external=binding.external==true or(settings.fallbackOn==true and binding.external~=false)
+        if ns.Trace then ns.Trace("skip",ns.TraceName(binding).."  ·  "..(preset and"no spell of the set is ready"or"no defensive set")..(external and", called for an external"or""))end
         if external then ns.CallExternal()end
         return
     end
     local display=ns.DefensiveDisplay(spells,binding.display,binding.sound)
+    if ns.Trace then local names={};for _,s in ipairs(spells)do names[#names+1]=ns.TraceLabel(s)end;ns.Trace("show","defensive "..table.concat(names," + "))end
     if ns.Display then ns.Display(display)end
     if ns.LogDefensiveCall then ns.LogDefensiveCall(spells,binding.name)end
 end

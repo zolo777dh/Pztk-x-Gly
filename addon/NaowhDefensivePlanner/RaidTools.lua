@@ -90,6 +90,41 @@ function ns.InviteGuild()
     end
     return count
 end
+-- Invite and arrange from the note (NSRT): "Group 1: Name Name" (or "G1:") lines put players in
+-- a raid group, an "Invite: Name Name" line lists extra players. Nicknames are resolved through
+-- the shared nickname list.
+local function character(name)
+    local want=name:lower()
+    for char,nick in pairs(ns.PlayersData and ns.PlayersData().nicknames or{})do if type(nick)=="string"and nick:lower()==want then return char end end
+    return name
+end
+function ns.NoteGroups()
+    local out={}
+    for g=1,8 do
+        local names=ns.NoteList("Group "..g);if #names==0 then names=ns.NoteList("G"..g)end
+        for _,name in ipairs(names)do out[(ns.ShortName(character(name))or name):lower()]=g end
+    end
+    return out
+end
+function ns.NoteInvites()
+    local seen,out={},{}
+    local function add(name)local c=character(name);local key=c:lower();if not seen[key]then seen[key]=true;out[#out+1]=c end end
+    for _,name in ipairs(ns.NoteList("Invite"))do add(name)end
+    for g=1,8 do local names=ns.NoteList("Group "..g);if #names==0 then names=ns.NoteList("G"..g)end;for _,name in ipairs(names)do add(name)end end
+    return out
+end
+local function inGroup(name)
+    if UnitInRaid and UnitInRaid(name)then return true end
+    if UnitInParty and UnitInParty(name)then return true end
+    return ns.IsMe(name)
+end
+function ns.InviteFromNote()
+    local list=ns.NoteInvites()
+    if #list==0 then return nil,"No names in the note (Invite: Name Name, or Group 1: ...)"end
+    local count=0
+    for _,name in ipairs(list)do if not inGroup(name)and count<39 then if invite(name)then count=count+1 end end end
+    return count
+end
 ---------------------------------------------------------------------------
 -- Group sorting. Default: tanks, melee, ranged, then healers, five to a group.
 -- Split: two halves with the same mix of roles (groups 1-2-.. and the next ones).
@@ -106,6 +141,12 @@ local function plan()
     end
     table.sort(members,function(a,b)if a.order~=b.order then return a.order<b.order end;return a.name<b.name end)
     if sortMode=="default"then for i,m in ipairs(members)do m.target=math.floor((i-1)/5)+1 end;return members end
+    -- From the note: listed players go to their group; the rest stay where they are.
+    if sortMode=="note"then
+        local wanted=ns.NoteGroups()
+        for _,m in ipairs(members)do m.target=wanted[(ns.ShortName(m.name)or m.name):lower()]or m.subgroup end
+        return members
+    end
     -- Alternate down the role order so both halves get the same roles.
     local halves={{},{}};for i,m in ipairs(members)do local h=halves[(i-1)%2+1];h[#h+1]=m end
     local perHalf=math.ceil(#halves[1]/5)
@@ -126,7 +167,8 @@ local function step()
     return false
 end
 function ns.ArrangeGroups(mode)
-    if mode~=nil and mode~="default"and mode~="split"and mode~="evenodd"then return nil,"Unknown sorting"end
+    if mode~=nil and mode~="default"and mode~="split"and mode~="evenodd"and mode~="note"then return nil,"Unknown sorting"end
+    if mode=="note"and not next(ns.NoteGroups())then return nil,"No group lines in the note (Group 1: Name Name ...)"end
     if not(IsInRaid and IsInRaid())then return nil,"Arranging works in a raid group"end
     if not lead()then return nil,"Needs raid leader or assistant"end
     if InCombatLockdown and InCombatLockdown()then return nil,"Arrange groups after combat"end
@@ -198,6 +240,10 @@ local function DrawRaidTools(parent)
     W.Select(b,L("GUILD INVITE RANK"),ranks,tonumber(cfg.rank)or 1,12,190,274,function(v)cfg.rank=v;kit.refresh()end,"rt-rank")
     W.Button(b,L("Invite guild members now"),12,248,274,function()local n,err=ns.InviteGuild();kit.done(n,err,(tonumber(n)or 0)..L(" invites sent"))end,false,"rt-inv-guild",{glyph="players"})
     W.Label(b,L("/ndp inv invites the guild from chat."),12,290,274,11,C.muted)
+    W.Heading(b,L("From the note"),12,322,274)
+    W.Button(b,L("Invite from note"),12,344,274,function()local n,err=ns.InviteFromNote();kit.done(n,err,(tonumber(n)or 0)..L(" invites sent"))end,false,"rt-inv-note",{glyph="notes"})
+    W.Button(b,L("Arrange from note"),12,380,274,function()local ok,err=ns.ArrangeGroups("note");kit.done(ok,err,L("Arranging from the note"))end,false,"rt-arrange-note",{glyph="list"})
+    W.Label(b,L("The shared note lists players as \"Group 1: Name Name\" (or G1:) and extras as \"Invite: Name\". Nicknames work. /ndp invite and /ndp arrange note do the same."),12,420,274,11,C.muted)
     local c=W.Card(parent,620,56,300,536,L("Group"))
     W.Button(c,L("Default arrangement"),12,34,276,function()local ok,err=ns.ArrangeGroups("default");kit.done(ok,err,L("Arranging: tanks, melee, ranged, healers"))end,false,"rt-arrange",{glyph="list"})
     W.Button(c,L("Split groups"),12,70,134,function()local ok,err=ns.ArrangeGroups("split");kit.done(ok,err,L("Splitting into two even halves"))end,false,"rt-split",{align="CENTER"})

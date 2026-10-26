@@ -52,8 +52,41 @@ ns.CommHandlers.VERQ=function()ns.Send("VER",ns.version)end
 ns.CommHandlers.VER=function(version,sender)
     if sender and type(version)=="string"and #version<=20 then Players().versions[sender]=version;if ns.RefreshWorkspace then ns.RefreshWorkspace()end end
 end
-local events=CreateFrame("Frame");events:RegisterEvent("GROUP_ROSTER_UPDATE")
-events:SetScript("OnEvent",function()ns.ShareNickname()end)
+-- Nicknames on unit frames (NSRT): NDPAPI:GetName(unit or name) for other addons, the ElvUI tag
+-- [ndp:nick], and optionally the Blizzard party and raid frames. Names the game hides stay as they are.
+function ns.DisplayName(value)
+    local name=value
+    if type(value)=="string"and UnitName and(value=="player"or value:match("^party%d")or value:match("^raid%d"))then
+        local ok,n=pcall(UnitName,value);name=ok and n or nil
+    end
+    if not ns.Plain(name,"string")or name==""then return value end
+    local short=ns.ShortName(name)or name
+    if ns.IsMe and ns.IsMe(short)and ns.MyNickname()then return ns.MyNickname()end
+    return ns.Nickname(short)or short
+end
+NDPAPI=type(NDPAPI)=="table"and NDPAPI or{}
+function NDPAPI.GetName(a,b)if a==NDPAPI then a=b end;return ns.DisplayName(a)end
+local elvTag
+local function ElvTag()
+    if elvTag or type(ElvUI)~="table"then return end
+    local E=ElvUI[1];if type(E)~="table"or type(E.AddTag)~="function"then return end
+    elvTag=pcall(E.AddTag,E,"ndp:nick","UNIT_NAME_UPDATE GROUP_ROSTER_UPDATE",function(unit)return ns.DisplayName(unit)end)
+    if elvTag and type(E.AddTagInfo)=="function"then pcall(E.AddTagInfo,E,"ndp:nick","Names","Nickname from Naowh Defensive Planner")end
+end
+local hooked
+local function BlizzardFrames()
+    if hooked or not(hooksecurefunc and CompactUnitFrame_UpdateName)then return end
+    hooked=true
+    hooksecurefunc("CompactUnitFrame_UpdateName",function(frame)
+        if not Players().frames or type(frame)~="table"or not frame.name or type(frame.unit)~="string"then return end
+        if not(frame.unit=="player"or frame.unit:match("^party%d")or frame.unit:match("^raid%d"))then return end
+        local nick=ns.DisplayName(frame.unit)
+        if ns.Plain(nick,"string")and nick~=frame.unit then pcall(frame.name.SetText,frame.name,nick)end
+    end)
+end
+ns.ApplyFrameNicknames=function()ElvTag();BlizzardFrames()end
+local events=CreateFrame("Frame");events:RegisterEvent("GROUP_ROSTER_UPDATE");events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:SetScript("OnEvent",function(_,event)if event=="PLAYER_ENTERING_WORLD"then ns.ApplyFrameNicknames()else ns.ShareNickname()end end)
 
 local function DrawPlayers(parent)
     local state=kit.state;local p=Players();local d=state.drafts
@@ -80,12 +113,13 @@ local function DrawPlayers(parent)
     W.Button(right,L("Check versions"),12,34,200,function()local sent=ns.CheckVersions();kit.notify(sent and L("Asked the group; answers arrive within a few seconds")or L("Not in a group: only your own version is listed"));kit.refresh()end,false,"players-check",{glyph="check"})
     W.Label(right,L("Your version")..": "..ns.version,226,42,214,12,C.soft)
     local roster=kit.roster();local y2=78
-    for i,r in ipairs(roster)do if i<=20 then
+    for i,r in ipairs(roster)do if i<=15 then
         local version=p.versions[r.name];local state_=version and(version==ns.version and C.ok or C.warning)or C.faint
         local row=W.Panel(right,12,y2,430,22,C.raised,C.clear,6);W.Dot(row,8,7,kit.classColor(r.class));W.Label(row,r.name..(p.nicknames[r.name]and(" ("..p.nicknames[r.name]..")")or""),22,5,260,12,kit.classColor(r.class))
         W.Label(row,version or(p.checkedAt and(pending and L("waiting...")or L("no answer"))or"-"),290,5,130,12,state_)
         y2=y2+24
     end end
-    W.Label(right,L("No answer means the addon is missing, disabled, or the player is offline. Unit-frame nickname integrations are not included."),12,566-56,430,11,C.muted)
+    W.Toggle(right,L("Show nicknames on Blizzard party and raid frames"),p.frames,12,448,430,function(v)p.frames=v;ns.ApplyFrameNicknames()end,"players-frames")
+    W.Label(right,L("ElvUI: use the [ndp:nick] tag. Other addons can call NDPAPI:GetName(unit). No answer to a version check means the addon is missing, disabled, or the player is offline."),12,482,430,11,C.muted)
 end
 ns.ExtraPages.players=DrawPlayers

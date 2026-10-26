@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.8.6"
+ns.version = "0.9.0"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -165,7 +165,9 @@ function ns.ShowAbilityAlert(entry)
     ns.Display({type="ability",spellID=spell,text=alert.text or"",style=alert.style,dur=dur,small=true,tts=false})
 end
 function ns.Fire(entry, display, occurrence)
-    if (ns.ContentMatches and not ns.ContentMatches(entry))or (ns.Enabled and not ns.Enabled()) or ns.Conflict() or entry.enabled == false or not ns.Difficulty(entry) or not ns.Target(entry.target, occurrence) then return end
+    local why = ns.SkipReason and ns.SkipReason(entry, occurrence)
+    if why then if ns.Trace then ns.Trace("skip", ns.TraceName(entry) .. "  ·  " .. why) end; return end
+    if ns.Trace and not entry.defensive then ns.Trace("show", ns.TraceName(entry)) end
     ns.ShowAbilityAlert(entry)
     if entry.defensive and ns.RenderDefensive then return ns.RenderDefensive(entry)end
     if ns.Display then ns.Display(display or entry.display or {}) end
@@ -206,6 +208,7 @@ function ns.Begin(encounter, difficulty, map)
     local firstBars=ns.CaptureProviderTimers and ns.CaptureProviderTimers(encounter)
     ns.Reset(); ns.encounter, ns.difficulty, ns.map, ns.phase = encounter, difficulty, map, 1
     ns.pullTime, ns.recording = GetTime(), {}
+    if ns.TraceStart then ns.TraceStart(encounter, difficulty) end
     ns.noteEntries, ns.noteEncounter = ns.NoteTimerEntries and ns.NoteTimerEntries(difficulty) or {}, encounter
     ns.Anchor("pull"); ns.Anchor("stage", 1)
     if ns.ReplayProviderTimers then ns.ReplayProviderTimers(firstBars) end
@@ -291,7 +294,9 @@ function ns.Countdown(remaining)
 end
 function ns.Phase(phase)
     if not ns.Plain(phase, "number") or phase == ns.phase or not ns.encounter then return end
-    ns.Cancel("stage:"); ns.phase = phase; ns.Anchor("stage", phase)
+    ns.Cancel("stage:"); ns.phase = phase
+    if ns.Trace then ns.Trace("phase", "phase " .. phase) end
+    ns.Anchor("stage", phase)
 end
 local function Ready(spell)
     local known=C_SpellBook and(C_SpellBook.IsSpellKnownOrInSpellBook or C_SpellBook.IsSpellKnown)or IsPlayerSpell
@@ -333,6 +338,7 @@ local function Ready(spell)
     if enabled==false or enabled==0 then return false end
     return start==0 or start+duration<=GetTime()or duration<=1.5
 end
+ns.SpellReady = Ready
 function ns.Pick(preset)
     if not preset then return {} end
     if preset.disabled then
@@ -354,7 +360,7 @@ function ns.Defensive(binding, lead, key, valid)
     local profile, spec = ns.Active(), ns.Spec()
     if not profile or binding.enabled == false or not spec then return end
     ns.Schedule(key, math.max(0, lead), function()
-        if ns.Spec() ~= spec or (valid and not valid()) then return end
+        if ns.Spec() ~= spec or (valid and not valid()) then if ns.Trace then ns.Trace("skip", ns.TraceName(binding) .. "  ·  specialization changed or the trash pack is gone") end; return end
         ns.ShowAbilityAlert(binding)
         if ns.RenderDefensive then return ns.RenderDefensive(binding,binding.trigger and binding.trigger.type=="exboss")end
         local presetKey = binding.preset or ns.Get(profile.data.activePreset, spec)
@@ -393,7 +399,7 @@ function ns.RecordedTimeline(encounter, difficulty)
 end
 function ns.Mechanic(spell, duration, identity, encounter, skipDefensive, repeatEvent)
     if not ns.Plain(spell, "number") or (duration ~= nil and not ns.Plain(duration, "number")) then return end
-    if (encounter or ns.encounter) == ns.encounter then ns.RecordMechanic(spell, duration) end
+    if (encounter or ns.encounter) == ns.encounter then ns.RecordMechanic(spell, duration); if ns.TraceEvent then ns.TraceEvent(spell, duration) end end
     if ns.Conflict() or not ns.Plain(identity) or not ns.Plain(encounter) then return end
     local profile, spec = ns.Active(), ns.Spec()
     if not profile then return end

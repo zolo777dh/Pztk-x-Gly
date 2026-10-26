@@ -313,6 +313,7 @@ local function DrawSets(parent)
     W.Button(panel,L("Add ability"),236,408,120,function()local spell=tonumber(read("new-spell"));if not spell or spell<1 or spell%1~=0 then notify("Enter a positive integer spell ID",true);return end;setRowsAdd(spell)end,false,"add-spell")
     end
     W.Button(parent,L("Delete set"),252,566,116,function()local key=state.setKey;local a,b=ns.DeleteSet(scope(),state.spec,key);if a then state.setDrafts[draftKey(key)]=nil;chooseSet(nil,true)end;done(a,b,"Set deleted")end,false,"delete-set",{kind="danger"})
+    W.Button(parent,L("Starter set"),376,566,116,function()local rows=ns.StarterRows();if #rows==0 then notify(L("No known personal defensives in the catalog for this character"),true)return end;state.setKey=nil;state.setName="Starter";state.setRows=rows;notify(L("Starter set filled in · review it and Save set"));Refresh()end,false,"starter-set",{tooltip=L("Your known personal defensives, short ones first")})
     W.Button(parent,L("Test set"),600,566,120,function()local preset={list={},together={},disabled={}};for _,r in ipairs(state.setRows)do preset.list[#preset.list+1]=r.spellID;if r.together then preset.together[r.spellID]=true end;if not r.enabled then preset.disabled[r.spellID]=true end end;local spells=ns.Pick(preset);if #spells==0 then for _,r in ipairs(state.setRows)do if r.enabled then spells={r.spellID};break end end end;if #spells==0 then notify(L("Turn on at least one ability to test the set"),true)return end;local shown=ns.DefensiveDisplay(spells,{dur=4});ns.Display(shown);notify(L("Preview")..": "..shown.text..(ns.Settings().voiceOn==false and L(" · voice is off in Display")or L(" · no encounter trigger was fired")),ns.Settings().voiceOn==false)end,false,"test-set")
     W.Button(parent,L("Save set"),730,566,190,function()local oldKey=state.setKey;local a,b=ns.SaveSet(scope(),state.spec,oldKey,read("set-name"),state.setRows);if a then state.setDrafts[draftKey(oldKey)]=nil;state.setKey=a;state.setName=read("set-name")end;done(a,b,"Defensive set saved")end,true,"save-set",{kind="primary",align="CENTER"})
 end
@@ -1134,10 +1135,11 @@ local function classColor(class)
     local c=class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class];if c then return{c.r,c.g,c.b,1}end;return C.text
 end
 ---------------------------------------------------------------------------
-local commands={{"/ndp","open or close the window"},{"/ndp status","state and combat source"},{"/ndp test","test a defensive reminder"},{"/ndp diag","diagnostics report"},{"/ndp mem","memory use and what holds it"},{"/ndp sets · mythic · raid","open a section"},
-    {"/ndp notes · tools · players","raid sections"},{"/ndp qol · combat","quality of life, combat tools"},{"/ndp note","show or hide the note frame"},{"/ndp clear · pclear","take the shared / personal note off"},{"/ndp anchors","move the reminder anchor"},
-    {"/ndp pull 10 · rc","pull timer, ready check"},{"/ndp break 10","break timer (0 ends it)"},{"/ndp inv · arrange","guild invites, arrange groups"},{"/ndp promote","give assist from your list"},
-    {"/ndp nick Name","set your nickname"},{"/ndp versions","addon version check"},{"/ndp roster · export","roster, export the profile"},{"/ndp wipe","reset all data (asks to confirm)"},{"/ndp credits","thanks to the authors whose work NDP builds on"}}
+local commands={{"/ndp · help · status","window, commands, state"},{"/ndp test · diag · mem","test call, report, memory"},{"/ndp sets · mythic · raid · tl","open a section"},
+    {"/ndp notes · tools · players","raid sections"},{"/ndp qol · combat","quality of life, combat"},{"/ndp note · clear · pclear","note frame, clear notes"},{"/ndp anchors","move reminder anchors"},
+    {"/ndp pull 10 · rc · break 10","pull, ready check, break"},{"/ndp inv · arrange · promote","invites, groups, assist"},{"/ndp invite · arrange note","invite, sort from note"},
+    {"/ndp nick Name · versions","nickname, version check"},{"/ndp trace · observed · keys","what the last pulls did"},{"/ndp trace on · off · clear","pull trace switch"},{"/ndp cds · calls · bosses","cooldowns, calls, bosses"},
+    {"/ndp starter","starter defensive sets"},{"/ndp roster · export","roster, export profile"},{"/ndp wipe · credits","reset all data, thanks"}}
 ns.CommandHelp=commands
 local function DrawDiagnostics(parent)
     W.Label(parent,L("Diagnostics"),0,0,200,20,C.text,true)
@@ -1146,11 +1148,15 @@ local function DrawDiagnostics(parent)
         local w=#chip[1]*7+34;local c=W.Panel(parent,x,0,w,26,C.panel,C.line,13);W.Dot(c,10,9,chip[2]and C.ok or C.faint);W.Label(c,chip[1],24,7,w-28,12);x=x+w+6
     end
     local cmds=W.Card(parent,0,40,360,552,L("Commands · /ndp help"))
-    for i,c in ipairs(commands)do local y=34+(i-1)*29;W.Label(cmds,c[1],12,y,150,12,C.accent,true);W.Label(cmds,L(c[2]),164,y,184,12,C.soft)end
+    for i,c in ipairs(commands)do local y=34+(i-1)*29;W.Label(cmds,c[1],12,y,190,11,C.accent,true);W.Label(cmds,L(c[2]),204,y,148,11,C.soft)end
     local log=W.Card(parent,372,40,548,552,L("Report"))
-    local panel=W.Panel(log,12,34,524,460,C.background,C.line,8);local scroll=W.Frame("ScrollFrame",nil,panel);scroll:SetPoint("TOPLEFT",10,-10);scroll:SetSize(500,440)
-    local text=W.Frame("EditBox",nil,scroll);text:SetMultiLine(true);text:SetFont(W.Font(false),12,"");text:SetTextColor(unpack(C.soft));text:SetWidth(496);text:SetHeight(440);text:SetAutoFocus(false);text:SetMaxLetters(130000)
-    text:SetText(state.diagText or ns.Diagnostics());W.AttachScrollChild(scroll,text);text:SetScript("OnEscapePressed",function(self)self:ClearFocus()end);ns.UIControls["diag-text"]=text;W.Wheel(scroll,panel,517,6,448)
+    local panel=W.Panel(log,12,34,524,420,C.background,C.line,8);local scroll=W.Frame("ScrollFrame",nil,panel);scroll:SetPoint("TOPLEFT",10,-10);scroll:SetSize(500,400)
+    local text=W.Frame("EditBox",nil,scroll);text:SetMultiLine(true);text:SetFont(W.Font(false),12,"");text:SetTextColor(unpack(C.soft));text:SetWidth(496);text:SetHeight(400);text:SetAutoFocus(false);text:SetMaxLetters(130000)
+    text:SetText(state.diagText or ns.Diagnostics());W.AttachScrollChild(scroll,text);text:SetScript("OnEscapePressed",function(self)self:ClearFocus()end);ns.UIControls["diag-text"]=text;W.Wheel(scroll,panel,517,6,408)
+    -- What the last pulls did: every boss mod event and every reminder, shown or skipped and why.
+    W.Button(log,L("Pull trace"),12,466,120,function()state.diagText=ns.TraceText();Refresh()end,false,"diag-trace",{glyph="clock",kind="outline"})
+    W.Button(log,L("Observed"),140,466,120,function()state.diagText=ns.ObservedText();Refresh()end,false,"diag-observed",{glyph="list",kind="outline"})
+    W.Button(log,L("Your calls"),268,466,150,function()state.diagText=ns.CallsText();Refresh()end,false,"diag-calls",{glyph="notes",kind="outline"})
     W.Button(log,L("Copy"),12,506,120,function()text:HighlightText();text:SetFocus();notify(L("Selected · Ctrl+C copies"))end,false,"diag-copy",{glyph="copy"})
     W.Button(log,L("Refresh"),140,506,120,function()state.diagText=nil;Refresh()end,false,"diag-refresh",{glyph="reset",kind="outline"})
     W.Button(log,L("Group roster"),268,506,150,function()local lines={};for _,r in ipairs(Roster())do lines[#lines+1]=r.name end;state.diagText=table.concat(lines,"\n");Refresh()end,false,"diag-roster",{glyph="players",kind="outline"})
@@ -1248,6 +1254,9 @@ function ns.OpenWorkspace(tab)
     if tab and(pages[tab]or ns.ExtraPages[tab]or tab=="mythic"or tab=="raid")and tab~=state.tab then saveView();state.tab=tab;loadView()end
     if mode then state.mode=mode end
     Refresh();window:Show()
+end
+function ns.ShowText(text)
+    ns.OpenWorkspace();state.tab="diag";loadView();state.diagText=text;Refresh()
 end
 function ns.ShowDiagnostics()
     ns.OpenWorkspace();state.tab="diag";loadView();state.diagText=ns.Diagnostics();Refresh()
