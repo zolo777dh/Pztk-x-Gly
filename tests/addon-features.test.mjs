@@ -784,5 +784,11 @@ local cdm=ns.CooldownManagerSpells();assert(#cdm==1 and cdm[1]==391528,#cdm)
 assert(ns.PartyCooldownPayload():find('391528=120',1,true))
 UnitIsUnit=function(a,b)return a==b or(a=='target'and b=='party2')end
 env.advance(200);assert(ns.PartyCooldownCast('target',5277));local start=m.Rogue.used[5277];assert(ns.PartyCooldownCast('party2',5277));assert(m.Rogue.used[5277]==start)
+-- Inspected talents: a talent spell they did not take is left out, a taken one stays.
+C_Traits={GetConfigInfo=function()return{treeIDs={1}}end,GetTreeNodes=function()return{10,11}end,
+ GetNodeInfo=function(_,n)return n==10 and{entryIDs={100},currentRank=1,activeEntry={entryID=100}}or{entryIDs={101,102},currentRank=1,activeEntry={entryID=102}}end,
+ GetEntryInfo=function(_,e)return{definitionID=e}end,GetDefinitionInfo=function(d)return{spellID=d==100 and 360194 or d==101 and 5277 or 31224}end}
+m.Rogue.used={};assert(ns.PartyCooldownReadTalents(m.Rogue));assert(m.Rogue.talented[5277]==false and m.Rogue.talented[31224]==true)
+for _,id in ipairs(ns.PartyCooldownList(m.Rogue))do assert(id~=5277,'untaken talent hidden')end
 ns.Command('party');assert(ns.UIState.tab=='partycds')
 `));

@@ -86,7 +86,7 @@ end
 -- anything they were seen casting.
 function ns.PartyCooldownList(member)
     local out,seen={},{}
-    local function add(id)if not seen[id]and ns.PartyCooldownTracked(id)then seen[id]=true;out[#out+1]=id end end
+    local function add(id)if not seen[id]and ns.PartyCooldownTracked(id)and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
     if member.known then for id in pairs(member.known)do add(id)end
     elseif member.class and SPELLS[member.class]then for _,id in ipairs(ns.PartyCooldownClassSpells(member.class))do if ForSpec(byID[id],member.spec)then add(id)end end end
     for id in pairs(member.used or{})do add(id)end
@@ -162,12 +162,40 @@ local function InspectNext()
     if InCombatLockdown and InCombatLockdown()then return end
     if not(NotifyInspect and CanInspect)then return end
     for _,name in ipairs(order)do local m=members[name]
-        if m and not m.me and not m.spec and not m.asked then
+        if m and not m.me and not m.ndp and(not m.spec or not m.talented)and not m.asked then
             local ok,can=pcall(CanInspect,m.unit);if ok and can then m.asked=true;pcall(NotifyInspect,m.unit)
                 if C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(2,InspectNext)end;return end
         end
     end
 end
+-- Talents of an inspected member: every talent spell of their trees, true when taken. Spells of
+-- the list that are talents they did not take are then left out.
+local function ReadTalents(m)
+    local T=C_Traits;if not(T and T.GetConfigInfo and T.GetTreeNodes and T.GetNodeInfo and T.GetEntryInfo and T.GetDefinitionInfo)then return false end
+    local config=Constants and Constants.TraitConsts and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID or-1
+    local ok,info=pcall(T.GetConfigInfo,config);if not ok or type(info)~="table"or type(info.treeIDs)~="table"then return false end
+    local talented={};local any=false
+    for _,tree in ipairs(info.treeIDs)do
+        local ok2,nodes=pcall(T.GetTreeNodes,tree)
+        for _,node in ipairs(ok2 and type(nodes)=="table"and nodes or{})do
+            local ok3,n=pcall(T.GetNodeInfo,config,node)
+            if ok3 and type(n)=="table"and type(n.entryIDs)=="table"then
+                local active=type(n.activeEntry)=="table"and n.activeEntry.entryID
+                local rank=ns.Plain(n.currentRank,"number")and n.currentRank or 0
+                for _,entry in ipairs(n.entryIDs)do
+                    local ok4,e=pcall(T.GetEntryInfo,config,entry);local def=ok4 and type(e)=="table"and e.definitionID
+                    local ok5,d=pcall(T.GetDefinitionInfo,def or 0);local id=ok5 and type(d)=="table"and d.spellID
+                    if ns.Plain(id,"number")and byID[id]then
+                        talented[id]=talented[id]or(rank>0 and(active==entry or #n.entryIDs==1));any=true
+                    end
+                end
+            end
+        end
+    end
+    if any then m.talented=talented end
+    return any
+end
+ns.PartyCooldownReadTalents=ReadTalents
 local function QueueInspect()if not inspectTimer and C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(1,InspectNext)end end
 
 ---------------------------------------------------------------------------
@@ -413,10 +441,16 @@ events:SetScript("OnEvent",function(_,event,a,_,c)
     elseif event=="ENCOUNTER_END"then
         -- Raid boss cooldowns come back after each encounter.
         if IsInRaid and IsInRaid()then ns.PartyCooldownReset()end
-    elseif event=="INSPECT_READY"then ns.PartyCooldownRoster();QueueInspect();ns.DrawPartyCooldowns()
+    elseif event=="INSPECT_READY"then
+        ns.PartyCooldownRoster()
+        for _,m in pairs(members)do
+            if not m.me and UnitGUID and ns.Plain(a,"string")then local ok,guid=pcall(UnitGUID,m.unit);if ok and guid==a then ReadTalents(m)end end
+        end
+        QueueInspect();ns.DrawPartyCooldowns()
     else
         if event~="READY_CHECK"then ns.PartyCooldownRoster()end
         if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then QueueInspect()end
+        if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.talented=nil;m.spec=nil;m.sentSpec=nil end end;QueueInspect()end
         ns.SharePartyCooldowns();ns.DrawPartyCooldowns()
     end
 end)
@@ -487,7 +521,7 @@ local function DrawPage(parent)
     for i,name in ipairs(names)do if i<=10 then
         local m=members[name];local row=W.Panel(c2,12,y,586,40,C.raised,C.clear,6)
         W.Dot(row,8,15,kit.classColor(m.class));W.Label(row,ns.DisplayName and ns.DisplayName(name)or name,22,6,170,12,kit.classColor(m.class)):SetWordWrap(false)
-        local source=m.me and L("You")or m.ndp and L("Sent by their addon")or L("Base cooldowns from the game")
+        local source=m.me and L("You")or m.ndp and L("Sent by their addon")or m.talented and L("Talents from inspect")or L("Base cooldowns from the game")
         W.Label(row,(m.spec and ns.Catalog.specs[m.spec]or L("Specialization unknown")).." · "..source,22,22,170,10,C.muted):SetWordWrap(false)
         if m.seen or m.hidden then
             local t=W.Label(row,L("Casts")..": "..(m.seen or 0).." "..L("seen")..", "..(m.hidden or 0).." "..L("hidden"),436,14,144,10,(m.hidden or 0)>0 and C.warning or C.muted);t:SetJustifyH("RIGHT")

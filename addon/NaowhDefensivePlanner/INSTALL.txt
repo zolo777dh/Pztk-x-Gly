@@ -334,7 +334,9 @@ and out of combat. Shown as a movable list or beside the Blizzard / ElvUI party
 frames. Abilities: switch any spell of a class off, or add your own by spell ID.
 Lengths are the game's base cooldowns; players running this addon send, out of
 combat, exactly which of these spells they know and their real cooldowns (also
-the 1 min+ ones from their Cooldown Manager), so talents count. In combat the
+the 1 min+ ones from their Cooldown Manager), so talents count. For other players the spec and
+talents are read by inspecting them out of combat; talents they did not take
+are left out. In combat the
 game can hide other players' spells: such casts are counted as hidden on the
 page and nothing is guessed. Mythic+ keys and raid encounters reset all timers.
 
