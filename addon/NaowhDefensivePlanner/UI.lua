@@ -1139,7 +1139,7 @@ local commands={{"/ndp · help · status","window, commands, state"},{"/ndp test
     {"/ndp notes · tools · players","raid sections"},{"/ndp qol · combat","quality of life, combat"},{"/ndp note · clear · pclear","note frame, clear notes"},{"/ndp anchors","move reminder anchors"},
     {"/ndp pull 10 · rc · break 10","pull, ready check, break"},{"/ndp inv · arrange · promote","invites, groups, assist"},{"/ndp invite · arrange note","invite, sort from note"},
     {"/ndp nick Name · versions","nickname, version check"},{"/ndp trace · observed · keys","what the last pulls did"},{"/ndp trace on · off · clear","pull trace switch"},{"/ndp cds · calls · bosses","cooldowns, calls, bosses"},
-    {"/ndp starter","starter defensive sets"},{"/ndp roster · export","roster, export profile"},{"/ndp wipe · credits","reset all data, thanks"}}
+    {"/ndp party","party cooldowns"},{"/ndp starter","starter defensive sets"},{"/ndp roster · export","roster, export profile"},{"/ndp wipe · credits","reset all data, thanks"}}
 ns.CommandHelp=commands
 local function DrawDiagnostics(parent)
     W.Label(parent,L("Diagnostics"),0,0,200,20,C.text,true)
@@ -1164,7 +1164,7 @@ end
 ---------------------------------------------------------------------------
 local nav={
     {"Planner",{{"overview","Overview","overview"},{"mythic","Mythic+","mythic"},{"raid","Raids","raid"},{"timeline","Timeline","clock"}}},
-    {"Raid",{{"notes","Notes","notes"},{"raidtools","Raid tools","raidtools"},{"players","Players","players"},{"qol","Quality of life","check"},{"combat","Combat tools","burst"}}},
+    {"Raid",{{"notes","Notes","notes"},{"raidtools","Raid tools","raidtools"},{"players","Players","players"},{"qol","Quality of life","check"},{"combat","Combat tools","burst"},{"partycds","Party cooldowns","auras"}}},
     {"System",{{"profiles","Profiles","profiles"},{"settings","Settings","settings"},{"diag","Diagnostics","diag"}}},
 }
 local function go(tab)if state.tab~=tab then state.tab=tab;loadView()end;Refresh()end

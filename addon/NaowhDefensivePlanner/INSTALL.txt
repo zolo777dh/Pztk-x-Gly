@@ -326,6 +326,20 @@ NICKNAMES ON UNIT FRAMES
 Players > Show nicknames on Blizzard party and raid frames. ElvUI: the tag
 [ndp:nick]. Other addons and WeakAuras can call NDPAPI:GetName(unit or name).
 
+PARTY COOLDOWNS
+Raid > Party cooldowns (/ndp party). Tracks the important cooldowns of every
+specialization (personal defensives, externals, raid cooldowns, burst) for you
+and your party, or your own group in a raid. Timers start from real casts, in
+and out of combat. Shown as a movable list or beside the Blizzard / ElvUI party
+frames. Abilities: switch any spell of a class off, or add your own by spell ID.
+Lengths are the game's base cooldowns; players running this addon send, out of
+combat, exactly which of these spells they know and their real cooldowns (also
+the 1 min+ ones from their Cooldown Manager), so talents count. For other players the spec and
+talents are read by inspecting them out of combat; talents they did not take
+are left out. In combat the
+game can hide other players' spells: such casts are counted as hidden on the
+page and nothing is guessed. Mythic+ keys and raid encounters reset all timers.
+
 LIMITS
 No combat or active-encounter editing. No automatic ability presses. Native aura
 sounds need the corresponding public game API. Several source behaviors remain

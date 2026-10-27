@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','PartyCooldowns','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 // A recorded Heroic pull of the first raid boss, for the Timeline tests.
 const pulled=`ns.Store().timelines={['retail:3379:15']={events={{8,1260837},{18,1257717},{25,1276710},{37,1313393},{41,1260837},{44,1276710},{50,1257717},{60,1268562}},length=480,kill=true}};if ns.RefreshWorkspace then ns.RefreshWorkspace()end`;
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.RealDisplay=ns.Display;ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
@@ -729,4 +729,66 @@ assert(NDPAPI:GetName('Healbot')=='Doc'and NDPAPI.GetName('Healbot-Realm')=='Doc
 assert(ns.SetMyNickname('Boss'));assert(NDPAPI:GetName('player')=='Boss','own nickname for the player unit')
 env.click('tab:players');env.click('players-frames');assert(ns.PlayersData().frames==true)
 env.click('tab:raidtools');assert(ns.UIControls['rt-inv-note']and ns.UIControls['rt-arrange-note'])
+`));
+test('party cooldowns: spec lists, real casts start timers, sent cooldowns win, hidden casts are counted, page and frames',()=>run(`
+local sent={};C_ChatInfo={RegisterAddonMessagePrefix=function()return true end,SendAddonMessage=function(_,text)sent[#sent+1]=text;return 0 end}
+local units={player={'Tester','DRUID'},party1={'Friend','PRIEST'},party2={'Rogue','ROGUE'}}
+function IsInGroup()return true end;function IsInRaid()return false end
+function UnitExists(u)return units[u]~=nil end;function UnitName(u)return units[u or'player']and units[u or'player'][1]end
+function UnitClass(u)local x=units[u or'player'];return'Class',x and x[2]end;function UnitIsUnit(a,b)return a==b end
+function GetInspectSpecialization(u)return u=='party2'and 261 or 0 end
+function GetSpellBaseCooldown(id)return id==31224 and 120000 or 0,0 end
+env.click('tab:partycds');env.click('pcd:enabled');local cfg=ns.PartyCooldownConfig();assert(cfg.enabled)
+local order=ns.PartyCooldownOrder();assert(#order==3 and order[1]=='Tester',#order)
+local m=ns.PartyCooldownMembers
+-- Unknown spec: only what every spec of the class has; Subtlety from inspect adds Shadow Blades.
+local priest=ns.PartyCooldownList(m.Friend);for _,id in ipairs(priest)do assert(id~=33206,'no Pain Suppression before the spec is known')end
+local rogue=ns.PartyCooldownList(m.Rogue);local blades=false;for _,id in ipairs(rogue)do if id==121471 then blades=true end;assert(id~=13750)end;assert(blades)
+-- The game's base cooldown, then the table.
+assert(ns.PartyCooldownCast('party2',31224));assert(math.abs(ns.PartyCooldownLeft(m.Rogue,31224)-120)<0.01)
+env.advance(30);assert(math.abs(ns.PartyCooldownLeft(m.Rogue,31224)-90)<0.01)
+-- Another class's spell from that unit does not count; a hidden spell is counted, not guessed.
+assert(not ns.PartyCooldownCast('party2',33206))
+local real=issecretvalue;issecretvalue=function(v)return v==999999 end
+assert(not ns.PartyCooldownCast('party1',999999));issecretvalue=real
+assert(m.Friend.hidden==1 and m.Rogue.seen==2)
+-- What a member's addon sends: exactly their spells and their talented cooldowns.
+ns.CommHandlers.PCD('256;33206=150;62618=180;10060=120;1234567=90','Friend')
+assert(m.Friend.spec==256 and m.Friend.ndp and m.Friend.cds[33206]==150 and m.Friend.known[1234567])
+local list=ns.PartyCooldownList(m.Friend);assert(#list==4 and list[1]==10060 and list[4]==1234567,#list)
+assert(ns.PartyCooldownCast('party1',33206));assert(math.abs(ns.PartyCooldownLeft(m.Friend,33206)-150)<0.01)
+env.advance(151);assert(ns.PartyCooldownLeft(m.Friend,33206)==0)
+-- Own cooldown learned from the cast and sent out of combat.
+C_Spell.GetSpellCooldown=function(id)return{startTime=env.time,duration=id==22812 and 45 or 0}end
+assert(ns.PartyCooldownCast('player',22812));assert(cfg.learned['104'][22812]==45)
+local payload=ns.PartyCooldownPayload();assert(payload:find('^104;')and payload:find('22812=45',1,true),payload)
+assert(ns.SharePartyCooldowns(true));assert(sent[#sent]:find('PCD',1,true))
+-- List display: one row per member; beside the Blizzard frames when found.
+assert(ns.DrawPartyCooldowns())
+CompactPartyFrameMember2=CreateFrame('Button');CompactPartyFrameMember2.unit='party1'
+env.click('tab:partycds');cfg.mode='frames';assert(ns.DrawPartyCooldowns());assert(ns.PartyCooldownFrame('party1')==CompactPartyFrameMember2)
+env.click('tab:partycds');assert(ns.UIControls['pcd-unlock']and ns.UIControls['pcd:hideReady']);env.click('pcd-reset');assert(ns.PartyCooldownLeft(m.Tester,22812)==0)
+-- Abilities: switch a spell off for its class, add and remove your own.
+env.click('pcd-view:abilities');env.click('pcd-class:PRIEST');env.click('pcd-spell:33206');assert(not ns.PartyCooldownTracked(33206))
+for _,id in ipairs(ns.PartyCooldownList(m.Friend))do assert(id~=33206)end;assert(not ns.PartyCooldownCast('party1',33206))
+env.click('pcd-spell:33206');assert(ns.PartyCooldownTracked(33206))
+env.input('pcd:newSpell','73325');env.click('pcd-add');assert(ns.PartyCooldownSpellInfo(73325).added and cfg.custom.PRIEST[73325])
+local has=false;for _,id in ipairs(ns.PartyCooldownClassSpells('PRIEST'))do if id==73325 then has=true end end;assert(has)
+env.click('pcd-del:73325');assert(ns.PartyCooldownSpellInfo(73325)==nil)
+env.input('pcd:newSpell','33206');env.click('pcd-add');assert(cfg.custom.PRIEST[33206]==nil,'listed spells are not added twice')
+env.click('pcd-alloff');assert(not ns.PartyCooldownTracked(10060));env.click('pcd-allon');assert(ns.PartyCooldownTracked(10060))
+-- Cooldown Manager: own Essential cooldowns of a minute or more are sent too; a cast seen through the target unit counts once.
+C_CooldownViewer={GetCooldownViewerCategorySet=function()return{1,2}end,GetCooldownViewerCooldownInfo=function(i)return{spellID=i==1 and 391528 or 8936}end}
+GetSpellBaseCooldown=function(id)return id==391528 and 120000 or 0,0 end
+local cdm=ns.CooldownManagerSpells();assert(#cdm==1 and cdm[1]==391528,#cdm)
+assert(ns.PartyCooldownPayload():find('391528=120',1,true))
+UnitIsUnit=function(a,b)return a==b or(a=='target'and b=='party2')end
+env.advance(200);assert(ns.PartyCooldownCast('target',5277));local start=m.Rogue.used[5277];assert(ns.PartyCooldownCast('party2',5277));assert(m.Rogue.used[5277]==start)
+-- Inspected talents: a talent spell they did not take is left out, a taken one stays.
+C_Traits={GetConfigInfo=function()return{treeIDs={1}}end,GetTreeNodes=function()return{10,11}end,
+ GetNodeInfo=function(_,n)return n==10 and{entryIDs={100},currentRank=1,activeEntry={entryID=100}}or{entryIDs={101,102},currentRank=1,activeEntry={entryID=102}}end,
+ GetEntryInfo=function(_,e)return{definitionID=e}end,GetDefinitionInfo=function(d)return{spellID=d==100 and 360194 or d==101 and 5277 or 31224}end}
+m.Rogue.used={};assert(ns.PartyCooldownReadTalents(m.Rogue));assert(m.Rogue.talented[5277]==false and m.Rogue.talented[31224]==true)
+for _,id in ipairs(ns.PartyCooldownList(m.Rogue))do assert(id~=5277,'untaken talent hidden')end
+ns.Command('party');assert(ns.UIState.tab=='partycds')
 `));
