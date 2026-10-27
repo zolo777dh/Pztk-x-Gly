@@ -790,5 +790,15 @@ C_Traits={GetConfigInfo=function()return{treeIDs={1}}end,GetTreeNodes=function()
  GetEntryInfo=function(_,e)return{definitionID=e}end,GetDefinitionInfo=function(d)return{spellID=d==100 and 360194 or d==101 and 5277 or 31224}end}
 m.Rogue.used={};assert(ns.PartyCooldownReadTalents(m.Rogue));assert(m.Rogue.talented[5277]==false and m.Rogue.talented[31224]==true)
 for _,id in ipairs(ns.PartyCooldownList(m.Rogue))do assert(id~=5277,'untaken talent hidden')end
+-- An unlisted spell with a cooldown of a minute or more (a follower's, a new talent) is picked up; a short one is not.
+GetSpellBaseCooldown=function(id)return id==4444444 and 90000 or id==5555555 and 8000 or 0,0 end
+assert(ns.PartyCooldownCast('party2',4444444));assert(ns.PartyCooldownSpellInfo(4444444).detected and ns.PartyCooldownLeft(m.Rogue,4444444)>89)
+assert(not ns.PartyCooldownCast('party2',5555555));assert(ns.PartyCooldownSpellInfo(5555555)==nil)
+local found=false;for _,id in ipairs(ns.PartyCooldownClassSpells('ROGUE'))do if id==4444444 then found=true end end;assert(found,'detected spells can be switched off on Abilities')
+ns.PartyCooldownConfig().detect=false;assert(not ns.PartyCooldownCast('party2',6666666))
+-- Every specialization has cooldowns of its own or its class.
+for class,specs in pairs(ns.ClassSpecs)do for _,spec in ipairs(specs)do
+ local list=ns.PartyCooldownList({class=class,spec=spec,used={}});assert(#list>=2,class..' '..spec..' '..#list)
+end end
 ns.Command('party');assert(ns.UIState.tab=='partycds')
 `));

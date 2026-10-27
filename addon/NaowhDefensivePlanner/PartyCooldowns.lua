@@ -14,7 +14,7 @@ local kit=ns.UIKit
 -- No specializations listed means every spec of the class has it.
 local SPELLS={
     DEATHKNIGHT={{48707,60},{48792,120},{51052,120},{49028,120,250},{55233,90,250},{51271,60,251},{47568,120,251},{279302,90,251},{275699,45,252},{49206,180,252},{42650,90,252}},
-    DEMONHUNTER={{198589,60,577},{196555,180,577},{191427,120,577},{196718,300,577,581},{370965,90,577,581},{187827,120,581},{204021,60,581}},
+    DEMONHUNTER={{198589,60,577},{196555,180,577},{191427,120,577},{196718,300},{370965,90},{187827,120,581},{204021,60,581}},
     DRUID={{22812,60},{108238,90},{124974,90},{77761,120},{61336,180,103,104},{194223,180,102},{102560,180,102},{106951,180,103},{102543,180,103},
         {50334,180,104},{102558,180,104},{391528,120,102,103,104,105},{102342,90,105},{740,180,105},{33891,180,105},{197721,90,105}},
     EVOKER={{363916,90},{374348,90},{374227,120},{375087,120,1467},{363534,240,1468},{370960,180,1468},{357170,60,1468},{403631,120,1473}},
@@ -36,7 +36,7 @@ ns.PartyCooldownSpells=SPELLS
 local byID={}
 for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={class=class,cd=s[2],order=order,specs=#s>2 and{select(3,unpack(s))}or nil}end end
 
-local defaults={enabled=false,mode="list",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,share=true,cdm=true,pos={x=-420,y=120},learned={},disabled={},custom={}}
+local defaults={enabled=false,mode="list",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,share=true,cdm=true,detect=true,pos={x=-420,y=120},learned={},disabled={},custom={}}
 function ns.PartyCooldownConfig()
     local store=ns.Store();store.partycds=store.partycds or{}
     local c=store.partycds
@@ -57,6 +57,7 @@ function ns.PartyCooldownSpellInfo(id)return byID[id]end
 function ns.PartyCooldownClassSpells(class)
     local out={};for _,s in ipairs(SPELLS[class]or{})do out[#out+1]=s[1]end
     local extra={};for id in pairs(ns.PartyCooldownConfig().custom[class]or{})do id=tonumber(id);if id and not byID[id]or(id and byID[id].added)then extra[#extra+1]=id end end
+    for id,info in pairs(byID)do if info.detected and info.class==class then extra[#extra+1]=id end end
     table.sort(extra);for _,id in ipairs(extra)do out[#out+1]=id end
     return out
 end
@@ -291,6 +292,9 @@ function ns.PartyCooldownCast(unit,id)
     if not ns.Plain(id,"number")then m.hidden=(m.hidden or 0)+1;return false end
     m.seen=(m.seen or 0)+1
     local info=byID[id]
+    -- Not in the list (a follower's spell, a new talent...): any spell the game gives a cooldown of
+    -- a minute or more is tracked from now on for that class.
+    if not info and ns.PartyCooldownConfig().detect and BaseCooldown(id)>=60 then info=Register(id,m.class,700+id%100);info.detected=true end
     if not info or not ns.PartyCooldownTracked(id)or(info.class and m.class and info.class~=m.class)then return false end
     -- One cast arrives once per unit that shows it.
     if m.used[id]and GetTime()-m.used[id]<1 then return true end
@@ -481,7 +485,7 @@ local function DrawAbilities(parent,d)
         W.Toggle(row,SpellName(id),on,42,4,300,function(v)ns.SetPartyCooldownTracked(id,v);kit.refresh()end,"pcd-spell:"..id)
         local specs={}
         for _,sp in ipairs(info.specs or{})do specs[#specs+1]=(ns.Catalog.specs[sp]or tostring(sp)):match("^(%S+)")end
-        W.Label(row,info.added and L("Added by you")or(#specs>0 and table.concat(specs,", ")or L("All specs")),350,12,180,11,C.muted):SetWordWrap(false)
+        W.Label(row,info.added and L("Added by you")or info.detected and L("Seen in game")or(#specs>0 and table.concat(specs,", ")or L("All specs")),350,12,180,11,C.muted):SetWordWrap(false)
         W.Label(row,math.floor(BaseCooldown(id)+0.5).." s",536,12,60,11,C.soft)
         if info.added then W.Button(row,"",620,5,26,function()kit.done(ns.RemovePartyCooldownSpell(d.class,id),nil,L("Spell removed"))end,false,"pcd-del:"..id,{h=26,kind="danger",glyph="trash",tooltip=L("Remove")})end
         y=y+40
@@ -510,10 +514,11 @@ local function DrawPage(parent)
     W.Toggle(c1,L("Only show cooldowns in use"),cfg.hideReady,12,246,274,function(v)cfg.hideReady=v;apply()end,"pcd:hideReady")
     W.Toggle(c1,L("Share my cooldowns with the group"),cfg.share,12,276,274,function(v)cfg.share=v;if v then ns.SharePartyCooldowns(true)end;apply()end,"pcd:share")
     W.Toggle(c1,L("Also share my Cooldown Manager ones"),cfg.cdm,12,306,274,function(v)cfg.cdm=v;apply()end,"pcd:cdm")
-    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,346,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Reset timers"),12,386,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Send mine now"),156,386,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
-    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,430,274,11,C.muted)
+    W.Toggle(c1,L("Track any other 1 min+ cooldown seen"),cfg.detect,12,336,274,function(v)cfg.detect=v;apply()end,"pcd:detect")
+    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,372,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Reset timers"),12,410,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Send mine now"),156,410,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
+    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,452,274,11,C.muted)
     local c2=W.Card(parent,310,56,610,536,L("Group"))
     if cfg.enabled then ns.PartyCooldownRoster()end
     local names=order;local y=34
