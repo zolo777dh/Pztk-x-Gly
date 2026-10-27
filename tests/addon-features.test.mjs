@@ -769,14 +769,17 @@ CompactPartyFrameMember2=CreateFrame('Button');CompactPartyFrameMember2.unit='pa
 env.click('tab:partycds');cfg.mode='frames';assert(ns.DrawPartyCooldowns());assert(ns.PartyCooldownFrame('party1')==CompactPartyFrameMember2)
 env.click('tab:partycds');assert(ns.UIControls['pcd-unlock']and ns.UIControls['pcd:hideReady']);env.click('pcd-reset');assert(ns.PartyCooldownLeft(m.Tester,22812)==0)
 -- Abilities: switch a spell off for its class, add and remove your own.
-env.click('pcd-view:abilities');env.click('pcd-class:PRIEST');env.click('pcd-spell:33206');assert(not ns.PartyCooldownTracked(33206))
+env.click('pcd-view:abilities');env.click('pcd-class:PRIEST');env.click('pcd-spell:33206');assert(not ns.PartyCooldownTracked(33206,256)and ns.PartyCooldownTracked(33206,257),'off for Discipline only')
 for _,id in ipairs(ns.PartyCooldownList(m.Friend))do assert(id~=33206)end;assert(not ns.PartyCooldownCast('party1',33206))
-env.click('pcd-spell:33206');assert(ns.PartyCooldownTracked(33206))
+env.click('pcd-spell:33206');assert(ns.PartyCooldownTracked(33206,256))
+-- Each spec tab lists exactly that spec's cooldowns.
+env.click('pcd-spec:258');assert(ns.UIControls['pcd-spell:47585']and not ns.UIControls['pcd-spell:33206'])
+env.click('pcd-spec:256')
 env.input('pcd:newSpell','73325');env.click('pcd-add');assert(ns.PartyCooldownSpellInfo(73325).added and cfg.custom.PRIEST[73325])
 local has=false;for _,id in ipairs(ns.PartyCooldownClassSpells('PRIEST'))do if id==73325 then has=true end end;assert(has)
 env.click('pcd-del:73325');assert(ns.PartyCooldownSpellInfo(73325)==nil)
 env.input('pcd:newSpell','33206');env.click('pcd-add');assert(cfg.custom.PRIEST[33206]==nil,'listed spells are not added twice')
-env.click('pcd-alloff');assert(not ns.PartyCooldownTracked(10060));env.click('pcd-allon');assert(ns.PartyCooldownTracked(10060))
+env.click('pcd-alloff');assert(not ns.PartyCooldownTracked(10060,256)and ns.PartyCooldownTracked(10060,258));env.click('pcd-allon');assert(ns.PartyCooldownTracked(10060,256))
 -- Cooldown Manager: own Essential cooldowns of a minute or more are sent too; a cast seen through the target unit counts once.
 C_CooldownViewer={GetCooldownViewerCategorySet=function()return{1,2}end,GetCooldownViewerCooldownInfo=function(i)return{spellID=i==1 and 391528 or 8936}end}
 GetSpellBaseCooldown=function(id)return id==391528 and 120000 or 0,0 end
@@ -800,5 +803,25 @@ ns.PartyCooldownConfig().detect=false;assert(not ns.PartyCooldownCast('party2',6
 for class,specs in pairs(ns.ClassSpecs)do for _,spec in ipairs(specs)do
  local list=ns.PartyCooldownList({class=class,spec=spec,used={}});assert(#list>=2,class..' '..spec..' '..#list)
 end end
+-- Without inspect or addon, a tank or healer role gives the spec.
+assert(#ns.RoleSpecs('DRUID','HEALER')==1 and ns.RoleSpecs('DRUID','HEALER')[1]==105 and #ns.RoleSpecs('PRIEST','HEALER')==2)
+local roleOf=UnitGroupRolesAssigned;UnitGroupRolesAssigned=function(u)return u=='party3'and'HEALER'or'DAMAGER'end
+units.party3={'Follower','SHAMAN'};ns.PartyCooldownRoster();assert(m.Follower.spec==264)
+local hasLink=false;for _,id in ipairs(ns.PartyCooldownList(m.Follower))do if id==98008 then hasLink=true end end;assert(hasLink,'healer shaman gets Spirit Link')
+UnitGroupRolesAssigned=roleOf
+-- Any unit frame addon: a shown frame showing exactly that unit.
+local custom=CreateFrame('Button');custom.unit='party3';custom.h=40
+local all={custom};function EnumerateFrames(f)if not f then return all[1]end;for i,x in ipairs(all)do if x==f then return all[i+1]end end end
+ns.PartyCooldownForgetFrames();assert(ns.PartyCooldownFrame('party3')==custom)
+cfg.mode='list';cfg.names=true;assert(ns.DrawPartyCooldowns());cfg.names=false;assert(ns.DrawPartyCooldowns())
+-- Buff sensors: a member's own defensive buff and an external on anyone start the caster's timer.
+cfg.mode='frames';for _,x in pairs(m)do x.used={}end
+local n=ns.RebuildPartyCooldownSensors();assert(n>0,'sensors built')
+local list,st=ns.PartyCooldownSensors();assert(st.available)
+local function light(spell,unit)for _,x in ipairs(list)do if x.spell==spell and(not unit or x.unit==unit)then x.frame.IsMouseOver=function()return true end end end end
+light(31224,'party2');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,31224)>100 and m.Rogue.sensed==1,'Cloak by buff')
+ns.PartyCooldownPollSensors();assert(m.Rogue.sensed==1,'a buff that stays up counts once')
+light(33206,'party3');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Friend,33206)>100,'Pain Suppression on the shaman credits the priest')
+cfg.sensors=false;assert(ns.RebuildPartyCooldownSensors()==0);cfg.sensors=true
 ns.Command('party');assert(ns.UIState.tab=='partycds')
 `));
