@@ -14,7 +14,7 @@ local kit=ns.UIKit
 -- No specializations listed means every spec of the class has it.
 local SPELLS={
     DEATHKNIGHT={{48707,60},{48792,120},{51052,120},{49028,120,250},{55233,90,250},{51271,60,251},{47568,120,251},{279302,90,251},{275699,45,252},{49206,180,252},{42650,90,252}},
-    DEMONHUNTER={{198589,60,577},{196555,180,577},{191427,120,577},{196718,300,577,581},{370965,90,577,581},{187827,120,581},{204021,60,581}},
+    DEMONHUNTER={{198589,60,577},{196555,180,577},{191427,120,577},{196718,300},{370965,90},{187827,120,581},{204021,60,581}},
     DRUID={{22812,60},{108238,90},{124974,90},{77761,120},{61336,180,103,104},{194223,180,102},{102560,180,102},{106951,180,103},{102543,180,103},
         {50334,180,104},{102558,180,104},{391528,120,102,103,104,105},{102342,90,105},{740,180,105},{33891,180,105},{197721,90,105}},
     EVOKER={{363916,90},{374348,90},{374227,120},{375087,120,1467},{363534,240,1468},{370960,180,1468},{357170,60,1468},{403631,120,1473}},
@@ -36,11 +36,13 @@ ns.PartyCooldownSpells=SPELLS
 local byID={}
 for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={class=class,cd=s[2],order=order,specs=#s>2 and{select(3,unpack(s))}or nil}end end
 
-local defaults={enabled=false,mode="list",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,share=true,cdm=true,pos={x=-420,y=120},learned={},disabled={},custom={}}
+local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},learned={},disabled={},specOff={},custom={}}
 function ns.PartyCooldownConfig()
     local store=ns.Store();store.partycds=store.partycds or{}
     local c=store.partycds
     for k,v in pairs(defaults)do if c[k]==nil then c[k]=type(v)=="table"and ns.Clone(v)or v end end
+    -- 0.10.2: icons beside the party frames, every cooldown of the spec shown, no names.
+    if(c.layout or 0)<2 then c.layout=2;c.mode="frames";c.hideReady=false;c.names=false end
     return c
 end
 local members={}
@@ -57,6 +59,7 @@ function ns.PartyCooldownSpellInfo(id)return byID[id]end
 function ns.PartyCooldownClassSpells(class)
     local out={};for _,s in ipairs(SPELLS[class]or{})do out[#out+1]=s[1]end
     local extra={};for id in pairs(ns.PartyCooldownConfig().custom[class]or{})do id=tonumber(id);if id and not byID[id]or(id and byID[id].added)then extra[#extra+1]=id end end
+    for id,info in pairs(byID)do if info.detected and info.class==class then extra[#extra+1]=id end end
     table.sort(extra);for _,id in ipairs(extra)do out[#out+1]=id end
     return out
 end
@@ -71,24 +74,58 @@ function ns.RemovePartyCooldownSpell(class,id)
     local cfg=ns.PartyCooldownConfig();local ids=cfg.custom[class];if not ids or not ids[id]then return nil,"Only added spells can be removed"end
     ids[id]=nil;if byID[id]and byID[id].added then byID[id]=nil end;ns.DrawPartyCooldowns();return true
 end
--- Switched off spells are neither shown nor timed.
-function ns.SetPartyCooldownTracked(id,on)ns.PartyCooldownConfig().disabled[id]=(not on)or nil;ns.DrawPartyCooldowns();return true end
-function ns.PartyCooldownTracked(id)return byID[id]~=nil and not ns.PartyCooldownConfig().disabled[id]end
+-- Switched off spells are neither shown nor timed: for one spec, or with no spec for the whole class.
+function ns.SetPartyCooldownTracked(id,on,spec)
+    local cfg=ns.PartyCooldownConfig()
+    if spec then
+        -- Switched off for the whole class before: keep it off for the class's other specs.
+        if on and cfg.disabled[id]then
+            cfg.disabled[id]=nil;local info=byID[id]
+            for _,other in ipairs(info and ns.ClassSpecs and ns.ClassSpecs[info.class]or{})do if other~=spec then cfg.specOff[other]=cfg.specOff[other]or{};cfg.specOff[other][id]=true end end
+        end
+        cfg.specOff[spec]=cfg.specOff[spec]or{};cfg.specOff[spec][id]=(not on)or nil
+    else cfg.disabled[id]=(not on)or nil end
+    ns.DrawPartyCooldowns();return true
+end
+function ns.PartyCooldownTracked(id,spec)
+    local cfg=ns.PartyCooldownConfig()
+    if byID[id]==nil or cfg.disabled[id]then return false end
+    return not(spec and cfg.specOff[spec]and cfg.specOff[spec][id])
+end
 
--- The spell applies to spec (nil: unknown spec, then only the spells of every spec count).
-local function ForSpec(info,spec)
+-- The spell applies to spec. With the spec unknown, the specs the member's role allows count
+-- (a tank or healer of most classes is one spec); with no role either, the class-wide spells.
+local function ForSpec(info,spec,candidates)
     if not info.specs then return true end
-    if not spec then return false end
-    for _,s in ipairs(info.specs)do if s==spec then return true end end
+    for _,s in ipairs(info.specs)do
+        if s==spec then return true end
+        if not spec and candidates then for _,c in ipairs(candidates)do if c==s then return true end end end
+    end
     return false
+end
+local TANKS={[66]=1,[73]=1,[104]=1,[250]=1,[268]=1,[581]=1}
+local HEALERS={[65]=1,[105]=1,[256]=1,[257]=1,[264]=1,[270]=1,[1468]=1}
+function ns.RoleSpecs(class,role)
+    local out={}
+    for _,spec in ipairs(ns.ClassSpecs and ns.ClassSpecs[class]or{})do
+        local r=TANKS[spec]and"TANK"or HEALERS[spec]and"HEALER"or"DAMAGER"
+        if r==role then out[#out+1]=spec end
+    end
+    return #out>0 and out or nil
+end
+-- The spells of one spec of a class, in list order: its own, the class-wide ones and added ones.
+function ns.PartyCooldownSpecSpells(class,spec)
+    local out={}
+    for _,id in ipairs(ns.PartyCooldownClassSpells(class))do if ForSpec(byID[id],spec)then out[#out+1]=id end end
+    return out
 end
 -- The spells shown for one member: exactly what they sent, otherwise their spec's list, plus
 -- anything they were seen casting.
 function ns.PartyCooldownList(member)
     local out,seen={},{}
-    local function add(id)if not seen[id]and ns.PartyCooldownTracked(id)and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
+    local function add(id)if not seen[id]and ns.PartyCooldownTracked(id,member.spec)and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
     if member.known then for id in pairs(member.known)do add(id)end
-    elseif member.class and SPELLS[member.class]then for _,id in ipairs(ns.PartyCooldownClassSpells(member.class))do if ForSpec(byID[id],member.spec)then add(id)end end end
+    elseif member.class and SPELLS[member.class]then for _,id in ipairs(ns.PartyCooldownClassSpells(member.class))do if ForSpec(byID[id],member.spec,member.roleSpecs)then add(id)end end end
     for id in pairs(member.used or{})do add(id)end
     table.sort(out,function(a,b)return byID[a].order<byID[b].order end)
     return out
@@ -147,6 +184,9 @@ function ns.PartyCooldownRoster()
             local m=members[name]or{name=name,used={}};members[name]=m
             m.unit=unit;m.me=unit=="player";m.class=ns.Plain(class,"string")and class or m.class
             m.spec=(m.me and ns.Spec())or m.sentSpec or InspectSpec(unit)or m.spec
+            local role=UnitGroupRolesAssigned and UnitGroupRolesAssigned(unit)
+            m.roleSpecs=m.class and ns.Plain(role,"string")and ns.RoleSpecs(m.class,role)or nil
+            if not m.spec and m.roleSpecs and #m.roleSpecs==1 then m.spec=m.roleSpecs[1]end
             keep[name]=true;order[#order+1]=name
         end
     end
@@ -291,7 +331,10 @@ function ns.PartyCooldownCast(unit,id)
     if not ns.Plain(id,"number")then m.hidden=(m.hidden or 0)+1;return false end
     m.seen=(m.seen or 0)+1
     local info=byID[id]
-    if not info or not ns.PartyCooldownTracked(id)or(info.class and m.class and info.class~=m.class)then return false end
+    -- Not in the list (a follower's spell, a new talent...): any spell the game gives a cooldown of
+    -- a minute or more is tracked from now on for that class.
+    if not info and ns.PartyCooldownConfig().detect and BaseCooldown(id)>=60 then info=Register(id,m.class,700+id%100);info.detected=true end
+    if not info or not ns.PartyCooldownTracked(id,m.spec)or(info.class and m.class and info.class~=m.class)then return false end
     -- One cast arrives once per unit that shows it.
     if m.used[id]and GetTime()-m.used[id]<1 then return true end
     m.used[id]=GetTime()
@@ -338,6 +381,8 @@ local function Icon(row,i,size)
     icon:SetSize(size,size);return icon
 end
 -- Blizzard compact party/raid frames and ElvUI party/raid frames, by the unit they show.
+local frameCache={}
+function ns.PartyCooldownForgetFrames()frameCache={}end
 local FRAME_NAMES={"CompactPartyFrameMember%d","CompactRaidFrame%d","ElvUF_PartyGroup1UnitButton%d"}
 local function UnitFrame(unit)
     if not UnitIsUnit then return nil end
@@ -355,6 +400,26 @@ local function UnitFrame(unit)
         local f=_G[("CompactRaidGroup%dMember%d"):format(g,i)];if match(f)then return f end
         f=_G[("ElvUF_RaidGroup%dUnitButton%d"):format(g,i)];if match(f)then return f end
     end end
+    -- Any other unit frame addon (EllesmereUI, Cell, Grid2...): a shown frame whose unit is exactly
+    -- this one. Looked up out of combat and remembered for the group.
+    local cached=frameCache[unit];if cached==false then return nil end;if cached and cached:IsVisible()then return cached end
+    if InCombatLockdown and InCombatLockdown()or not EnumerateFrames then return nil end
+    local best
+    local f=EnumerateFrames()
+    while f do
+        local ok,hit=pcall(function()
+            if f.IsForbidden and f:IsForbidden()or not f:IsVisible()then return false end
+            local u=rawget(f,"unit")or(f.GetAttribute and f:GetAttribute("unit"))
+            return u==unit and(f:GetHeight()or 0)>=16
+        end)
+        if ok and hit and f~=TargetFrame and f~=FocusFrame then
+            -- Party frames before the player frame for yourself.
+            if not best or(best==PlayerFrame and f~=PlayerFrame)then best=f end
+        end
+        f=EnumerateFrames(f)
+    end
+    -- Not found is remembered too, until the group changes, so the scan runs once.
+    frameCache[unit]=best or false;return best
 end
 ns.PartyCooldownFrame=UnitFrame
 local SIDES={RIGHT={"LEFT","RIGHT",2,0,1,0},LEFT={"RIGHT","LEFT",-2,0,-1,0},TOP={"BOTTOMLEFT","TOPLEFT",0,2,1,0},BOTTOM={"TOPLEFT","BOTTOMLEFT",0,-2,1,0}}
@@ -404,21 +469,138 @@ function ns.DrawPartyCooldowns()
             row:ClearAllPoints();row:SetPoint("TOPLEFT",list,"TOPLEFT",4,-y-4);row:SetSize(1,size)
             if type(font)=="string"then row.name:SetFont(font,12,"OUTLINE")end
             local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
-            row.name:SetTextColor(c and c.r or 1,c and c.g or 1,c and c.b or 1);row.name:SetText(ns.DisplayName and ns.DisplayName(name)or name)
+            row.name:SetTextColor(c and c.r or 1,c and c.g or 1,c and c.b or 1)
+            -- Without names a thin bar in the class colour starts each row.
+            local start=cfg.names and 94 or 6
+            if not row.bar then row.bar=row:CreateTexture(nil,"ARTWORK")end
+            row.bar:SetColorTexture(c and c.r or 1,c and c.g or 1,c and c.b or 1,1);row.bar:ClearAllPoints();row.bar:SetPoint("LEFT",row,"LEFT",0,0);row.bar:SetSize(3,size)
+            if cfg.names then row.name:SetText(ns.DisplayName and ns.DisplayName(name)or name);row.name:Show();row.bar:Hide()else row.name:SetText("");row.name:Hide();row.bar:Show()end
             row.name:ClearAllPoints();row.name:SetPoint("LEFT",row,"LEFT",0,0);row.name:SetWidth(90)
             local n=FillIcons(row,m,ids,size,cfg)
-            for i=1,n do local icon=row.icons[i];icon:ClearAllPoints();icon:SetPoint("LEFT",row,"LEFT",94+(i-1)*(size+2),0)end
-            widest=math.max(widest,94+n*(size+2));row:Show();y=y+size+4
+            for i=1,n do local icon=row.icons[i];icon:ClearAllPoints();icon:SetPoint("LEFT",row,"LEFT",start+(i-1)*(size+2),0)end
+            widest=math.max(widest,start+n*(size+2));row:Show();y=y+size+4
         end
     end
     for i=used+1,#(rows or{})do rows[i]:Hide()end
-    list:SetSize(math.max(160,widest+8),math.max(size+8,y+4));list:EnableMouse(cfg.unlocked==true)
+    list:SetSize(math.max(60,widest+8),math.max(size+8,y+4));list:EnableMouse(cfg.unlocked==true)
     if cfg.unlocked then list.bg:Show()else list.bg:Hide()end
     if used>0 or cfg.unlocked then list:Show()else list:Hide()end
     return true
 end
 
 ---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- Buff sensors, for casts the game hides in combat. The game's own aura container widget is
+-- given one buff and a unit; it only grows when that buff is on the unit. Its size answers a plain
+-- mouse-over test (the hit area is stretched so the answer does not depend on where the cursor
+-- is), so the moment a cooldown's buff appears its timer starts. Externals (Pain Suppression,
+-- Ironbark...) appear on the target and are credited to the group member who can cast them.
+-- Switch: "Buff sensors" on the page. The game may change this widget; then it simply stays off.
+local SELF,EXTERNAL=1,2
+-- Cast spell = {buff spell, kind}. Buffs not listed here are not sensed.
+local BUFFS={
+    [48707]={48707,SELF},[48792]={48792,SELF},[49028]={81256,SELF},[55233]={55233,SELF},[51271]={51271,SELF},
+    [198589]={212800,SELF},[196555]={196555,SELF},[191427]={162264,SELF},[187827]={187827,SELF},
+    [22812]={22812,SELF},[61336]={61336,SELF},[194223]={194223,SELF},[102560]={102560,SELF},[106951]={106951,SELF},[102543]={102543,SELF},
+    [50334]={50334,SELF},[102558]={102558,SELF},[33891]={117679,SELF},[102342]={102342,EXTERNAL},
+    [363916]={363916,SELF},[374348]={374348,SELF},[375087]={375087,SELF},[357170]={357170,EXTERNAL},
+    [186265]={186265,SELF},[264735]={264735,SELF},[19574]={19574,SELF},[288613]={288613,SELF},[360952]={360952,SELF},
+    [45438]={45438,SELF},[414658]={414658,SELF},[55342]={55342,SELF},[365350]={365362,SELF},[190319]={190319,SELF},[12472]={12472,SELF},
+    [115203]={120954,SELF},[122278]={122278,SELF},[122783]={122783,SELF},[115176]={115176,SELF},[116849]={116849,EXTERNAL},[137639]={137639,SELF},
+    [642]={642,SELF},[1022]={1022,EXTERNAL},[6940]={6940,EXTERNAL},[204018]={204018,EXTERNAL},[31884]={31884,SELF},[498]={498,SELF},
+    [31850]={31850,SELF},[86659]={86659,SELF},[184662]={184662,SELF},[403876]={403876,SELF},[216331]={216331,SELF},[231895]={231895,SELF},
+    [19236]={19236,SELF},[10060]={10060,EXTERNAL},[33206]={33206,EXTERNAL},[47788]={47788,EXTERNAL},[47536]={47536,SELF},[200183]={200183,SELF},
+    [47585]={47585,SELF},[15286]={15286,SELF},[391109]={391109,SELF},
+    [31224]={31224,SELF},[5277]={5277,SELF},[13750]={13750,SELF},[121471]={121471,SELF},
+    [108271]={108271,SELF},[114050]={114050,SELF},[114051]={114051,SELF},[114052]={114052,SELF},
+    [104773]={104773,SELF},[108416]={108416,SELF},
+    [97462]={97463,SELF},[107574]={107574,SELF},[118038]={118038,SELF},[184364]={184364,SELF},[1719]={1719,SELF},[871]={871,SELF},[12975]={12975,SELF},
+}
+ns.PartyCooldownBuffs=BUFFS
+local sensorHost,sensorTicker
+local sensors={}
+local sensorState={available=nil,reason=nil}
+function ns.PartyCooldownSensors()return sensors,sensorState end
+local function SensorLit(c)
+    local ok,lit=pcall(c.IsMouseOver,c,1e5,-1e5,0,0)
+    return ok and ns.Plain(lit,"boolean")and lit or false
+end
+local function NewSensor(unit,buff)
+    if not sensorHost then sensorHost=CreateFrame("Frame",nil,UIParent);sensorHost:SetSize(1,1);sensorHost:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-20,0)end
+    local ok,c=pcall(CreateFrame,"AuraContainer",nil,sensorHost,"CustomAuraContainerTemplate")
+    if not ok or not c or not c.AddAuraGroup then sensorState.available=false;sensorState.reason="the game has no aura container widget";return nil end
+    c:SetSize(1,1);c:ClearAllPoints();c:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-11,0);pcall(c.EnableMouse,c,false)
+    local added=pcall(c.AddAuraGroup,c,"ndp","HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs={[buff]=true}},
+        initializeFrame=function(b)pcall(b.SetSize,b,1,1);pcall(b.SetMouseClickEnabled,b,false);pcall(b.SetMouseMotionEnabled,b,false)end,
+        layout={elementWidth=50000,elementHeight=1,elementSpacing=0,lineSpacing=0}})
+    if not added then sensorState.available=false;sensorState.reason="the aura container refused a buff group";return nil end
+    pcall(c.SetUnit,c,unit);pcall(c.SetEnabled,c,false)
+    sensorState.available=true
+    return c
+end
+-- The member who cast an external: the one whose list has the spell and whose cooldown is ready.
+local function ExternalOwner(id)
+    local best
+    for _,m in pairs(members)do
+        local info=byID[id]
+        if info and m.class==info.class and ns.PartyCooldownLeft(m,id)<=0 then
+            for _,x in ipairs(ns.PartyCooldownList(m))do if x==id then best=best or m end end
+        end
+    end
+    return best
+end
+local function Sensed(m,id)
+    if not m or not ns.PartyCooldownTracked(id,m.spec)then return end
+    local last=m.used[id]
+    -- The cast itself was seen, or the cooldown is still running: nothing new.
+    if last and GetTime()-last<ns.PartyCooldownLength(m,id)-1 then return end
+    m.used[id]=GetTime();m.sensed=(m.sensed or 0)+1
+    ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
+end
+local function PollSensors()
+    for _,s in ipairs(sensors)do
+        local lit=SensorLit(s.frame)
+        if lit and not s.lit then
+            if s.kind==EXTERNAL then Sensed(ExternalOwner(s.spell),s.spell)else Sensed(members[s.member],s.spell)end
+        end
+        s.lit=lit
+    end
+end
+ns.PartyCooldownPollSensors=PollSensors
+-- Builds the sensors for the group: each member's own buffs on them, and every external of the
+-- group on everyone. Out of combat only; containers are reused.
+local pool={}
+function ns.RebuildPartyCooldownSensors()
+    for _,s in ipairs(sensors)do pcall(s.frame.SetUnit,s.frame,nil);s.frame:Hide();pool[#pool+1]=s.frame end
+    sensors={}
+    local cfg=ns.PartyCooldownConfig()
+    if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
+    if not(cfg.enabled and cfg.sensors)or sensorState.available==false then return 0 end
+    if InCombatLockdown and InCombatLockdown()then return 0 end
+    local externals={}
+    for _,name in ipairs(order)do local m=members[name]
+        for _,id in ipairs(ns.PartyCooldownList(m))do local b=BUFFS[id]
+            if b and b[2]==EXTERNAL then externals[id]=b[1]
+            elseif b and not m.me then sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=b[1],kind=SELF}end
+        end
+    end
+    for _,name in ipairs(order)do local m=members[name]
+        for id,buff in pairs(externals)do sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buff,kind=EXTERNAL}end
+    end
+    local made={}
+    for _,s in ipairs(sensors)do
+        local c=table.remove(pool)
+        if c then
+            pcall(c.SetAuraGroupCandidateFilters,c,"ndp",{includeSpellIDs={[s.buff]=true}});pcall(c.SetUnit,c,s.unit);c:Show()
+        else c=NewSensor(s.unit,s.buff)end
+        if not c then break end
+        s.frame=c;s.lit=SensorLit(c);made[#made+1]=s
+    end
+    sensors=made
+    if #sensors>0 and C_Timer and C_Timer.NewTicker then sensorTicker=C_Timer.NewTicker(0.2,PollSensors)end
+    return #sensors
+end
+
 local events=CreateFrame("Frame")
 local function Listen(on)
     for _,e in ipairs({"UNIT_SPELLCAST_SUCCEEDED","GROUP_ROSTER_UPDATE","PLAYER_SPECIALIZATION_CHANGED","TRAIT_CONFIG_UPDATED","INSPECT_READY",
@@ -429,6 +611,7 @@ end
 function ns.RefreshPartyCooldowns()
     local cfg=ns.PartyCooldownConfig();LoadCustom();Listen(cfg.enabled==true)
     if cfg.enabled then ns.PartyCooldownRoster();QueueInspect();ns.SharePartyCooldowns()end
+    ns.RebuildPartyCooldownSensors()
     return ns.DrawPartyCooldowns()
 end
 events:SetScript("OnEvent",function(_,event,a,_,c)
@@ -436,7 +619,7 @@ events:SetScript("OnEvent",function(_,event,a,_,c)
         if ns.Plain(a,"string")and(a=="player"or a=="target"or a=="focus"or a:match("^party%d")or a:match("^raid%d")or a:match("^nameplate%d"))then ns.PartyCooldownCast(a,c)end
     elseif event=="PLAYER_REGEN_ENABLED"then
         for id in pairs(pendingLearn)do if Learn(id)then pendingLearn[id]=nil end end
-        ns.SharePartyCooldowns();QueueInspect();ns.DrawPartyCooldowns()
+        ns.SharePartyCooldowns();QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()
     elseif event=="CHALLENGE_MODE_START"then ns.PartyCooldownReset()
     elseif event=="ENCOUNTER_END"then
         -- Raid boss cooldowns come back after each encounter.
@@ -446,11 +629,12 @@ events:SetScript("OnEvent",function(_,event,a,_,c)
         for _,m in pairs(members)do
             if not m.me and UnitGUID and ns.Plain(a,"string")then local ok,guid=pcall(UnitGUID,m.unit);if ok and guid==a then ReadTalents(m)end end
         end
-        QueueInspect();ns.DrawPartyCooldowns()
+        QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()
     else
         if event~="READY_CHECK"then ns.PartyCooldownRoster()end
-        if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then QueueInspect()end
+        if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then QueueInspect();frameCache={}end
         if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.talented=nil;m.spec=nil;m.sentSpec=nil end end;QueueInspect()end
+        if event~="READY_CHECK"then ns.RebuildPartyCooldownSensors()end
         ns.SharePartyCooldowns();ns.DrawPartyCooldowns()
     end
 end)
@@ -472,25 +656,27 @@ local function DrawAbilities(parent,d)
         W.Button(left,L(CLASS_NAMES[class]),10,30+(i-1)*36,180,function()d.class=class;kit.refresh()end,d.class==class,"pcd-class:"..class,{h=32})
     end
     local right=W.Card(parent,212,56,708,536,L(CLASS_NAMES[d.class]))
-    local ids=ns.PartyCooldownClassSpells(d.class)
-    local list=W.Scroll(right,12,34,684,404,"pcd:spells",C.background);local y=4
+    local specs=ns.ClassSpecs[d.class]or{}
+    d.specs=d.specs or{};local spec=d.specs[d.class]or specs[1];d.specs[d.class]=spec
+    local tabs={};for _,sp in ipairs(specs)do tabs[#tabs+1]={value=sp,label=(ns.Catalog.specs[sp]or tostring(sp)):gsub(" "..CLASS_NAMES[d.class].."$","")}end
+    W.Segmented(right,tabs,spec,12,30,684,function(v)d.specs[d.class]=v;kit.refresh()end,"pcd-spec")
+    local ids=ns.PartyCooldownSpecSpells(d.class,spec)
+    local list=W.Scroll(right,12,70,684,368,"pcd:spells",C.background);local y=4
     for _,id in ipairs(ids)do
-        local info=byID[id]or{};local on=not cfg.disabled[id]
+        local info=byID[id]or{};local on=ns.PartyCooldownTracked(id,spec)
         local row=W.Panel(list,0,y,656,36,C.raised,C.clear,6)
         W.Icon(row,id,6,4,28)
-        W.Toggle(row,SpellName(id),on,42,4,300,function(v)ns.SetPartyCooldownTracked(id,v);kit.refresh()end,"pcd-spell:"..id)
-        local specs={}
-        for _,sp in ipairs(info.specs or{})do specs[#specs+1]=(ns.Catalog.specs[sp]or tostring(sp)):match("^(%S+)")end
-        W.Label(row,info.added and L("Added by you")or(#specs>0 and table.concat(specs,", ")or L("All specs")),350,12,180,11,C.muted):SetWordWrap(false)
+        W.Toggle(row,SpellName(id),on,42,4,300,function(v)ns.SetPartyCooldownTracked(id,v,spec);kit.refresh()end,"pcd-spell:"..id)
+        W.Label(row,info.added and L("Added by you")or info.detected and L("Seen in game")or(info.specs and L("This spec")or L("Every spec of the class")),350,12,180,11,C.muted):SetWordWrap(false)
         W.Label(row,math.floor(BaseCooldown(id)+0.5).." s",536,12,60,11,C.soft)
         if info.added then W.Button(row,"",620,5,26,function()kit.done(ns.RemovePartyCooldownSpell(d.class,id),nil,L("Spell removed"))end,false,"pcd-del:"..id,{h=26,kind="danger",glyph="trash",tooltip=L("Remove")})end
         y=y+40
     end;list:SetHeight(math.max(1,y))
     W.Field(right,L("ADD A SPELL BY ID"),d.newSpell or"",12,450,200,"pcd:newSpell")
     W.Button(right,L("Add"),220,466,100,function()local text=ns.UIControls["pcd:newSpell"]:GetText();local ok,err=ns.AddPartyCooldownSpell(d.class,text);if ok then d.newSpell=""else d.newSpell=text end;kit.done(ok,err,L("Spell added"))end,false,"pcd-add",{kind="primary",align="CENTER"})
-    W.Button(right,L("All on"),336,466,100,function()for _,id in ipairs(ids)do cfg.disabled[id]=nil end;ns.DrawPartyCooldowns();kit.refresh()end,false,"pcd-allon",{kind="outline",align="CENTER"})
-    W.Button(right,L("All off"),444,466,100,function()for _,id in ipairs(ids)do cfg.disabled[id]=true end;ns.DrawPartyCooldowns();kit.refresh()end,false,"pcd-alloff",{kind="outline",align="CENTER"})
-    W.Label(right,L("Off: not shown and not timed for anyone of this class. Lengths are the game's base cooldowns."),12,506,684,11,C.muted)
+    W.Button(right,L("All on"),336,466,100,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,true,spec)end;kit.refresh()end,false,"pcd-allon",{kind="outline",align="CENTER"})
+    W.Button(right,L("All off"),444,466,100,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,false,spec)end;kit.refresh()end,false,"pcd-alloff",{kind="outline",align="CENTER"})
+    W.Label(right,L("The cooldowns tracked for this spec. Off: not shown and not timed for players of this spec. Lengths are the game's base cooldowns."),12,506,684,11,C.muted)
 end
 local function DrawPage(parent)
     local cfg=ns.PartyCooldownConfig()
@@ -507,13 +693,16 @@ local function DrawPage(parent)
     W.Select(c1,L("ICON SIZE"),sizes,tonumber(cfg.size)or 26,156,126,130,function(v)cfg.size=v;apply()end,"pcd:size")
     W.Toggle(c1,L("Include my own cooldowns"),cfg.self,12,186,274,function(v)cfg.self=v;apply()end,"pcd:self")
     W.Toggle(c1,L("In raids, track my group"),cfg.raidGroup,12,216,274,function(v)cfg.raidGroup=v;apply()end,"pcd:raid")
-    W.Toggle(c1,L("Only show cooldowns in use"),cfg.hideReady,12,246,274,function(v)cfg.hideReady=v;apply()end,"pcd:hideReady")
+    W.Toggle(c1,L("Only in use"),cfg.hideReady,12,246,130,function(v)cfg.hideReady=v;apply()end,"pcd:hideReady")
+    W.Toggle(c1,L("Names"),cfg.names,156,246,130,function(v)cfg.names=v;apply()end,"pcd:names")
     W.Toggle(c1,L("Share my cooldowns with the group"),cfg.share,12,276,274,function(v)cfg.share=v;if v then ns.SharePartyCooldowns(true)end;apply()end,"pcd:share")
     W.Toggle(c1,L("Also share my Cooldown Manager ones"),cfg.cdm,12,306,274,function(v)cfg.cdm=v;apply()end,"pcd:cdm")
-    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,346,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Reset timers"),12,386,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Send mine now"),156,386,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
-    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,430,274,11,C.muted)
+    W.Toggle(c1,L("Auto 1 min+"),cfg.detect,12,336,130,function(v)cfg.detect=v;apply()end,"pcd:detect")
+    W.Toggle(c1,L("Buff sensors"),cfg.sensors,156,336,130,function(v)cfg.sensors=v;apply()end,"pcd:sensors")
+    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,372,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Reset timers"),12,410,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Send mine now"),156,410,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
+    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,452,274,11,C.muted)
     local c2=W.Card(parent,310,56,610,536,L("Group"))
     if cfg.enabled then ns.PartyCooldownRoster()end
     local names=order;local y=34
@@ -523,15 +712,17 @@ local function DrawPage(parent)
         W.Dot(row,8,15,kit.classColor(m.class));W.Label(row,ns.DisplayName and ns.DisplayName(name)or name,22,6,170,12,kit.classColor(m.class)):SetWordWrap(false)
         local source=m.me and L("You")or m.ndp and L("Sent by their addon")or m.talented and L("Talents from inspect")or L("Base cooldowns from the game")
         W.Label(row,(m.spec and ns.Catalog.specs[m.spec]or L("Specialization unknown")).." · "..source,22,22,170,10,C.muted):SetWordWrap(false)
-        if m.seen or m.hidden then
-            local t=W.Label(row,L("Casts")..": "..(m.seen or 0).." "..L("seen")..", "..(m.hidden or 0).." "..L("hidden"),436,14,144,10,(m.hidden or 0)>0 and C.warning or C.muted);t:SetJustifyH("RIGHT")
+        if m.seen or m.hidden or m.sensed then
+            local t=W.Label(row,L("Casts")..": "..(m.seen or 0).." "..L("seen")..", "..(m.hidden or 0).." "..L("hidden")..", "..(m.sensed or 0).." "..L("by buff"),396,14,184,10,(m.hidden or 0)>0 and C.warning or C.muted);t:SetJustifyH("RIGHT")
         end
         local x=196
-        for _,id in ipairs(ns.PartyCooldownList(m))do if x<=400 then
+        for _,id in ipairs(ns.PartyCooldownList(m))do if x<=360 then
             W.Icon(row,id,x,6,28);x=x+30
         end end
         y=y+44
     end end
+    local _,st=ns.PartyCooldownSensors()
+    W.Label(c2,L("Buff sensors")..": "..(not cfg.sensors and L("off")or st.available==false and(L("not available")..", "..L(st.reason or""))or st.available and(#sensors..L(" watching"))or L("waiting for a group")),12,452,586,11,st.available==false and C.warning or C.soft)
     W.Label(c2,L("Members without this addon show the cooldowns of their specialization at the game's base length; talents that shorten them are not known. Members with the addon send exactly what they have."),12,476,586,11,C.muted)
 end
 ns.ExtraPages.partycds=DrawPage

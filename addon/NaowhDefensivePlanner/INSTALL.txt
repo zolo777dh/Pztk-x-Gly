@@ -338,7 +338,12 @@ the 1 min+ ones from their Cooldown Manager), so talents count. For other player
 talents are read by inspecting them out of combat; talents they did not take
 are left out. In combat the
 game can hide other players' spells: such casts are counted as hidden on the
-page and nothing is guessed. Mythic+ keys and raid encounters reset all timers.
+page and nothing is guessed. Any other spell a member is seen casting
+with a cooldown of a minute or more (followers, new talents) is tracked too.
+Buff sensors (on by default): a hidden game aura container per member notices
+when a cooldown's buff appears, so hidden casts still start the timer;
+externals are credited to the member who can cast them. Abilities: pick a
+class, then a spec, to switch that spec's cooldowns on or off. Mythic+ keys and raid encounters reset all timers.
 
 LIMITS
 No combat or active-encounter editing. No automatic ability presses. Native aura
