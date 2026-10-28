@@ -966,11 +966,18 @@ local found=false;for _,t in ipairs(printed)do if t:find('Interrupts seen',1,tru
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and stays off next to Naowh Defensive Planner',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
  const toc=files['PuzatikPartyDefensives/PuzatikPartyDefensives.toc'].toString('utf8');assert.match(toc,new RegExp('## Version: '+version.replaceAll('.','\\.')));
- const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','Slash.lua']);
+ const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Locale.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','Slash.lua']);
  assert.match(files['PuzatikPartyDefensives/Window.lua'].toString('utf8'),/background="08050f"[\s\S]*accent="9b5cff"/);
  assert.match(toc,/^## IconTexture: Interface\\AddOns\\PuzatikPartyDefensives\\Media\\Icon$/m);const icon=files['PuzatikPartyDefensives/Media/Icon.tga'];
  assert.ok(icon&&icon[2]===2&&icon.readUInt16LE(12)===128&&icon.readUInt16LE(14)===128&&icon[16]===32,'128 px uncompressed RGBA icon');
  const load=order.map(n=>`;(function(...)\n${files['PuzatikPartyDefensives/'+n].toString('utf8')}\nend)('PuzatikPartyDefensives',p)`).join('\n');
+ // Every interface string has its Russian text.
+ const text=n=>files['PuzatikPartyDefensives/'+n].toString('utf8');const ru=text('Locale.lua');
+ const keys=new Set();for(const n of ['PartyCooldowns.lua','Window.lua','Slash.lua'])for(const m of text(n).matchAll(/L\("((?:[^"\\]|\\.)*)"\)/g))keys.add(m[1]);
+ for(const m of text('Slash.lua').matchAll(/^\s*"(\/pcd[^"]*)",?$/gm))keys.add(m[1]);
+ for(const m of text('PartyCooldowns.lua').matchAll(/(?:main|kick|cc)="([^"]+)"|^\s*(?:kick|cc)="([^"]+)",$/gm))keys.add(m[1]||m[2]);
+ const missing=[...keys].filter(k=>!ru.includes('["'+k+'"]'));assert.deepEqual(missing,[],'Russian text for every interface string');
+ const russian=['Core.lua','Locale.lua'].map(n=>`;(function(...)\n${text(n)}\nend)('PuzatikPartyDefensives',r)`).join('\n');
  await run(`
 C_ChatInfo={RegisterAddonMessagePrefix=function()return true end,SendAddonMessage=function()return 0 end}
 local units={player={'Tester','DRUID'},party1={'Friend','PRIEST'}}
@@ -980,6 +987,18 @@ function UnitClass(u)local x=units[u or'player'];return'Class',x and x[2]end;fun
 strtrim=strtrim or function(s)return(s:gsub('^%s+',''):gsub('%s+$',''))end
 local p={}
 ${load}
+do local r={};GetLocale=function()return'ruRU'end
+${russian}
+assert(r.L('Party cooldowns')=='Кд группы'and r.L('Discipline')=='Послушание'and r.L('Discipline Priest')=='Послушание (Жрец)'and r.L('Priest')=='Жрец')
+assert(r.Upper('Кики и контроль, ёж')=='КИКИ И КОНТРОЛЬ, ЁЖ'and r.Upper('Size')=='SIZE')
+GetLocale=nil
+assert(p.L('Party cooldowns')=='Party cooldowns','English on other clients')end
+-- The language can be picked in the window, whatever the client.
+local function pick(key,value)p.UIControls[key]:Click();for _,r in ipairs(p.Widgets.menu.rows)do if r.shown and r.label.text==value then r:Click();return end end;error('Missing option '..value)end
+SlashCmdList.PUZATIKPARTYDEFENSIVES('');p.UIControls['pcd-view:display']:Click();pick('pcd-language','Русский')
+assert(PuzatikPartyDefensivesDB.lang=='ruRU'and p.L('Party cooldowns')=='Кд группы'and p.UIControls['pcd-reset'].label.text=='Сброс таймеров','Russian picked in the window')
+pick('pcd-language','Auto (game client)');assert(PuzatikPartyDefensivesDB.lang==nil and p.L('Party cooldowns')=='Party cooldowns')
+p.UIControls['pcd-close']:Click()
 assert(p.PartyCooldownConfig().enabled==true,'on by default')
 SlashCmdList.PUZATIKPARTYDEFENSIVES('list');assert(p.PartyCooldownConfig().mode=='list')
 SlashCmdList.PUZATIKPARTYDEFENSIVES('size 30');assert(p.PartyCooldownConfig().size==30)
