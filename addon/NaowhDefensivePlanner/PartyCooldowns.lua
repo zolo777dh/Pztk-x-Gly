@@ -36,7 +36,7 @@ ns.PartyCooldownSpells=SPELLS
 local byID={}
 for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={class=class,cd=s[2],order=order,specs=#s>2 and{select(3,unpack(s))}or nil}end end
 
-local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},learned={},disabled={},specOff={},custom={}}
+local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
     local store=ns.Store();store.partycds=store.partycds or{}
     local c=store.partycds
@@ -103,6 +103,12 @@ local function ForSpec(info,spec,candidates)
     end
     return false
 end
+local function Known(id)
+    local known=C_SpellBook and(C_SpellBook.IsSpellKnownOrInSpellBook or C_SpellBook.IsSpellKnown)or IsPlayerSpell
+    if not known then return false end
+    local ok,v=pcall(known,id);return ok and ns.Plain(v,"boolean")and v
+end
+local FACTION={[2825]="Horde",[32182]="Alliance"}
 local TANKS={[66]=1,[73]=1,[104]=1,[250]=1,[268]=1,[581]=1}
 local HEALERS={[65]=1,[105]=1,[256]=1,[257]=1,[264]=1,[270]=1,[1468]=1}
 function ns.RoleSpecs(class,role)
@@ -125,7 +131,17 @@ function ns.PartyCooldownList(member)
     local out,seen={},{}
     local function add(id)if not seen[id]and ns.PartyCooldownTracked(id,member.spec)and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
     if member.known then for id in pairs(member.known)do add(id)end
-    elseif member.class and SPELLS[member.class]then for _,id in ipairs(ns.PartyCooldownClassSpells(member.class))do if ForSpec(byID[id],member.spec,member.roleSpecs)then add(id)end end end
+    elseif member.class and SPELLS[member.class]then
+        -- Strictly the member's spec: your own list is what your spellbook knows right now; for
+        -- others the spec's list (nothing spec-only until the spec is known), minus talents they
+        -- did not take and the other faction's Bloodlust/Heroism.
+        local faction=member.faction
+        for _,id in ipairs(ns.PartyCooldownClassSpells(member.class))do
+            local info=byID[id]
+            local unread=not member.me and not member.talented and ns.PartyCooldownConfig().talentSpells[id]
+            if ForSpec(info,member.spec)and not unread and not(FACTION[id]and faction and FACTION[id]~=faction)and(not member.me or info.added or info.detected or Known(id))then add(id)end
+        end
+    end
     for id in pairs(member.used or{})do add(id)end
     table.sort(out,function(a,b)return byID[a].order<byID[b].order end)
     return out
@@ -184,6 +200,7 @@ function ns.PartyCooldownRoster()
             local m=members[name]or{name=name,used={}};members[name]=m
             m.unit=unit;m.me=unit=="player";m.class=ns.Plain(class,"string")and class or m.class
             m.spec=(m.me and ns.Spec())or m.sentSpec or InspectSpec(unit)or m.spec
+            if UnitFactionGroup then local ok,f=pcall(UnitFactionGroup,unit);if ok and ns.Plain(f,"string")then m.faction=f end end
             local role=UnitGroupRolesAssigned and UnitGroupRolesAssigned(unit)
             m.roleSpecs=m.class and ns.Plain(role,"string")and ns.RoleSpecs(m.class,role)or nil
             if not m.spec and m.roleSpecs and #m.roleSpecs==1 then m.spec=m.roleSpecs[1]end
@@ -202,17 +219,21 @@ local function InspectNext()
     if InCombatLockdown and InCombatLockdown()then return end
     if not(NotifyInspect and CanInspect)then return end
     for _,name in ipairs(order)do local m=members[name]
-        if m and not m.me and not m.ndp and(not m.spec or not m.talented)and not m.asked then
-            local ok,can=pcall(CanInspect,m.unit);if ok and can then m.asked=true;pcall(NotifyInspect,m.unit)
+        -- No answer (out of range...): asked again after 15 s, up to 6 times.
+        if m and not m.me and not m.ndp and(not m.spec or not m.talented)and(m.tries or 0)<6 and(not m.asked or GetTime()-m.asked>15)then
+            local ok,can=pcall(CanInspect,m.unit);if ok and can then m.asked=GetTime();m.tries=(m.tries or 0)+1;pcall(NotifyInspect,m.unit)
                 if C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(2,InspectNext)end;return end
         end
     end
 end
 -- Talents of an inspected member: every talent spell of their trees, true when taken. Spells of
 -- the list that are talents they did not take are then left out.
-local function ReadTalents(m)
+-- Every spell of the list seen in any talent tree is remembered as a talent, so members whose
+-- talents are not read yet do not show talents they may not have.
+local function ReadTalents(m,config)
     local T=C_Traits;if not(T and T.GetConfigInfo and T.GetTreeNodes and T.GetNodeInfo and T.GetEntryInfo and T.GetDefinitionInfo)then return false end
-    local config=Constants and Constants.TraitConsts and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID or-1
+    config=config or(Constants and Constants.TraitConsts and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID or-1)
+    local marks=ns.PartyCooldownConfig().talentSpells
     local ok,info=pcall(T.GetConfigInfo,config);if not ok or type(info)~="table"or type(info.treeIDs)~="table"then return false end
     local talented={};local any=false
     for _,tree in ipairs(info.treeIDs)do
@@ -226,25 +247,29 @@ local function ReadTalents(m)
                     local ok4,e=pcall(T.GetEntryInfo,config,entry);local def=ok4 and type(e)=="table"and e.definitionID
                     local ok5,d=pcall(T.GetDefinitionInfo,def or 0);local id=ok5 and type(d)=="table"and d.spellID
                     if ns.Plain(id,"number")and byID[id]then
+                        marks[id]=true
                         talented[id]=talented[id]or(rank>0 and(active==entry or #n.entryIDs==1));any=true
                     end
                 end
             end
         end
     end
-    if any then m.talented=talented end
+    if any and m then m.talented=talented end
     return any
 end
+-- Your own talent tree, read when the addon loads and whenever your spec or talents change.
+local function ReadOwnTalents()
+    local get=C_ClassTalents and C_ClassTalents.GetActiveConfigID
+    local ok,config=pcall(get or function()end)
+    if ok and ns.Plain(config,"number")then return ReadTalents(nil,config)end
+    return false
+end
+ns.PartyCooldownReadOwnTalents=ReadOwnTalents
 ns.PartyCooldownReadTalents=ReadTalents
 local function QueueInspect()if not inspectTimer and C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(1,InspectNext)end end
 
 ---------------------------------------------------------------------------
 -- Sharing: "spec;id=seconds;id=seconds..." for the tracked spells this character knows.
-local function Known(id)
-    local known=C_SpellBook and(C_SpellBook.IsSpellKnownOrInSpellBook or C_SpellBook.IsSpellKnown)or IsPlayerSpell
-    if not known then return false end
-    local ok,v=pcall(known,id);return ok and ns.Plain(v,"boolean")and v
-end
 function ns.PartyCooldownPayload()
     local spec=ns.Spec();local _,class=UnitClass("player");local parts={tostring(spec or 0)}
     local me={me=true,spec=spec}
@@ -253,7 +278,7 @@ function ns.PartyCooldownPayload()
         if done[id]or #parts>60 then return end;done[id]=true
         parts[#parts+1]=id.."="..math.floor(ns.PartyCooldownLength(me,id)+0.5)
     end
-    for _,id in ipairs(ns.PartyCooldownClassSpells(class))do if ForSpec(byID[id],spec)and Known(id)then add(id)end end
+    for _,id in ipairs(ns.PartyCooldownClassSpells(class))do if ForSpec(byID[id],spec)and Known(id)and not(FACTION[id]and UnitFactionGroup and FACTION[id]~=UnitFactionGroup("player"))then add(id)end end
     if ns.PartyCooldownConfig().cdm then for _,id in ipairs(ns.CooldownManagerSpells())do add(id)end end
     return table.concat(parts,";")
 end
@@ -342,7 +367,7 @@ function ns.PartyCooldownCast(unit,id)
     ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
     return true
 end
-function ns.PartyCooldownReset()for _,m in pairs(members)do m.used={}end;ns.DrawPartyCooldowns()end
+function ns.PartyCooldownReset()for _,m in pairs(members)do m.used={};m.hiddenCd=nil end;ns.DrawPartyCooldowns()end
 
 ---------------------------------------------------------------------------
 -- Display: a movable list (name and icons per member), or icons beside the Blizzard or ElvUI
@@ -422,20 +447,22 @@ local function UnitFrame(unit)
     frameCache[unit]=best or false;return best
 end
 ns.PartyCooldownFrame=UnitFrame
+local ShowHidden -- hidden timers on icons, defined with the buff sensors
 local SIDES={RIGHT={"LEFT","RIGHT",2,0,1,0},LEFT={"RIGHT","LEFT",-2,0,-1,0},TOP={"BOTTOMLEFT","TOPLEFT",0,2,1,0},BOTTOM={"TOPLEFT","BOTTOMLEFT",0,-2,1,0}}
 local function FillIcons(row,m,ids,size,cfg)
     local n=0
     for _,id in ipairs(ids)do
         local left=ns.PartyCooldownLeft(m,id)
-        if not(cfg.hideReady and left<=0)then
+        local hidden=m.hiddenCd and m.hiddenCd[id]
+        if not(cfg.hideReady and left<=0 and not hidden)then
             n=n+1;local icon=Icon(row,n,size)
             icon.tex:SetTexture(W.SpellTexture(id));icon.spellID=id
             if left>0 then icon.cd:SetCooldown(m.used[id],ns.PartyCooldownLength(m,id));icon.tex:SetDesaturated(true)
             else icon.cd:Clear();icon.tex:SetDesaturated(false)end
-            icon:Show()
+            icon:Show();ShowHidden(icon,hidden)
         end
     end
-    for i=n+1,#row.icons do row.icons[i]:Hide()end
+    for i=n+1,#row.icons do row.icons[i]:Hide();ShowHidden(row.icons[i],nil)end
     return n
 end
 function ns.DrawPartyCooldowns()
@@ -497,44 +524,152 @@ end
 -- Ironbark...) appear on the target and are credited to the group member who can cast them.
 -- Switch: "Buff sensors" on the page. The game may change this widget; then it simply stays off.
 local SELF,EXTERNAL=1,2
--- Cast spell = {buff spell, kind}. Buffs not listed here are not sensed.
+-- Spells whose buff is not the spell itself, or that buff more than the caster. Every other
+-- tracked spell is sensed by its own ID on the caster. {kind, buff IDs...}
 local BUFFS={
-    [48707]={48707,SELF},[48792]={48792,SELF},[49028]={81256,SELF},[55233]={55233,SELF},[51271]={51271,SELF},
-    [198589]={212800,SELF},[196555]={196555,SELF},[191427]={162264,SELF},[187827]={187827,SELF},
-    [22812]={22812,SELF},[61336]={61336,SELF},[194223]={194223,SELF},[102560]={102560,SELF},[106951]={106951,SELF},[102543]={102543,SELF},
-    [50334]={50334,SELF},[102558]={102558,SELF},[33891]={117679,SELF},[102342]={102342,EXTERNAL},
-    [363916]={363916,SELF},[374348]={374348,SELF},[375087]={375087,SELF},[357170]={357170,EXTERNAL},
-    [186265]={186265,SELF},[264735]={264735,SELF},[19574]={19574,SELF},[288613]={288613,SELF},[360952]={360952,SELF},
-    [45438]={45438,SELF},[414658]={414658,SELF},[55342]={55342,SELF},[365350]={365362,SELF},[190319]={190319,SELF},[12472]={12472,SELF},
-    [115203]={120954,SELF},[122278]={122278,SELF},[122783]={122783,SELF},[115176]={115176,SELF},[116849]={116849,EXTERNAL},[137639]={137639,SELF},
-    [642]={642,SELF},[1022]={1022,EXTERNAL},[6940]={6940,EXTERNAL},[204018]={204018,EXTERNAL},[31884]={31884,SELF},[498]={498,SELF},
-    [31850]={31850,SELF},[86659]={86659,SELF},[184662]={184662,SELF},[403876]={403876,SELF},[216331]={216331,SELF},[231895]={231895,SELF},
-    [19236]={19236,SELF},[10060]={10060,EXTERNAL},[33206]={33206,EXTERNAL},[47788]={47788,EXTERNAL},[47536]={47536,SELF},[200183]={200183,SELF},
-    [47585]={47585,SELF},[15286]={15286,SELF},[391109]={391109,SELF},
-    [31224]={31224,SELF},[5277]={5277,SELF},[13750]={13750,SELF},[121471]={121471,SELF},
-    [108271]={108271,SELF},[114050]={114050,SELF},[114051]={114051,SELF},[114052]={114052,SELF},
-    [104773]={104773,SELF},[108416]={108416,SELF},
-    [97462]={97463,SELF},[107574]={107574,SELF},[118038]={118038,SELF},[184364]={184364,SELF},[1719]={1719,SELF},[871]={871,SELF},[12975]={12975,SELF},
+    [49028]={SELF,81256},[48707]={SELF,48707,444741},[51052]={EXTERNAL,51052,145629},
+    [198589]={SELF,212800},[191427]={SELF,162264},[196718]={EXTERNAL,209426},
+    [194223]={SELF,194223,102560,390414},[102560]={SELF,102560,390414},[106951]={SELF,106951,102543},[102543]={SELF,102543},
+    [740]={EXTERNAL,740,157982,1264623},[33891]={SELF,117679,33891},[102342]={EXTERNAL,102342},[77761]={EXTERNAL,77764,106898},
+    [357170]={EXTERNAL,357170},[374227]={EXTERNAL,374227},
+    [19574]={SELF,19574,186254,1235388,1285912},[365350]={SELF,365350,365362},[45438]={SELF,45438,414658},[414658]={SELF,414658,45438},
+    [342245]={SELF,342246},[80353]={EXTERNAL,80353},
+    [123904]={SELF,123904,1248992},[115203]={SELF,115203,120954},[116849]={EXTERNAL,116849},
+    [31884]={SELF,31884,231895,454351,216331,389539},[231895]={SELF,231895,31884},[216331]={SELF,216331,31884},
+    [498]={SELF,498,403876},[403876]={SELF,403876,498},[31821]={EXTERNAL,31821},
+    [1022]={EXTERNAL,1022},[6940]={EXTERNAL,6940},[204018]={EXTERNAL,204018},
+    [62618]={EXTERNAL,81782},[228260]={SELF,194249},[10060]={EXTERNAL,10060},[33206]={EXTERNAL,33206},[47788]={EXTERNAL,47788},
+    [64843]={EXTERNAL,64843,64844},[360194]={SELF,1249810,360194},
+    [114050]={SELF,114050,1219480},[98008]={EXTERNAL,325174},[198103]={SELF,198103,381755},[2825]={EXTERNAL,2825},[32182]={EXTERNAL,32182},
+    [265187]={SELF,1276767,265187},[1122]={SELF,1122,111685,266087,417282},
+    [97462]={EXTERNAL,97463},
 }
 ns.PartyCooldownBuffs=BUFFS
+local function BuffsOf(id)
+    local b=BUFFS[id];if not b then return SELF,{[id]=true}end
+    local set={};for i=2,#b do set[b[i]]=true end
+    return b[1],set
+end
 local sensorHost,sensorTicker
 local sensors={}
 local sensorState={available=nil,reason=nil}
 function ns.PartyCooldownSensors()return sensors,sensorState end
-local function SensorLit(c)
-    local ok,lit=pcall(c.IsMouseOver,c,1e5,-1e5,0,0)
-    return ok and ns.Plain(lit,"boolean")and lit or false
+-- The container's answer. In combat the game hands it out as a hidden yes/no that no addon can
+-- read or compare; it can only be passed on to the game's own helpers and widgets.
+-- Hidden answers are never compared, not even with nil. Returns false when there is no answer.
+local function Plain(v)return ns.Plain(v,"boolean")end
+local function SensorRead(c)
+    local ok,v=pcall(c.IsMouseOver,c,1e5,-1e5,0,0)
+    if not ok then return false end
+    if ns.Plain(v)then return v==true end
+    return v
 end
-local function NewSensor(unit,buff)
+
+-- Hidden timers. A buff that appears in combat gives only a hidden yes, so the start time of its
+-- cooldown cannot be known. It is still kept, as a hidden number: the game's curve helper
+-- (C_CurveUtil.EvaluateColorValueFromBoolean) picks between two numbers by a hidden yes/no and
+-- returns the pick, hidden too. Each tick: "if the buff is up now and was not up before, the
+-- start is now, else keep the old start". The hidden start goes into a status bar over the icon
+-- (bars take hidden values); the bar's range is moved every tick from plain time, so the dark
+-- part shrinks exactly as the cooldown runs out. Nothing about the start is ever read back.
+--
+-- The helper returns colour values, 0 to 1, so a start is coded as a step of 1/255 inside a
+-- window that begins at the slot's epoch: start = epoch + window * code - cd. A code of 0 is a
+-- cooldown that ended before the epoch. The window is about 2.5 cooldowns and a slot takes new
+-- starts only during its first (window - cd) seconds; then the other slot opens. A cooldown
+-- started in a slot ends before that slot is opened again, so two slots per spell are enough.
+local EVAL=function()return C_CurveUtil and C_CurveUtil.EvaluateColorValueFromBoolean end
+local function HiddenTrack(m,id,now)
+    m.hiddenCd=m.hiddenCd or{}
+    local t=m.hiddenCd[id]
+    if not t then
+        local cd=ns.PartyCooldownLength(m,id);if cd<=0 then return nil end
+        local window=cd*2.55
+        t={cd=cd,window=window,open=window-cd,cur=1,slot={{epoch=now,code=0},{epoch=now,code=0}}}
+        m.hiddenCd[id]=t;t.created=true
+    end
+    local sl=t.slot[t.cur]
+    if now-sl.epoch>t.open then t.cur=3-t.cur;t.slot[t.cur]={epoch=now,code=0}end
+    return t
+end
+ns.PartyCooldownHiddenTrack=function(m,id)return m.hiddenCd and m.hiddenCd[id]end
+-- A rising edge between two answers, plain or hidden, written into the open slot.
+local function HiddenEdge(m,id,cur,prev,now)
+    local eval=EVAL();if not eval then return false end
+    local t=HiddenTrack(m,id,now);if not t then return false end
+    local sl=t.slot[t.cur]
+    local code=math.floor((now-sl.epoch+t.cd)/t.window*255+0.5)/255
+    local ok,v=pcall(function()return eval(cur,eval(prev,sl.code,code),sl.code)end)
+    if not ok then sensorState.refused=(sensorState.refused or 0)+1;return false end
+    sl.code=v;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
+    local created=t.created;t.created=nil
+    return true,created
+end
+ns.PartyCooldownHiddenEdge=HiddenEdge
+-- Part of the cooldown still to run for a slot with a plain code (tests and the report).
+function ns.PartyCooldownHiddenLeft(t,now)
+    local best=0
+    for k=1,2 do local sl=t.slot[k]
+        if ns.Plain(sl.code,"number")then best=math.max(best,sl.epoch+t.window*sl.code-t.cd+t.cd-now)end
+    end
+    return math.max(0,best)
+end
+local function HiddenBars(icon)
+    if icon.hidden then return icon.hidden end
+    icon.hidden={}
+    for k=1,2 do
+        local bar=CreateFrame("StatusBar",nil,icon);bar:SetAllPoints(icon)
+        pcall(bar.SetStatusBarTexture,bar,"Interface\\Buttons\\WHITE8X8");pcall(bar.SetStatusBarColor,bar,0,0,0,0.72)
+        pcall(bar.SetOrientation,bar,"VERTICAL");pcall(bar.SetMinMaxValues,bar,0,1);pcall(bar.SetValue,bar,0)
+        icon.hidden[k]=bar
+    end
+    return icon.hidden
+end
+local shownHidden={}
+-- Moves every shown hidden timer to the current time.
+local function SlideHidden()
+    local now=GetTime()
+    for icon,t in pairs(shownHidden)do
+        if icon.track~=t or not icon:IsShown()then shownHidden[icon]=nil
+        else
+            for k=1,2 do local sl,bar=t.slot[k],icon.hidden[k]
+                local low=(now-sl.epoch)/t.window
+                pcall(bar.SetMinMaxValues,bar,low,low+t.cd/t.window);pcall(bar.SetValue,bar,sl.code)
+            end
+        end
+    end
+end
+ns.PartyCooldownSlideHidden=SlideHidden
+function ShowHidden(icon,t)
+    icon.track=t
+    if not t then if icon.hidden then for k=1,2 do icon.hidden[k]:Hide()end end;shownHidden[icon]=nil;return end
+    for k=1,2 do HiddenBars(icon)[k]:Show()end
+    shownHidden[icon]=t
+end
+ns.PartyCooldownShowHidden=ShowHidden
+-- /ndp pcd: what the sensors and the cast tracking see, printed to chat.
+function ns.PartyCooldownReport()
+    local lines={}
+    lines[#lines+1]="Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
+        ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
+        ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")
+    for _,name in ipairs(order)do local m=members[name]
+        local sens=0;for _,s in ipairs(sensors)do if s.member==name then sens=sens+1 end end
+        lines[#lines+1]=name..": "..tostring(m.class).." "..tostring(m.spec and ns.Catalog.specs[m.spec]or"spec unknown")..(m.talented and", talents read"or", talents not read")
+            ..", icons "..#ns.PartyCooldownList(m)..", sensors "..sens..", casts seen "..(m.seen or 0).." hidden "..(m.hidden or 0).." by buff "..(m.sensed or 0)
+            ..", hidden timers "..(function()local n=0;for _ in pairs(m.hiddenCd or{})do n=n+1 end;return n end)()
+    end
+    return lines
+end
+local function NewSensor(unit,buffs)
     if not sensorHost then sensorHost=CreateFrame("Frame",nil,UIParent);sensorHost:SetSize(1,1);sensorHost:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-20,0)end
     local ok,c=pcall(CreateFrame,"AuraContainer",nil,sensorHost,"CustomAuraContainerTemplate")
     if not ok or not c or not c.AddAuraGroup then sensorState.available=false;sensorState.reason="the game has no aura container widget";return nil end
     c:SetSize(1,1);c:ClearAllPoints();c:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-11,0);pcall(c.EnableMouse,c,false)
-    local added=pcall(c.AddAuraGroup,c,"ndp","HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs={[buff]=true}},
+    local added=pcall(c.AddAuraGroup,c,"ndp","HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs=buffs},
         initializeFrame=function(b)pcall(b.SetSize,b,1,1);pcall(b.SetMouseClickEnabled,b,false);pcall(b.SetMouseMotionEnabled,b,false)end,
         layout={elementWidth=50000,elementHeight=1,elementSpacing=0,lineSpacing=0}})
     if not added then sensorState.available=false;sensorState.reason="the aura container refused a buff group";return nil end
-    pcall(c.SetUnit,c,unit);pcall(c.SetEnabled,c,false)
     sensorState.available=true
     return c
 end
@@ -558,58 +693,74 @@ local function Sensed(m,id)
     ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
 end
 local function PollSensors()
+    local now,redraw=GetTime(),false
     for _,s in ipairs(sensors)do
-        local lit=SensorLit(s.frame)
-        if lit and not s.lit then
-            if s.kind==EXTERNAL then Sensed(ExternalOwner(s.spell),s.spell)else Sensed(members[s.member],s.spell)end
+        local v=SensorRead(s.frame)
+        do
+            local m=s.kind==EXTERNAL and s.owner or members[s.member]
+            if Plain(v)and Plain(s.prev)then
+                -- Out of combat the answer is plain: an ordinary timer, with seconds and a swipe.
+                if v and not s.prev then
+                    if s.kind==EXTERNAL then Sensed(ExternalOwner(s.spell),s.spell)else Sensed(m,s.spell)end
+                end
+            elseif m and ns.PartyCooldownTracked(s.spell,m.spec)then
+                local _,created=HiddenEdge(m,s.spell,v,s.prev,now);if created then redraw=true end
+            end
+            s.prev=v;s.lit=Plain(v)and v
         end
-        s.lit=lit
     end
+    -- A new hidden timer needs its bars on the icon.
+    if redraw then ns.DrawPartyCooldowns()end
+    SlideHidden()
 end
 ns.PartyCooldownPollSensors=PollSensors
+-- Entering combat: every container reads its unit again, then follows it.
+local function RefreshSensors()for _,s in ipairs(sensors)do pcall(s.frame.UpdateAllAuras,s.frame)end end
 -- Builds the sensors for the group: each member's own buffs on them, and every external of the
 -- group on everyone. Out of combat only; containers are reused.
 local pool={}
 function ns.RebuildPartyCooldownSensors()
-    for _,s in ipairs(sensors)do pcall(s.frame.SetUnit,s.frame,nil);s.frame:Hide();pool[#pool+1]=s.frame end
+    for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();pool[#pool+1]=s.frame end
     sensors={}
     local cfg=ns.PartyCooldownConfig()
     if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
     if not(cfg.enabled and cfg.sensors)or sensorState.available==false then return 0 end
     if InCombatLockdown and InCombatLockdown()then return 0 end
-    local externals={}
+    local externals,externalOwners={},{}
     for _,name in ipairs(order)do local m=members[name]
-        for _,id in ipairs(ns.PartyCooldownList(m))do local b=BUFFS[id]
-            if b and b[2]==EXTERNAL then externals[id]=b[1]
-            elseif b and not m.me then sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=b[1],kind=SELF}end
+        for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
+            if kind==EXTERNAL then externals[id]=buffs;externalOwners[id]=externalOwners[id]or m
+            elseif not m.me then sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF}end
         end
     end
     for _,name in ipairs(order)do local m=members[name]
-        for id,buff in pairs(externals)do sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buff,kind=EXTERNAL}end
+        for id,buff in pairs(externals)do sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buff,kind=EXTERNAL,owner=externalOwners[id]}end
     end
     local made={}
     for _,s in ipairs(sensors)do
         local c=table.remove(pool)
-        if c then
-            pcall(c.SetAuraGroupCandidateFilters,c,"ndp",{includeSpellIDs={[s.buff]=true}});pcall(c.SetUnit,c,s.unit);c:Show()
+        if c then pcall(c.SetAuraGroupCandidateFilters,c,"ndp",{includeSpellIDs=s.buff});c:Show()
         else c=NewSensor(s.unit,s.buff)end
         if not c then break end
-        s.frame=c;s.lit=SensorLit(c);made[#made+1]=s
+        -- A container only follows its unit's auras while enabled; a full update reads what is up now.
+        pcall(c.SetUnit,c,s.unit);pcall(c.SetEnabled,c,true);pcall(c.UpdateAllAuras,c)
+        s.frame=c;s.prev=SensorRead(c);s.lit=Plain(s.prev)and s.prev;made[#made+1]=s
     end
     sensors=made
-    if #sensors>0 and C_Timer and C_Timer.NewTicker then sensorTicker=C_Timer.NewTicker(0.2,PollSensors)end
+    if #sensors>0 and C_Timer and C_Timer.NewTicker then sensorTicker=C_Timer.NewTicker(0.1,PollSensors)end
     return #sensors
 end
 
 local events=CreateFrame("Frame")
 local function Listen(on)
     for _,e in ipairs({"UNIT_SPELLCAST_SUCCEEDED","GROUP_ROSTER_UPDATE","PLAYER_SPECIALIZATION_CHANGED","TRAIT_CONFIG_UPDATED","INSPECT_READY",
-        "READY_CHECK","PLAYER_REGEN_ENABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD"})do
+        "READY_CHECK","PLAYER_REGEN_ENABLED","PLAYER_REGEN_DISABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD"})do
         if on then pcall(events.RegisterEvent,events,e)elseif events.UnregisterEvent then events:UnregisterEvent(e)end
     end
 end
 function ns.RefreshPartyCooldowns()
     local cfg=ns.PartyCooldownConfig();LoadCustom();Listen(cfg.enabled==true)
+    if cfg.enabled then ReadOwnTalents()end
     if cfg.enabled then ns.PartyCooldownRoster();QueueInspect();ns.SharePartyCooldowns()end
     ns.RebuildPartyCooldownSensors()
     return ns.DrawPartyCooldowns()
@@ -617,6 +768,7 @@ end
 events:SetScript("OnEvent",function(_,event,a,_,c)
     if event=="UNIT_SPELLCAST_SUCCEEDED"then
         if ns.Plain(a,"string")and(a=="player"or a=="target"or a=="focus"or a:match("^party%d")or a:match("^raid%d")or a:match("^nameplate%d"))then ns.PartyCooldownCast(a,c)end
+    elseif event=="PLAYER_REGEN_DISABLED"then RefreshSensors()
     elseif event=="PLAYER_REGEN_ENABLED"then
         for id in pairs(pendingLearn)do if Learn(id)then pendingLearn[id]=nil end end
         ns.SharePartyCooldowns();QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()
@@ -633,7 +785,8 @@ events:SetScript("OnEvent",function(_,event,a,_,c)
     else
         if event~="READY_CHECK"then ns.PartyCooldownRoster()end
         if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then QueueInspect();frameCache={}end
-        if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.talented=nil;m.spec=nil;m.sentSpec=nil end end;QueueInspect()end
+        if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.tries=nil;m.talented=nil;m.spec=nil;m.sentSpec=nil end end;QueueInspect()end
+        if event=="TRAIT_CONFIG_UPDATED"or event=="PLAYER_SPECIALIZATION_CHANGED"and a=="player"then ReadOwnTalents()end
         if event~="READY_CHECK"then ns.RebuildPartyCooldownSensors()end
         ns.SharePartyCooldowns();ns.DrawPartyCooldowns()
     end

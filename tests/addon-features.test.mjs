@@ -801,7 +801,7 @@ local found=false;for _,id in ipairs(ns.PartyCooldownClassSpells('ROGUE'))do if 
 ns.PartyCooldownConfig().detect=false;assert(not ns.PartyCooldownCast('party2',6666666))
 -- Every specialization has cooldowns of its own or its class.
 for class,specs in pairs(ns.ClassSpecs)do for _,spec in ipairs(specs)do
- local list=ns.PartyCooldownList({class=class,spec=spec,used={}});assert(#list>=2,class..' '..spec..' '..#list)
+ local list=ns.PartyCooldownList({class=class,spec=spec,used={},talented={}});assert(#list>=2,class..' '..spec..' '..#list)
 end end
 -- Without inspect or addon, a tank or healer role gives the spec.
 assert(#ns.RoleSpecs('DRUID','HEALER')==1 and ns.RoleSpecs('DRUID','HEALER')[1]==105 and #ns.RoleSpecs('PRIEST','HEALER')==2)
@@ -823,5 +823,41 @@ light(31224,'party2');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(
 ns.PartyCooldownPollSensors();assert(m.Rogue.sensed==1,'a buff that stays up counts once')
 light(33206,'party3');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Friend,33206)>100,'Pain Suppression on the shaman credits the priest')
 cfg.sensors=false;assert(ns.RebuildPartyCooldownSensors()==0);cfg.sensors=true
+-- Strictly by spec: your own list is what your spellbook knows; one Bloodlust or Heroism by faction.
+local book=C_SpellBook.IsSpellKnown;C_SpellBook.IsSpellKnown=function(id)return id==22812 or id==61336 end
+m.Tester.used={};local own=ns.PartyCooldownList(m.Tester);assert(#own==2,#own);C_SpellBook.IsSpellKnown=book
+UnitFactionGroup=function()return'Alliance'end;ns.PartyCooldownRoster()
+local lust,hero=false,false;for _,id in ipairs(ns.PartyCooldownList(m.Follower))do if id==2825 then lust=true elseif id==32182 then hero=true end end;assert(hero and not lust)
+-- Talents seen in any tree are not shown for a member whose talents are not read yet.
+assert(ns.PartyCooldownConfig().talentSpells[5277],'Evasion remembered as a talent')
+m.Rogue.talented=nil;m.Rogue.used={};for _,id in ipairs(ns.PartyCooldownList(m.Rogue))do assert(id~=5277 and id~=31224)end
+assert(ns.PartyCooldownReadTalents(m.Rogue));local cloak=false;for _,id in ipairs(ns.PartyCooldownList(m.Rogue))do if id==31224 then cloak=true end end;assert(cloak)
+-- In combat a sensor answers with a hidden yes/no: the start is kept hidden through the game's
+-- curve helper and drawn by bars whose range follows the clock.
+local hidden={};local real=issecretvalue;issecretvalue=function(v)return v==hidden end
+C_CurveUtil={EvaluateColorValueFromBoolean=function(b,y,n)if b==hidden then return y end;return b and y or n end}
+for _,x in pairs(m)do x.used={};x.hiddenCd=nil end;assert(ns.RebuildPartyCooldownSensors()>0)
+list=ns.PartyCooldownSensors()
+for _,x in ipairs(list)do if x.spell==31224 and x.unit=='party2'then x.frame.IsMouseOver=function()return hidden end end end
+local drawn=0;local draw=ns.DrawPartyCooldowns;ns.DrawPartyCooldowns=function(...)drawn=drawn+1;return draw(...)end
+ns.PartyCooldownPollSensors();ns.DrawPartyCooldowns=draw
+local t=ns.PartyCooldownHiddenTrack(m.Rogue,31224);assert(t,'hidden timer made')
+assert(ns.PartyCooldownLeft(m.Rogue,31224)<=0,'nothing plain is learned from a hidden answer')
+assert(math.abs(ns.PartyCooldownHiddenLeft(t,GetTime())-t.cd)<=t.window/255,'hidden start is now: '..ns.PartyCooldownHiddenLeft(t,GetTime()))
+assert(drawn==1,'icons redrawn once for the new timer')
+env.advance(30);ns.PartyCooldownPollSensors();assert(math.abs(ns.PartyCooldownHiddenLeft(t,GetTime())-(t.cd-30))<=t.window/255,'a buff still up does not restart it')
+-- The bars over the icon: range from the clock, value the hidden start.
+local function fakeBar()local b={};b.SetMinMaxValues=function(_,a,c)b.lo,b.hi=a,c end;b.SetValue=function(_,v)b.v=v end;b.Hide=function()end;b.Show=function()end;return b end
+local fake={IsShown=function()return true end,hidden={fakeBar(),fakeBar()}};ns.PartyCooldownShowHidden(fake,t);ns.PartyCooldownSlideHidden()
+local b=fake.hidden[t.cur];local fill=(b.v-b.lo)/(b.hi-b.lo);assert(fill>0.7 and fill<0.9,'dark part shows the time left '..fill)
+b=fake.hidden[3-t.cur];assert((b.v-b.lo)/(b.hi-b.lo)<=0,'the other slot is empty')
+-- After the cooldown the bar is empty; a slot rolls over before its window runs out.
+env.advance(t.cd);ns.PartyCooldownPollSensors();assert(ns.PartyCooldownHiddenLeft(t,GetTime())==0)
+for i=1,6 do env.advance(t.cd);ns.PartyCooldownPollSensors()end;assert(GetTime()-t.slot[t.cur].epoch<=t.open,'slot rolled')
+issecretvalue=real
+local printed={};local p=print;print=function(t)printed[#printed+1]=t end;ns.Command('pcd');print=p;assert(#printed>=2 and printed[1]:find('Buff sensors',1,true),printed[1])
+-- In dungeons every reminder is spoken by default.
+ns.instanceType='party';local before=#env.shown;ns.Fire({display={type='text',text='Stack',tts=false}});assert(#env.shown==before+1 and env.shown[#env.shown].tts==true,'mplus voice default')
+local cm=ns.ContentMatches;ns.ContentMatches=function()return true end;ns.instanceType='raid';before=#env.shown;ns.Fire({display={type='text',text='Stack',tts=false}});ns.ContentMatches=cm;assert(#env.shown==before+1 and env.shown[#env.shown].tts==false,'raid stays silent')
 ns.Command('party');assert(ns.UIState.tab=='partycds')
 `));
