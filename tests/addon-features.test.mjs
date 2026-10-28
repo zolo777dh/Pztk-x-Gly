@@ -913,7 +913,7 @@ ns.Command('party');assert(ns.UIState.tab=='partycds')
 test('NDP Party Cooldowns runs the same tracking on its own, with /pcd settings, and stays off next to Naowh Defensive Planner',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
  const toc=files['NDPPartyCooldowns/NDPPartyCooldowns.toc'].toString('utf8');assert.match(toc,new RegExp('## Version: '+version.replaceAll('.','\\.')));
- const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Comms.lua','PartyCooldowns.lua','Slash.lua']);
+ const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','Slash.lua']);
  const load=order.map(n=>`;(function(...)\n${files['NDPPartyCooldowns/'+n].toString('utf8')}\nend)('NDPPartyCooldowns',p)`).join('\n');
  await run(`
 C_ChatInfo={RegisterAddonMessagePrefix=function()return true end,SendAddonMessage=function()return 0 end}
@@ -930,6 +930,13 @@ SlashCmdList.NDPPARTYCOOLDOWNS('size 30');assert(p.PartyCooldownConfig().size==3
 SlashCmdList.NDPPARTYCOOLDOWNS('left');assert(p.PartyCooldownConfig().side=='LEFT')
 assert(#p.PartyCooldownOrder()==2);assert(#p.PartyCooldownReport()>=2)
 assert(NDPPartyCooldownsDB.partycds.size==30,'saved in its own variables')
+-- /pcd alone opens the same settings page as in the full addon.
+SlashCmdList.NDPPARTYCOOLDOWNS('');assert(p.PartyCooldownWindow:IsShown())
+p.UIControls['pcd:names']:Click();assert(p.PartyCooldownConfig().names==true)
+p.UIControls['pcd:enabled']:Click();assert(p.PartyCooldownConfig().enabled==false);p.UIControls['pcd:enabled']:Click();assert(p.PartyCooldownConfig().enabled==true)
+p.UIControls['pcd-view:abilities']:Click();p.UIControls['pcd-class:PRIEST']:Click();p.UIControls['pcd-spell:19236']:Click()
+assert(not p.PartyCooldownTracked(19236,256),'switched off from the window')
+p.UIControls['pcd-close']:Click();assert(not p.PartyCooldownWindow:IsShown())
 C_AddOns.IsAddOnLoaded=function(name)return name=='NaowhDefensivePlanner'end
 assert(p.PartyCooldownConfig().enabled==false,'off next to the full addon')
 `);

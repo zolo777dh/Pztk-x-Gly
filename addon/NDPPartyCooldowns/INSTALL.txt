@@ -8,7 +8,8 @@ Install: put the NDPPartyCooldowns folder into World of Warcraft\_retail_\Interf
 restart the game.
 
 It is on by default and shows the important cooldowns of every party member beside the Blizzard or
-ElvUI party frames. Type /pcd in chat for the settings:
+ElvUI party frames. Type /pcd in chat for the settings window (the same page as in Naowh Defensive Planner), or
+/pcd help for the chat commands:
   /pcd on | off, /pcd frames | list, /pcd left | right | top | bottom, /pcd size 20-40,
   /pcd unlock | lock, /pcd ready, /pcd names, /pcd self, /pcd reset, /pcd report
 

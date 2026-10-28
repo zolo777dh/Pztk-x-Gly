@@ -6,5 +6,7 @@
 ## SavedVariables: NDPPartyCooldownsDB
 Core.lua
 Comms.lua
+Widgets.lua
+Window.lua
 PartyCooldowns.lua
 Slash.lua

@@ -2,6 +2,7 @@
 local _,ns=...
 local function say(text)print("|cff33c3a6NDP Party Cooldowns|r "..text)end
 local HELP={
+    "/pcd: the settings window",
     "/pcd on | off: track party cooldowns",
     "/pcd frames | list: icons beside the party frames, or a movable list",
     "/pcd left | right | top | bottom: side of the party frame",
@@ -29,6 +30,7 @@ SlashCmdList.NDPPARTYCOOLDOWNS=function(input)
     elseif cmd=="self"then cfg.self=not cfg.self;say("Your own cooldowns: "..(cfg.self and"on"or"off"))
     elseif cmd=="reset"then ns.PartyCooldownReset();say("All cooldowns are ready again");return
     elseif cmd=="report"then for _,line in ipairs(ns.PartyCooldownReport())do print("  "..line)end;return
+    elseif cmd==""then ns.OpenPartyCooldownWindow();return
     else for _,line in ipairs(HELP)do say(line)end;return end
     ns.RefreshPartyCooldowns()
 end

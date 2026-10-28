@@ -1,5 +1,5 @@
 -- The few Naowh Defensive Planner helpers the party cooldowns need, so they run on their own.
--- Comms.lua and PartyCooldowns.lua are copied from Naowh Defensive Planner when packaging.
+-- Comms.lua, Widgets.lua, PartyCooldowns.lua and the window media are copied from Naowh Defensive Planner when packaging.
 local _,ns=...
 ns.version=C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata("NDPPartyCooldowns","Version")or"standalone"
 function ns.Plain(value,kind)return not(issecretvalue and issecretvalue(value))and(not kind or type(value)==kind)end
@@ -19,10 +19,6 @@ ns.ClassSpecs={WARRIOR={71,72,73},PALADIN={65,66,70},HUNTER={253,254,255},ROGUE=
 ns.Catalog={specs={},spellNames={}}
 ns.L=function(text)return text end
 ns.ExtraPages={}
-ns.Widgets={colors={},SpellTexture=function(id)
-    local get=C_Spell and C_Spell.GetSpellTexture or GetSpellTexture
-    return get and get(id)or 134400
-end}
 -- With Naowh Defensive Planner enabled, it already shows these cooldowns: this addon stays off.
 function ns.FullAddonLoaded()
     local loaded=C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
