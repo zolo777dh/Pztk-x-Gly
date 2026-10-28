@@ -347,7 +347,10 @@ class, then a spec, to switch that spec's cooldowns on or off. Mythic+ keys and 
 Every tracked cooldown has a sensor: its own buff and the buff variants the
 spell can apply; group cooldowns (Bloodlust, Barrier, Rallying Cry...) are
 sensed on everyone and credited to the caster. Spells that leave no aura at all
-are caught only from visible casts. /ndp pcd prints the sensor state, the
+are caught only from visible casts. In combat the game hides the sensor's
+answer from addons; it is passed on, still hidden, to a dark bar over the icon
+that shrinks as the cooldown runs, so these timers have no seconds shown.
+/ndp pcd prints the sensor state, the
 counted casts and what each member is tracked with.
 
 MYTHIC+ VOICE

@@ -367,7 +367,7 @@ function ns.PartyCooldownCast(unit,id)
     ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
     return true
 end
-function ns.PartyCooldownReset()for _,m in pairs(members)do m.used={}end;ns.DrawPartyCooldowns()end
+function ns.PartyCooldownReset()for _,m in pairs(members)do m.used={};m.hiddenCd=nil end;ns.DrawPartyCooldowns()end
 
 ---------------------------------------------------------------------------
 -- Display: a movable list (name and icons per member), or icons beside the Blizzard or ElvUI
@@ -447,20 +447,22 @@ local function UnitFrame(unit)
     frameCache[unit]=best or false;return best
 end
 ns.PartyCooldownFrame=UnitFrame
+local ShowHidden -- hidden timers on icons, defined with the buff sensors
 local SIDES={RIGHT={"LEFT","RIGHT",2,0,1,0},LEFT={"RIGHT","LEFT",-2,0,-1,0},TOP={"BOTTOMLEFT","TOPLEFT",0,2,1,0},BOTTOM={"TOPLEFT","BOTTOMLEFT",0,-2,1,0}}
 local function FillIcons(row,m,ids,size,cfg)
     local n=0
     for _,id in ipairs(ids)do
         local left=ns.PartyCooldownLeft(m,id)
-        if not(cfg.hideReady and left<=0)then
+        local hidden=m.hiddenCd and m.hiddenCd[id]
+        if not(cfg.hideReady and left<=0 and not hidden)then
             n=n+1;local icon=Icon(row,n,size)
             icon.tex:SetTexture(W.SpellTexture(id));icon.spellID=id
             if left>0 then icon.cd:SetCooldown(m.used[id],ns.PartyCooldownLength(m,id));icon.tex:SetDesaturated(true)
             else icon.cd:Clear();icon.tex:SetDesaturated(false)end
-            icon:Show()
+            icon:Show();ShowHidden(icon,hidden)
         end
     end
-    for i=n+1,#row.icons do row.icons[i]:Hide()end
+    for i=n+1,#row.icons do row.icons[i]:Hide();ShowHidden(row.icons[i],nil)end
     return n
 end
 function ns.DrawPartyCooldowns()
@@ -552,33 +554,110 @@ local sensorHost,sensorTicker
 local sensors={}
 local sensorState={available=nil,reason=nil}
 function ns.PartyCooldownSensors()return sensors,sensorState end
--- In combat the game can return the answer as a hidden value; the game's colour curve helper
--- turns a hidden yes/no into an ordinary number.
-local function Unhide(value)
-    if ns.Plain(value,"boolean")then return value end
-    local eval=C_CurveUtil and C_CurveUtil.EvaluateColorValueFromBoolean
-    if value==nil or not eval then return false end
-    local ok,n=pcall(eval,value,1,0)
-    if ok and ns.Plain(n,"number")then sensorState.unhidden=(sensorState.unhidden or 0)+1;return n>0.5 end
-    sensorState.stuck=(sensorState.stuck or 0)+1
-    return false
-end
-ns.PartyCooldownUnhide=Unhide
-local function SensorLit(c)
-    local ok,lit=pcall(c.IsMouseOver,c,1e5,-1e5,0,0)
+-- The container's answer. In combat the game hands it out as a hidden yes/no that no addon can
+-- read or compare; it can only be passed on to the game's own helpers and widgets.
+-- Hidden answers are never compared, not even with nil. Returns false when there is no answer.
+local function Plain(v)return ns.Plain(v,"boolean")end
+local function SensorRead(c)
+    local ok,v=pcall(c.IsMouseOver,c,1e5,-1e5,0,0)
     if not ok then return false end
-    return Unhide(lit)
+    if ns.Plain(v)then return v==true end
+    return v
 end
+
+-- Hidden timers. A buff that appears in combat gives only a hidden yes, so the start time of its
+-- cooldown cannot be known. It is still kept, as a hidden number: the game's curve helper
+-- (C_CurveUtil.EvaluateColorValueFromBoolean) picks between two numbers by a hidden yes/no and
+-- returns the pick, hidden too. Each tick: "if the buff is up now and was not up before, the
+-- start is now, else keep the old start". The hidden start goes into a status bar over the icon
+-- (bars take hidden values); the bar's range is moved every tick from plain time, so the dark
+-- part shrinks exactly as the cooldown runs out. Nothing about the start is ever read back.
+--
+-- The helper returns colour values, 0 to 1, so a start is coded as a step of 1/255 inside a
+-- window that begins at the slot's epoch: start = epoch + window * code - cd. A code of 0 is a
+-- cooldown that ended before the epoch. The window is about 2.5 cooldowns and a slot takes new
+-- starts only during its first (window - cd) seconds; then the other slot opens. A cooldown
+-- started in a slot ends before that slot is opened again, so two slots per spell are enough.
+local EVAL=function()return C_CurveUtil and C_CurveUtil.EvaluateColorValueFromBoolean end
+local function HiddenTrack(m,id,now)
+    m.hiddenCd=m.hiddenCd or{}
+    local t=m.hiddenCd[id]
+    if not t then
+        local cd=ns.PartyCooldownLength(m,id);if cd<=0 then return nil end
+        local window=cd*2.55
+        t={cd=cd,window=window,open=window-cd,cur=1,slot={{epoch=now,code=0},{epoch=now,code=0}}}
+        m.hiddenCd[id]=t;t.created=true
+    end
+    local sl=t.slot[t.cur]
+    if now-sl.epoch>t.open then t.cur=3-t.cur;t.slot[t.cur]={epoch=now,code=0}end
+    return t
+end
+ns.PartyCooldownHiddenTrack=function(m,id)return m.hiddenCd and m.hiddenCd[id]end
+-- A rising edge between two answers, plain or hidden, written into the open slot.
+local function HiddenEdge(m,id,cur,prev,now)
+    local eval=EVAL();if not eval then return false end
+    local t=HiddenTrack(m,id,now);if not t then return false end
+    local sl=t.slot[t.cur]
+    local code=math.floor((now-sl.epoch+t.cd)/t.window*255+0.5)/255
+    local ok,v=pcall(function()return eval(cur,eval(prev,sl.code,code),sl.code)end)
+    if not ok then sensorState.refused=(sensorState.refused or 0)+1;return false end
+    sl.code=v;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
+    local created=t.created;t.created=nil
+    return true,created
+end
+ns.PartyCooldownHiddenEdge=HiddenEdge
+-- Part of the cooldown still to run for a slot with a plain code (tests and the report).
+function ns.PartyCooldownHiddenLeft(t,now)
+    local best=0
+    for k=1,2 do local sl=t.slot[k]
+        if ns.Plain(sl.code,"number")then best=math.max(best,sl.epoch+t.window*sl.code-t.cd+t.cd-now)end
+    end
+    return math.max(0,best)
+end
+local function HiddenBars(icon)
+    if icon.hidden then return icon.hidden end
+    icon.hidden={}
+    for k=1,2 do
+        local bar=CreateFrame("StatusBar",nil,icon);bar:SetAllPoints(icon)
+        pcall(bar.SetStatusBarTexture,bar,"Interface\\Buttons\\WHITE8X8");pcall(bar.SetStatusBarColor,bar,0,0,0,0.72)
+        pcall(bar.SetOrientation,bar,"VERTICAL");pcall(bar.SetMinMaxValues,bar,0,1);pcall(bar.SetValue,bar,0)
+        icon.hidden[k]=bar
+    end
+    return icon.hidden
+end
+local shownHidden={}
+-- Moves every shown hidden timer to the current time.
+local function SlideHidden()
+    local now=GetTime()
+    for icon,t in pairs(shownHidden)do
+        if icon.track~=t or not icon:IsShown()then shownHidden[icon]=nil
+        else
+            for k=1,2 do local sl,bar=t.slot[k],icon.hidden[k]
+                local low=(now-sl.epoch)/t.window
+                pcall(bar.SetMinMaxValues,bar,low,low+t.cd/t.window);pcall(bar.SetValue,bar,sl.code)
+            end
+        end
+    end
+end
+ns.PartyCooldownSlideHidden=SlideHidden
+function ShowHidden(icon,t)
+    icon.track=t
+    if not t then if icon.hidden then for k=1,2 do icon.hidden[k]:Hide()end end;shownHidden[icon]=nil;return end
+    for k=1,2 do HiddenBars(icon)[k]:Show()end
+    shownHidden[icon]=t
+end
+ns.PartyCooldownShowHidden=ShowHidden
 -- /ndp pcd: what the sensors and the cast tracking see, printed to chat.
 function ns.PartyCooldownReport()
     local lines={}
     lines[#lines+1]="Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
         ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
-        ..", hidden answers read "..(sensorState.unhidden or 0)..", unreadable "..(sensorState.stuck or 0)
+        ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")
     for _,name in ipairs(order)do local m=members[name]
         local sens=0;for _,s in ipairs(sensors)do if s.member==name then sens=sens+1 end end
         lines[#lines+1]=name..": "..tostring(m.class).." "..tostring(m.spec and ns.Catalog.specs[m.spec]or"spec unknown")..(m.talented and", talents read"or", talents not read")
             ..", icons "..#ns.PartyCooldownList(m)..", sensors "..sens..", casts seen "..(m.seen or 0).." hidden "..(m.hidden or 0).." by buff "..(m.sensed or 0)
+            ..", hidden timers "..(function()local n=0;for _ in pairs(m.hiddenCd or{})do n=n+1 end;return n end)()
     end
     return lines
 end
@@ -614,13 +693,25 @@ local function Sensed(m,id)
     ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
 end
 local function PollSensors()
+    local now,redraw=GetTime(),false
     for _,s in ipairs(sensors)do
-        local lit=SensorLit(s.frame)
-        if lit and not s.lit then
-            if s.kind==EXTERNAL then Sensed(ExternalOwner(s.spell),s.spell)else Sensed(members[s.member],s.spell)end
+        local v=SensorRead(s.frame)
+        do
+            local m=s.kind==EXTERNAL and s.owner or members[s.member]
+            if Plain(v)and Plain(s.prev)then
+                -- Out of combat the answer is plain: an ordinary timer, with seconds and a swipe.
+                if v and not s.prev then
+                    if s.kind==EXTERNAL then Sensed(ExternalOwner(s.spell),s.spell)else Sensed(m,s.spell)end
+                end
+            elseif m and ns.PartyCooldownTracked(s.spell,m.spec)then
+                local _,created=HiddenEdge(m,s.spell,v,s.prev,now);if created then redraw=true end
+            end
+            s.prev=v;s.lit=Plain(v)and v
         end
-        s.lit=lit
     end
+    -- A new hidden timer needs its bars on the icon.
+    if redraw then ns.DrawPartyCooldowns()end
+    SlideHidden()
 end
 ns.PartyCooldownPollSensors=PollSensors
 -- Entering combat: every container reads its unit again, then follows it.
@@ -635,15 +726,15 @@ function ns.RebuildPartyCooldownSensors()
     if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
     if not(cfg.enabled and cfg.sensors)or sensorState.available==false then return 0 end
     if InCombatLockdown and InCombatLockdown()then return 0 end
-    local externals={}
+    local externals,externalOwners={},{}
     for _,name in ipairs(order)do local m=members[name]
         for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
-            if kind==EXTERNAL then externals[id]=buffs
+            if kind==EXTERNAL then externals[id]=buffs;externalOwners[id]=externalOwners[id]or m
             elseif not m.me then sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF}end
         end
     end
     for _,name in ipairs(order)do local m=members[name]
-        for id,buff in pairs(externals)do sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buff,kind=EXTERNAL}end
+        for id,buff in pairs(externals)do sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buff,kind=EXTERNAL,owner=externalOwners[id]}end
     end
     local made={}
     for _,s in ipairs(sensors)do
@@ -653,10 +744,10 @@ function ns.RebuildPartyCooldownSensors()
         if not c then break end
         -- A container only follows its unit's auras while enabled; a full update reads what is up now.
         pcall(c.SetUnit,c,s.unit);pcall(c.SetEnabled,c,true);pcall(c.UpdateAllAuras,c)
-        s.frame=c;s.lit=SensorLit(c);made[#made+1]=s
+        s.frame=c;s.prev=SensorRead(c);s.lit=Plain(s.prev)and s.prev;made[#made+1]=s
     end
     sensors=made
-    if #sensors>0 and C_Timer and C_Timer.NewTicker then sensorTicker=C_Timer.NewTicker(0.2,PollSensors)end
+    if #sensors>0 and C_Timer and C_Timer.NewTicker then sensorTicker=C_Timer.NewTicker(0.1,PollSensors)end
     return #sensors
 end
 
