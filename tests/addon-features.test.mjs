@@ -956,6 +956,15 @@ local function count(g)local n=0;for _,icon in ipairs(g.frame.icons or{})do if i
 local all=count(G.cc);assert(all>=2,'more than one crowd control spell in the group')
 env.select('pcd-cc:perRow','1');env.select('pcd-cc:rows','1');assert(count(G.cc)==1,'one row of one icon');env.select('pcd-cc:rows','10');assert(count(G.cc)==all)
 env.select('pcd-kick:style','Bars')
+-- Bars take a texture of their own; each list has its own switch for your own spells.
+assert(ns.UIControls['pcd-kick:texture']and not ns.UIControls['pcd-cc:texture']);env.select('pcd-kick:texture','Flat');assert(cfg.anchors.kick.texture=='flat'and cell(G.kick,1766).bar.file==ns.PartyBarFile('flat')and ns.PartyBarFile('flat')~=ns.PartyBarFile(''),'the kick bars use the chosen texture')
+assert(ns.PartyBarFile('lsm:missing')==ns.PartyBarFile(''),'an unknown texture falls back to the game bar');env.select('pcd-kick:texture','Blizzard')
+local function mine(g)for _,icon in ipairs(g.frame.icons or{})do if icon:IsShown()and icon.member==m.Tester.name then return true end end return false end
+assert(cfg.anchors.kick.self~=false and cfg.anchors.cc.self~=false and ns.UIControls['pcd-kick:self']and ns.UIControls['pcd-cc:self'])
+local ownKick,ownCc=#ns.PartyCooldownList(m.Tester,'kick')>0,#ns.PartyCooldownList(m.Tester,'cc')>0;assert(ownKick or ownCc,'the player has a kick or a stun')
+assert(mine(G.kick)==ownKick and mine(G.cc)==ownCc)
+env.click('pcd-kick:self');env.click('pcd-cc:self');assert(cfg.anchors.kick.self==false and cfg.anchors.cc.self==false and not mine(G.kick)and not mine(G.cc),'your own kicks and stuns can be hidden list by list')
+assert(shows(G.kick,1766)and shows(G.cc,2094),'others stay');env.click('pcd-kick:self');assert(mine(G.kick)==ownKick and not mine(G.cc));env.click('pcd-cc:self')
 cfg.anchors.cc.x=300;assert(ns.DrawPartyCooldowns());assert(G.cc.x==300);env.click('pcd-cc:reset');assert(cfg.anchors.cc.x==-420 and G.cc.x==-420)
 env.click('pcd:kicks');assert(cfg.kicks==false and not has(m.Rogue,1766)and not G.kick.frame:IsShown());env.click('pcd:cc');assert(not has(m.Rogue,2094)and not G.cc.frame:IsShown())
 env.click('pcd:kicks');env.click('pcd:cc');assert(has(m.Rogue,1766)and has(m.Rogue,2094))
