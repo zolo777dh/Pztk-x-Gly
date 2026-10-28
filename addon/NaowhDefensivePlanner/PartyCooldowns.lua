@@ -40,7 +40,7 @@ for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={clas
 -- spec = only for that specialization}. A rank counts as many times as it is taken. Entries with
 -- no talent apply to the whole spec.
 local TALENT_CD={
-    [49028]={{377637,add=-30}},[48707]={{205727,add=-20},{457574,add=20}},[51052]={{374383,add=-60}},
+    [48707]={{205727,add=-20},{457574,add=20}},[51052]={{374383,add=-60}},
     [196718]={{389783,add=-120}},
     [194223]={{390378,add=-60},{468743,add=-60}},[102560]={{390378,add=-60},{468743,add=-60}},
     [106951]={{391174,add=-60},{391548,add=-30}},[102543]={{391174,add=-60},{391548,add=-30}},
@@ -61,10 +61,12 @@ local TALENT_CD={
 -- Cooldowns cut while the fight goes on, by the resource a member spends (read from their power
 -- bar): `sec` seconds per `per` spent, on these spells per spec. Warrior Anger Management (rage),
 -- Blood Red Thirst (runic power on Vampiric Blood), Guardian Ursoc's Guidance (rage on Incarnation).
-local SPEND={WARRIOR={talent=152278,power=1,sec=1,per={[71]=20,[72]=20,[73]=10},
+-- `rate`: seconds cut per second of combat at the spec's usual spending pace, used while the game
+-- hides the member's power bar (others in combat).
+local SPEND={WARRIOR={talent=152278,power=1,sec=1,per={[71]=20,[72]=20,[73]=10},rate={[71]=0.35,[72]=0.45,[73]=0.8},
         spells={[71]={107574,227847},[72]={1719,107574,227847},[73]={107574,871}}},
-    DEATHKNIGHT={talent=205723,power=6,sec=2,per={[250]=10},spells={[250]={55233}}},
-    DRUID={talent=393414,power=1,sec=1,per={[104]=25},spells={[104]={102558}}}}
+    DEATHKNIGHT={talent=205723,power=6,sec=2,per={[250]=10},rate={[250]=0.6},spells={[250]={55233}}},
+    DRUID={talent=393414,power=1,sec=1,per={[104]=25},rate={[104]=0.3},spells={[104]={102558}}}}
 -- Talents read from trees: those that change a cooldown and those that cut one by spending.
 local WANTED={}
 for _,mods in pairs(TALENT_CD)do for _,x in ipairs(mods)do if x[1]then WANTED[x[1]]=true end end end
@@ -977,7 +979,15 @@ function ns.PartyCooldownPower(unit)
                     end
                 end
                 m.power=power
-            else spendState.hidden=spendState.hidden+1;m.power=nil end
+            else spendState.hidden=spendState.hidden+1;m.power=nil
+                -- Hidden bar: the cut follows the spec's usual pace while the group fights, in whole seconds.
+                local now,rate=GetTime(),sp.rate and sp.rate[m.spec]
+                if rate and m.estAt and InCombatLockdown and InCombatLockdown()then
+                    m.est=(m.est or 0)+rate*math.min(2,math.max(0,now-m.estAt))
+                    while m.est>=0.999 do m.est=m.est-1;for _,id in ipairs(sp.spells[m.spec]or{})do Shorten(m,id,1)end end
+                end
+                m.estAt=now
+            end
             if m.shortened and GetTime()-lastSpendDraw>1 then m.shortened=nil;lastSpendDraw=GetTime();ns.DrawPartyCooldowns()end
         end
     end
