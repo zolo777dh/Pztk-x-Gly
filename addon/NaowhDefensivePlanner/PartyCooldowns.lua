@@ -129,7 +129,8 @@ end
 ns.PartyCooldownDynamic=Dynamic
 ns.PartyCooldownTalentMods=TALENT_CD
 local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},
-    anchors={kick={x=-420,y=-60,size=30,names=true,hideReady=false,grow="DOWN"},cc={x=-420,y=-220,size=30,names=true,hideReady=false,grow="DOWN"}},learned={},disabled={},specOff={},custom={},talentSpells={}}
+    anchors={kick={x=-420,y=-60,style="bars",size=22,width=200,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false},
+        cc={x=-420,y=-220,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false}},learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
     local store=ns.Store();store.partycds=store.partycds or{}
     local c=store.partycds
@@ -349,7 +350,7 @@ local function InspectNext()
     if not(NotifyInspect and CanInspect)then return end
     for _,name in ipairs(order)do local m=members[name]
         -- No answer (out of range...): asked again after 15 s, up to 6 times.
-        if m and not m.me and not m.ndp and(not m.spec or not m.talented)and(m.tries or 0)<6 and(not m.asked or GetTime()-m.asked>15)then
+        if m and not m.me and not m.addon and(not m.spec or not m.talented)and(m.tries or 0)<6 and(not m.asked or GetTime()-m.asked>15)then
             local ok,can=pcall(CanInspect,m.unit);if ok and can then m.asked=GetTime();m.tries=(m.tries or 0)+1;pcall(NotifyInspect,m.unit)
                 if C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(2,InspectNext)end;return end
         end
@@ -445,7 +446,7 @@ ns.CommHandlers.PCD=function(text,sender)
     local fields={};for f in(text..";"):gmatch("([^;]*);")do fields[#fields+1]=f end
     local spec=tonumber(fields[1]);if not spec or #fields>80 then return end
     local m=members[sender]or{name=sender,used={}};members[sender]=m
-    m.sentSpec=spec>0 and spec or nil;m.spec=m.sentSpec or m.spec;m.known={};m.cds={};m.ndp=true
+    m.sentSpec=spec>0 and spec or nil;m.spec=m.sentSpec or m.spec;m.known={};m.cds={};m.addon=true
     for i=2,#fields do
         local id,cd=fields[i]:match("^(%d+)=(%d+)$");id,cd=tonumber(id),tonumber(cd)
         if id and cd and cd>0 and cd<=1800 then
@@ -646,6 +647,101 @@ local function DrawRows(g,entries,opts,unlocked)
     if #entries>0 or unlocked then f:Show()else f:Hide()end
     return #entries
 end
+-- Interrupts and crowd control: one cell per member and spell, as icons or as bars, in a grid.
+-- a.style "icons" or "bars"; a.size: icon size or bar height; a.width: bar width; a.dir "RIGHT" or
+-- "LEFT": where bars fill and the grid grows; a.grow "DOWN" or "UP"; a.perRow cells in a row, a.rows
+-- rows at most.
+local BAR_TEXTURE="Interface\\TargetingFrame\\UI-StatusBar"
+local function CellSpellName(id)
+    local ok,name=pcall(C_Spell and C_Spell.GetSpellName or function()end,id)
+    return ok and ns.Plain(name,"string")and name or""
+end
+local function Timing(m,id)
+    local start,dur;if m.me then start,dur=OwnCooldown(id)end
+    if not start and m.used[id]then start,dur=m.used[id],ns.PartyCooldownLength(m,id)end
+    local left=start and math.max(0,start+dur-GetTime())or 0
+    return left,start,dur,m.hiddenCd and m.hiddenCd[id]
+end
+local function Cell(g,i)
+    local f=g.frame;f.icons=f.icons or{}
+    local cell=Icon(f,i,10)
+    if not cell.bar then
+        local bar=CreateFrame("StatusBar",nil,f);bar:SetStatusBarTexture(BAR_TEXTURE);bar:SetMinMaxValues(0,1);bar:SetValue(1)
+        bar.bg=bar:CreateTexture(nil,"BACKGROUND");bar.bg:SetAllPoints();bar.bg:SetColorTexture(0,0,0,0.55)
+        bar.name=bar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        bar.time=bar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+        cell.bar=bar
+        cell.label=cell:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+    end
+    return cell
+end
+-- Bars drain while their cooldown runs. Only exact timers show seconds.
+local function UpdateBars(self,elapsed)
+    self.wait=(self.wait or 0)-(elapsed or 0);if self.wait>0 then return end;self.wait=0.1
+    local now=GetTime()
+    for _,cell in ipairs(self.icons or{})do local bar=cell.bar
+        if bar and bar:IsShown()then
+            local left=bar.start and bar.start+bar.dur-now or 0
+            if left>0 then bar:SetMinMaxValues(0,bar.dur);bar:SetValue(left);bar.time:SetText(math.ceil(left))
+            else bar:SetMinMaxValues(0,1);bar:SetValue(bar.hidden and 0 or 1);bar.time:SetText("")end
+        end
+    end
+end
+local function DrawAnchor(g,entries,a,unlocked)
+    local f=g.frame;Anchor(g)
+    local bars=a.style=="bars";local size=tonumber(a.size)or 26;local width=bars and math.max(size+20,tonumber(a.width)or 180)or size
+    local perRow=math.max(1,math.floor(tonumber(a.perRow)or 1));local rows=math.max(1,math.floor(tonumber(a.rows)or 5))
+    local left,up,gap=a.dir=="LEFT",a.grow=="UP",2
+    local h,v=left and"RIGHT"or"LEFT",up and"BOTTOM"or"TOP"
+    local font=W.Font and W.Font(true)
+    local n=0
+    for _,e in ipairs(entries)do local m=e[1]
+        for _,id in ipairs(e[2])do
+            local remain,start,dur,hidden=Timing(m,id)
+            if n<perRow*rows and not(a.hideReady and remain<=0 and not hidden)then
+                n=n+1;local cell=Cell(g,n);local col,row=(n-1)%perRow,math.floor((n-1)/perRow)
+                cell:ClearAllPoints();cell:SetSize(size,size)
+                cell:SetPoint(v..h,f,v..h,(left and-1 or 1)*(3+col*(width+gap)),(up and 1 or-1)*(3+row*(size+gap)))
+                cell.tex:SetTexture(W.SpellTexture(id));cell.spellID=id;cell.member=m.name
+                if remain>0 and start then cell.cd:SetCooldown(start,dur);cell.tex:SetDesaturated(true)else cell.cd:Clear();cell.tex:SetDesaturated(false)end
+                cell:Show();ShowHidden(cell,hidden)
+                local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
+                local r,gr,b=c and c.r or 0.6,c and c.g or 0.36,c and c.b or 1
+                local bar,label=cell.bar,cell.label
+                local name=ns.DisplayName and ns.DisplayName(m.name)or m.name
+                if bars then
+                    bar:ClearAllPoints();bar:SetSize(width-size-gap,size)
+                    if left then bar:SetPoint("RIGHT",cell,"LEFT",-gap,0)else bar:SetPoint("LEFT",cell,"RIGHT",gap,0)end
+                    if bar.SetReverseFill then bar:SetReverseFill(left)end
+                    bar:SetStatusBarColor(r,gr,b,1)
+                    bar.start,bar.dur,bar.hidden=remain>0 and start or nil,dur,hidden~=nil
+                    if type(font)=="string"then bar.name:SetFont(font,11,"OUTLINE");bar.time:SetFont(font,11,"OUTLINE")end
+                    bar.name:ClearAllPoints();bar.time:ClearAllPoints()
+                    bar.name:SetPoint(left and"RIGHT"or"LEFT",bar,left and"RIGHT"or"LEFT",left and-4 or 4,0)
+                    bar.time:SetPoint(left and"LEFT"or"RIGHT",bar,left and"LEFT"or"RIGHT",left and 4 or-4,0)
+                    bar.name:SetText(a.names and name or CellSpellName(id))
+                    bar:Show();label:Hide()
+                else
+                    bar:Hide();bar.start=nil
+                    if a.names then
+                        if type(font)=="string"then label:SetFont(font,9,"OUTLINE")end
+                        label:ClearAllPoints();label:SetPoint("BOTTOM",cell,"BOTTOM",0,1);label:SetWidth(size)
+                        label:SetText(name);label:SetTextColor(r,gr,b);label:Show()
+                    else label:Hide()end
+                end
+            end
+        end
+    end
+    for i=n+1,#(f.icons or{})do local cell=f.icons[i];cell:Hide();ShowHidden(cell,nil);if cell.bar then cell.bar:Hide();cell.bar.start=nil end end
+    local cols=math.max(1,math.min(perRow,n));local used=math.max(1,math.ceil(n/perRow))
+    f:SetSize(cols*(width+gap)+4,used*(size+gap)+4);f:EnableMouse(unlocked==true)
+    f.title:SetText(L(TITLES[g.key]))
+    if unlocked then f.bg:Show();f.title:Show()else f.bg:Hide();f.title:Hide()end
+    if n>0 or unlocked then f:Show()else f:Hide()end
+    if bars and n>0 then f.wait=0;f:SetScript("OnUpdate",UpdateBars);UpdateBars(f,0)else f:SetScript("OnUpdate",nil)end
+    return n
+end
+ns.PartyCooldownUpdateBars=UpdateBars
 function ns.DrawPartyCooldowns()
     local cfg=ns.PartyCooldownConfig()
     attached=attached or{}
@@ -678,8 +774,8 @@ function ns.DrawPartyCooldowns()
         local x=ns.PartyCooldownList(m,"cc");if #x>0 then cc[#cc+1]={m,x}end
     end
     DrawRows(Group("main"),main,cfg,cfg.unlocked)
-    DrawRows(Group("kick"),cfg.kicks~=false and kicks or{},cfg.anchors.kick,cfg.unlocked and cfg.kicks~=false)
-    DrawRows(Group("cc"),cfg.cc~=false and cc or{},cfg.anchors.cc,cfg.unlocked and cfg.cc~=false)
+    DrawAnchor(Group("kick"),cfg.kicks~=false and kicks or{},cfg.anchors.kick,cfg.unlocked and cfg.kicks~=false)
+    DrawAnchor(Group("cc"),cfg.cc~=false and cc or{},cfg.anchors.cc,cfg.unlocked and cfg.cc~=false)
     return true
 end
 
@@ -939,7 +1035,7 @@ ns.PartyCooldownShowHidden=ShowHidden
 -- /ndp pcd: what the sensors and the cast tracking see, printed to chat.
 function ns.PartyCooldownReport()
     local lines={}
-    lines[#lines+1]="NDP "..tostring(ns.version)..", in combat: "..tostring(InCombatLockdown and InCombatLockdown()or false)..". Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
+    lines[#lines+1]="Party cooldowns "..tostring(ns.version)..", in combat: "..tostring(InCombatLockdown and InCombatLockdown()or false)..". Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
         ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
         ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", power bars read "..spendState.plain.." hidden "..spendState.hidden..", exact times "..tostring(ns.PartyCooldownFine and ns.PartyCooldownFine()or false)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")
     local k=ns.PartyCooldownKickStats and ns.PartyCooldownKickStats()
@@ -958,7 +1054,7 @@ local function NewSensor(unit,buffs,filter)
     local ok,c=pcall(CreateFrame,"AuraContainer",nil,sensorHost,"CustomAuraContainerTemplate")
     if not ok or not c or not c.AddAuraGroup then sensorState.available=false;sensorState.reason="the game has no aura container widget";return nil end
     c:SetSize(1,1);c:ClearAllPoints();c:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-11,0);pcall(c.EnableMouse,c,false)
-    local added=pcall(c.AddAuraGroup,c,"ndp",filter or"HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs=buffs},
+    local added=pcall(c.AddAuraGroup,c,"pcd",filter or"HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs=buffs},
         initializeFrame=function(b)pcall(b.SetSize,b,1,1);pcall(b.SetMouseClickEnabled,b,false);pcall(b.SetMouseMotionEnabled,b,false)end,
         layout={elementWidth=50000,elementHeight=1,elementSpacing=0,lineSpacing=0}})
     if not added then sensorState.available=false;sensorState.reason="the aura container refused a buff group";return nil end
@@ -1066,7 +1162,7 @@ function ns.RebuildPartyCooldownSensors()
     for _,s in ipairs(sensors)do
         s.filter=s.filter or"HELPFUL"
         local c=table.remove(pools[s.filter])
-        if c then pcall(c.SetAuraGroupCandidateFilters,c,"ndp",{includeSpellIDs=s.buff});c:Show()
+        if c then pcall(c.SetAuraGroupCandidateFilters,c,"pcd",{includeSpellIDs=s.buff});c:Show()
         else c=NewSensor(s.unit,s.buff,s.filter)end
         if not c then break end
         sensorUnits[s.unit]=true
@@ -1314,17 +1410,24 @@ local ANCHOR_HELP={
 }
 function DrawAnchors(parent,apply)
     local cfg=ns.PartyCooldownConfig()
-    local sizes={};for _,s in ipairs({20,24,26,30,36,42,48})do sizes[#sizes+1]={value=s,label=s.." px"}end
+    local function list(values,suffix)local out={};for _,v in ipairs(values)do out[#out+1]={value=v,label=v..(suffix or"")}end;return out end
+    local sizes,widths,counts=list({16,18,20,22,24,26,30,36,42,48}," px"),list({120,150,180,200,240,280,320}," px"),list({1,2,3,4,5,6,7,8,9,10})
     for i,key in ipairs({"kick","cc"})do
-        local a=cfg.anchors[key];local field=key=="kick"and"kicks"or"cc"
+        local a=cfg.anchors[key];local field=key=="kick"and"kicks"or"cc";local id="pcd-"..key..":"
+        local bars=a.style=="bars"
         local card=W.Card(parent,(i-1)*466,56,454,484,L(TITLES[key]))
         W.Toggle(card,L("Show"),cfg[field]~=false,12,34,430,function(v)cfg[field]=v;apply()end,"pcd:"..field)
-        W.Select(card,L("ICON SIZE"),sizes,tonumber(a.size)or 30,12,70,207,function(v)a.size=v;apply()end,"pcd-"..key..":size")
-        W.Select(card,L("GROWS"),{{value="DOWN",label=L("Down")},{value="UP",label=L("Up")}},a.grow or"DOWN",235,70,207,function(v)a.grow=v;apply()end,"pcd-"..key..":grow")
-        W.Toggle(card,L("Names"),a.names,12,130,207,function(v)a.names=v;apply()end,"pcd-"..key..":names")
-        W.Toggle(card,L("Only in use"),a.hideReady,235,130,207,function(v)a.hideReady=v;apply()end,"pcd-"..key..":hideReady")
-        W.Button(card,L("Reset position"),12,170,430,function()local d=defaults.anchors[key];a.x,a.y=d.x,d.y;apply()end,false,"pcd-"..key..":reset",{kind="outline",align="CENTER"})
-        W.Label(card,L(ANCHOR_HELP[key]),12,214,430,11,C.muted)
+        W.Select(card,L("STYLE"),{{value="icons",label=L("Icons")},{value="bars",label=L("Bars")}},bars and"bars"or"icons",12,70,207,function(v)a.style=v;apply()end,id.."style")
+        W.Select(card,bars and L("BAR HEIGHT")or L("ICON SIZE"),sizes,tonumber(a.size)or 30,235,70,207,function(v)a.size=v;apply()end,id.."size")
+        W.Select(card,L("HORIZONTAL"),{{value="RIGHT",label=L("To the right")},{value="LEFT",label=L("To the left")}},a.dir or"RIGHT",12,126,207,function(v)a.dir=v;apply()end,id.."dir")
+        W.Select(card,L("VERTICAL"),{{value="DOWN",label=L("Down")},{value="UP",label=L("Up")}},a.grow or"DOWN",235,126,207,function(v)a.grow=v;apply()end,id.."grow")
+        W.Select(card,L("PER ROW"),counts,tonumber(a.perRow)or 1,12,182,207,function(v)a.perRow=v;apply()end,id.."perRow")
+        W.Select(card,L("ROWS"),counts,tonumber(a.rows)or 5,235,182,207,function(v)a.rows=v;apply()end,id.."rows")
+        if bars then W.Select(card,L("BAR WIDTH"),widths,tonumber(a.width)or 180,12,238,207,function(v)a.width=v;apply()end,id.."width")end
+        W.Toggle(card,L("Names"),a.names,12,300,207,function(v)a.names=v;apply()end,id.."names")
+        W.Toggle(card,L("Only in use"),a.hideReady,235,300,207,function(v)a.hideReady=v;apply()end,id.."hideReady")
+        W.Button(card,L("Reset position"),12,336,430,function()local d=defaults.anchors[key];a.x,a.y=d.x,d.y;apply()end,false,id.."reset",{kind="outline",align="CENTER"})
+        W.Label(card,L(ANCHOR_HELP[key]),12,378,430,11,C.muted)
     end
     W.Button(parent,cfg.unlocked and L("Lock")or L("Unlock and preview"),0,552,454,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
     W.Label(parent,L("Unlock shows every list with its name; drag them where you want them."),466,560,454,11,C.muted)
@@ -1362,7 +1465,7 @@ local function DrawPage(parent)
     for i,name in ipairs(names)do if i<=10 then
         local m=members[name];local row=W.Panel(c2,12,y,586,40,C.raised,C.clear,6)
         W.Dot(row,8,15,kit.classColor(m.class));W.Label(row,ns.DisplayName and ns.DisplayName(name)or name,22,6,170,12,kit.classColor(m.class)):SetWordWrap(false)
-        local source=m.me and L("You")or m.ndp and L("Sent by their addon")or m.talented and L("Talents from inspect")or L("Base cooldowns from the game")
+        local source=m.me and L("You")or m.addon and L("Sent by their addon")or m.talented and L("Talents from inspect")or L("Base cooldowns from the game")
         W.Label(row,(m.spec and ns.Catalog.specs[m.spec]and L(ns.Catalog.specs[m.spec])or L("Specialization unknown")).." · "..source,22,22,170,10,C.muted):SetWordWrap(false)
         if m.seen or m.hidden or m.sensed then
             local t=W.Label(row,L("Casts")..": "..(m.seen or 0).." "..L("seen")..", "..(m.hidden or 0).." "..L("hidden")..", "..(m.sensed or 0).." "..L("by buff"),396,14,184,10,(m.hidden or 0)>0 and C.warning or C.muted);t:SetJustifyH("RIGHT")

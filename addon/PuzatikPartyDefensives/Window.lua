@@ -1,4 +1,4 @@
--- The settings window: the party cooldowns page of Naowh Defensive Planner in a window of its own.
+-- The settings window: the party cooldowns page in a window of its own.
 -- Loads before PartyCooldowns.lua, which keeps ns.UIKit from load time.
 local _,ns=...
 local W=ns.Widgets
