@@ -59,9 +59,12 @@ local TALENT_CD={
     [118038]={{391271,pct=-10}},[184364]={{391271,pct=-10}},
 }
 -- Cooldowns cut while the fight goes on, by the resource a member spends (read from their power
--- bar): warrior Anger Management, 1 second per `per` rage spent, on these spells per spec.
-local SPEND={WARRIOR={talent=152278,power=1,per={[71]=20,[72]=20,[73]=10},
-    spells={[71]={107574,227847},[72]={1719,107574,227847},[73]={107574,871}}}}
+-- bar): `sec` seconds per `per` spent, on these spells per spec. Warrior Anger Management (rage),
+-- Blood Red Thirst (runic power on Vampiric Blood), Guardian Ursoc's Guidance (rage on Incarnation).
+local SPEND={WARRIOR={talent=152278,power=1,sec=1,per={[71]=20,[72]=20,[73]=10},
+        spells={[71]={107574,227847},[72]={1719,107574,227847},[73]={107574,871}}},
+    DEATHKNIGHT={talent=205723,power=6,sec=2,per={[250]=10},spells={[250]={55233}}},
+    DRUID={talent=393414,power=1,sec=1,per={[104]=25},spells={[104]={102558}}}}
 -- Talents read from trees: those that change a cooldown and those that cut one by spending.
 local WANTED={}
 for _,mods in pairs(TALENT_CD)do for _,x in ipairs(mods)do if x[1]then WANTED[x[1]]=true end end end
@@ -651,6 +654,21 @@ end
 -- slot is opened again, so two slots per spell are enough. Epochs and the clock used for drawing
 -- are whole seconds, so the seconds shown are whole too.
 local EVAL=function()return C_CurveUtil and C_CurveUtil.EvaluateColorValueFromBoolean end
+-- Each slot keeps the start twice: `code` as finely as the curve helper carries numbers (checked
+-- once, see Fine), for the dark fill and the grey cover, which so end on the exact moment; and
+-- `whole`, in whole steps from a whole-second epoch, for the seconds column.
+local fine
+local function Fine()
+    if fine~=nil then return fine end
+    local eval=EVAL();if not eval then return false end
+    local ok,a=pcall(eval,true,0.123456789,0);local ok2,b=pcall(eval,false,0,0.987654321)
+    fine=ok and ok2 and a==0.123456789 and b==0.987654321 or false
+    return fine
+end
+ns.PartyCooldownFine=function()fine=nil;return Fine()end
+local function NewSlot(now)return{epoch=Fine()and now or math.floor(now),code=0,wepoch=math.floor(now),whole=0}end
+local function MoveSlot(sl,sec)sl.epoch=sl.epoch+sec;sl.wepoch=sl.wepoch+sec end
+ns.PartyCooldownMoveSlot=MoveSlot
 local HiddenTrack
 function HiddenTrack(m,id,now)
     m.hiddenCd=m.hiddenCd or{}
@@ -658,30 +676,31 @@ function HiddenTrack(m,id,now)
     if not t then
         local cd=math.floor(ns.PartyCooldownLength(m,id)+0.5);if cd<=0 then return nil end
         local unit=math.max(1,math.ceil(cd/100));local window=255*unit
-        local epoch=math.floor(now)
-        t={cd=cd,unit=unit,window=window,open=window-cd,cur=1,slot={{epoch=epoch,code=0},{epoch=epoch,code=0}}}
+        t={cd=cd,unit=unit,window=window,open=window-cd,cur=1,slot={NewSlot(now),NewSlot(now)}}
         m.hiddenCd[id]=t;t.created=true
     end
     -- The length changed (talents read, a sent cooldown): a running timer keeps its start.
     local cd=math.floor(ns.PartyCooldownLength(m,id)+0.5)
     if cd~=t.cd and cd>0 then
-        if cd*2<=t.window then for k=1,2 do t.slot[k].epoch=t.slot[k].epoch+cd-t.cd end;t.cd=cd;t.open=t.window-cd
+        if cd*2<=t.window then for k=1,2 do MoveSlot(t.slot[k],cd-t.cd)end;t.cd=cd;t.open=t.window-cd
         else m.hiddenCd[id]=nil;return HiddenTrack(m,id,now)end
     end
     local sl=t.slot[t.cur]
-    if now-sl.epoch>t.open then t.cur=3-t.cur;t.slot[t.cur]={epoch=math.floor(now),code=0};t.moved=true end
+    if now-sl.wepoch>t.open then t.cur=3-t.cur;t.slot[t.cur]=NewSlot(now);t.moved=true end
     return t
 end
 ns.PartyCooldownHiddenTrack=function(m,id)return m.hiddenCd and m.hiddenCd[id]end
 -- A rising edge between two answers, plain or hidden, written into the open slot.
-local function HiddenEdge(m,id,cur,prev,now)
+-- `at` is when the buff appeared (the game's aura event), `now` the time of this read.
+local function HiddenEdge(m,id,cur,prev,now,at)
     local eval=EVAL();if not eval then return false end
     local t=HiddenTrack(m,id,now);if not t then return false end
-    local sl=t.slot[t.cur]
-    local code=math.min(255,math.floor((math.floor(now)-sl.epoch+t.cd)/t.unit+0.5))/255
-    local ok,v=pcall(function()return eval(cur,eval(prev,sl.code,code),sl.code)end)
+    local sl=t.slot[t.cur];at=at or now
+    local whole=math.min(255,math.floor((at-sl.wepoch+t.cd)/t.unit+0.5))/255
+    local code=Fine()and math.min(1,(at-sl.epoch+t.cd)/t.window)or whole
+    local ok,v,w=pcall(function()return eval(cur,eval(prev,sl.code,code),sl.code),eval(cur,eval(prev,sl.whole,whole),sl.whole)end)
     if not ok then sensorState.refused=(sensorState.refused or 0)+1;return false end
-    sl.code=v;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
+    sl.code,sl.whole=v,w;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
     local created=t.created;t.created=nil
     return true,created
 end
@@ -781,13 +800,13 @@ local function SlideHidden()
             for k=1,2 do local sl,p=t.slot[k],parts[k]
                 local low=(now-sl.epoch)/t.window
                 pcall(p.fill.SetMinMaxValues,p.fill,low,low+t.cd/t.window);pcall(p.fill.SetValue,p.fill,sl.code)
-                pcall(p.pos.SetValue,p.pos,sl.code);pcall(p.gate.SetValue,p.gate,sl.code)
-                -- Whole seconds: the column and the grey cover move once per second.
-                if p.second~=second or p.epoch~=sl.epoch then
-                    p.second,p.epoch=second,sl.epoch
-                    local behind=second-sl.epoch
-                    p.pos:ClearAllPoints();p.pos:SetPoint("BOTTOM",parts.win,"BOTTOM",0,-behind*parts.step)
-                    p.gate:ClearAllPoints();p.gate:SetPoint("BOTTOM",icon,"BOTTOM",0,-behind*parts.jump)
+                pcall(p.pos.SetValue,p.pos,sl.whole);pcall(p.gate.SetValue,p.gate,sl.code)
+                -- The grey cover follows the clock every frame, so it leaves the icon on time.
+                p.gate:ClearAllPoints();p.gate:SetPoint("BOTTOM",icon,"BOTTOM",0,-(now-sl.epoch)*parts.jump)
+                -- Whole seconds: the column moves once per second.
+                if p.second~=second or p.epoch~=sl.wepoch then
+                    p.second,p.epoch=second,sl.wepoch
+                    p.pos:ClearAllPoints();p.pos:SetPoint("BOTTOM",parts.win,"BOTTOM",0,-(second-sl.wepoch)*parts.step)
                 end
             end
         end
@@ -812,7 +831,7 @@ function ns.PartyCooldownReport()
     local lines={}
     lines[#lines+1]="NDP "..tostring(ns.version)..", in combat: "..tostring(InCombatLockdown and InCombatLockdown()or false)..". Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
         ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
-        ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", power bars read "..spendState.plain.." hidden "..spendState.hidden..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")
+        ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", power bars read "..spendState.plain.." hidden "..spendState.hidden..", exact times "..tostring(ns.PartyCooldownFine and ns.PartyCooldownFine()or false)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")
     for _,name in ipairs(order)do local m=members[name]
         local sens=0;for _,s in ipairs(sensors)do if s.member==name then sens=sens+1 end end
         lines[#lines+1]=name..": "..tostring(m.class).." "..tostring(m.spec and ns.Catalog.specs[m.spec]or"spec unknown")..(m.talented and", talents read"or", talents not read")
@@ -845,38 +864,55 @@ local function ExternalOwner(id)
     end
     return best
 end
-local function Sensed(m,id)
+local function Sensed(m,id,at)
     if not m or not ns.PartyCooldownTracked(id,m.spec)then return end
     local last=m.used[id]
     -- The cast itself was seen, or the cooldown is still running: nothing new.
     if last and GetTime()-last<ns.PartyCooldownLength(m,id)-1 then return end
-    m.used[id]=GetTime();m.sensed=(m.sensed or 0)+1
+    m.used[id]=at or GetTime();m.sensed=(m.sensed or 0)+1
     ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
 end
+-- When each unit's auras last changed: the moment a buff appeared, read a frame later.
+local auraAt={}
 local function PollSensors()
     local now,redraw=GetTime(),false
     for _,s in ipairs(sensors)do
         local v=SensorRead(s.frame)
-        do
+        local at=auraAt[s.unit];if not at or now-at>0.5 or at>now then at=now end
+        -- A container just pointed at its unit shows the old answer for a moment: no edges then.
+        if s.hold and now<s.hold then s.prev=v;s.lit=Plain(v)and v
+        else
             local m=s.kind==EXTERNAL and s.owner or members[s.member]
-            if Plain(v)and Plain(s.prev)then
+            -- A spell whose timer still runs cannot have been cast again.
+            local running=m and ns.PartyCooldownLeft(m,s.spell)>0
+            if running then
+            elseif Plain(v)and Plain(s.prev)then
                 -- Out of combat the answer is plain: an ordinary timer, with seconds and a swipe.
                 if v and not s.prev then
-                    if s.kind==EXTERNAL then Sensed(ExternalOwner(s.spell),s.spell)else Sensed(m,s.spell)end
+                    if s.kind==EXTERNAL then Sensed(ExternalOwner(s.spell),s.spell,at)else Sensed(m,s.spell,at)end
                 end
             elseif m and ns.PartyCooldownTracked(s.spell,m.spec)then
-                local _,created=HiddenEdge(m,s.spell,v,s.prev,now);if created then redraw=true end
+                local _,created=HiddenEdge(m,s.spell,v,s.prev,now,at);if created then redraw=true end
             end
             s.prev=v;s.lit=Plain(v)and v
         end
     end
     -- A new hidden timer needs its bars on the icon.
     if redraw then ns.DrawPartyCooldowns()end
-    SlideHidden()
 end
-ns.PartyCooldownPollSensors=PollSensors
--- Entering combat: every container reads its unit again, then follows it.
-local function RefreshSensors()for _,s in ipairs(sensors)do pcall(s.frame.UpdateAllAuras,s.frame)end end
+ns.PartyCooldownPollSensors=function()PollSensors();SlideHidden()end
+-- Reads: a few frames right after a unit's auras change (the container updates on the same event),
+-- and every 0.25 s otherwise. Hidden timers are moved every frame.
+local driver=CreateFrame("Frame");local quick,lastRead=0,0
+driver:SetScript("OnUpdate",function()
+    local now=GetTime()
+    if #sensors>0 and(quick>0 or now-lastRead>=0.25)then quick=math.max(0,quick-1);lastRead=now;PollSensors()end
+    if next(shownHidden)then SlideHidden()end
+end)
+function ns.PartyCooldownAura(unit)
+    if not ns.Plain(unit,"string")then return end
+    for _,s in ipairs(sensors)do if s.unit==unit then auraAt[unit]=GetTime();quick=3;return end end
+end
 -- Builds the sensors for the group: each member's own buffs on them, and every external of the
 -- group on everyone. Out of combat only; containers are reused.
 local pool={}
@@ -905,10 +941,10 @@ function ns.RebuildPartyCooldownSensors()
         if not c then break end
         -- A container only follows its unit's auras while enabled; a full update reads what is up now.
         pcall(c.SetUnit,c,s.unit);pcall(c.SetEnabled,c,true);pcall(c.UpdateAllAuras,c)
-        s.frame=c;s.prev=SensorRead(c);s.lit=Plain(s.prev)and s.prev;made[#made+1]=s
+        s.frame=c;s.prev=SensorRead(c);s.lit=Plain(s.prev)and s.prev;s.hold=GetTime()+0.6;made[#made+1]=s
     end
     sensors=made
-    if #sensors>0 and C_Timer and C_Timer.NewTicker then sensorTicker=C_Timer.NewTicker(0.1,PollSensors)end
+
     return #sensors
 end
 
@@ -919,7 +955,7 @@ local function Shorten(m,id,sec)
     local start=m.used[id]
     if start and GetTime()<start+ns.PartyCooldownLength(m,id)then m.used[id]=start-sec;m.shortened=true end
     local t=m.hiddenCd and m.hiddenCd[id]
-    if t then for k=1,2 do t.slot[k].epoch=t.slot[k].epoch-sec end end
+    if t then for k=1,2 do MoveSlot(t.slot[k],-sec)end end
 end
 ns.PartyCooldownShorten=Shorten
 local lastSpendDraw=0
@@ -936,7 +972,7 @@ function ns.PartyCooldownPower(unit)
                     local per=sp.per[m.spec]
                     while m.spent>=per do
                         m.spent=m.spent-per
-                        for _,id in ipairs(sp.spells[m.spec]or{})do Shorten(m,id,1)end
+                        for _,id in ipairs(sp.spells[m.spec]or{})do Shorten(m,id,sp.sec or 1)end
                     end
                 end
                 m.power=power
@@ -949,7 +985,7 @@ local ownDraw
 local events=CreateFrame("Frame")
 local function Listen(on)
     for _,e in ipairs({"UNIT_SPELLCAST_SUCCEEDED","GROUP_ROSTER_UPDATE","PLAYER_SPECIALIZATION_CHANGED","TRAIT_CONFIG_UPDATED","INSPECT_READY",
-        "READY_CHECK","PLAYER_REGEN_ENABLED","PLAYER_REGEN_DISABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD","UNIT_POWER_UPDATE","SPELL_UPDATE_COOLDOWN"})do
+        "READY_CHECK","PLAYER_REGEN_ENABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD","UNIT_POWER_UPDATE","SPELL_UPDATE_COOLDOWN","UNIT_AURA"})do
         if on then pcall(events.RegisterEvent,events,e)elseif events.UnregisterEvent then events:UnregisterEvent(e)end
     end
 end
@@ -963,12 +999,12 @@ end
 events:SetScript("OnEvent",function(_,event,a,_,c)
     if event=="UNIT_SPELLCAST_SUCCEEDED"then
         if ns.Plain(a,"string")and(a=="player"or a=="target"or a=="focus"or a:match("^party%d")or a:match("^raid%d")or a:match("^nameplate%d"))then ns.PartyCooldownCast(a,c)end
+    elseif event=="UNIT_AURA"then ns.PartyCooldownAura(a)
     elseif event=="UNIT_POWER_UPDATE"then
         if ns.Plain(a,"string")and a~="player"then ns.PartyCooldownPower(a)end
     elseif event=="SPELL_UPDATE_COOLDOWN"then
         -- Your own icons follow the game's cooldowns; one redraw for a burst of updates.
         if not ownDraw and C_Timer and C_Timer.NewTimer then ownDraw=C_Timer.NewTimer(0.2,function()ownDraw=nil;ns.DrawPartyCooldowns()end)end
-    elseif event=="PLAYER_REGEN_DISABLED"then RefreshSensors()
     elseif event=="PLAYER_REGEN_ENABLED"then
         for id in pairs(pendingLearn)do if Learn(id)then pendingLearn[id]=nil end end
         ns.SharePartyCooldowns();QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()

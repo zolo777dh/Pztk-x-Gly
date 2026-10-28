@@ -817,7 +817,7 @@ ns.PartyCooldownForgetFrames();assert(ns.PartyCooldownFrame('party3')==custom)
 cfg.mode='list';cfg.names=true;assert(ns.DrawPartyCooldowns());cfg.names=false;assert(ns.DrawPartyCooldowns())
 -- Buff sensors: a member's own defensive buff and an external on anyone start the caster's timer.
 cfg.mode='frames';for _,x in pairs(m)do x.used={}end
-local n=ns.RebuildPartyCooldownSensors();assert(n>0,'sensors built')
+local n=ns.RebuildPartyCooldownSensors();assert(n>0,'sensors built');env.advance(1);ns.PartyCooldownPollSensors()
 local list,st=ns.PartyCooldownSensors();assert(st.available)
 local function light(spell,unit)for _,x in ipairs(list)do if x.spell==spell and(not unit or x.unit==unit)then x.frame.IsMouseOver=function()return true end end end end
 light(31224,'party2');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,31224)>100 and m.Rogue.sensed==1,'Cloak by buff')
@@ -837,7 +837,7 @@ assert(ns.PartyCooldownReadTalents(m.Rogue));local cloak=false;for _,id in ipair
 -- curve helper and drawn by bars whose range follows the clock.
 local hidden={};local real=issecretvalue;issecretvalue=function(v)return v==hidden end
 C_CurveUtil={EvaluateColorValueFromBoolean=function(b,y,n)if b==hidden then return y end;return b and y or n end}
-for _,x in pairs(m)do x.used={};x.hiddenCd=nil end;assert(ns.RebuildPartyCooldownSensors()>0)
+for _,x in pairs(m)do x.used={};x.hiddenCd=nil end;assert(ns.RebuildPartyCooldownSensors()>0);env.advance(1);ns.PartyCooldownPollSensors()
 list=ns.PartyCooldownSensors()
 for _,x in ipairs(list)do if x.spell==31224 and x.unit=='party2'then x.frame.IsMouseOver=function()return hidden end end end
 local drawn=0;local draw=ns.DrawPartyCooldowns;ns.DrawPartyCooldowns=function(...)drawn=drawn+1;return draw(...)end
@@ -851,16 +851,26 @@ env.advance(30);ns.PartyCooldownPollSensors();assert(math.abs(ns.PartyCooldownHi
 local icon=CreateFrame('Frame');icon.tex=icon:CreateTexture();icon:SetSize(26,26);icon.spellID=31224
 ns.PartyCooldownShowHidden(icon,t);local parts=icon.hidden;local p=parts[t.cur]
 local got={};p.fill.SetMinMaxValues=function(_,a,b)got.lo,got.hi=a,b end;p.fill.SetValue=function(_,v)got.v=v end
-p.pos.SetPoint=function(_,_,_,_,_,y)got.y=y end
+p.pos.SetPoint=function(_,_,_,_,_,y)got.y=y end;p.pos.SetValue=function(_,v)got.posv=v end
 ns.PartyCooldownSlideHidden()
 local fill=(got.v-got.lo)/(got.hi-got.lo);assert(fill>0.7 and fill<0.9,'dark part shows the time left '..fill)
-local left=ns.PartyCooldownHiddenLeft(t,math.floor(GetTime()));local top=got.y+got.v*t.window*parts.step
+local sl=t.slot[t.cur];local left=sl.wepoch+t.window*sl.whole-math.floor(GetTime());local top=got.y+got.posv*t.window*parts.step
 assert(math.abs(top/parts.step-left)<0.01,'column shows '..top/parts.step..' for '..left)
 assert(p.column:GetText():match('^1\\n2\\n'),'column 1, 2, 3 ... from the top')
 ns.PartyCooldownShowHidden(icon,nil);assert(not parts.win:IsShown())
 -- After the cooldown the bar is empty; a slot rolls over before its window runs out.
 env.advance(t.cd);ns.PartyCooldownPollSensors();assert(ns.PartyCooldownHiddenLeft(t,GetTime())==0)
 for i=1,6 do env.advance(t.cd);ns.PartyCooldownPollSensors()end;assert(GetTime()-t.slot[t.cur].epoch<=t.open,'slot rolled')
+-- The start is the moment the unit's auras changed, kept to the fraction of a second.
+assert(ns.PartyCooldownFine(),'the curve helper carries fine numbers')
+for _,x in pairs(m)do x.used={};x.hiddenCd=nil end
+for _,x in ipairs(list)do if x.spell==31224 and x.unit=='party2'then x.prev=false;x.frame.IsMouseOver=function()return hidden end end end
+env.advance(0.37);ns.PartyCooldownAura('party2');local t0=GetTime();env.advance(0.3);ns.PartyCooldownPollSensors()
+local tr=ns.PartyCooldownHiddenTrack(m.Rogue,31224);assert(math.abs(ns.PartyCooldownHiddenLeft(tr,GetTime())-(tr.cd-0.3))<0.001,'exact start '..ns.PartyCooldownHiddenLeft(tr,GetTime()))
+-- Cast before the pull: a buff seen in combat while that timer runs does not restart it.
+for _,x in pairs(m)do x.used={};x.hiddenCd=nil end;assert(ns.PartyCooldownCast('party2',31224));local started=m.Rogue.used[31224]
+for _,x in ipairs(list)do if x.spell==31224 and x.unit=='party2'then x.prev=false;x.frame.IsMouseOver=function()return hidden end end end
+env.advance(5);ns.PartyCooldownPollSensors();assert(m.Rogue.used[31224]==started and not(m.Rogue.hiddenCd and m.Rogue.hiddenCd[31224]),'running timer kept')
 issecretvalue=real
 local printed={};local p=print;print=function(t)printed[#printed+1]=t end;ns.Command('pcd');print=p;assert(#printed>=2 and printed[1]:find('Buff sensors',1,true),printed[1])
 -- Talents change the length: Arms Die by the Sword is 10% shorter with the talent taken.
@@ -873,6 +883,12 @@ units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();local w=m.Warr;w.spec=7
 local rage=100;UnitPower=function()return rage end;UnitAffectingCombat=function()return true end
 assert(ns.PartyCooldownCast('party4',107574));local before=ns.PartyCooldownLeft(w,107574)
 ns.PartyCooldownPower('party4');rage=40;ns.PartyCooldownPower('party4');assert(math.abs(before-ns.PartyCooldownLeft(w,107574)-3)<0.01,'60 rage = 3 s')
+-- Blood: runic power spent cuts Vampiric Blood (Red Thirst, 2 s per 10).
+units.party4={'Dk','DEATHKNIGHT'};ns.PartyCooldownRoster();local dk=m.Dk;dk.spec=250;dk.ranks={[205723]=1};rage=100
+GetSpellBaseCooldown=function(id)return id==55233 and 90000 or id==227847 and 90000 or 0,0 end
+assert(ns.PartyCooldownCast('party4',55233));before=ns.PartyCooldownLeft(dk,55233)
+ns.PartyCooldownPower('party4');rage=70;ns.PartyCooldownPower('party4');assert(math.abs(before-ns.PartyCooldownLeft(dk,55233)-6)<0.01,'30 runic power = 6 s')
+units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();w=m.Warr;w.spec=71
 -- The hero version of Bladestorm counts as Bladestorm.
 assert(ns.PartyCooldownCast('party4',446035));assert(ns.PartyCooldownLeft(w,227847)>80)
 -- In dungeons every reminder is spoken by default.
