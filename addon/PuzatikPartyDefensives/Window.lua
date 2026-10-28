@@ -15,7 +15,7 @@ end
 W.icon="Interface\\AddOns\\PuzatikPartyDefensives\\Media\\Icon"
 local WIDTH,HEIGHT=952,724
 local window,body,status,close,language
-local state={drafts={}}
+local state={drafts={},scrolls={}}
 local Refresh
 local function notify(text,error)
     if error then text=tostring(text):gsub("^.-%.lua:%d+:%s*","")end
@@ -34,6 +34,8 @@ end
 Refresh=function()
     if not window then return end
     if W.popup then W.popup:Hide()end
+    -- Lists keep their place when the page is drawn again.
+    for key,s in pairs(ns.UIScrolls or{})do local ok,at=pcall(s.GetVerticalScroll,s);if ok and type(at)=="number"then state.scrolls[key]=at end end
     W.Clear(body);W.Begin();ns.UIControls={["pcd-close"]=close,["pcd-language"]=language};ns.UIScrolls={};W.scrollPositions=state.scrolls
     body=W.Frame("Frame",nil,window);body:SetPoint("TOPLEFT",16,-86);body:SetSize(920,600);body.surface=C.background
     ns.ExtraPages.partycds(body)
@@ -56,7 +58,11 @@ function ns.OpenPartyCooldownWindow()
         W.Label(window,"v"..tostring(ns.version).." · /pcd help",92,50,400,11,C.faint)
         language=W.Select(window,ns.L("LANGUAGE"),{{value="auto",label="Auto (game client)"},{value="enUS",label="English"},{value="ruRU",label="Русский"}},
             PuzatikPartyDefensivesDB and PuzatikPartyDefensivesDB.lang or"auto",WIDTH-250,8,190,function(v)
-            ns.SetLanguage(v);if ns.RefreshPartyCooldowns then ns.RefreshPartyCooldowns()end;Refresh()end,"pcd-language")
+            ns.SetLanguage(v);if ns.RefreshPartyCooldowns then ns.RefreshPartyCooldowns()end
+            -- The header and its controls are built once: a new language builds the window again.
+            local point={window:GetPoint()};window:Hide();window=nil;ns.OpenPartyCooldownWindow()
+            if point[1]then window:ClearAllPoints();window:SetPoint(unpack(point))end
+            end,"pcd-language")
         close=W.Button(window,"",WIDTH-44,14,28,function()window:Hide()end,false,"pcd-close",{h=28,kind="ghost",glyph="close",tooltip=ns.L("Close")})
         status=W.Label(window,"",20,HEIGHT-24,WIDTH-40,11,C.muted)
         ns.PartyCooldownWindow=window

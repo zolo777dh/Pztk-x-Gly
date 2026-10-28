@@ -156,7 +156,7 @@ end
 function ns.PartyCooldownSpellInfo(id)return byID[id]end
 function ns.PartyCooldownClassSpells(class)
     local out={};for _,s in ipairs(SPELLS[class]or{})do out[#out+1]=s[1]end
-    local extra={};for id in pairs(ns.PartyCooldownConfig().custom[class]or{})do id=tonumber(id);if id and not byID[id]or(id and byID[id].added)then extra[#extra+1]=id end end
+    local extra={};for id in pairs(ns.PartyCooldownConfig().custom[class]or{})do id=tonumber(id);if id and not byID[id]then Register(id,class,900+id%1000)end;if id and byID[id].added and byID[id].class==class then extra[#extra+1]=id end end
     for id,info in pairs(byID)do if info.detected and info.class==class then extra[#extra+1]=id end end
     table.sort(extra);for _,id in ipairs(extra)do out[#out+1]=id end
     return out
@@ -165,12 +165,17 @@ function ns.AddPartyCooldownSpell(class,id)
     id=tonumber(id);if not SPELLS[class]then return nil,"Choose a class"end
     if not id or id<1 or id~=math.floor(id)then return nil,"Enter a spell ID"end
     if byID[id]and not byID[id].added then return nil,"This spell is already in the list"end
+    -- One added spell belongs to one class.
+    if byID[id]and byID[id].class~=class then return nil,"This spell is already added for another class"end
     local cfg=ns.PartyCooldownConfig();cfg.custom[class]=cfg.custom[class]or{};cfg.custom[class][id]=true;cfg.disabled[id]=nil
-    Register(id,class,900+id%1000);ns.DrawPartyCooldowns();return true
+    Register(id,class,900+id%1000);ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns();return true
 end
 function ns.RemovePartyCooldownSpell(class,id)
     local cfg=ns.PartyCooldownConfig();local ids=cfg.custom[class];if not ids or not ids[id]then return nil,"Only added spells can be removed"end
-    ids[id]=nil;if byID[id]and byID[id].added then byID[id]=nil end;ns.DrawPartyCooldowns();return true
+    ids[id]=nil
+    local used=false;for _,other in pairs(cfg.custom)do if other[id]then used=true end end
+    if byID[id]and byID[id].added and not used then byID[id]=nil end
+    ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns();return true
 end
 -- Switched off spells are neither shown nor timed: for one spec, or with no spec for the whole class.
 function ns.SetPartyCooldownTracked(id,on,spec)
@@ -183,7 +188,7 @@ function ns.SetPartyCooldownTracked(id,on,spec)
         end
         cfg.specOff[spec]=cfg.specOff[spec]or{};cfg.specOff[spec][id]=(not on)or nil
     else cfg.disabled[id]=(not on)or nil end
-    ns.DrawPartyCooldowns();return true
+    ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns();return true
 end
 function ns.PartyCooldownTracked(id,spec)
     local cfg=ns.PartyCooldownConfig()
@@ -194,6 +199,7 @@ end
 -- The spell applies to spec. With the spec unknown, the specs the member's role allows count
 -- (a tank or healer of most classes is one spec); with no role either, the class-wide spells.
 local function ForSpec(info,spec,candidates)
+    if not info then return false end
     if not info.specs then return true end
     for _,s in ipairs(info.specs)do
         if s==spec then return true end
@@ -238,7 +244,7 @@ function ns.PartyCooldownList(member,kind)
         for _,id in ipairs(ns.PartyCooldownClassSpells(member.class))do
             local info=byID[id]
             local unread=not member.me and not member.talented and ns.PartyCooldownConfig().talentSpells[id]
-            if ForSpec(info,member.spec)and not unread and not(FACTION[id]and faction and FACTION[id]~=faction)and(not member.me or info.added or info.detected or Known(id))then add(id)end
+            if ForSpec(info,member.spec,member.roleSpecs)and not unread and not(FACTION[id]and faction and FACTION[id]~=faction)and(not member.me or info.added or info.detected or Known(id))then add(id)end
         end
     end
     for _,s in ipairs(member.race and RACIAL[member.race]or{})do if not member.me or Known(s[1])then add(s[1])end end
@@ -271,7 +277,7 @@ ns.PartyCooldownWithTalents=WithTalents
 function ns.PartyCooldownLength(member,id)
     local sent=member and member.cds and member.cds[id];if sent then return sent end
     if member and member.me then
-        local learned=ns.PartyCooldownConfig().learned[tostring(member.spec or 0)]
+        local learned=ns.PartyCooldownConfig().learned[ns.PartyCooldownLearnKey(member)]
         if learned and learned[id]then return learned[id]end
     end
     -- Talents not read: the spec's usual build.
@@ -279,18 +285,46 @@ function ns.PartyCooldownLength(member,id)
     if likely and likely[id]then return likely[id]end
     return WithTalents(member,id,BaseCooldown(id))
 end
--- Your own cooldown straight from the game, so every reduction counts: start and length.
+-- Learned lengths belong to a spec and the cooldown talents taken, so a talent change is not
+-- hidden by a length learned with the old talents.
+function ns.PartyCooldownLearnKey(member)
+    local key=tostring(member and member.spec or ns.Spec()or 0)
+    local ranks=member and member.ranks;if not ranks then return key end
+    local ids={};for id,r in pairs(ranks)do if r>0 then ids[#ids+1]=id..":"..r end end;table.sort(ids)
+    return key.."/"..table.concat(ids,",")
+end
+-- Your own cooldown straight from the game, so every reduction counts: start and length when it
+-- runs, 0 when the game says it is ready, nil when the game does not say (hidden in combat).
 local function OwnCooldown(id)
     local get=C_Spell and C_Spell.GetSpellCooldown;if not get then return nil end
     local ok,info=pcall(get,id);if not ok or type(info)~="table"then return nil end
     local start,dur=info.startTime,info.duration
-    if ns.Plain(start,"number")and ns.Plain(dur,"number")and dur>1.5 and start>0 then return start,dur end
-    return nil
+    if not(ns.Plain(start,"number")and ns.Plain(dur,"number"))then return nil end
+    if dur>1.5 and start>0 then return start,dur end
+    return 0,0
 end
 ns.PartyCooldownOwn=OwnCooldown
+-- Exact: your own cooldown as the game shows it now, or a length the member's addon sent with a
+-- start that was seen (a cast, a buff, an interrupt that named them) and not shortened by a guess.
+-- Everything else is an estimate, marked with "~": base lengths, guessed interrupts, hidden timers.
+local SURE={cast=true,sensor=true,named=true}
+-- A hidden timer, unless it is surely over: one full length after the combat it started in ended.
+local function Hidden(m,id)
+    local t=m.hiddenCd and m.hiddenCd[id]
+    if t and t.over and GetTime()>=t.over then m.hiddenCd[id]=nil;return nil end
+    return t
+end
+function ns.PartyCooldownExact(member,id)
+    if not member then return false end
+    if member.me then local start=OwnCooldown(id);if start and start>0 then return true end end
+    if Hidden(member,id)and not member.used[id]then return false end
+    local how=member.how and member.how[id]
+    return(member.cds and member.cds[id]and SURE[how]and not(member.cut and member.cut[id]))and true or false
+end
+local function Started(m,id,at,how)m.used[id]=at;m.how=m.how or{};m.how[id]=how;if m.cut then m.cut[id]=nil end end
 -- Seconds left on a member's cooldown, 0 when ready.
 function ns.PartyCooldownLeft(member,id)
-    if member and member.me then local start,dur=OwnCooldown(id);if start then return math.max(0,start+dur-GetTime())end end
+    if member and member.me then local start,dur=OwnCooldown(id);if start then return start>0 and math.max(0,start+dur-GetTime())or 0 end end
     local start=member and member.used and member.used[id];if not start then return 0 end
     return math.max(0,start+ns.PartyCooldownLength(member,id)-GetTime())
 end
@@ -298,8 +332,7 @@ end
 ---------------------------------------------------------------------------
 -- Who is tracked: you and party1-4, or in a raid the players of your own group.
 local function Units()
-    local cfg=ns.PartyCooldownConfig();local out={}
-    if cfg.self then out[1]="player"end
+    local cfg=ns.PartyCooldownConfig();local out={"player"}
     if IsInRaid and IsInRaid()then
         if not cfg.raidGroup or not GetRaidRosterInfo then return out end
         local me=UnitName and UnitName("player");local mine
@@ -320,11 +353,15 @@ local function InspectSpec(unit)
 end
 local order={}
 -- Brings the member list up to date with the group. Sent data and timers of players who stay are kept.
+local pendingPCD,ReadPendingPCD={},nil -- group messages from players not in the roster yet
 function ns.PartyCooldownRoster()
     local keep={};order={}
     for _,unit in ipairs(Units())do
-        local name=UnitName and UnitName(unit);local class;if UnitClass then class=select(2,UnitClass(unit))end
+        local name,realm;if UnitName then name,realm=UnitName(unit)end;local class;if UnitClass then class=select(2,UnitClass(unit))end
         if ns.Plain(name,"string")and name~=""then
+            -- Players of another realm are kept as Name-Realm (as group messages and the meter
+            -- name them), so two players of the same name never share timers.
+            if ns.Plain(realm,"string")and realm~=""then name=name.."-"..realm end
             name=ns.ShortName(name)or name
             local m=members[name]or{name=name,used={}};members[name]=m
             m.unit=unit;m.me=unit=="player";m.class=ns.Plain(class,"string")and class or m.class
@@ -338,6 +375,7 @@ function ns.PartyCooldownRoster()
         end
     end
     for name in pairs(members)do if not keep[name]then members[name]=nil end end
+    if next(pendingPCD)and ReadPendingPCD then ReadPendingPCD()end
     return order
 end
 function ns.PartyCooldownOrder()return order end
@@ -348,13 +386,19 @@ local function InspectNext()
     inspectTimer=nil
     if InCombatLockdown and InCombatLockdown()then return end
     if not(NotifyInspect and CanInspect)then return end
+    local soonest
     for _,name in ipairs(order)do local m=members[name]
         -- No answer (out of range...): asked again after 15 s, up to 6 times.
-        if m and not m.me and not m.addon and(not m.spec or not m.talented)and(m.tries or 0)<6 and(not m.asked or GetTime()-m.asked>15)then
-            local ok,can=pcall(CanInspect,m.unit);if ok and can then m.asked=GetTime();m.tries=(m.tries or 0)+1;pcall(NotifyInspect,m.unit)
-                if C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(2,InspectNext)end;return end
+        if m and not m.me and not m.addon and(not m.spec or not m.talented)and(m.tries or 0)<6 then
+            local wait=m.asked and 15-(GetTime()-m.asked)or 0
+            if wait<=0 then
+                local ok,can=pcall(CanInspect,m.unit);if ok and can then m.asked=GetTime();m.tries=(m.tries or 0)+1;pcall(NotifyInspect,m.unit)
+                    if C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(2,InspectNext)end;return end
+            elseif not soonest or wait<soonest then soonest=wait end
         end
     end
+    -- Everyone left was asked recently: come back when the first wait is over.
+    if soonest and C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(soonest+0.1,InspectNext)end
 end
 -- Talents of an inspected member: every talent spell of their trees, true when taken. Spells of
 -- the list that are talents they did not take are then left out.
@@ -405,7 +449,9 @@ local function QueueInspect()if not inspectTimer and C_Timer and C_Timer.NewTime
 -- Sharing: "spec;id=seconds;id=seconds..." for the tracked spells this character knows.
 function ns.PartyCooldownPayload()
     local spec=ns.Spec();local _,class=UnitClass("player");local parts={tostring(spec or 0)}
-    local me={me=true,spec=spec}
+    -- Your own record carries your talent ranks, so the lengths sent include them.
+    local me;for _,x in pairs(members)do if x.me then me=x end end
+    if not me or me.spec~=spec then me={me=true,spec=spec,used={},ranks=me and me.ranks}end
     local done={}
     local function add(id)
         if done[id]or #parts>60 then return end;done[id]=true
@@ -430,7 +476,7 @@ function ns.CooldownManagerSpells()
     end
     return out
 end
-local lastShare,shareTimer=-100,nil
+local lastShare,shareTimer,shareState=-100,nil,"never"
 function ns.SharePartyCooldowns(force)
     local cfg=ns.PartyCooldownConfig();if not cfg.enabled or not cfg.share then return false end
     if InCombatLockdown and InCombatLockdown()then return false end
@@ -439,22 +485,50 @@ function ns.SharePartyCooldowns(force)
         if not shareTimer and C_Timer and C_Timer.NewTimer then shareTimer=C_Timer.NewTimer(wait,function()shareTimer=nil;ns.SharePartyCooldowns(true)end)end
         return false
     end
-    lastShare=GetTime();return ns.Send("PCD",ns.PartyCooldownPayload())
+    lastShare=GetTime();local sent=ns.Send("PCD",ns.PartyCooldownPayload());shareState=sent and"queued"or"not sent";return sent
+end
+-- A message from a player not yet in the roster (it can arrive before the group update) waits
+-- 30 s and is read when they appear.
+local function ReadPCD(m,text)
+    local fields={};for f in(text..";"):gmatch("([^;]*);")do fields[#fields+1]=f end
+    local spec=tonumber(fields[1]);if not spec or #fields>80 then return false end
+    -- Everything is checked first and applied as a whole: a spec of the member's class, and
+    -- spells that are not another class's.
+    if spec>0 then
+        local fits=not m.class
+        for _,s in ipairs(m.class and ns.ClassSpecs and ns.ClassSpecs[m.class]or{})do if s==spec then fits=true end end
+        if not fits then return false end
+    end
+    local known,cds,new={},{},{}
+    for i=2,#fields do
+        local id,cd=fields[i]:match("^(%d+)=(%d+)$");id,cd=tonumber(id),tonumber(cd)
+        if id and cd and id>0 and cd>0 and cd<=1800 then
+            local info=byID[id]
+            if not info then new[#new+1]={id,i}
+            elseif info.class and m.class and info.class~=m.class then id=nil end
+            if id then known[id]=true;cds[id]=cd end
+        end
+    end
+    for _,x in ipairs(new)do if m.class then Register(x[1],m.class,800+x[2])else known[x[1]],cds[x[1]]=nil,nil end end
+    m.sentSpec=spec>0 and spec or nil;m.spec=m.sentSpec or m.spec;m.known=known;m.cds=cds;m.addon=true;m.sentAt=GetTime()
+    return true
 end
 ns.CommHandlers.PCD=function(text,sender)
     if not sender or type(text)~="string"or #text>1000 then return end
-    local fields={};for f in(text..";"):gmatch("([^;]*);")do fields[#fields+1]=f end
-    local spec=tonumber(fields[1]);if not spec or #fields>80 then return end
-    local m=members[sender]or{name=sender,used={}};members[sender]=m
-    m.sentSpec=spec>0 and spec or nil;m.spec=m.sentSpec or m.spec;m.known={};m.cds={};m.addon=true
-    for i=2,#fields do
-        local id,cd=fields[i]:match("^(%d+)=(%d+)$");id,cd=tonumber(id),tonumber(cd)
-        if id and cd and cd>0 and cd<=1800 then
-            if not byID[id]then Register(id,m.class,800+i)end
-            m.known[id]=true;m.cds[id]=cd
-        end
+    -- Only members of the group being tracked are listened to.
+    local m=members[sender]
+    if not m then pendingPCD[sender]={text=text,at=GetTime()};return end
+    pendingPCD[sender]=nil
+    if ReadPCD(m,text)then ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()end
+end
+function ReadPendingPCD()
+    local read=false
+    for name,p in pairs(pendingPCD)do
+        if GetTime()-p.at>30 then pendingPCD[name]=nil
+        elseif members[name]then pendingPCD[name]=nil;read=ReadPCD(members[name],p.text)or read end
     end
-    ns.DrawPartyCooldowns()
+    -- Read while the roster is rebuilt: sensors and icons follow right after.
+    if read and C_Timer and C_Timer.NewTimer then C_Timer.NewTimer(0,function()ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()end)end
 end
 
 ---------------------------------------------------------------------------
@@ -466,7 +540,8 @@ local function Learn(id)
     local ok,info=pcall(C_Spell.GetSpellCooldown,id)
     if not ok or type(info)~="table"or not ns.Plain(info.duration,"number")then return false end
     if info.duration>1.5 then
-        local learned=ns.PartyCooldownConfig().learned;local key=tostring(ns.Spec()or 0)
+        local me;for _,x in pairs(members)do if x.me then me=x end end
+        local learned=ns.PartyCooldownConfig().learned;local key=ns.PartyCooldownLearnKey(me)
         learned[key]=learned[key]or{};learned[key][id]=math.floor(info.duration*10+0.5)/10
     end
     return true
@@ -496,7 +571,7 @@ function ns.PartyCooldownCast(unit,id)
     if not info or not ns.PartyCooldownTracked(id,m.spec)or(info.class and m.class and info.class~=m.class)or(info.race and m.race~=info.race)then return false end
     -- One cast arrives once per unit that shows it.
     if m.used[id]and GetTime()-m.used[id]<1 then return true end
-    m.used[id]=GetTime()
+    Started(m,id,GetTime(),"cast")
     if m.me and not Learn(id)then pendingLearn[id]=true end
     ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
     return true
@@ -550,6 +625,7 @@ local function Icon(row,i,size)
     if not icon then
         icon=CreateFrame("Frame",nil,row);icon.tex=icon:CreateTexture(nil,"ARTWORK");icon.tex:SetAllPoints();icon.tex:SetTexCoord(0.07,0.93,0.07,0.93)
         icon.cd=CreateFrame("Cooldown",nil,icon,"CooldownFrameTemplate");icon.cd:SetAllPoints();row.icons[i]=icon
+        icon.approx=icon.cd:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");icon.approx:SetPoint("TOPRIGHT",icon,"TOPRIGHT",-1,-1);icon.approx:SetText("~");icon.approx:Hide()
     end
     icon:SetSize(size,size);return icon
 end
@@ -575,7 +651,11 @@ local function UnitFrame(unit)
     end end
     -- Any other unit frame addon (EllesmereUI, Cell, Grid2...): a shown frame whose unit is exactly
     -- this one. Looked up out of combat and remembered for the group.
-    local cached=frameCache[unit];if cached==false then return nil end;if cached and cached:IsVisible()then return cached end
+    -- A remembered frame is used only while it still shows this unit; "not found" is looked up
+    -- again after 10 s.
+    local cached=frameCache[unit]
+    if type(cached)=="number"and GetTime()-cached<10 then return nil end
+    if type(cached)=="table"and match(cached)then return cached end
     if InCombatLockdown and InCombatLockdown()or not EnumerateFrames then return nil end
     local best
     local f=EnumerateFrames()
@@ -592,7 +672,7 @@ local function UnitFrame(unit)
         f=EnumerateFrames(f)
     end
     -- Not found is remembered too, until the group changes, so the scan runs once.
-    frameCache[unit]=best or false;return best
+    frameCache[unit]=best or GetTime();return best
 end
 ns.PartyCooldownFrame=UnitFrame
 local ShowHidden -- hidden timers on icons, defined with the buff sensors
@@ -601,14 +681,15 @@ local function FillIcons(row,m,ids,size,cfg)
     local n=0
     for _,id in ipairs(ids)do
         local left=ns.PartyCooldownLeft(m,id)
-        local hidden=m.hiddenCd and m.hiddenCd[id]
+        local hidden=Hidden(m,id)
         if not(cfg.hideReady and left<=0 and not hidden)then
             n=n+1;local icon=Icon(row,n,size)
             icon.tex:SetTexture(W.SpellTexture(id));icon.spellID=id
             local start,dur;if m.me then start,dur=OwnCooldown(id)end
-            if not start and m.used[id]then start,dur=m.used[id],ns.PartyCooldownLength(m,id)end
+            if start==0 then start=nil elseif not start and m.used[id]then start,dur=m.used[id],ns.PartyCooldownLength(m,id)end
             if left>0 and start then icon.cd:SetCooldown(start,dur);icon.tex:SetDesaturated(true)
             else icon.cd:Clear();icon.tex:SetDesaturated(false)end
+            if(left>0 or hidden)and not ns.PartyCooldownExact(m,id)then icon.approx:Show()else icon.approx:Hide()end
             icon:Show();ShowHidden(icon,hidden)
         end
     end
@@ -658,9 +739,9 @@ local function CellSpellName(id)
 end
 local function Timing(m,id)
     local start,dur;if m.me then start,dur=OwnCooldown(id)end
-    if not start and m.used[id]then start,dur=m.used[id],ns.PartyCooldownLength(m,id)end
+    if start==0 then start=nil elseif not start and m.used[id]then start,dur=m.used[id],ns.PartyCooldownLength(m,id)end
     local left=start and math.max(0,start+dur-GetTime())or 0
-    return left,start,dur,m.hiddenCd and m.hiddenCd[id]
+    return left,start,dur,Hidden(m,id)
 end
 local function Cell(g,i)
     local f=g.frame;f.icons=f.icons or{}
@@ -682,7 +763,7 @@ local function UpdateBars(self,elapsed)
     for _,cell in ipairs(self.icons or{})do local bar=cell.bar
         if bar and bar:IsShown()then
             local left=bar.start and bar.start+bar.dur-now or 0
-            if left>0 then bar:SetMinMaxValues(0,bar.dur);bar:SetValue(left);bar.time:SetText(math.ceil(left))
+            if left>0 then bar:SetMinMaxValues(0,bar.dur);bar:SetValue(left);bar.time:SetText((bar.approx and"~"or"")..math.ceil(left))
             else bar:SetMinMaxValues(0,1);bar:SetValue(bar.hidden and 0 or 1);bar.time:SetText("")end
         end
     end
@@ -704,6 +785,8 @@ local function DrawAnchor(g,entries,a,unlocked)
                 cell:SetPoint(v..h,f,v..h,(left and-1 or 1)*(3+col*(width+gap)),(up and 1 or-1)*(3+row*(size+gap)))
                 cell.tex:SetTexture(W.SpellTexture(id));cell.spellID=id;cell.member=m.name
                 if remain>0 and start then cell.cd:SetCooldown(start,dur);cell.tex:SetDesaturated(true)else cell.cd:Clear();cell.tex:SetDesaturated(false)end
+                local approx=(remain>0 or hidden)and not ns.PartyCooldownExact(m,id)
+                if approx and not bars then cell.approx:Show()else cell.approx:Hide()end
                 cell:Show();ShowHidden(cell,hidden)
                 local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
                 local r,gr,b=c and c.r or 0.6,c and c.g or 0.36,c and c.b or 1
@@ -714,7 +797,7 @@ local function DrawAnchor(g,entries,a,unlocked)
                     if left then bar:SetPoint("RIGHT",cell,"LEFT",-gap,0)else bar:SetPoint("LEFT",cell,"RIGHT",gap,0)end
                     if bar.SetReverseFill then bar:SetReverseFill(left)end
                     bar:SetStatusBarColor(r,gr,b,1)
-                    bar.start,bar.dur,bar.hidden=remain>0 and start or nil,dur,hidden~=nil
+                    bar.start,bar.dur,bar.hidden,bar.approx=remain>0 and start or nil,dur,hidden~=nil,approx
                     if type(font)=="string"then bar.name:SetFont(font,11,"OUTLINE");bar.time:SetFont(font,11,"OUTLINE")end
                     bar.name:ClearAllPoints();bar.time:ClearAllPoints()
                     bar.name:SetPoint(left and"RIGHT"or"LEFT",bar,left and"RIGHT"or"LEFT",left and-4 or 4,0)
@@ -749,7 +832,8 @@ function ns.DrawPartyCooldowns()
     if not(cfg.enabled or cfg.unlocked)then for _,g in pairs(groups)do g.frame:Hide()end;return false end
     ns.PartyCooldownRoster()
     local size=tonumber(cfg.size)or 26
-    local names=order
+    -- You stay tracked (your casts, learned lengths, what you send); "self" only hides your icons.
+    local names={};for _,name in ipairs(order)do if cfg.self or not(members[name]and members[name].me)then names[#names+1]=name end end
     if #names==0 and cfg.unlocked then
         local _,class=UnitClass("player");local me=UnitName("player")or"Player"
         members[me]=members[me]or{name=me,used={},me=true,class=class,spec=ns.Spec()};names={me}
@@ -891,11 +975,12 @@ function HiddenTrack(m,id,now)
         if cd*2<=t.window then for k=1,2 do MoveSlot(t.slot[k],cd-t.cd)end;t.cd=cd;t.open=t.window-cd
         else m.hiddenCd[id]=nil;return HiddenTrack(m,id,now)end
     end
+    if InCombatLockdown and InCombatLockdown()then t.over=nil end
     local sl=t.slot[t.cur]
     if now-sl.wepoch>t.open then t.cur=3-t.cur;t.slot[t.cur]=NewSlot(now);t.moved=true end
     return t
 end
-ns.PartyCooldownHiddenTrack=function(m,id)return m.hiddenCd and m.hiddenCd[id]end
+ns.PartyCooldownHiddenTrack=Hidden
 -- A rising edge between two answers, plain or hidden, written into the open slot.
 -- `at` is when the buff appeared (the game's aura event), `now` the time of this read.
 local function HiddenEdge(m,id,cur,prev,now,at)
@@ -1000,7 +1085,7 @@ local shownHidden={}
 local function SlideHidden()
     local now=GetTime();local second=math.floor(now)
     for icon,t in pairs(shownHidden)do
-        if icon.track~=t or not icon:IsShown()then shownHidden[icon]=nil
+        if icon.track~=t or not icon:IsVisible()then shownHidden[icon]=nil
         else
             local parts=icon.hidden
             for k=1,2 do local sl,p=t.slot[k],parts[k]
@@ -1037,7 +1122,7 @@ function ns.PartyCooldownReport()
     local lines={}
     lines[#lines+1]="Party cooldowns "..tostring(ns.version)..", in combat: "..tostring(InCombatLockdown and InCombatLockdown()or false)..". Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
         ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
-        ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", power bars read "..spendState.plain.." hidden "..spendState.hidden..", exact times "..tostring(ns.PartyCooldownFine and ns.PartyCooldownFine()or false)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")
+        ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", power bars read "..spendState.plain.." hidden "..spendState.hidden..", exact times "..tostring(ns.PartyCooldownFine and ns.PartyCooldownFine()or false)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")..", my cooldowns "..shareState
     local k=ns.PartyCooldownKickStats and ns.PartyCooldownKickStats()
     if k then lines[#lines+1]="Interrupts seen "..k.seen..": by the meter "..k.meter..", by name "..k.named..", only one ready "..k.ready..", unknown "..k.unsure end
     for _,name in ipairs(order)do local m=members[name]
@@ -1046,6 +1131,17 @@ function ns.PartyCooldownReport()
             ..", icons "..#ns.PartyCooldownList(m)..", sensors "..sens..", casts seen "..(m.seen or 0).." hidden "..(m.hidden or 0).." by buff "..(m.sensed or 0)
             ..", hidden timers "..(function()local n=0;for _ in pairs(m.hiddenCd or{})do n=n+1 end;return n end)()
             ..(m.ranks and", cooldown talents read"or"")
+            ..(m.addon and(", lengths sent "..math.floor(GetTime()-(m.sentAt or GetTime())).." s ago")or", base lengths")
+            ..(function()
+                -- Running timers: how many are exact, and where each start came from.
+                local exact,guess,from=0,0,{}
+                for id in pairs(m.used)do if ns.PartyCooldownLeft(m,id)>0 then
+                    if ns.PartyCooldownExact(m,id)then exact=exact+1 else guess=guess+1 end
+                    local how=m.how and m.how[id]or"?";from[how]=(from[how]or 0)+1
+                end end
+                local list={};for how,n in pairs(from)do list[#list+1]=how.." "..n end;table.sort(list)
+                return exact+guess>0 and(", running "..exact.." exact "..guess.." estimated ("..table.concat(list,", ")..")")or""
+            end)()
     end
     return lines
 end
@@ -1067,7 +1163,10 @@ local function ExternalOwner(id)
     for _,m in pairs(members)do
         local info=byID[id]
         if info and m.class==info.class and ns.PartyCooldownLeft(m,id)<=0 then
-            for _,x in ipairs(ns.PartyCooldownList(m))do if x==id then best=best or m end end
+            for _,x in ipairs(ns.PartyCooldownList(m))do if x==id then
+                -- Two members could have cast it: nobody is credited.
+                if best and best~=m then return nil end;best=m
+            end end
         end
     end
     return best
@@ -1077,7 +1176,7 @@ local function Sensed(m,id,at)
     local last=m.used[id]
     -- The cast itself was seen, or the cooldown is still running: nothing new.
     if last and GetTime()-last<ns.PartyCooldownLength(m,id)-1 then return end
-    m.used[id]=at or GetTime();m.sensed=(m.sensed or 0)+1
+    Started(m,id,at or GetTime(),"sensor");m.sensed=(m.sensed or 0)+1
     ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
 end
 -- When each unit's auras last changed: the moment a buff appeared, read a frame later.
@@ -1136,27 +1235,30 @@ end
 -- group on everyone. Out of combat only; containers are reused.
 local pools={HELPFUL={},HARMFUL={}}
 function ns.RebuildPartyCooldownSensors()
+    local cfg=ns.PartyCooldownConfig()
+    -- Containers cannot be set up in combat: the current ones keep working until combat ends,
+    -- when this runs again.
+    if cfg.enabled and cfg.sensors and InCombatLockdown and InCombatLockdown()then return #sensors end
     for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();local p=pools[s.filter];p[#p+1]=s.frame end
     sensors={};sensorUnits={}
-    local cfg=ns.PartyCooldownConfig()
     if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
     if not(cfg.enabled and cfg.sensors)or sensorState.available==false then return 0 end
-    if InCombatLockdown and InCombatLockdown()then return 0 end
     local externals,externalOwners,stops,stopOwners={},{},{},{}
     for _,name in ipairs(order)do local m=members[name]
         for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
-            if kind==EXTERNAL then externals[id]=buffs;externalOwners[id]=externalOwners[id]or m
-            elseif kind==ENEMY then if not m.me then stops[id]=buffs;stopOwners[id]=stopOwners[id]or m end
+            -- With two possible casters the owner stays open (false) and is decided when it lands.
+            if kind==EXTERNAL then externals[id]=buffs;if externalOwners[id]==nil then externalOwners[id]=m else externalOwners[id]=false end
+            elseif kind==ENEMY then if not m.me then stops[id]=buffs;if stopOwners[id]==nil then stopOwners[id]=m else stopOwners[id]=false end end
             elseif KIND[id]=="kick"then
             elseif not m.me then sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF}end
         end
     end
     for _,name in ipairs(order)do local m=members[name]
-        for id,buff in pairs(externals)do sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buff,kind=EXTERNAL,owner=externalOwners[id]}end
+        for id,buff in pairs(externals)do sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buff,kind=EXTERNAL,owner=externalOwners[id]or nil}end
     end
     -- Crowd control of the others: its debuff on every enemy nameplate.
     for id,debuffs in pairs(stops)do
-        for i=1,PLATES do sensors[#sensors+1]={unit="nameplate"..i,spell=id,buff=debuffs,kind=ENEMY,owner=stopOwners[id],filter="HARMFUL"}end
+        for i=1,PLATES do sensors[#sensors+1]={unit="nameplate"..i,spell=id,buff=debuffs,kind=ENEMY,owner=stopOwners[id]or nil,filter="HARMFUL"}end
     end
     local made={}
     for _,s in ipairs(sensors)do
@@ -1180,7 +1282,7 @@ end
 -- moves its start without reading it. Power bars the game hides cannot be counted.
 local function Shorten(m,id,sec)
     local start=m.used[id]
-    if start and GetTime()<start+ns.PartyCooldownLength(m,id)then m.used[id]=start-sec;m.shortened=true end
+    if start and GetTime()<start+ns.PartyCooldownLength(m,id)then m.used[id]=start-sec;m.shortened=true;m.cut=m.cut or{};m.cut[id]=true end
     local t=m.hiddenCd and m.hiddenCd[id]
     if t then for k=1,2 do MoveSlot(t.slot[k],-sec)end end
 end
@@ -1189,8 +1291,8 @@ local lastSpendDraw=0
 function ns.PartyCooldownPower(unit)
     for _,m in pairs(members)do
         local sp=m.class and SPEND[m.class]
-        -- A talent missing from the trees read (renamed in a patch) counts as taken; only a rank of 0 is "not taken".
-        if sp and m.unit==unit and(not m.ranks or m.ranks[sp.talent]~=0)and sp.per[m.spec or 0]then
+        -- Only a talent read with a rank above 0 counts as taken.
+        if sp and m.unit==unit and m.ranks and(m.ranks[sp.talent]or 0)>0 and sp.per[m.spec or 0]then
             local ok,power=pcall(UnitPower,unit,sp.power)
             if ok and ns.Plain(power,"number")then
                 spendState.plain=spendState.plain+1
@@ -1227,7 +1329,7 @@ local function Kicked(m,at,how)
     -- The meter and the enemy's event can both report the same interrupt.
     if lastKick[m.name]and math.abs(at-lastKick[m.name])<1 then return true end
     lastKick[m.name]=at;kickState[how]=kickState[how]+1
-    m.used[id]=at;ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
+    Started(m,id,at,how);ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
     return true
 end
 local specIcons={}
@@ -1317,8 +1419,8 @@ local function Listen(on)
 end
 function ns.RefreshPartyCooldowns()
     local cfg=ns.PartyCooldownConfig();LoadCustom();Listen(cfg.enabled==true)
-    if cfg.enabled then ReadOwnTalents()end
-    if cfg.enabled then ns.PartyCooldownRoster();QueueInspect();ns.SharePartyCooldowns()end
+    -- Your own record first, then your talents into it.
+    if cfg.enabled then ns.PartyCooldownRoster();ReadOwnTalents();QueueInspect();ns.SharePartyCooldowns()end
     ns.RebuildPartyCooldownSensors()
     return ns.DrawPartyCooldowns()
 end
@@ -1342,6 +1444,10 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
         if not ownDraw and C_Timer and C_Timer.NewTimer then ownDraw=C_Timer.NewTimer(0.2,function()ownDraw=nil;ns.DrawPartyCooldowns()end)end
     elseif event=="PLAYER_REGEN_ENABLED"then
         for id in pairs(pendingLearn)do if Learn(id)then pendingLearn[id]=nil end end
+        -- A hidden timer started in combat at the latest now: it is surely over one length later.
+        local longest=0
+        for _,m in pairs(members)do for _,t in pairs(m.hiddenCd or{})do t.over=t.over or GetTime()+t.cd;longest=math.max(longest,t.cd)end end
+        if longest>0 then RedrawLater(longest)end
         ns.SharePartyCooldowns();QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()
     elseif event=="CHALLENGE_MODE_START"then ns.PartyCooldownReset()
     elseif event=="ENCOUNTER_END"then
@@ -1356,7 +1462,7 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
     else
         if event~="READY_CHECK"then ns.PartyCooldownRoster()end
         if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then QueueInspect();frameCache={}end
-        if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.tries=nil;m.talented=nil;m.spec=nil;m.sentSpec=nil end end;QueueInspect()end
+        if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.tries=nil;m.talented=nil;m.ranks=nil;m.spec=nil;m.sentSpec=nil;m.known=nil;m.cds=nil end end;QueueInspect()end
         if event=="TRAIT_CONFIG_UPDATED"or event=="PLAYER_SPECIALIZATION_CHANGED"and a=="player"then ReadOwnTalents()end
         if event~="READY_CHECK"then ns.RebuildPartyCooldownSensors()end
         ns.SharePartyCooldowns();ns.DrawPartyCooldowns()
@@ -1397,7 +1503,9 @@ local function DrawAbilities(parent,d)
         if info.added then W.Button(row,"",620,5,26,function()kit.done(ns.RemovePartyCooldownSpell(d.class,id),nil,L("Spell removed"))end,false,"pcd-del:"..id,{h=26,kind="danger",glyph="trash",tooltip=L("Remove")})end
         y=y+40
     end;list:SetHeight(math.max(1,y))
-    W.Field(right,L("ADD A SPELL BY ID"),d.newSpell or"",12,450,200,"pcd:newSpell")
+    -- What is typed is kept when the page is drawn again (a toggle, a tab).
+    local field=W.Field(right,L("ADD A SPELL BY ID"),d.newSpell or"",12,450,200,"pcd:newSpell")
+    if field and field.HookScript then field:HookScript("OnTextChanged",function(self)d.newSpell=self:GetText()end)end
     W.Button(right,L("Add"),220,466,100,function()local text=ns.UIControls["pcd:newSpell"]:GetText();local ok,err=ns.AddPartyCooldownSpell(d.class,text);if ok then d.newSpell=""else d.newSpell=text end;kit.done(ok,err,L("Spell added"))end,false,"pcd-add",{kind="primary",align="CENTER"})
     W.Button(right,L("All on"),336,466,100,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,true,spec)end;kit.refresh()end,false,"pcd-allon",{kind="outline",align="CENTER"})
     W.Button(right,L("All off"),444,466,100,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,false,spec)end;kit.refresh()end,false,"pcd-alloff",{kind="outline",align="CENTER"})
@@ -1478,6 +1586,6 @@ local function DrawPage(parent)
     end end
     local _,st=ns.PartyCooldownSensors()
     W.Label(c2,L("Buff sensors")..": "..(not cfg.sensors and L("off")or st.available==false and(L("not available")..", "..L(st.reason or""))or st.available and(#sensors..L(" watching"))or L("waiting for a group")),12,452,586,11,st.available==false and C.warning or C.soft)
-    W.Label(c2,L("Members without this addon show the cooldowns of their specialization at the game's base length; talents that shorten them are not known. Members with the addon send exactly what they have."),12,476,586,11,C.muted)
+    W.Label(c2,L("Members without this addon show the cooldowns of their specialization at the game's base length; talents that shorten them are not known. Members with the addon send the lengths they have. A ~ on a timer marks an estimate: a guessed start, a base or shortened length, or a timer the game hides."),12,476,586,11,C.muted)
 end
 ns.ExtraPages.partycds=DrawPage
