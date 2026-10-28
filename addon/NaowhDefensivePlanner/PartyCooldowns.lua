@@ -569,27 +569,34 @@ end
 -- cooldown cannot be known. It is still kept, as a hidden number: the game's curve helper
 -- (C_CurveUtil.EvaluateColorValueFromBoolean) picks between two numbers by a hidden yes/no and
 -- returns the pick, hidden too. Each tick: "if the buff is up now and was not up before, the
--- start is now, else keep the old start". The hidden start goes into a status bar over the icon
--- (bars take hidden values); the bar's range is moved every tick from plain time, so the dark
--- part shrinks exactly as the cooldown runs out. Nothing about the start is ever read back.
+-- start is now, else keep the old start". Nothing about the start is ever read back: it goes
+-- into status bars (bars take hidden values), and things anchored to the end of a bar's fill
+-- move with it. The bars' range and position follow the plain clock, so on the icon:
+--  * a dark fill shrinks as the cooldown runs out;
+--  * a grey copy of the icon shows while the cooldown runs;
+--  * the seconds left: a column "1, 2, 3 ... cd" seen through a one-line window over the icon,
+--    pushed up by one line per second left.
 --
--- The helper returns colour values, 0 to 1, so a start is coded as a step of 1/255 inside a
--- window that begins at the slot's epoch: start = epoch + window * code - cd. A code of 0 is a
--- cooldown that ended before the epoch. The window is about 2.5 cooldowns and a slot takes new
--- starts only during its first (window - cd) seconds; then the other slot opens. A cooldown
--- started in a slot ends before that slot is opened again, so two slots per spell are enough.
+-- The helper returns colour values, 0 to 1, so a start is coded in steps of 1/255 inside a
+-- window that begins at the slot's epoch: one step is `unit` whole seconds, and
+-- seconds left = epoch + window * code - now. A code of 0 is a cooldown that ended before the
+-- epoch. The window is about 2.5 cooldowns and a slot takes new starts only during its first
+-- (window - cd) seconds; then the other slot opens. A cooldown started in a slot ends before that
+-- slot is opened again, so two slots per spell are enough. Epochs and the clock used for drawing
+-- are whole seconds, so the seconds shown are whole too.
 local EVAL=function()return C_CurveUtil and C_CurveUtil.EvaluateColorValueFromBoolean end
 local function HiddenTrack(m,id,now)
     m.hiddenCd=m.hiddenCd or{}
     local t=m.hiddenCd[id]
     if not t then
-        local cd=ns.PartyCooldownLength(m,id);if cd<=0 then return nil end
-        local window=cd*2.55
-        t={cd=cd,window=window,open=window-cd,cur=1,slot={{epoch=now,code=0},{epoch=now,code=0}}}
+        local cd=math.floor(ns.PartyCooldownLength(m,id)+0.5);if cd<=0 then return nil end
+        local unit=math.max(1,math.ceil(cd/100));local window=255*unit
+        local epoch=math.floor(now)
+        t={cd=cd,unit=unit,window=window,open=window-cd,cur=1,slot={{epoch=epoch,code=0},{epoch=epoch,code=0}}}
         m.hiddenCd[id]=t;t.created=true
     end
     local sl=t.slot[t.cur]
-    if now-sl.epoch>t.open then t.cur=3-t.cur;t.slot[t.cur]={epoch=now,code=0}end
+    if now-sl.epoch>t.open then t.cur=3-t.cur;t.slot[t.cur]={epoch=math.floor(now),code=0};t.moved=true end
     return t
 end
 ns.PartyCooldownHiddenTrack=function(m,id)return m.hiddenCd and m.hiddenCd[id]end
@@ -598,7 +605,7 @@ local function HiddenEdge(m,id,cur,prev,now)
     local eval=EVAL();if not eval then return false end
     local t=HiddenTrack(m,id,now);if not t then return false end
     local sl=t.slot[t.cur]
-    local code=math.floor((now-sl.epoch+t.cd)/t.window*255+0.5)/255
+    local code=math.min(255,math.floor((math.floor(now)-sl.epoch+t.cd)/t.unit+0.5))/255
     local ok,v=pcall(function()return eval(cur,eval(prev,sl.code,code),sl.code)end)
     if not ok then sensorState.refused=(sensorState.refused or 0)+1;return false end
     sl.code=v;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
@@ -606,35 +613,109 @@ local function HiddenEdge(m,id,cur,prev,now)
     return true,created
 end
 ns.PartyCooldownHiddenEdge=HiddenEdge
--- Part of the cooldown still to run for a slot with a plain code (tests and the report).
+-- Seconds still to run, for slots whose code is plain (tests and the report).
 function ns.PartyCooldownHiddenLeft(t,now)
     local best=0
     for k=1,2 do local sl=t.slot[k]
-        if ns.Plain(sl.code,"number")then best=math.max(best,sl.epoch+t.window*sl.code-t.cd+t.cd-now)end
+        if ns.Plain(sl.code,"number")then best=math.max(best,sl.epoch+t.window*sl.code-now)end
     end
     return math.max(0,best)
 end
-local function HiddenBars(icon)
+-- The seconds column for a cooldown: "1" on top, the cooldown at the bottom.
+local columns={}
+local function Column(cd)
+    if columns[cd]then return columns[cd]end
+    local out={}
+    for r=1,cd do out[r]=r>=60 and string.format("%d:%02d",math.floor(r/60),r%60)or tostring(r)end
+    columns[cd]=table.concat(out,"\n");return columns[cd]
+end
+-- Height of one line of the column, measured on the font itself.
+local lineSteps={}
+local function LineStep(font,size)
+    local key=tostring(font)..size
+    if lineSteps[key]then return lineSteps[key]end
+    local probe=sensorHost or UIParent
+    local fs=probe:CreateFontString(nil,"OVERLAY");pcall(fs.SetFont,fs,font,size,"OUTLINE");pcall(fs.SetSpacing,fs,0)
+    fs:SetText("0");local one=fs.GetStringHeight and fs:GetStringHeight()
+    fs:SetText("0\n0");local two=fs.GetStringHeight and fs:GetStringHeight();fs:Hide()
+    local step=ns.Plain(one,"number")and ns.Plain(two,"number")and two-one or 0
+    if step<=0 then step=size*1.15 end
+    lineSteps[key]=step;return step
+end
+local function Bar(parent,r,g,b,a)
+    local bar=CreateFrame("StatusBar",nil,parent)
+    pcall(bar.SetStatusBarTexture,bar,"Interface\\Buttons\\WHITE8X8");pcall(bar.SetStatusBarColor,bar,r,g,b,a)
+    pcall(bar.SetOrientation,bar,"VERTICAL");pcall(bar.SetMinMaxValues,bar,0,1);pcall(bar.SetValue,bar,0)
+    return bar
+end
+local hiddenLayer
+local function HiddenParts(icon)
     if icon.hidden then return icon.hidden end
-    icon.hidden={}
-    for k=1,2 do
-        local bar=CreateFrame("StatusBar",nil,icon);bar:SetAllPoints(icon)
-        pcall(bar.SetStatusBarTexture,bar,"Interface\\Buttons\\WHITE8X8");pcall(bar.SetStatusBarColor,bar,0,0,0,0.72)
-        pcall(bar.SetOrientation,bar,"VERTICAL");pcall(bar.SetMinMaxValues,bar,0,1);pcall(bar.SetValue,bar,0)
-        icon.hidden[k]=bar
+    if not hiddenLayer then
+        hiddenLayer=CreateFrame("Frame",nil,UIParent);hiddenLayer:SetFrameStrata("MEDIUM");hiddenLayer:SetSize(1,1);hiddenLayer:SetPoint("CENTER",UIParent,"CENTER",0,0)
     end
-    return icon.hidden
+    local parts={win=CreateFrame("Frame",nil,icon)}
+    pcall(parts.win.SetClipsChildren,parts.win,true)
+    for k=1,2 do
+        local p={}
+        -- Dark fill over the icon.
+        p.fill=Bar(icon,0,0,0,0.55);p.fill:SetAllPoints(icon)
+        -- Grey copy of the icon, seen through a clip that covers the icon while time is left.
+        p.gate=Bar(hiddenLayer,0,0,0,0)
+        p.veil=CreateFrame("Frame",nil,icon);pcall(p.veil.SetClipsChildren,p.veil,true)
+        p.grey=p.veil:CreateTexture(nil,"ARTWORK");p.grey:SetAllPoints(icon);p.grey:SetTexCoord(0.07,0.93,0.07,0.93)
+        pcall(p.grey.SetDesaturated,p.grey,true);p.grey:SetVertexColor(0.55,0.55,0.55)
+        -- Seconds column, pushed up through the window.
+        p.pos=Bar(hiddenLayer,0,0,0,0)
+        p.text=CreateFrame("Frame",nil,parts.win);p.text:SetAllPoints(parts.win)
+        p.column=p.text:CreateFontString(nil,"OVERLAY");p.column:SetJustifyH("CENTER")
+        parts[k]=p
+    end
+    icon.hidden=parts;return parts
+end
+-- Lays the parts out for this icon size and cooldown; once per change.
+local function DressHidden(icon,t)
+    local parts=HiddenParts(icon)
+    local size=icon:GetWidth();if not ns.Plain(size,"number")or size<=0 then size=26 end
+    local font=(W.Font and W.Font(true))or"Fonts\\FRIZQT__.TTF";local ts=math.max(9,math.floor(size*0.42))
+    local sig=t.cd.."|"..size.."|"..ts
+    if parts.sig==sig then return parts end
+    local step=LineStep(font,ts);local jump=size+4
+    parts.step,parts.jump,parts.sig=step,jump,sig
+    parts.win:ClearAllPoints();parts.win:SetPoint("CENTER",icon,"CENTER",0,0);parts.win:SetSize(size+6,step)
+    pcall(parts.win.SetFrameLevel,parts.win,(icon:GetFrameLevel()or 0)+6)
+    for k=1,2 do local p=parts[k]
+        p.fill:SetFrameLevel((icon:GetFrameLevel()or 0)+3);p.veil:SetFrameLevel((icon:GetFrameLevel()or 0)+2)
+        p.pos:SetSize(1,t.window*step);pcall(p.pos.SetMinMaxValues,p.pos,0,1)
+        p.gate:SetSize(1,t.window*jump);pcall(p.gate.SetMinMaxValues,p.gate,0,1)
+        local edge=p.gate.GetStatusBarTexture and p.gate:GetStatusBarTexture()or p.gate
+        p.veil:ClearAllPoints();p.veil:SetPoint("TOP",edge,"TOP",0,0);p.veil:SetPoint("BOTTOM",edge,"TOP",0,-(t.cd+1)*jump);p.veil:SetWidth(size)
+        local top=p.pos.GetStatusBarTexture and p.pos:GetStatusBarTexture()or p.pos
+        pcall(p.column.SetFont,p.column,font,ts,"OUTLINE");pcall(p.column.SetSpacing,p.column,0);p.column:SetTextColor(1,1,1)
+        p.column:SetText(Column(t.cd));p.column:ClearAllPoints();p.column:SetPoint("TOP",top,"TOP",0,0)
+        p.second=nil
+    end
+    return parts
 end
 local shownHidden={}
 -- Moves every shown hidden timer to the current time.
 local function SlideHidden()
-    local now=GetTime()
+    local now=GetTime();local second=math.floor(now)
     for icon,t in pairs(shownHidden)do
         if icon.track~=t or not icon:IsShown()then shownHidden[icon]=nil
         else
-            for k=1,2 do local sl,bar=t.slot[k],icon.hidden[k]
+            local parts=icon.hidden
+            for k=1,2 do local sl,p=t.slot[k],parts[k]
                 local low=(now-sl.epoch)/t.window
-                pcall(bar.SetMinMaxValues,bar,low,low+t.cd/t.window);pcall(bar.SetValue,bar,sl.code)
+                pcall(p.fill.SetMinMaxValues,p.fill,low,low+t.cd/t.window);pcall(p.fill.SetValue,p.fill,sl.code)
+                pcall(p.pos.SetValue,p.pos,sl.code);pcall(p.gate.SetValue,p.gate,sl.code)
+                -- Whole seconds: the column and the grey cover move once per second.
+                if p.second~=second or p.epoch~=sl.epoch then
+                    p.second,p.epoch=second,sl.epoch
+                    local behind=second-sl.epoch
+                    p.pos:ClearAllPoints();p.pos:SetPoint("BOTTOM",parts.win,"BOTTOM",0,-behind*parts.step)
+                    p.gate:ClearAllPoints();p.gate:SetPoint("BOTTOM",icon,"BOTTOM",0,-behind*parts.jump)
+                end
             end
         end
     end
@@ -642,8 +723,14 @@ end
 ns.PartyCooldownSlideHidden=SlideHidden
 function ShowHidden(icon,t)
     icon.track=t
-    if not t then if icon.hidden then for k=1,2 do icon.hidden[k]:Hide()end end;shownHidden[icon]=nil;return end
-    for k=1,2 do HiddenBars(icon)[k]:Show()end
+    local parts=icon.hidden
+    if not t then
+        if parts then parts.win:Hide();for k=1,2 do parts[k].fill:Hide();parts[k].veil:Hide();parts[k].pos:Hide();parts[k].gate:Hide()end end
+        shownHidden[icon]=nil;return
+    end
+    parts=DressHidden(icon,t)
+    local tex=icon.spellID and W.SpellTexture(icon.spellID)
+    parts.win:Show();for k=1,2 do parts[k].grey:SetTexture(tex);parts[k].fill:Show();parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
     shownHidden[icon]=t
 end
 ns.PartyCooldownShowHidden=ShowHidden
