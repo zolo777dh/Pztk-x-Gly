@@ -30,11 +30,14 @@ local SPELLS={
     SHAMAN={{108271,120},{2825,300},{32182,300},{198103,300},{114050,180,262},{198067,150,262},{192249,150,262},{114051,180,263},{51533,90,263},
         {108280,180,264},{98008,180,264},{114052,180,264},{207399,300,264}},
     WARLOCK={{104773,180},{108416,60},{205180,120,265},{265187,90,266},{1122,120,267}},
-    WARRIOR={{97462,180},{107574,90},{118038,120,71},{227847,90,71},{184364,120,72},{1719,90,72},{871,180,73},{12975,180,73}},
+    WARRIOR={{97462,180},{23920,25},{107574,90},{118038,120,71},{227847,90,71},{184364,120,72},{1719,90,72},{871,180,73},{12975,180,73}},
 }
 ns.PartyCooldownSpells=SPELLS
 local byID={}
 for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={class=class,cd=s[2],order=order,specs=#s>2 and{select(3,unpack(s))}or nil}end end
+-- Racial cooldowns, by the race the game names (any class): {spell ID, cooldown}.
+local RACIAL={NightElf={{58984,120}}}
+for race,list in pairs(RACIAL)do for i,s in ipairs(list)do byID[s[1]]={race=race,cd=s[2],order=900+i}end end
 
 -- Talents that change a cooldown (game facts): {talent spell, add = seconds, pct = percent,
 -- spec = only for that specialization}. A rank counts as many times as it is taken. Entries with
@@ -61,18 +64,33 @@ local TALENT_CD={
 -- Cooldowns cut while the fight goes on, by the resource a member spends (read from their power
 -- bar): `sec` seconds per `per` spent, on these spells per spec. Warrior Anger Management (rage),
 -- Blood Red Thirst (runic power on Vampiric Blood), Guardian Ursoc's Guidance (rage on Incarnation).
--- `rate`: seconds cut per second of combat at the spec's usual spending pace, used while the game
--- hides the member's power bar (others in combat).
-local SPEND={WARRIOR={talent=152278,power=1,sec=1,per={[71]=20,[72]=20,[73]=10},rate={[71]=0.35,[72]=0.45,[73]=0.8},
+local SPEND={WARRIOR={talent=152278,power=1,sec=1,per={[71]=20,[72]=20,[73]=10},
         spells={[71]={107574,227847},[72]={1719,107574,227847},[73]={107574,871}}},
-    DEATHKNIGHT={talent=205723,power=6,sec=2,per={[250]=10},rate={[250]=0.6},spells={[250]={55233}}},
-    DRUID={talent=393414,power=1,sec=1,per={[104]=25},rate={[104]=0.3},spells={[104]={102558}}}}
+    DEATHKNIGHT={talent=205723,power=6,sec=2,per={[250]=10},spells={[250]={55233}}},
+    DRUID={talent=393414,power=1,sec=1,per={[104]=25},spells={[104]={102558}}}}
 -- Talents read from trees: those that change a cooldown and those that cut one by spending.
 local WANTED={}
 for _,mods in pairs(TALENT_CD)do for _,x in ipairs(mods)do if x[1]then WANTED[x[1]]=true end end end
 for _,sp in pairs(SPEND)do WANTED[sp.talent]=true end
 -- Other spell IDs the game uses for a tracked spell (a talent or hero version of it).
 local ALIAS={[446035]=227847,[401150]=107574}
+-- Cooldowns cut by what a member does (resource spent, Bone Shield charges, crits, finishers,
+-- Barbed Shot...). The game hides all of that for others in combat, so their timers could not be
+-- exact: these are shown only for yourself, whose cooldowns the game gives. true = every spec.
+local DYNAMIC={
+    [49028]=true,[55233]=true,[51271]=true,[275699]=true,[42650]=true,  -- DRW (Bone Shield), VB (Red Thirst), PoF (Icecap), Apocalypse/Army (Death Coil)
+    [106951]=true,[102543]=true,[50334]=true,[102558]=true,             -- Feral Berserk/Incarnation (combo points), Guardian (rage)
+    [109304]=true,[19574]=true,[288613]=true,                           -- Exhilaration (Natural Mending), Bestial Wrath (Barbed Shot), Trueshot (focus)
+    [190319]=true,[123904]=true,[13750]=true,[51533]=true,              -- Combustion (crits), Xuen (Combo Strikes), Adrenaline Rush (finishers), Feral Spirit (Maelstrom)
+    [31884]={66},[86659]={66},                                          -- Protection Righteous Protector (Holy Power)
+    [107574]=true,[227847]=true,[1719]=true,[871]=true,                 -- Warrior Anger Management (rage)
+}
+local function Dynamic(id,spec)
+    local d=DYNAMIC[id];if d==true then return true end
+    if d then for _,s in ipairs(d)do if s==spec then return true end end end
+    return false
+end
+ns.PartyCooldownDynamic=Dynamic
 ns.PartyCooldownTalentMods=TALENT_CD
 local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
@@ -167,7 +185,7 @@ end
 -- anything they were seen casting.
 function ns.PartyCooldownList(member)
     local out,seen={},{}
-    local function add(id)if not seen[id]and ns.PartyCooldownTracked(id,member.spec)and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
+    local function add(id)if not seen[id]and ns.PartyCooldownTracked(id,member.spec)and(member.me or not Dynamic(id,member.spec))and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
     if member.known then for id in pairs(member.known)do add(id)end
     elseif member.class and SPELLS[member.class]then
         -- Strictly the member's spec: your own list is what your spellbook knows right now; for
@@ -180,6 +198,7 @@ function ns.PartyCooldownList(member)
             if ForSpec(info,member.spec)and not unread and not(FACTION[id]and faction and FACTION[id]~=faction)and(not member.me or info.added or info.detected or Known(id))then add(id)end
         end
     end
+    for _,s in ipairs(member.race and RACIAL[member.race]or{})do if not member.me or Known(s[1])then add(s[1])end end
     for id in pairs(member.used or{})do add(id)end
     table.sort(out,function(a,b)return byID[a].order<byID[b].order end)
     return out
@@ -264,6 +283,7 @@ function ns.PartyCooldownRoster()
             local m=members[name]or{name=name,used={}};members[name]=m
             m.unit=unit;m.me=unit=="player";m.class=ns.Plain(class,"string")and class or m.class
             m.spec=(m.me and ns.Spec())or m.sentSpec or InspectSpec(unit)or m.spec
+            if UnitRace then local ok,_,race=pcall(UnitRace,unit);if ok and ns.Plain(race,"string")then m.race=race end end
             if UnitFactionGroup then local ok,f=pcall(UnitFactionGroup,unit);if ok and ns.Plain(f,"string")then m.faction=f end end
             local role=UnitGroupRolesAssigned and UnitGroupRolesAssigned(unit)
             m.roleSpecs=m.class and ns.Plain(role,"string")and ns.RoleSpecs(m.class,role)or nil
@@ -427,7 +447,7 @@ function ns.PartyCooldownCast(unit,id)
     -- Not in the list (a follower's spell, a new talent...): any spell the game gives a cooldown of
     -- a minute or more is tracked from now on for that class.
     if not info and ns.PartyCooldownConfig().detect and BaseCooldown(id)>=60 then info=Register(id,m.class,700+id%100);info.detected=true end
-    if not info or not ns.PartyCooldownTracked(id,m.spec)or(info.class and m.class and info.class~=m.class)then return false end
+    if not info or not ns.PartyCooldownTracked(id,m.spec)or(info.class and m.class and info.class~=m.class)or(info.race and m.race~=info.race)then return false end
     -- One cast arrives once per unit that shows it.
     if m.used[id]and GetTime()-m.used[id]<1 then return true end
     m.used[id]=GetTime()
@@ -910,7 +930,6 @@ driver:SetScript("OnUpdate",function()
     local now=GetTime()
     if #sensors>0 and(quick>0 or now-lastRead>=0.25)then quick=math.max(0,quick-1);lastRead=now;PollSensors()end
     if next(shownHidden)then SlideHidden()end
-    if ns.PartyCooldownPace then ns.PartyCooldownPace(now)end
 end)
 function ns.PartyCooldownAura(unit)
     if not ns.Plain(unit,"string")then return end
@@ -961,21 +980,6 @@ local function Shorten(m,id,sec)
     if t then for k=1,2 do MoveSlot(t.slot[k],-sec)end end
 end
 ns.PartyCooldownShorten=Shorten
--- Cooldowns cut in combat by something the game hides for others: Blood Dancing Rune Weapon by
--- Bone Shield charges consumed. Seconds cut per second of combat, in whole seconds.
-local PACE={[49028]={spec=250,rate=0.4}}
-local paceAt
-function ns.PartyCooldownPace(now)
-    local fighting=InCombatLockdown and InCombatLockdown()
-    local dt=fighting and paceAt and math.min(2,math.max(0,now-paceAt))or 0;paceAt=fighting and now or nil
-    if dt<=0 then return end
-    for _,m in pairs(members)do if not m.me then
-        for id,p in pairs(PACE)do if m.spec==p.spec then
-            m.pace=m.pace or{};m.pace[id]=(m.pace[id]or 0)+p.rate*dt
-            while m.pace[id]>=0.999 do m.pace[id]=m.pace[id]-1;Shorten(m,id,1)end
-        end end
-    end end
-end
 local lastSpendDraw=0
 function ns.PartyCooldownPower(unit)
     for _,m in pairs(members)do
@@ -995,15 +999,7 @@ function ns.PartyCooldownPower(unit)
                     end
                 end
                 m.power=power
-            else spendState.hidden=spendState.hidden+1;m.power=nil
-                -- Hidden bar: the cut follows the spec's usual pace while the group fights, in whole seconds.
-                local now,rate=GetTime(),sp.rate and sp.rate[m.spec]
-                if rate and m.estAt and InCombatLockdown and InCombatLockdown()then
-                    m.est=(m.est or 0)+rate*math.min(2,math.max(0,now-m.estAt))
-                    while m.est>=0.999 do m.est=m.est-1;for _,id in ipairs(sp.spells[m.spec]or{})do Shorten(m,id,1)end end
-                end
-                m.estAt=now
-            end
+            else spendState.hidden=spendState.hidden+1;m.power=nil end
             if m.shortened and GetTime()-lastSpendDraw>1 then m.shortened=nil;lastSpendDraw=GetTime();ns.DrawPartyCooldowns()end
         end
     end
