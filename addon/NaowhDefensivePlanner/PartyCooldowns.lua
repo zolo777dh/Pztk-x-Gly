@@ -962,7 +962,8 @@ local lastSpendDraw=0
 function ns.PartyCooldownPower(unit)
     for _,m in pairs(members)do
         local sp=m.class and SPEND[m.class]
-        if sp and m.unit==unit and not m.me and(not m.ranks or(m.ranks[sp.talent]or 0)>0)and sp.per[m.spec or 0]then
+        -- A talent missing from the trees read (renamed in a patch) counts as taken; only a rank of 0 is "not taken".
+        if sp and m.unit==unit and(not m.ranks or m.ranks[sp.talent]~=0)and sp.per[m.spec or 0]then
             local ok,power=pcall(UnitPower,unit,sp.power)
             if ok and ns.Plain(power,"number")then
                 spendState.plain=spendState.plain+1
@@ -1001,7 +1002,7 @@ events:SetScript("OnEvent",function(_,event,a,_,c)
         if ns.Plain(a,"string")and(a=="player"or a=="target"or a=="focus"or a:match("^party%d")or a:match("^raid%d")or a:match("^nameplate%d"))then ns.PartyCooldownCast(a,c)end
     elseif event=="UNIT_AURA"then ns.PartyCooldownAura(a)
     elseif event=="UNIT_POWER_UPDATE"then
-        if ns.Plain(a,"string")and a~="player"then ns.PartyCooldownPower(a)end
+        if ns.Plain(a,"string")then ns.PartyCooldownPower(a)end
     elseif event=="SPELL_UPDATE_COOLDOWN"then
         -- Your own icons follow the game's cooldowns; one redraw for a burst of updates.
         if not ownDraw and C_Timer and C_Timer.NewTimer then ownDraw=C_Timer.NewTimer(0.2,function()ownDraw=nil;ns.DrawPartyCooldowns()end)end

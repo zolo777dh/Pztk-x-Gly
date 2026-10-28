@@ -888,6 +888,9 @@ units.party4={'Dk','DEATHKNIGHT'};ns.PartyCooldownRoster();local dk=m.Dk;dk.spec
 GetSpellBaseCooldown=function(id)return id==55233 and 90000 or id==227847 and 90000 or 0,0 end
 assert(ns.PartyCooldownCast('party4',55233));before=ns.PartyCooldownLeft(dk,55233)
 ns.PartyCooldownPower('party4');rage=70;ns.PartyCooldownPower('party4');assert(math.abs(before-ns.PartyCooldownLeft(dk,55233)-6)<0.01,'30 runic power = 6 s')
+-- A talent the trees no longer show counts as taken; a rank of 0 does not.
+dk.ranks={};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)<89)
+dk.ranks={[205723]=0};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)>89.9)
 units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();w=m.Warr;w.spec=71
 -- The hero version of Bladestorm counts as Bladestorm.
 assert(ns.PartyCooldownCast('party4',446035));assert(ns.PartyCooldownLeft(w,227847)>80)
