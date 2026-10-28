@@ -934,7 +934,7 @@ assert(NDPPartyCooldownsDB.partycds.size==30,'saved in its own variables')
 SlashCmdList.NDPPARTYCOOLDOWNS('');assert(p.PartyCooldownWindow:IsShown())
 p.UIControls['pcd:names']:Click();assert(p.PartyCooldownConfig().names==true)
 p.UIControls['pcd:enabled']:Click();assert(p.PartyCooldownConfig().enabled==false);p.UIControls['pcd:enabled']:Click();assert(p.PartyCooldownConfig().enabled==true)
-p.UIControls['pcd-view:abilities']:Click();p.UIControls['pcd-class:PRIEST']:Click();p.UIControls['pcd-spell:19236']:Click()
+p.UIControls['pcd-view:abilities']:Click();p.UIControls['pcd-class:PRIEST']:Click();assert(p.UIControls['pcd-spec:256'].label.text=='Discipline','spec names on the tabs, not numbers');p.UIControls['pcd-spell:19236']:Click()
 assert(not p.PartyCooldownTracked(19236,256),'switched off from the window')
 p.UIControls['pcd-close']:Click();assert(not p.PartyCooldownWindow:IsShown())
 C_AddOns.IsAddOnLoaded=function(name)return name=='NaowhDefensivePlanner'end
