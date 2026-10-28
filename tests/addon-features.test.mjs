@@ -846,11 +846,17 @@ assert(ns.PartyCooldownLeft(m.Rogue,31224)<=0,'nothing plain is learned from a h
 assert(math.abs(ns.PartyCooldownHiddenLeft(t,GetTime())-t.cd)<=t.window/255,'hidden start is now: '..ns.PartyCooldownHiddenLeft(t,GetTime()))
 assert(drawn==1,'icons redrawn once for the new timer')
 env.advance(30);ns.PartyCooldownPollSensors();assert(math.abs(ns.PartyCooldownHiddenLeft(t,GetTime())-(t.cd-30))<=t.window/255,'a buff still up does not restart it')
--- The bars over the icon: range from the clock, value the hidden start.
-local function fakeBar()local b={};b.SetMinMaxValues=function(_,a,c)b.lo,b.hi=a,c end;b.SetValue=function(_,v)b.v=v end;b.Hide=function()end;b.Show=function()end;return b end
-local fake={IsShown=function()return true end,hidden={fakeBar(),fakeBar()}};ns.PartyCooldownShowHidden(fake,t);ns.PartyCooldownSlideHidden()
-local b=fake.hidden[t.cur];local fill=(b.v-b.lo)/(b.hi-b.lo);assert(fill>0.7 and fill<0.9,'dark part shows the time left '..fill)
-b=fake.hidden[3-t.cur];assert((b.v-b.lo)/(b.hi-b.lo)<=0,'the other slot is empty')
+-- On the icon: a dark fill by the time left, and the seconds column pushed up one line per second.
+local icon=CreateFrame('Frame');icon.tex=icon:CreateTexture();icon:SetSize(26,26);icon.spellID=31224
+ns.PartyCooldownShowHidden(icon,t);local parts=icon.hidden;local p=parts[t.cur]
+local got={};p.fill.SetMinMaxValues=function(_,a,b)got.lo,got.hi=a,b end;p.fill.SetValue=function(_,v)got.v=v end
+p.pos.SetPoint=function(_,_,_,_,_,y)got.y=y end
+ns.PartyCooldownSlideHidden()
+local fill=(got.v-got.lo)/(got.hi-got.lo);assert(fill>0.7 and fill<0.9,'dark part shows the time left '..fill)
+local left=ns.PartyCooldownHiddenLeft(t,math.floor(GetTime()));local top=got.y+got.v*t.window*parts.step
+assert(math.abs(top/parts.step-left)<0.01,'column shows '..top/parts.step..' for '..left)
+assert(p.column:GetText():match('^1\\n2\\n'),'column 1, 2, 3 ... from the top')
+ns.PartyCooldownShowHidden(icon,nil);assert(not parts.win:IsShown())
 -- After the cooldown the bar is empty; a slot rolls over before its window runs out.
 env.advance(t.cd);ns.PartyCooldownPollSensors();assert(ns.PartyCooldownHiddenLeft(t,GetTime())==0)
 for i=1,6 do env.advance(t.cd);ns.PartyCooldownPollSensors()end;assert(GetTime()-t.slot[t.cur].epoch<=t.open,'slot rolled')
