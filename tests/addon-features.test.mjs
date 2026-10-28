@@ -888,6 +888,16 @@ units.party4={'Dk','DEATHKNIGHT'};ns.PartyCooldownRoster();local dk=m.Dk;dk.spec
 GetSpellBaseCooldown=function(id)return id==55233 and 90000 or id==227847 and 90000 or 0,0 end
 assert(ns.PartyCooldownCast('party4',55233));before=ns.PartyCooldownLeft(dk,55233)
 ns.PartyCooldownPower('party4');rage=70;ns.PartyCooldownPower('party4');assert(math.abs(before-ns.PartyCooldownLeft(dk,55233)-6)<0.01,'30 runic power = 6 s')
+-- A talent the trees no longer show counts as taken; a rank of 0 does not.
+dk.ranks={};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)<89)
+dk.ranks={[205723]=0};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)>89.9)
+-- A hidden power bar in combat: the cut follows the spec's usual pace (Blood 0.6 s per second).
+do local secret={};local realS,realP,realL=issecretvalue,UnitPower,InCombatLockdown
+issecretvalue=function(v)return v==secret end;UnitPower=function()return secret end;InCombatLockdown=function()return true end
+dk.ranks={[205723]=1};dk.used={};dk.estAt=nil;dk.est=nil;assert(ns.PartyCooldownCast('party4',55233));before=ns.PartyCooldownLeft(dk,55233)
+ns.PartyCooldownPower('party4');for i=1,10 do env.advance(1);ns.PartyCooldownPower('party4')end
+assert(math.abs(before-10-ns.PartyCooldownLeft(dk,55233)-6)<0.01,'10 s of combat = 6 s cut, got '..tostring(before-10-ns.PartyCooldownLeft(dk,55233)))
+issecretvalue,UnitPower,InCombatLockdown=realS,realP,realL end
 units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();w=m.Warr;w.spec=71
 -- The hero version of Bladestorm counts as Bladestorm.
 assert(ns.PartyCooldownCast('party4',446035));assert(ns.PartyCooldownLeft(w,227847)>80)
