@@ -56,8 +56,20 @@ events:SetScript("OnEvent",function(_,_,prefix,text,channel,sender)
     local me=UnitName and UnitName("player");if ns.ShortName(sender)==me then return end
     local kind,id,i,count,chunk=text:match("^(%w+)\t(%d+)\t(%d+)\t(%d+)\t(.*)$")
     if not kind then return end
-    i,count=tonumber(i),tonumber(count);if count>200 then return end
-    local key=tostring(sender)..":"..id;local p=parts[key]or{n=0};parts[key]=p
+    i,count=tonumber(i),tonumber(count);if count<1 or count>200 or i<1 or i>count then return end
+    -- Unfinished messages expire after 30 s, at most 50 wait at a time, and a message whose part
+    -- count changed (a reused number) starts over.
+    local now=GetTime and GetTime()or 0;local waiting,oldest,oldestAt=0,nil,nil
+    for k,p in pairs(parts)do
+        if now-p.at>30 then parts[k]=nil
+        else waiting=waiting+1;if not oldestAt or p.at<oldestAt then oldest,oldestAt=k,p.at end end
+    end
+    local key=tostring(sender)..":"..kind..":"..id;local p=parts[key]
+    if p and p.count~=count then p=nil end
+    if not p then
+        if waiting>=50 and oldest then parts[oldest]=nil end
+        p={n=0,count=count,at=now};parts[key]=p
+    end
     if not p[i]then p[i]=chunk;p.n=p.n+1 end
     if p.n<count then return end
     parts[key]=nil;local handler=ns.CommHandlers[kind]

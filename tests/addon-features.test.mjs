@@ -71,6 +71,14 @@ env.click('players-share');env.click('players-accept');assert(ns.PlayersData().a
 ns.CommHandlers.NICK('Nope','Other');assert(ns.Nickname('Other')==nil)
 env.click('players-check');assert(ns.PlayersData().versions.Tester==ns.version)
 ns.CommHandlers.VER('0.6.0','Mate');assert(ns.PlayersData().versions.Mate=='0.6.0')
+-- Split messages: parts out of range are dropped, unfinished ones expire, a reused number starts over.
+do local got={};ns.CommHandlers.TST=function(text,who)got[#got+1]=text end
+ local f;for _,x in ipairs(env.frames)do if x.events.CHAT_MSG_ADDON then f=x end end
+ local function recv(text)f.scripts.OnEvent(f,'CHAT_MSG_ADDON','NDP',text,'PARTY','Other-Realm')end
+ recv('TST\t1\t3\t2\tbad');recv('TST\t1\t0\t2\tbad');assert(#got==0)
+ recv('TST\t1\t1\t2\tab');env.advance(31);recv('TST\t1\t2\t2\tcd');assert(#got==0,'expired part not joined')
+ recv('TST\t1\t1\t3\tx');recv('TST\t1\t2\t3\ty');recv('TST\t1\t3\t3\tz');assert(got[1]=='xyz',tostring(got[1]))
+ recv('TST\t2\t1\t1\tone');assert(got[2]=='one')end
 env.click('tab:raidtools');env.input('rt:breakMin','7');env.click('rt-break');assert(ns.BreakRemaining()>400)
 env.click('rt-break-cancel');assert(ns.BreakRemaining()==nil)
 env.input('rt:keywords','inv, 123');env.click('rt-keywords-save');assert(ns.RaidToolsConfig().keywords=='inv, 123')
@@ -755,6 +763,7 @@ assert(m.Friend.hidden==1 and m.Rogue.seen==2)
 -- What a member's addon sends: exactly their spells and their talented cooldowns.
 ns.CommHandlers.PCD('256;33206=150;62618=180;10060=120;1234567=90','Friend')
 assert(m.Friend.spec==256 and m.Friend.addon and m.Friend.cds[33206]==150 and m.Friend.known[1234567])
+ns.CommHandlers.PCD('256;33206=150','Stranger');assert(not m.Stranger,'only group members are listened to')
 local list=ns.PartyCooldownList(m.Friend);assert(#list==4 and list[1]==10060 and list[4]==1234567,#list)
 assert(ns.PartyCooldownCast('party1',33206));assert(math.abs(ns.PartyCooldownLeft(m.Friend,33206)-150)<0.01)
 env.advance(151);assert(ns.PartyCooldownLeft(m.Friend,33206)==0)
@@ -818,6 +827,7 @@ cfg.mode='list';cfg.names=true;assert(ns.DrawPartyCooldowns());cfg.names=false;a
 -- Buff sensors: a member's own defensive buff and an external on anyone start the caster's timer.
 cfg.mode='frames';for _,x in pairs(m)do x.used={}end
 local n=ns.RebuildPartyCooldownSensors();assert(n>0,'sensors built');env.advance(1);ns.PartyCooldownPollSensors()
+env.combat=true;assert(ns.RebuildPartyCooldownSensors()==n and #ns.PartyCooldownSensors()==n,'a rebuild in combat keeps the sensors');env.combat=false
 local list,st=ns.PartyCooldownSensors();assert(st.available)
 local function light(spell,unit)for _,x in ipairs(list)do if x.spell==spell and(not unit or x.unit==unit)then x.frame.IsMouseOver=function()return true end end end end
 light(31224,'party2');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,31224)>100 and m.Rogue.sensed==1,'Cloak by buff')
@@ -937,7 +947,8 @@ assert(G.kick.frame.icons[1]:GetWidth()==42,'the kick list has its own size')
 -- Interrupts show as bars by default, crowd control as icons; each can be switched, laid out in rows.
 assert(cell(G.kick,1766).bar:IsShown()and not cell(G.cc,2094).bar:IsShown()and ns.UIControls['pcd-kick:width']and not ns.UIControls['pcd-cc:width'])
 m.Rogue.used[1766]=GetTime();assert(ns.DrawPartyCooldowns());local bar=cell(G.kick,1766).bar;ns.PartyCooldownUpdateBars(G.kick.frame,1)
-assert(bar.time:GetText()=='15'and bar.dur==15,'the bar counts the kick down');m.Rogue.used={}
+assert(bar.time:GetText()=='~15'and bar.dur==15,'the bar counts the kick down, marked as an estimate for a player without the addon')
+assert(not ns.PartyCooldownExact(m.Rogue,1766)and ns.PartyCooldownExact({me=true},1766)and ns.PartyCooldownExact({cds={[1766]=12}},1766));m.Rogue.used={}
 env.select('pcd-kick:dir','To the left');env.select('pcd-kick:width','240 px');assert(cfg.anchors.kick.dir=='LEFT'and cfg.anchors.kick.width==240 and bar:GetWidth()==240-42-2)
 env.select('pcd-kick:style','Icons');assert(cfg.anchors.kick.style=='icons'and not cell(G.kick,1766).bar:IsShown()and not ns.UIControls['pcd-kick:width'])
 local function count(g)local n=0;for _,icon in ipairs(g.frame.icons or{})do if icon:IsShown()then n=n+1 end end;return n end

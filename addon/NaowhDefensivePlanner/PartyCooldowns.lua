@@ -288,6 +288,11 @@ local function OwnCooldown(id)
     return nil
 end
 ns.PartyCooldownOwn=OwnCooldown
+-- Exact: your own cooldown from the game, or a length the member's addon sent. Everything else is
+-- an estimate from the base cooldown and the talents known, marked with "~".
+function ns.PartyCooldownExact(member,id)
+    return member and(member.me or(member.cds and member.cds[id]))and true or false
+end
 -- Seconds left on a member's cooldown, 0 when ready.
 function ns.PartyCooldownLeft(member,id)
     if member and member.me then local start,dur=OwnCooldown(id);if start then return math.max(0,start+dur-GetTime())end end
@@ -323,8 +328,11 @@ local order={}
 function ns.PartyCooldownRoster()
     local keep={};order={}
     for _,unit in ipairs(Units())do
-        local name=UnitName and UnitName(unit);local class;if UnitClass then class=select(2,UnitClass(unit))end
+        local name,realm;if UnitName then name,realm=UnitName(unit)end;local class;if UnitClass then class=select(2,UnitClass(unit))end
         if ns.Plain(name,"string")and name~=""then
+            -- Players of another realm are kept as Name-Realm (as group messages and the meter
+            -- name them), so two players of the same name never share timers.
+            if ns.Plain(realm,"string")and realm~=""then name=name.."-"..realm end
             name=ns.ShortName(name)or name
             local m=members[name]or{name=name,used={}};members[name]=m
             m.unit=unit;m.me=unit=="player";m.class=ns.Plain(class,"string")and class or m.class
@@ -445,7 +453,8 @@ ns.CommHandlers.PCD=function(text,sender)
     if not sender or type(text)~="string"or #text>1000 then return end
     local fields={};for f in(text..";"):gmatch("([^;]*);")do fields[#fields+1]=f end
     local spec=tonumber(fields[1]);if not spec or #fields>80 then return end
-    local m=members[sender]or{name=sender,used={}};members[sender]=m
+    -- Only members of the group being tracked are listened to.
+    local m=members[sender];if not m then return end
     m.sentSpec=spec>0 and spec or nil;m.spec=m.sentSpec or m.spec;m.known={};m.cds={};m.addon=true
     for i=2,#fields do
         local id,cd=fields[i]:match("^(%d+)=(%d+)$");id,cd=tonumber(id),tonumber(cd)
@@ -550,6 +559,7 @@ local function Icon(row,i,size)
     if not icon then
         icon=CreateFrame("Frame",nil,row);icon.tex=icon:CreateTexture(nil,"ARTWORK");icon.tex:SetAllPoints();icon.tex:SetTexCoord(0.07,0.93,0.07,0.93)
         icon.cd=CreateFrame("Cooldown",nil,icon,"CooldownFrameTemplate");icon.cd:SetAllPoints();row.icons[i]=icon
+        icon.approx=icon.cd:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");icon.approx:SetPoint("TOPRIGHT",icon,"TOPRIGHT",-1,-1);icon.approx:SetText("~");icon.approx:Hide()
     end
     icon:SetSize(size,size);return icon
 end
@@ -609,6 +619,7 @@ local function FillIcons(row,m,ids,size,cfg)
             if not start and m.used[id]then start,dur=m.used[id],ns.PartyCooldownLength(m,id)end
             if left>0 and start then icon.cd:SetCooldown(start,dur);icon.tex:SetDesaturated(true)
             else icon.cd:Clear();icon.tex:SetDesaturated(false)end
+            if left>0 and not ns.PartyCooldownExact(m,id)then icon.approx:Show()else icon.approx:Hide()end
             icon:Show();ShowHidden(icon,hidden)
         end
     end
@@ -682,7 +693,7 @@ local function UpdateBars(self,elapsed)
     for _,cell in ipairs(self.icons or{})do local bar=cell.bar
         if bar and bar:IsShown()then
             local left=bar.start and bar.start+bar.dur-now or 0
-            if left>0 then bar:SetMinMaxValues(0,bar.dur);bar:SetValue(left);bar.time:SetText(math.ceil(left))
+            if left>0 then bar:SetMinMaxValues(0,bar.dur);bar:SetValue(left);bar.time:SetText((bar.approx and"~"or"")..math.ceil(left))
             else bar:SetMinMaxValues(0,1);bar:SetValue(bar.hidden and 0 or 1);bar.time:SetText("")end
         end
     end
@@ -704,6 +715,8 @@ local function DrawAnchor(g,entries,a,unlocked)
                 cell:SetPoint(v..h,f,v..h,(left and-1 or 1)*(3+col*(width+gap)),(up and 1 or-1)*(3+row*(size+gap)))
                 cell.tex:SetTexture(W.SpellTexture(id));cell.spellID=id;cell.member=m.name
                 if remain>0 and start then cell.cd:SetCooldown(start,dur);cell.tex:SetDesaturated(true)else cell.cd:Clear();cell.tex:SetDesaturated(false)end
+                local approx=remain>0 and not ns.PartyCooldownExact(m,id)
+                if approx and not bars then cell.approx:Show()else cell.approx:Hide()end
                 cell:Show();ShowHidden(cell,hidden)
                 local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
                 local r,gr,b=c and c.r or 0.6,c and c.g or 0.36,c and c.b or 1
@@ -714,7 +727,7 @@ local function DrawAnchor(g,entries,a,unlocked)
                     if left then bar:SetPoint("RIGHT",cell,"LEFT",-gap,0)else bar:SetPoint("LEFT",cell,"RIGHT",gap,0)end
                     if bar.SetReverseFill then bar:SetReverseFill(left)end
                     bar:SetStatusBarColor(r,gr,b,1)
-                    bar.start,bar.dur,bar.hidden=remain>0 and start or nil,dur,hidden~=nil
+                    bar.start,bar.dur,bar.hidden,bar.approx=remain>0 and start or nil,dur,hidden~=nil,approx
                     if type(font)=="string"then bar.name:SetFont(font,11,"OUTLINE");bar.time:SetFont(font,11,"OUTLINE")end
                     bar.name:ClearAllPoints();bar.time:ClearAllPoints()
                     bar.name:SetPoint(left and"RIGHT"or"LEFT",bar,left and"RIGHT"or"LEFT",left and-4 or 4,0)
@@ -1136,12 +1149,14 @@ end
 -- group on everyone. Out of combat only; containers are reused.
 local pools={HELPFUL={},HARMFUL={}}
 function ns.RebuildPartyCooldownSensors()
+    local cfg=ns.PartyCooldownConfig()
+    -- Containers cannot be set up in combat: the current ones keep working until combat ends,
+    -- when this runs again.
+    if cfg.enabled and cfg.sensors and InCombatLockdown and InCombatLockdown()then return #sensors end
     for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();local p=pools[s.filter];p[#p+1]=s.frame end
     sensors={};sensorUnits={}
-    local cfg=ns.PartyCooldownConfig()
     if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
     if not(cfg.enabled and cfg.sensors)or sensorState.available==false then return 0 end
-    if InCombatLockdown and InCombatLockdown()then return 0 end
     local externals,externalOwners,stops,stopOwners={},{},{},{}
     for _,name in ipairs(order)do local m=members[name]
         for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
@@ -1478,6 +1493,6 @@ local function DrawPage(parent)
     end end
     local _,st=ns.PartyCooldownSensors()
     W.Label(c2,L("Buff sensors")..": "..(not cfg.sensors and L("off")or st.available==false and(L("not available")..", "..L(st.reason or""))or st.available and(#sensors..L(" watching"))or L("waiting for a group")),12,452,586,11,st.available==false and C.warning or C.soft)
-    W.Label(c2,L("Members without this addon show the cooldowns of their specialization at the game's base length; talents that shorten them are not known. Members with the addon send exactly what they have."),12,476,586,11,C.muted)
+    W.Label(c2,L("Members without this addon show the cooldowns of their specialization at the game's base length; talents that shorten them are not known. Members with the addon send exactly what they have. A ~ on a timer marks an estimate; timers without it are exact."),12,476,586,11,C.muted)
 end
 ns.ExtraPages.partycds=DrawPage
