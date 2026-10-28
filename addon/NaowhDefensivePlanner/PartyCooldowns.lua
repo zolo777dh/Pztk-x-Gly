@@ -737,7 +737,7 @@ ns.PartyCooldownShowHidden=ShowHidden
 -- /ndp pcd: what the sensors and the cast tracking see, printed to chat.
 function ns.PartyCooldownReport()
     local lines={}
-    lines[#lines+1]="Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
+    lines[#lines+1]="NDP "..tostring(ns.version)..", in combat: "..tostring(InCombatLockdown and InCombatLockdown()or false)..". Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
         ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
         ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")
     for _,name in ipairs(order)do local m=members[name]
