@@ -897,6 +897,11 @@ issecretvalue=function(v)return v==secret end;UnitPower=function()return secret 
 dk.ranks={[205723]=1};dk.used={};dk.estAt=nil;dk.est=nil;assert(ns.PartyCooldownCast('party4',55233));before=ns.PartyCooldownLeft(dk,55233)
 ns.PartyCooldownPower('party4');for i=1,10 do env.advance(1);ns.PartyCooldownPower('party4')end
 assert(math.abs(before-10-ns.PartyCooldownLeft(dk,55233)-6)<0.01,'10 s of combat = 6 s cut, got '..tostring(before-10-ns.PartyCooldownLeft(dk,55233)))
+-- Blood Dancing Rune Weapon: 30 s shorter with Insatiable Blade, and cut 0.4 s per second of combat.
+dk.ranks={[377637]=1};assert(ns.PartyCooldownWithTalents(dk,49028,120)==90)
+dk.used={[49028]=GetTime()};before=ns.PartyCooldownLeft(dk,49028);ns.PartyCooldownPace(GetTime())
+for i=1,10 do env.advance(1);ns.PartyCooldownPace(GetTime())end
+assert(math.abs(before-10-ns.PartyCooldownLeft(dk,49028)-4)<0.01,'10 s of combat = 4 s off Dancing Rune Weapon')
 issecretvalue,UnitPower,InCombatLockdown=realS,realP,realL end
 units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();w=m.Warr;w.spec=71
 -- The hero version of Bladestorm counts as Bladestorm.

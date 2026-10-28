@@ -40,7 +40,7 @@ for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={clas
 -- spec = only for that specialization}. A rank counts as many times as it is taken. Entries with
 -- no talent apply to the whole spec.
 local TALENT_CD={
-    [48707]={{205727,add=-20},{457574,add=20}},[51052]={{374383,add=-60}},
+    [49028]={{377637,add=-30}},[48707]={{205727,add=-20},{457574,add=20}},[51052]={{374383,add=-60}},
     [196718]={{389783,add=-120}},
     [194223]={{390378,add=-60},{468743,add=-60}},[102560]={{390378,add=-60},{468743,add=-60}},
     [106951]={{391174,add=-60},{391548,add=-30}},[102543]={{391174,add=-60},{391548,add=-30}},
@@ -910,6 +910,7 @@ driver:SetScript("OnUpdate",function()
     local now=GetTime()
     if #sensors>0 and(quick>0 or now-lastRead>=0.25)then quick=math.max(0,quick-1);lastRead=now;PollSensors()end
     if next(shownHidden)then SlideHidden()end
+    if ns.PartyCooldownPace then ns.PartyCooldownPace(now)end
 end)
 function ns.PartyCooldownAura(unit)
     if not ns.Plain(unit,"string")then return end
@@ -960,6 +961,21 @@ local function Shorten(m,id,sec)
     if t then for k=1,2 do MoveSlot(t.slot[k],-sec)end end
 end
 ns.PartyCooldownShorten=Shorten
+-- Cooldowns cut in combat by something the game hides for others: Blood Dancing Rune Weapon by
+-- Bone Shield charges consumed. Seconds cut per second of combat, in whole seconds.
+local PACE={[49028]={spec=250,rate=0.4}}
+local paceAt
+function ns.PartyCooldownPace(now)
+    local fighting=InCombatLockdown and InCombatLockdown()
+    local dt=fighting and paceAt and math.min(2,math.max(0,now-paceAt))or 0;paceAt=fighting and now or nil
+    if dt<=0 then return end
+    for _,m in pairs(members)do if not m.me then
+        for id,p in pairs(PACE)do if m.spec==p.spec then
+            m.pace=m.pace or{};m.pace[id]=(m.pace[id]or 0)+p.rate*dt
+            while m.pace[id]>=0.999 do m.pace[id]=m.pace[id]-1;Shorten(m,id,1)end
+        end end
+    end end
+end
 local lastSpendDraw=0
 function ns.PartyCooldownPower(unit)
     for _,m in pairs(members)do
