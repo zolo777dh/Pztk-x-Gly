@@ -1,0 +1,19 @@
+NDP Party Cooldowns
+===================
+The party cooldown tracker of Naowh Defensive Planner as a small addon of its own. It works next to
+any other addon (Naowh Smart Reminders, NSRT, ElvUI...). With Naowh Defensive Planner itself enabled
+it turns off, because the full addon already has it (/ndp party).
+
+Install: put the NDPPartyCooldowns folder into World of Warcraft\_retail_\Interface\AddOns and
+restart the game.
+
+It is on by default and shows the important cooldowns of every party member beside the Blizzard or
+ElvUI party frames. Type /pcd in chat for the settings window (the same page as in Naowh Defensive Planner), or
+/pcd help for the chat commands:
+  /pcd on | off, /pcd frames | list, /pcd left | right | top | bottom, /pcd size 20-40,
+  /pcd unlock | lock, /pcd ready, /pcd names, /pcd self, /pcd reset, /pcd report
+
+Other players need nothing installed. Players with this addon or Naowh Defensive Planner also send
+their exact cooldowns to the group out of combat. Cooldowns that the game shortens by what a player
+does in combat (resource spent, charges consumed...) are shown only for yourself, because the game
+hides that for others.
