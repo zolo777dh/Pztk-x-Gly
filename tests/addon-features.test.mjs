@@ -767,7 +767,8 @@ assert(ns.SharePartyCooldowns(true));assert(sent[#sent]:find('PCD',1,true))
 assert(ns.DrawPartyCooldowns())
 CompactPartyFrameMember2=CreateFrame('Button');CompactPartyFrameMember2.unit='party1'
 env.click('tab:partycds');cfg.mode='frames';assert(ns.DrawPartyCooldowns());assert(ns.PartyCooldownFrame('party1')==CompactPartyFrameMember2)
-env.click('tab:partycds');assert(ns.UIControls['pcd-unlock']and ns.UIControls['pcd:hideReady']);env.click('pcd-reset');assert(ns.PartyCooldownLeft(m.Tester,22812)==0)
+env.click('tab:partycds');assert(ns.UIControls['pcd-unlock']and ns.UIControls['pcd:hideReady']);assert(ns.PartyCooldownLeft(m.Tester,22812)==45,'your own timer is the game cooldown');assert(ns.PartyCooldownCast('party1',33206));env.click('pcd-reset');assert(ns.PartyCooldownLeft(m.Friend,33206)==0)
+C_Spell.GetSpellCooldown=function()return{startTime=0,duration=0}end
 -- Abilities: switch a spell off for its class, add and remove your own.
 env.click('pcd-view:abilities');env.click('pcd-class:PRIEST');env.click('pcd-spell:33206');assert(not ns.PartyCooldownTracked(33206,256)and ns.PartyCooldownTracked(33206,257),'off for Discipline only')
 for _,id in ipairs(ns.PartyCooldownList(m.Friend))do assert(id~=33206)end;assert(not ns.PartyCooldownCast('party1',33206))
@@ -862,6 +863,18 @@ env.advance(t.cd);ns.PartyCooldownPollSensors();assert(ns.PartyCooldownHiddenLef
 for i=1,6 do env.advance(t.cd);ns.PartyCooldownPollSensors()end;assert(GetTime()-t.slot[t.cur].epoch<=t.open,'slot rolled')
 issecretvalue=real
 local printed={};local p=print;print=function(t)printed[#printed+1]=t end;ns.Command('pcd');print=p;assert(#printed>=2 and printed[1]:find('Buff sensors',1,true),printed[1])
+-- Talents change the length: Arms Die by the Sword is 10% shorter with the talent taken.
+GetSpellBaseCooldown=function(id)return id==118038 and 120000 or id==107574 and 90000 or id==227847 and 90000 or 0,0 end
+local war={class='WARRIOR',spec=71,used={},unit='party4'}
+assert(ns.PartyCooldownLength(war,118038)==120);war.ranks={[391271]=1};assert(ns.PartyCooldownLength(war,118038)==108)
+assert(ns.PartyCooldownWithTalents({spec=70,ranks={}},31884,120)==60,'Retribution Avenging Wrath by spec')
+-- Spending rage in combat cuts Avatar and Bladestorm (Anger Management), also a hidden timer.
+units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();local w=m.Warr;w.spec=71;w.ranks={[152278]=1}
+local rage=100;UnitPower=function()return rage end;UnitAffectingCombat=function()return true end
+assert(ns.PartyCooldownCast('party4',107574));local before=ns.PartyCooldownLeft(w,107574)
+ns.PartyCooldownPower('party4');rage=40;ns.PartyCooldownPower('party4');assert(math.abs(before-ns.PartyCooldownLeft(w,107574)-3)<0.01,'60 rage = 3 s')
+-- The hero version of Bladestorm counts as Bladestorm.
+assert(ns.PartyCooldownCast('party4',446035));assert(ns.PartyCooldownLeft(w,227847)>80)
 -- In dungeons every reminder is spoken by default.
 ns.instanceType='party';local before=#env.shown;ns.Fire({display={type='text',text='Stack',tts=false}});assert(#env.shown==before+1 and env.shown[#env.shown].tts==true,'mplus voice default')
 local cm=ns.ContentMatches;ns.ContentMatches=function()return true end;ns.instanceType='raid';before=#env.shown;ns.Fire({display={type='text',text='Stack',tts=false}});ns.ContentMatches=cm;assert(#env.shown==before+1 and env.shown[#env.shown].tts==false,'raid stays silent')

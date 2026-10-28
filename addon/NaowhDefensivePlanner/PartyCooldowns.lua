@@ -36,6 +36,39 @@ ns.PartyCooldownSpells=SPELLS
 local byID={}
 for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={class=class,cd=s[2],order=order,specs=#s>2 and{select(3,unpack(s))}or nil}end end
 
+-- Talents that change a cooldown (game facts): {talent spell, add = seconds, pct = percent,
+-- spec = only for that specialization}. A rank counts as many times as it is taken. Entries with
+-- no talent apply to the whole spec.
+local TALENT_CD={
+    [49028]={{377637,add=-30}},[48707]={{205727,add=-20},{457574,add=20}},[51052]={{374383,add=-60}},
+    [196718]={{389783,add=-120}},
+    [194223]={{390378,add=-60},{468743,add=-60}},[102560]={{390378,add=-60},{468743,add=-60}},
+    [106951]={{391174,add=-60},{391548,add=-30}},[102543]={{391174,add=-60},{391548,add=-30}},
+    [22812]={{spec=104,add=-15},{203965,pct=-12}},[61336]={{203965,pct=-12}},[102342]={{382552,add=-20}},
+    [363534]={{381922,add=-60}},[403631]={{412713,pct=-10}},[363916]={{412713,pct=-10}},[357170]={{376204,add=-10}},[374227]={{412713,pct=-10}},
+    [19574]={{231548,add=-60}},[288613]={{260404,add=-30}},[186265]={{266921,add=-15},{1258485,add=-30}},
+    [190319]={{1254194,add=-60}},[45438]={{382424,add=-30},{1265517,add=-30},{1244110,add=-30}},[414658]={{382424,add=-30},{1265517,add=-30},{1244110,add=-30}},
+    [342245]={{342249,add=-5},{1255166,add=-10}},[55342]={{1244025,add=-30}},
+    [132578]={{450989,add=-25}},[123904]={{392986,add=-30}},[115203]={{spec=269,add=-240},{spec=270,add=-240},{388813,add=-30}},[116849]={{202424,add=-45}},
+    [31884]={{spec=70,add=-60},{1241511,add=-15},{204074,pct=-50}},[231895]={{1241511,add=-15}},[216331]={{1241511,add=-15}},
+    [642]={{114154,pct=-30},{378425,pct=-15}},[498]={{spec=70,add=30},{114154,pct=-30}},[31850]={{114154,pct=-30}},
+    [6940]={{384820,add=-60},{384820,spec=65,add=45}},[1022]={{384909,add=-60},{378425,pct=-15}},[31821]={{392911,add=-30}},
+    [19236]={{238100,add=-20}},[47585]={{288733,add=-30}},
+    [114050]={{462440,add=-60}},[114051]={{384444,add=-60}},[108271]={{381647,add=-30}},
+    [1122]={{1280483,add=-30}},[104773]={{386659,add=-45}},[108416]={{386686,add=-15}},
+    [118038]={{391271,pct=-10}},[184364]={{391271,pct=-10}},
+}
+-- Cooldowns cut while the fight goes on, by the resource a member spends (read from their power
+-- bar): warrior Anger Management, 1 second per `per` rage spent, on these spells per spec.
+local SPEND={WARRIOR={talent=152278,power=1,per={[71]=20,[72]=20,[73]=10},
+    spells={[71]={107574,227847},[72]={1719,107574,227847},[73]={107574,871}}}}
+-- Talents read from trees: those that change a cooldown and those that cut one by spending.
+local WANTED={}
+for _,mods in pairs(TALENT_CD)do for _,x in ipairs(mods)do if x[1]then WANTED[x[1]]=true end end end
+for _,sp in pairs(SPEND)do WANTED[sp.talent]=true end
+-- Other spell IDs the game uses for a tracked spell (a talent or hero version of it).
+local ALIAS={[446035]=227847,[401150]=107574}
+ns.PartyCooldownTalentMods=TALENT_CD
 local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
     local store=ns.Store();store.partycds=store.partycds or{}
@@ -151,17 +184,43 @@ local function BaseCooldown(id)
     if get then local ok,ms=pcall(get,id);if ok and ns.Plain(ms,"number")and ms>1500 then return ms/1000 end end
     return byID[id]and byID[id].cd or 0
 end
--- Seconds: what the member sent, then what this character learned from its own casts, then the game.
+-- The game's base cooldown changed by the member's talents. Talents not read yet: only the
+-- spec's own changes count.
+local function WithTalents(m,id,base)
+    local mods=TALENT_CD[id];if not mods then return base end
+    local ranks=m and m.ranks
+    local cd,mul=base,1
+    for _,x in ipairs(mods)do
+        local rank=0
+        if x[1]then rank=ranks and ranks[x[1]]or 0 else rank=1 end
+        if x.spec and x.spec~=(m and m.spec)then rank=0 end
+        if rank>0 then cd=cd+(x.add or 0)*rank;mul=mul*(1+(x.pct or 0)*rank/100)end
+    end
+    return math.max(5,math.floor(cd*mul+0.5))
+end
+ns.PartyCooldownWithTalents=WithTalents
+-- Seconds: what the member sent, then what this character learned from its own casts, then the
+-- game's base changed by their talents.
 function ns.PartyCooldownLength(member,id)
     local sent=member and member.cds and member.cds[id];if sent then return sent end
     if member and member.me then
         local learned=ns.PartyCooldownConfig().learned[tostring(member.spec or 0)]
         if learned and learned[id]then return learned[id]end
     end
-    return BaseCooldown(id)
+    return WithTalents(member,id,BaseCooldown(id))
 end
+-- Your own cooldown straight from the game, so every reduction counts: start and length.
+local function OwnCooldown(id)
+    local get=C_Spell and C_Spell.GetSpellCooldown;if not get then return nil end
+    local ok,info=pcall(get,id);if not ok or type(info)~="table"then return nil end
+    local start,dur=info.startTime,info.duration
+    if ns.Plain(start,"number")and ns.Plain(dur,"number")and dur>1.5 and start>0 then return start,dur end
+    return nil
+end
+ns.PartyCooldownOwn=OwnCooldown
 -- Seconds left on a member's cooldown, 0 when ready.
 function ns.PartyCooldownLeft(member,id)
+    if member and member.me then local start,dur=OwnCooldown(id);if start then return math.max(0,start+dur-GetTime())end end
     local start=member and member.used and member.used[id];if not start then return 0 end
     return math.max(0,start+ns.PartyCooldownLength(member,id)-GetTime())
 end
@@ -235,7 +294,7 @@ local function ReadTalents(m,config)
     config=config or(Constants and Constants.TraitConsts and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID or-1)
     local marks=ns.PartyCooldownConfig().talentSpells
     local ok,info=pcall(T.GetConfigInfo,config);if not ok or type(info)~="table"or type(info.treeIDs)~="table"then return false end
-    local talented={};local any=false
+    local talented={};local any=false;local ranks={};local read=false
     for _,tree in ipairs(info.treeIDs)do
         local ok2,nodes=pcall(T.GetTreeNodes,tree)
         for _,node in ipairs(ok2 and type(nodes)=="table"and nodes or{})do
@@ -246,6 +305,7 @@ local function ReadTalents(m,config)
                 for _,entry in ipairs(n.entryIDs)do
                     local ok4,e=pcall(T.GetEntryInfo,config,entry);local def=ok4 and type(e)=="table"and e.definitionID
                     local ok5,d=pcall(T.GetDefinitionInfo,def or 0);local id=ok5 and type(d)=="table"and d.spellID
+                    if ns.Plain(id,"number")and WANTED[id]then ranks[id]=math.max(ranks[id]or 0,(active==entry or #n.entryIDs==1)and rank or 0);read=true end
                     if ns.Plain(id,"number")and byID[id]then
                         marks[id]=true
                         talented[id]=talented[id]or(rank>0 and(active==entry or #n.entryIDs==1));any=true
@@ -255,13 +315,15 @@ local function ReadTalents(m,config)
         end
     end
     if any and m then m.talented=talented end
+    if(any or read)and m then m.ranks=ranks end
     return any
 end
 -- Your own talent tree, read when the addon loads and whenever your spec or talents change.
 local function ReadOwnTalents()
     local get=C_ClassTalents and C_ClassTalents.GetActiveConfigID
     local ok,config=pcall(get or function()end)
-    if ok and ns.Plain(config,"number")then return ReadTalents(nil,config)end
+    local me;for _,m in pairs(members)do if m.me then me=m end end
+    if ok and ns.Plain(config,"number")then return ReadTalents(me,config)end
     return false
 end
 ns.PartyCooldownReadOwnTalents=ReadOwnTalents
@@ -354,6 +416,7 @@ function ns.PartyCooldownCast(unit,id)
     end end
     if not m then return false end
     if not ns.Plain(id,"number")then m.hidden=(m.hidden or 0)+1;return false end
+    id=ALIAS[id]or id
     m.seen=(m.seen or 0)+1
     local info=byID[id]
     -- Not in the list (a follower's spell, a new talent...): any spell the game gives a cooldown of
@@ -457,7 +520,9 @@ local function FillIcons(row,m,ids,size,cfg)
         if not(cfg.hideReady and left<=0 and not hidden)then
             n=n+1;local icon=Icon(row,n,size)
             icon.tex:SetTexture(W.SpellTexture(id));icon.spellID=id
-            if left>0 then icon.cd:SetCooldown(m.used[id],ns.PartyCooldownLength(m,id));icon.tex:SetDesaturated(true)
+            local start,dur;if m.me then start,dur=OwnCooldown(id)end
+            if not start and m.used[id]then start,dur=m.used[id],ns.PartyCooldownLength(m,id)end
+            if left>0 and start then icon.cd:SetCooldown(start,dur);icon.tex:SetDesaturated(true)
             else icon.cd:Clear();icon.tex:SetDesaturated(false)end
             icon:Show();ShowHidden(icon,hidden)
         end
@@ -542,7 +607,7 @@ local BUFFS={
     [64843]={EXTERNAL,64843,64844},[360194]={SELF,1249810,360194},
     [114050]={SELF,114050,1219480},[98008]={EXTERNAL,325174},[198103]={SELF,198103,381755},[2825]={EXTERNAL,2825},[32182]={EXTERNAL,32182},
     [265187]={SELF,1276767,265187},[1122]={SELF,1122,111685,266087,417282},
-    [97462]={EXTERNAL,97463},
+    [97462]={EXTERNAL,97463},[227847]={SELF,227847,446035},[107574]={SELF,107574,401150},
 }
 ns.PartyCooldownBuffs=BUFFS
 local function BuffsOf(id)
@@ -553,6 +618,7 @@ end
 local sensorHost,sensorTicker
 local sensors={}
 local sensorState={available=nil,reason=nil}
+local spendState={plain=0,hidden=0}
 function ns.PartyCooldownSensors()return sensors,sensorState end
 -- The container's answer. In combat the game hands it out as a hidden yes/no that no addon can
 -- read or compare; it can only be passed on to the game's own helpers and widgets.
@@ -585,7 +651,8 @@ end
 -- slot is opened again, so two slots per spell are enough. Epochs and the clock used for drawing
 -- are whole seconds, so the seconds shown are whole too.
 local EVAL=function()return C_CurveUtil and C_CurveUtil.EvaluateColorValueFromBoolean end
-local function HiddenTrack(m,id,now)
+local HiddenTrack
+function HiddenTrack(m,id,now)
     m.hiddenCd=m.hiddenCd or{}
     local t=m.hiddenCd[id]
     if not t then
@@ -594,6 +661,12 @@ local function HiddenTrack(m,id,now)
         local epoch=math.floor(now)
         t={cd=cd,unit=unit,window=window,open=window-cd,cur=1,slot={{epoch=epoch,code=0},{epoch=epoch,code=0}}}
         m.hiddenCd[id]=t;t.created=true
+    end
+    -- The length changed (talents read, a sent cooldown): a running timer keeps its start.
+    local cd=math.floor(ns.PartyCooldownLength(m,id)+0.5)
+    if cd~=t.cd and cd>0 then
+        if cd*2<=t.window then for k=1,2 do t.slot[k].epoch=t.slot[k].epoch+cd-t.cd end;t.cd=cd;t.open=t.window-cd
+        else m.hiddenCd[id]=nil;return HiddenTrack(m,id,now)end
     end
     local sl=t.slot[t.cur]
     if now-sl.epoch>t.open then t.cur=3-t.cur;t.slot[t.cur]={epoch=math.floor(now),code=0};t.moved=true end
@@ -739,12 +812,13 @@ function ns.PartyCooldownReport()
     local lines={}
     lines[#lines+1]="NDP "..tostring(ns.version)..", in combat: "..tostring(InCombatLockdown and InCombatLockdown()or false)..". Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
         ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
-        ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")
+        ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", power bars read "..spendState.plain.." hidden "..spendState.hidden..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")
     for _,name in ipairs(order)do local m=members[name]
         local sens=0;for _,s in ipairs(sensors)do if s.member==name then sens=sens+1 end end
         lines[#lines+1]=name..": "..tostring(m.class).." "..tostring(m.spec and ns.Catalog.specs[m.spec]or"spec unknown")..(m.talented and", talents read"or", talents not read")
             ..", icons "..#ns.PartyCooldownList(m)..", sensors "..sens..", casts seen "..(m.seen or 0).." hidden "..(m.hidden or 0).." by buff "..(m.sensed or 0)
             ..", hidden timers "..(function()local n=0;for _ in pairs(m.hiddenCd or{})do n=n+1 end;return n end)()
+            ..(m.ranks and", cooldown talents read"or"")
     end
     return lines
 end
@@ -838,10 +912,44 @@ function ns.RebuildPartyCooldownSensors()
     return #sensors
 end
 
+-- Spending cuts cooldowns (warrior Anger Management): each fall of the member's power bar in
+-- combat is spent resource. A running timer is shortened; a hidden one by moving its epoch, which
+-- moves its start without reading it. Power bars the game hides cannot be counted.
+local function Shorten(m,id,sec)
+    local start=m.used[id]
+    if start and GetTime()<start+ns.PartyCooldownLength(m,id)then m.used[id]=start-sec;m.shortened=true end
+    local t=m.hiddenCd and m.hiddenCd[id]
+    if t then for k=1,2 do t.slot[k].epoch=t.slot[k].epoch-sec end end
+end
+ns.PartyCooldownShorten=Shorten
+local lastSpendDraw=0
+function ns.PartyCooldownPower(unit)
+    for _,m in pairs(members)do
+        local sp=m.class and SPEND[m.class]
+        if sp and m.unit==unit and not m.me and(not m.ranks or(m.ranks[sp.talent]or 0)>0)and sp.per[m.spec or 0]then
+            local ok,power=pcall(UnitPower,unit,sp.power)
+            if ok and ns.Plain(power,"number")then
+                spendState.plain=spendState.plain+1
+                local fighting=UnitAffectingCombat and UnitAffectingCombat(unit)
+                if m.power and power<m.power and ns.Plain(fighting,"boolean")and fighting then
+                    m.spent=(m.spent or 0)+m.power-power
+                    local per=sp.per[m.spec]
+                    while m.spent>=per do
+                        m.spent=m.spent-per
+                        for _,id in ipairs(sp.spells[m.spec]or{})do Shorten(m,id,1)end
+                    end
+                end
+                m.power=power
+            else spendState.hidden=spendState.hidden+1;m.power=nil end
+            if m.shortened and GetTime()-lastSpendDraw>1 then m.shortened=nil;lastSpendDraw=GetTime();ns.DrawPartyCooldowns()end
+        end
+    end
+end
+local ownDraw
 local events=CreateFrame("Frame")
 local function Listen(on)
     for _,e in ipairs({"UNIT_SPELLCAST_SUCCEEDED","GROUP_ROSTER_UPDATE","PLAYER_SPECIALIZATION_CHANGED","TRAIT_CONFIG_UPDATED","INSPECT_READY",
-        "READY_CHECK","PLAYER_REGEN_ENABLED","PLAYER_REGEN_DISABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD"})do
+        "READY_CHECK","PLAYER_REGEN_ENABLED","PLAYER_REGEN_DISABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD","UNIT_POWER_UPDATE","SPELL_UPDATE_COOLDOWN"})do
         if on then pcall(events.RegisterEvent,events,e)elseif events.UnregisterEvent then events:UnregisterEvent(e)end
     end
 end
@@ -855,6 +963,11 @@ end
 events:SetScript("OnEvent",function(_,event,a,_,c)
     if event=="UNIT_SPELLCAST_SUCCEEDED"then
         if ns.Plain(a,"string")and(a=="player"or a=="target"or a=="focus"or a:match("^party%d")or a:match("^raid%d")or a:match("^nameplate%d"))then ns.PartyCooldownCast(a,c)end
+    elseif event=="UNIT_POWER_UPDATE"then
+        if ns.Plain(a,"string")and a~="player"then ns.PartyCooldownPower(a)end
+    elseif event=="SPELL_UPDATE_COOLDOWN"then
+        -- Your own icons follow the game's cooldowns; one redraw for a burst of updates.
+        if not ownDraw and C_Timer and C_Timer.NewTimer then ownDraw=C_Timer.NewTimer(0.2,function()ownDraw=nil;ns.DrawPartyCooldowns()end)end
     elseif event=="PLAYER_REGEN_DISABLED"then RefreshSensors()
     elseif event=="PLAYER_REGEN_ENABLED"then
         for id in pairs(pendingLearn)do if Learn(id)then pendingLearn[id]=nil end end
