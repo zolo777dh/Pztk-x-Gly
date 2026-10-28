@@ -801,7 +801,7 @@ local found=false;for _,id in ipairs(ns.PartyCooldownClassSpells('ROGUE'))do if 
 ns.PartyCooldownConfig().detect=false;assert(not ns.PartyCooldownCast('party2',6666666))
 -- Every specialization has cooldowns of its own or its class.
 for class,specs in pairs(ns.ClassSpecs)do for _,spec in ipairs(specs)do
- local list=ns.PartyCooldownList({class=class,spec=spec,used={}});assert(#list>=2,class..' '..spec..' '..#list)
+ local list=ns.PartyCooldownList({class=class,spec=spec,used={},talented={}});assert(#list>=2,class..' '..spec..' '..#list)
 end end
 -- Without inspect or addon, a tank or healer role gives the spec.
 assert(#ns.RoleSpecs('DRUID','HEALER')==1 and ns.RoleSpecs('DRUID','HEALER')[1]==105 and #ns.RoleSpecs('PRIEST','HEALER')==2)
@@ -823,5 +823,14 @@ light(31224,'party2');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(
 ns.PartyCooldownPollSensors();assert(m.Rogue.sensed==1,'a buff that stays up counts once')
 light(33206,'party3');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Friend,33206)>100,'Pain Suppression on the shaman credits the priest')
 cfg.sensors=false;assert(ns.RebuildPartyCooldownSensors()==0);cfg.sensors=true
+-- Strictly by spec: your own list is what your spellbook knows; one Bloodlust or Heroism by faction.
+local book=C_SpellBook.IsSpellKnown;C_SpellBook.IsSpellKnown=function(id)return id==22812 or id==61336 end
+m.Tester.used={};local own=ns.PartyCooldownList(m.Tester);assert(#own==2,#own);C_SpellBook.IsSpellKnown=book
+UnitFactionGroup=function()return'Alliance'end;ns.PartyCooldownRoster()
+local lust,hero=false,false;for _,id in ipairs(ns.PartyCooldownList(m.Follower))do if id==2825 then lust=true elseif id==32182 then hero=true end end;assert(hero and not lust)
+-- Talents seen in any tree are not shown for a member whose talents are not read yet.
+assert(ns.PartyCooldownConfig().talentSpells[5277],'Evasion remembered as a talent')
+m.Rogue.talented=nil;m.Rogue.used={};for _,id in ipairs(ns.PartyCooldownList(m.Rogue))do assert(id~=5277 and id~=31224)end
+assert(ns.PartyCooldownReadTalents(m.Rogue));local cloak=false;for _,id in ipairs(ns.PartyCooldownList(m.Rogue))do if id==31224 then cloak=true end end;assert(cloak)
 ns.Command('party');assert(ns.UIState.tab=='partycds')
 `));

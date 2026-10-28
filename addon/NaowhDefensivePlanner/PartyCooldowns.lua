@@ -36,7 +36,7 @@ ns.PartyCooldownSpells=SPELLS
 local byID={}
 for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={class=class,cd=s[2],order=order,specs=#s>2 and{select(3,unpack(s))}or nil}end end
 
-local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},learned={},disabled={},specOff={},custom={}}
+local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
     local store=ns.Store();store.partycds=store.partycds or{}
     local c=store.partycds
@@ -103,6 +103,12 @@ local function ForSpec(info,spec,candidates)
     end
     return false
 end
+local function Known(id)
+    local known=C_SpellBook and(C_SpellBook.IsSpellKnownOrInSpellBook or C_SpellBook.IsSpellKnown)or IsPlayerSpell
+    if not known then return false end
+    local ok,v=pcall(known,id);return ok and ns.Plain(v,"boolean")and v
+end
+local FACTION={[2825]="Horde",[32182]="Alliance"}
 local TANKS={[66]=1,[73]=1,[104]=1,[250]=1,[268]=1,[581]=1}
 local HEALERS={[65]=1,[105]=1,[256]=1,[257]=1,[264]=1,[270]=1,[1468]=1}
 function ns.RoleSpecs(class,role)
@@ -125,7 +131,17 @@ function ns.PartyCooldownList(member)
     local out,seen={},{}
     local function add(id)if not seen[id]and ns.PartyCooldownTracked(id,member.spec)and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
     if member.known then for id in pairs(member.known)do add(id)end
-    elseif member.class and SPELLS[member.class]then for _,id in ipairs(ns.PartyCooldownClassSpells(member.class))do if ForSpec(byID[id],member.spec,member.roleSpecs)then add(id)end end end
+    elseif member.class and SPELLS[member.class]then
+        -- Strictly the member's spec: your own list is what your spellbook knows right now; for
+        -- others the spec's list (nothing spec-only until the spec is known), minus talents they
+        -- did not take and the other faction's Bloodlust/Heroism.
+        local faction=member.faction
+        for _,id in ipairs(ns.PartyCooldownClassSpells(member.class))do
+            local info=byID[id]
+            local unread=not member.me and not member.talented and ns.PartyCooldownConfig().talentSpells[id]
+            if ForSpec(info,member.spec)and not unread and not(FACTION[id]and faction and FACTION[id]~=faction)and(not member.me or info.added or info.detected or Known(id))then add(id)end
+        end
+    end
     for id in pairs(member.used or{})do add(id)end
     table.sort(out,function(a,b)return byID[a].order<byID[b].order end)
     return out
@@ -184,6 +200,7 @@ function ns.PartyCooldownRoster()
             local m=members[name]or{name=name,used={}};members[name]=m
             m.unit=unit;m.me=unit=="player";m.class=ns.Plain(class,"string")and class or m.class
             m.spec=(m.me and ns.Spec())or m.sentSpec or InspectSpec(unit)or m.spec
+            if UnitFactionGroup then local ok,f=pcall(UnitFactionGroup,unit);if ok and ns.Plain(f,"string")then m.faction=f end end
             local role=UnitGroupRolesAssigned and UnitGroupRolesAssigned(unit)
             m.roleSpecs=m.class and ns.Plain(role,"string")and ns.RoleSpecs(m.class,role)or nil
             if not m.spec and m.roleSpecs and #m.roleSpecs==1 then m.spec=m.roleSpecs[1]end
@@ -202,17 +219,21 @@ local function InspectNext()
     if InCombatLockdown and InCombatLockdown()then return end
     if not(NotifyInspect and CanInspect)then return end
     for _,name in ipairs(order)do local m=members[name]
-        if m and not m.me and not m.ndp and(not m.spec or not m.talented)and not m.asked then
-            local ok,can=pcall(CanInspect,m.unit);if ok and can then m.asked=true;pcall(NotifyInspect,m.unit)
+        -- No answer (out of range...): asked again after 15 s, up to 6 times.
+        if m and not m.me and not m.ndp and(not m.spec or not m.talented)and(m.tries or 0)<6 and(not m.asked or GetTime()-m.asked>15)then
+            local ok,can=pcall(CanInspect,m.unit);if ok and can then m.asked=GetTime();m.tries=(m.tries or 0)+1;pcall(NotifyInspect,m.unit)
                 if C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(2,InspectNext)end;return end
         end
     end
 end
 -- Talents of an inspected member: every talent spell of their trees, true when taken. Spells of
 -- the list that are talents they did not take are then left out.
-local function ReadTalents(m)
+-- Every spell of the list seen in any talent tree is remembered as a talent, so members whose
+-- talents are not read yet do not show talents they may not have.
+local function ReadTalents(m,config)
     local T=C_Traits;if not(T and T.GetConfigInfo and T.GetTreeNodes and T.GetNodeInfo and T.GetEntryInfo and T.GetDefinitionInfo)then return false end
-    local config=Constants and Constants.TraitConsts and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID or-1
+    config=config or(Constants and Constants.TraitConsts and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID or-1)
+    local marks=ns.PartyCooldownConfig().talentSpells
     local ok,info=pcall(T.GetConfigInfo,config);if not ok or type(info)~="table"or type(info.treeIDs)~="table"then return false end
     local talented={};local any=false
     for _,tree in ipairs(info.treeIDs)do
@@ -226,25 +247,29 @@ local function ReadTalents(m)
                     local ok4,e=pcall(T.GetEntryInfo,config,entry);local def=ok4 and type(e)=="table"and e.definitionID
                     local ok5,d=pcall(T.GetDefinitionInfo,def or 0);local id=ok5 and type(d)=="table"and d.spellID
                     if ns.Plain(id,"number")and byID[id]then
+                        marks[id]=true
                         talented[id]=talented[id]or(rank>0 and(active==entry or #n.entryIDs==1));any=true
                     end
                 end
             end
         end
     end
-    if any then m.talented=talented end
+    if any and m then m.talented=talented end
     return any
 end
+-- Your own talent tree, read when the addon loads and whenever your spec or talents change.
+local function ReadOwnTalents()
+    local get=C_ClassTalents and C_ClassTalents.GetActiveConfigID
+    local ok,config=pcall(get or function()end)
+    if ok and ns.Plain(config,"number")then return ReadTalents(nil,config)end
+    return false
+end
+ns.PartyCooldownReadOwnTalents=ReadOwnTalents
 ns.PartyCooldownReadTalents=ReadTalents
 local function QueueInspect()if not inspectTimer and C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(1,InspectNext)end end
 
 ---------------------------------------------------------------------------
 -- Sharing: "spec;id=seconds;id=seconds..." for the tracked spells this character knows.
-local function Known(id)
-    local known=C_SpellBook and(C_SpellBook.IsSpellKnownOrInSpellBook or C_SpellBook.IsSpellKnown)or IsPlayerSpell
-    if not known then return false end
-    local ok,v=pcall(known,id);return ok and ns.Plain(v,"boolean")and v
-end
 function ns.PartyCooldownPayload()
     local spec=ns.Spec();local _,class=UnitClass("player");local parts={tostring(spec or 0)}
     local me={me=true,spec=spec}
@@ -253,7 +278,7 @@ function ns.PartyCooldownPayload()
         if done[id]or #parts>60 then return end;done[id]=true
         parts[#parts+1]=id.."="..math.floor(ns.PartyCooldownLength(me,id)+0.5)
     end
-    for _,id in ipairs(ns.PartyCooldownClassSpells(class))do if ForSpec(byID[id],spec)and Known(id)then add(id)end end
+    for _,id in ipairs(ns.PartyCooldownClassSpells(class))do if ForSpec(byID[id],spec)and Known(id)and not(FACTION[id]and UnitFactionGroup and FACTION[id]~=UnitFactionGroup("player"))then add(id)end end
     if ns.PartyCooldownConfig().cdm then for _,id in ipairs(ns.CooldownManagerSpells())do add(id)end end
     return table.concat(parts,";")
 end
@@ -610,6 +635,7 @@ local function Listen(on)
 end
 function ns.RefreshPartyCooldowns()
     local cfg=ns.PartyCooldownConfig();LoadCustom();Listen(cfg.enabled==true)
+    if cfg.enabled then ReadOwnTalents()end
     if cfg.enabled then ns.PartyCooldownRoster();QueueInspect();ns.SharePartyCooldowns()end
     ns.RebuildPartyCooldownSensors()
     return ns.DrawPartyCooldowns()
@@ -633,7 +659,8 @@ events:SetScript("OnEvent",function(_,event,a,_,c)
     else
         if event~="READY_CHECK"then ns.PartyCooldownRoster()end
         if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then QueueInspect();frameCache={}end
-        if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.talented=nil;m.spec=nil;m.sentSpec=nil end end;QueueInspect()end
+        if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.tries=nil;m.talented=nil;m.spec=nil;m.sentSpec=nil end end;QueueInspect()end
+        if event=="TRAIT_CONFIG_UPDATED"or event=="PLAYER_SPECIALIZATION_CHANGED"and a=="player"then ReadOwnTalents()end
         if event~="READY_CHECK"then ns.RebuildPartyCooldownSensors()end
         ns.SharePartyCooldowns();ns.DrawPartyCooldowns()
     end
