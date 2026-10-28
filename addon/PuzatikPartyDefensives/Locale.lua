@@ -42,7 +42,8 @@ local ru={
     ["Members without this addon show the cooldowns of their specialization at the game's base length; talents that shorten them are not known. Members with the addon send exactly what they have."]="У игроков без аддона показываются кд их специализации с базовой длительностью из игры: таланты, которые их сокращают, неизвестны. Игроки с аддоном присылают точно то, что у них есть.",
     -- Interrupts and crowd control
     ["Interrupts"]="Кики",["Crowd control"]="Контроль",["Show"]="Показывать",
-    ["GROWS"]="РОСТ",["Down"]="Вниз",["Up"]="Вверх",["Reset position"]="Сбросить позицию",
+    ["GROWS"]="РОСТ",["STYLE"]="ВИД",["Icons"]="Иконки",["Bars"]="Полосы",["BAR HEIGHT"]="ВЫСОТА ПОЛОСЫ",["BAR WIDTH"]="ШИРИНА ПОЛОСЫ",
+    ["HORIZONTAL"]="ПО ГОРИЗОНТАЛИ",["VERTICAL"]="ПО ВЕРТИКАЛИ",["To the right"]="Вправо",["To the left"]="Влево",["PER ROW"]="В РЯДУ",["ROWS"]="РЯДОВ",["Down"]="Вниз",["Up"]="Вверх",["Reset position"]="Сбросить позицию",
     ["An interrupt is credited by the game's interrupt meter, by the interrupter's name when the game gives it, or to the only member whose interrupt is ready. A kick that misses the cast cannot be seen."]="Кик засчитывается по встроенному метру прерываний, по имени прервавшего, если игра его называет, или единственному игроку, у которого кик был готов. Кик мимо каста увидеть нельзя.",
     ["Stuns and other crowd control are seen as their debuff on enemy nameplates, so enemy nameplates must be shown. Hammer of Justice is shown only for yourself, because Fist of Justice shortens it."]="Станы и другой контроль видны по дебаффу на неймплейтах врагов, поэтому неймплейты врагов должны быть включены. Молот правосудия показывается только у вас: Кулак правосудия его ускоряет.",
     ["Unlock shows every list with its name; drag them where you want them."]="В открепленном режиме видны все списки с названиями, перетащите их куда нужно.",
@@ -64,7 +65,6 @@ local ru={
     ["/pcd self: your own cooldowns, on/off"]="/pcd self: свои кд, вкл/выкл",
     ["/pcd reset: every cooldown ready again"]="/pcd reset: все кд снова готовы",
     ["/pcd report: what is being tracked, for bug reports"]="/pcd report: что отслеживается, для отчётов об ошибках",
-    ["Naowh Defensive Planner is enabled and already tracks party cooldowns (/ndp party). This addon stays off."]="Включён Naowh Defensive Planner, он уже отслеживает кд группы (/ndp party). Этот аддон не работает.",
     ["Tracking on"]="Отслеживание включено",["Tracking off"]="Отслеживание выключено",
     ["Beside the party frames"]="У рамок группы",["Side: "]="Сторона: ",["Icon size "]="Размер иконок ",["Size from 20 to 40"]="Размер от 20 до 40",
     ["Unlocked: drag the list"]="Откреплено: перетащите списки",["Locked"]="Закреплено",

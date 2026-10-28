@@ -754,7 +754,7 @@ assert(not ns.PartyCooldownCast('party1',999999));issecretvalue=real
 assert(m.Friend.hidden==1 and m.Rogue.seen==2)
 -- What a member's addon sends: exactly their spells and their talented cooldowns.
 ns.CommHandlers.PCD('256;33206=150;62618=180;10060=120;1234567=90','Friend')
-assert(m.Friend.spec==256 and m.Friend.ndp and m.Friend.cds[33206]==150 and m.Friend.known[1234567])
+assert(m.Friend.spec==256 and m.Friend.addon and m.Friend.cds[33206]==150 and m.Friend.known[1234567])
 local list=ns.PartyCooldownList(m.Friend);assert(#list==4 and list[1]==10060 and list[4]==1234567,#list)
 assert(ns.PartyCooldownCast('party1',33206));assert(math.abs(ns.PartyCooldownLeft(m.Friend,33206)-150)<0.01)
 env.advance(151);assert(ns.PartyCooldownLeft(m.Friend,33206)==0)
@@ -928,10 +928,22 @@ local function only(x,kind,id)for _,v in ipairs(ns.PartyCooldownList(x,kind))do 
 assert(only(m.Rogue,'kick',1766)and not only(m.Rogue,'kick',2094)and only(m.Rogue,'cc',2094)and not only(m.Rogue,'defensive',1766)and not only(m.Rogue,'defensive',2094)and only(m.Rogue,'defensive',31224))
 env.click('pcd-view:anchors');assert(ns.UIControls['pcd-kick:size']and ns.UIControls['pcd-cc:grow']and ns.UIControls['pcd-unlock'])
 assert(ns.DrawPartyCooldowns());local G=ns.PartyCooldownGroups
-local function shows(g,id)if not g.frame:IsShown()then return false end;for _,row in ipairs(g.rows)do if row:IsShown()then for _,icon in ipairs(row.icons)do if icon:IsShown()and icon.spellID==id then return true end end end end return false end
+local function shows(g,id)if not g.frame:IsShown()then return false end;for _,row in ipairs(g.rows)do if row:IsShown()then for _,icon in ipairs(row.icons)do if icon:IsShown()and icon.spellID==id then return true end end end end
+ for _,icon in ipairs(g.frame.icons or{})do if icon:IsShown()and icon.spellID==id then return true end end return false end
+local function cell(g,id)for _,icon in ipairs(g.frame.icons or{})do if icon:IsShown()and icon.spellID==id then return icon end end end
 assert(shows(G.kick,1766)and shows(G.cc,2094)and not shows(G.kick,2094)and not shows(G.main,1766),'kicks and crowd control in their own lists')
 env.select('pcd-kick:size','42 px');env.select('pcd-cc:grow','Up');env.click('pcd-kick:names');assert(cfg.anchors.kick.size==42 and cfg.anchors.cc.grow=='UP'and cfg.anchors.kick.names==false)
-assert(G.kick.rows[1].icons[1]:GetWidth()==42,'the kick list has its own icon size')
+assert(G.kick.frame.icons[1]:GetWidth()==42,'the kick list has its own size')
+-- Interrupts show as bars by default, crowd control as icons; each can be switched, laid out in rows.
+assert(cell(G.kick,1766).bar:IsShown()and not cell(G.cc,2094).bar:IsShown()and ns.UIControls['pcd-kick:width']and not ns.UIControls['pcd-cc:width'])
+m.Rogue.used[1766]=GetTime();assert(ns.DrawPartyCooldowns());local bar=cell(G.kick,1766).bar;ns.PartyCooldownUpdateBars(G.kick.frame,1)
+assert(bar.time:GetText()=='15'and bar.dur==15,'the bar counts the kick down');m.Rogue.used={}
+env.select('pcd-kick:dir','To the left');env.select('pcd-kick:width','240 px');assert(cfg.anchors.kick.dir=='LEFT'and cfg.anchors.kick.width==240 and bar:GetWidth()==240-42-2)
+env.select('pcd-kick:style','Icons');assert(cfg.anchors.kick.style=='icons'and not cell(G.kick,1766).bar:IsShown()and not ns.UIControls['pcd-kick:width'])
+local function count(g)local n=0;for _,icon in ipairs(g.frame.icons or{})do if icon:IsShown()then n=n+1 end end;return n end
+local all=count(G.cc);assert(all>=2,'more than one crowd control spell in the group')
+env.select('pcd-cc:perRow','1');env.select('pcd-cc:rows','1');assert(count(G.cc)==1,'one row of one icon');env.select('pcd-cc:rows','10');assert(count(G.cc)==all)
+env.select('pcd-kick:style','Bars')
 cfg.anchors.cc.x=300;assert(ns.DrawPartyCooldowns());assert(G.cc.x==300);env.click('pcd-cc:reset');assert(cfg.anchors.cc.x==-420 and G.cc.x==-420)
 env.click('pcd:kicks');assert(cfg.kicks==false and not has(m.Rogue,1766)and not G.kick.frame:IsShown());env.click('pcd:cc');assert(not has(m.Rogue,2094)and not G.cc.frame:IsShown())
 env.click('pcd:kicks');env.click('pcd:cc');assert(has(m.Rogue,1766)and has(m.Rogue,2094))
@@ -963,7 +975,7 @@ ns.PartyCooldownPlate('nameplate8');ns.PartyCooldownPollSensors();assert(ns.Part
 local printed={};local p=print;print=function(t)printed[#printed+1]=t end;ns.Command('pcd');print=p
 local found=false;for _,t in ipairs(printed)do if t:find('Interrupts seen',1,true)then found=true end end;assert(found)
 `));
-test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and stays off next to Naowh Defensive Planner',async()=>{
+test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
  const toc=files['PuzatikPartyDefensives/PuzatikPartyDefensives.toc'].toString('utf8');assert.match(toc,new RegExp('## Version: '+version.replaceAll('.','\\.')));
  const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Locale.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','Slash.lua']);
@@ -1012,7 +1024,5 @@ p.UIControls['pcd:enabled']:Click();assert(p.PartyCooldownConfig().enabled==fals
 p.UIControls['pcd-view:abilities']:Click();p.UIControls['pcd-class:PRIEST']:Click();assert(p.UIControls['pcd-spec:256'].label.text=='Discipline','spec names on the tabs, not numbers');p.UIControls['pcd-spell:19236']:Click()
 assert(not p.PartyCooldownTracked(19236,256),'switched off from the window')
 p.UIControls['pcd-close']:Click();assert(not p.PartyCooldownWindow:IsShown())
-C_AddOns.IsAddOnLoaded=function(name)return name=='NaowhDefensivePlanner'end
-assert(p.PartyCooldownConfig().enabled==false,'off next to the full addon')
 `);
 });

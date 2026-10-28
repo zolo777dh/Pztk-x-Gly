@@ -18,7 +18,6 @@ local HELP={
 local SIDE={left="LEFT",right="RIGHT",top="TOP",bottom="BOTTOM"}
 SLASH_PUZATIKPARTYDEFENSIVES1="/pcd";SLASH_PUZATIKPARTYDEFENSIVES2="/ppd"
 SlashCmdList.PUZATIKPARTYDEFENSIVES=function(input)
-    if ns.FullAddonLoaded()then say(L("Naowh Defensive Planner is enabled and already tracks party cooldowns (/ndp party). This addon stays off."));return end
     local cmd,arg=strtrim(input or""):lower():match("^(%S*)%s*(.-)$")
     local cfg=ns.PartyCooldownConfig()
     if cmd=="on"or cmd=="off"then cfg.enabled=cmd=="on";say(L(cfg.enabled and"Tracking on"or"Tracking off"))
