@@ -923,8 +923,19 @@ m.Friend.spec=258;m.Rogue.spec=261;m.Friend.ranks={};m.Rogue.ranks={}
 local function has(x,id)for _,v in ipairs(ns.PartyCooldownList(x))do if v==id then return true end end return false end
 assert(has(m.Rogue,1766)and has(m.Rogue,2094)and has(m.Friend,15487)and ns.PartyCooldownKind(1766)=='kick'and ns.PartyCooldownKind(2094)=='cc')
 assert(not has({class='PRIEST',spec=257,used={},talented={}},15487),'no Silence for Holy')
-env.click('pcd:kicks');assert(cfg.kicks==false and not has(m.Rogue,1766));env.click('pcd:cc');assert(not has(m.Rogue,2094))
+-- Interrupts and crowd control have movable lists of their own, set up on the Kicks & CC view.
+local function only(x,kind,id)for _,v in ipairs(ns.PartyCooldownList(x,kind))do if v==id then return true end end return false end
+assert(only(m.Rogue,'kick',1766)and not only(m.Rogue,'kick',2094)and only(m.Rogue,'cc',2094)and not only(m.Rogue,'defensive',1766)and not only(m.Rogue,'defensive',2094)and only(m.Rogue,'defensive',31224))
+env.click('pcd-view:anchors');assert(ns.UIControls['pcd-kick:size']and ns.UIControls['pcd-cc:grow']and ns.UIControls['pcd-unlock'])
+assert(ns.DrawPartyCooldowns());local G=ns.PartyCooldownGroups
+local function shows(g,id)if not g.frame:IsShown()then return false end;for _,row in ipairs(g.rows)do if row:IsShown()then for _,icon in ipairs(row.icons)do if icon:IsShown()and icon.spellID==id then return true end end end end return false end
+assert(shows(G.kick,1766)and shows(G.cc,2094)and not shows(G.kick,2094)and not shows(G.main,1766),'kicks and crowd control in their own lists')
+env.select('pcd-kick:size','42 px');env.select('pcd-cc:grow','Up');env.click('pcd-kick:names');assert(cfg.anchors.kick.size==42 and cfg.anchors.cc.grow=='UP'and cfg.anchors.kick.names==false)
+assert(G.kick.rows[1].icons[1]:GetWidth()==42,'the kick list has its own icon size')
+cfg.anchors.cc.x=300;assert(ns.DrawPartyCooldowns());assert(G.cc.x==300);env.click('pcd-cc:reset');assert(cfg.anchors.cc.x==-420 and G.cc.x==-420)
+env.click('pcd:kicks');assert(cfg.kicks==false and not has(m.Rogue,1766)and not G.kick.frame:IsShown());env.click('pcd:cc');assert(not has(m.Rogue,2094)and not G.cc.frame:IsShown())
 env.click('pcd:kicks');env.click('pcd:cc');assert(has(m.Rogue,1766)and has(m.Rogue,2094))
+env.click('pcd-unlock');assert(cfg.unlocked and G.kick.frame:IsShown()and G.cc.frame:IsShown());env.click('pcd-unlock');env.click('pcd-view:display')
 -- The meter's Interrupts list: the one who joins it or moves up interrupted.
 Enum=Enum or{};Enum.DamageMeterType={Interrupts=5};Enum.DamageMeterSessionType={Current=1}
 local sources={};C_DamageMeter={GetCombatSessionFromType=function()return{combatSources=sources}end}

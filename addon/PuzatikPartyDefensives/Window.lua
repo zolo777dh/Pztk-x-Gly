@@ -13,7 +13,7 @@ for key,value in pairs(palette)do
     local c=C[key];c[1],c[2],c[3],c[4]=tonumber(value:sub(1,2),16)/255,tonumber(value:sub(3,4),16)/255,tonumber(value:sub(5,6),16)/255,1
 end
 W.icon="Interface\\AddOns\\PuzatikPartyDefensives\\Media\\Icon"
-local WIDTH,HEIGHT=952,700
+local WIDTH,HEIGHT=952,724
 local window,body,status,close
 local state={drafts={}}
 local Refresh
@@ -35,7 +35,7 @@ Refresh=function()
     if not window then return end
     if W.popup then W.popup:Hide()end
     W.Clear(body);W.Begin();ns.UIControls={["pcd-close"]=close};ns.UIScrolls={};W.scrollPositions=state.scrolls
-    body=W.Frame("Frame",nil,window);body:SetPoint("TOPLEFT",16,-62);body:SetSize(920,600);body.surface=C.background
+    body=W.Frame("Frame",nil,window);body:SetPoint("TOPLEFT",16,-86);body:SetSize(920,600);body.surface=C.background
     ns.ExtraPages.partycds(body)
     W.Finish();notify(state.message or"",state.error)
 end
@@ -51,9 +51,9 @@ function ns.OpenPartyCooldownWindow()
         window:EnableKeyboard(true);window:SetPropagateKeyboardInput(true)
         window:SetScript("OnKeyDown",function(self,key)if key=="ESCAPE"then self:Hide()end end)
         window:SetScript("OnHide",function()if W.popup then W.popup:Hide()end end)
-        W.Texture(window,W.icon,14,10,44,44)
-        W.Label(window,"Puzatik Party Defensives",66,16,400,16,C.brand,true)
-        W.Label(window,"v"..tostring(ns.version).." · /pcd help",66,38,400,11,C.faint)
+        W.Texture(window,W.icon,12,8,72,72)
+        W.Label(window,"Puzatik Party Defensives",92,22,500,20,C.brand,true)
+        W.Label(window,"v"..tostring(ns.version).." · /pcd help",92,50,400,11,C.faint)
         close=W.Button(window,"",WIDTH-44,14,28,function()window:Hide()end,false,"pcd-close",{h=28,kind="ghost",glyph="close",tooltip="Close"})
         status=W.Label(window,"",20,HEIGHT-24,WIDTH-40,11,C.muted)
         ns.PartyCooldownWindow=window
