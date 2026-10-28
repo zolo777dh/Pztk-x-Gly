@@ -1,6 +1,6 @@
 -- /pcd: the settings of the party cooldowns, typed in chat.
 local _,ns=...
-local function say(text)print("|cff33c3a6NDP Party Cooldowns|r "..text)end
+local function say(text)print("|cff33c3a6Puzatik Party Defensives|r "..text)end
 local HELP={
     "/pcd: the settings window",
     "/pcd on | off: track party cooldowns",
@@ -15,8 +15,8 @@ local HELP={
     "/pcd report: what is being tracked, for bug reports",
 }
 local SIDE={left="LEFT",right="RIGHT",top="TOP",bottom="BOTTOM"}
-SLASH_NDPPARTYCOOLDOWNS1="/pcd";SLASH_NDPPARTYCOOLDOWNS2="/ndppcd"
-SlashCmdList.NDPPARTYCOOLDOWNS=function(input)
+SLASH_PUZATIKPARTYDEFENSIVES1="/pcd";SLASH_PUZATIKPARTYDEFENSIVES2="/ppd"
+SlashCmdList.PUZATIKPARTYDEFENSIVES=function(input)
     if ns.FullAddonLoaded()then say("Naowh Defensive Planner is enabled and already tracks party cooldowns (/ndp party). This addon stays off.");return end
     local cmd,arg=strtrim(input or""):lower():match("^(%S*)%s*(.-)$")
     local cfg=ns.PartyCooldownConfig()

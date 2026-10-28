@@ -910,11 +910,56 @@ ns.instanceType='party';local before=#env.shown;ns.Fire({display={type='text',te
 local cm=ns.ContentMatches;ns.ContentMatches=function()return true end;ns.instanceType='raid';before=#env.shown;ns.Fire({display={type='text',text='Stack',tts=false}});ns.ContentMatches=cm;assert(#env.shown==before+1 and env.shown[#env.shown].tts==false,'raid stays silent')
 ns.Command('party');assert(ns.UIState.tab=='partycds')
 `));
-test('NDP Party Cooldowns runs the same tracking on its own, with /pcd settings, and stays off next to Naowh Defensive Planner',async()=>{
+test('party interrupts and crowd control: lists and switches, the meter order, the named interrupter, the only ready kick, debuffs on enemy nameplates',()=>run(`
+C_ChatInfo={RegisterAddonMessagePrefix=function()return true end,SendAddonMessage=function()return 0 end}
+local units={player={'Tester','DRUID'},party1={'Friend','PRIEST'},party2={'Rogue','ROGUE'}}
+function IsInGroup()return true end;function IsInRaid()return false end
+function UnitExists(u)return units[u]~=nil end;function UnitName(u)return units[u or'player']and units[u or'player'][1]end
+function UnitClass(u)local x=units[u or'player'];return'Class',x and x[2]end;function UnitIsUnit(a,b)return a==b end
+function UnitGUID(u)return'G-'..u end;function UnitCanAttack()return true end
+function GetSpellBaseCooldown(id)return id==1766 and 15000 or id==15487 and 45000 or id==2094 and 120000 or 0,0 end
+env.click('tab:partycds');env.click('pcd:enabled');local cfg=ns.PartyCooldownConfig();local m=ns.PartyCooldownMembers
+m.Friend.spec=258;m.Rogue.spec=261;m.Friend.ranks={};m.Rogue.ranks={}
+local function has(x,id)for _,v in ipairs(ns.PartyCooldownList(x))do if v==id then return true end end return false end
+assert(has(m.Rogue,1766)and has(m.Rogue,2094)and has(m.Friend,15487)and ns.PartyCooldownKind(1766)=='kick'and ns.PartyCooldownKind(2094)=='cc')
+assert(not has({class='PRIEST',spec=257,used={},talented={}},15487),'no Silence for Holy')
+env.click('pcd:kicks');assert(cfg.kicks==false and not has(m.Rogue,1766));env.click('pcd:cc');assert(not has(m.Rogue,2094))
+env.click('pcd:kicks');env.click('pcd:cc');assert(has(m.Rogue,1766)and has(m.Rogue,2094))
+-- The meter's Interrupts list: the one who joins it or moves up interrupted.
+Enum=Enum or{};Enum.DamageMeterType={Interrupts=5};Enum.DamageMeterSessionType={Current=1}
+local sources={};C_DamageMeter={GetCombatSessionFromType=function()return{combatSources=sources}end}
+ns.PartyCooldownMeter(true);sources={{name='Rogue',classFilename='ROGUE'}}
+assert(ns.PartyCooldownMeter()==m.Rogue and ns.PartyCooldownLeft(m.Rogue,1766)>14,'the meter names the kicker')
+env.advance(2);sources={{name='Friend',classFilename='PRIEST'},{name='Rogue',classFilename='ROGUE'}};assert(ns.PartyCooldownMeter()==m.Friend,'a newcomer interrupted')
+env.advance(2);sources={{name='Rogue',classFilename='ROGUE'},{name='Friend',classFilename='PRIEST'}};m.Friend.used={};assert(ns.PartyCooldownMeter()==m.Rogue,'moved up')
+-- The interrupter named by the enemy's event.
+m.Friend.used={};m.Rogue.used={};env.advance(5)
+ns.PartyCooldownInterrupted('nameplate3','G-party2');assert(ns.PartyCooldownLeft(m.Rogue,1766)>14)
+-- Hidden interrupter: the only member whose interrupt was ready.
+env.advance(3);ns.PartyCooldownInterrupted('nameplate3',nil);assert(ns.PartyCooldownLeft(m.Friend,15487)>40,'only the priest was ready')
+m.Friend.used={};m.Rogue.used={};env.advance(30);ns.PartyCooldownInterrupted('nameplate3',nil)
+assert(ns.PartyCooldownLeft(m.Friend,15487)==0 and ns.PartyCooldownLeft(m.Rogue,1766)==0,'two ready: nobody is guessed')
+assert(ns.PartyCooldownKickStats().unsure>=1)
+-- Crowd control: Blind's debuff on any enemy nameplate starts the rogue's Blind.
+ns.RebuildPartyCooldownSensors();env.advance(1);ns.PartyCooldownPollSensors()
+local list=ns.PartyCooldownSensors();local plates=0
+for _,x in ipairs(list)do if x.spell==2094 and x.unit:match('^nameplate')then plates=plates+1 end end;assert(plates==40,plates)
+for _,x in ipairs(list)do if x.spell==2094 and x.unit=='nameplate7'then x.frame.IsMouseOver=function()return true end end end
+ns.PartyCooldownAura('nameplate7');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,2094)>100,'Blind by its debuff')
+-- A nameplate that now shows another enemy is not an edge.
+m.Rogue.used={};for _,x in ipairs(list)do if x.spell==2094 and x.unit=='nameplate8'then x.frame.IsMouseOver=function()return true end end end
+ns.PartyCooldownPlate('nameplate8');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,2094)==0)
+local printed={};local p=print;print=function(t)printed[#printed+1]=t end;ns.Command('pcd');print=p
+local found=false;for _,t in ipairs(printed)do if t:find('Interrupts seen',1,true)then found=true end end;assert(found)
+`));
+test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and stays off next to Naowh Defensive Planner',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
- const toc=files['NDPPartyCooldowns/NDPPartyCooldowns.toc'].toString('utf8');assert.match(toc,new RegExp('## Version: '+version.replaceAll('.','\\.')));
+ const toc=files['PuzatikPartyDefensives/PuzatikPartyDefensives.toc'].toString('utf8');assert.match(toc,new RegExp('## Version: '+version.replaceAll('.','\\.')));
  const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','Slash.lua']);
- const load=order.map(n=>`;(function(...)\n${files['NDPPartyCooldowns/'+n].toString('utf8')}\nend)('NDPPartyCooldowns',p)`).join('\n');
+ assert.match(files['PuzatikPartyDefensives/Window.lua'].toString('utf8'),/background="08050f"[\s\S]*accent="9b5cff"/);
+ assert.match(toc,/^## IconTexture: Interface\\AddOns\\PuzatikPartyDefensives\\Media\\Icon$/m);const icon=files['PuzatikPartyDefensives/Media/Icon.tga'];
+ assert.ok(icon&&icon[2]===2&&icon.readUInt16LE(12)===128&&icon.readUInt16LE(14)===128&&icon[16]===32,'128 px uncompressed RGBA icon');
+ const load=order.map(n=>`;(function(...)\n${files['PuzatikPartyDefensives/'+n].toString('utf8')}\nend)('PuzatikPartyDefensives',p)`).join('\n');
  await run(`
 C_ChatInfo={RegisterAddonMessagePrefix=function()return true end,SendAddonMessage=function()return 0 end}
 local units={player={'Tester','DRUID'},party1={'Friend','PRIEST'}}
@@ -925,16 +970,16 @@ strtrim=strtrim or function(s)return(s:gsub('^%s+',''):gsub('%s+$',''))end
 local p={}
 ${load}
 assert(p.PartyCooldownConfig().enabled==true,'on by default')
-SlashCmdList.NDPPARTYCOOLDOWNS('list');assert(p.PartyCooldownConfig().mode=='list')
-SlashCmdList.NDPPARTYCOOLDOWNS('size 30');assert(p.PartyCooldownConfig().size==30)
-SlashCmdList.NDPPARTYCOOLDOWNS('left');assert(p.PartyCooldownConfig().side=='LEFT')
+SlashCmdList.PUZATIKPARTYDEFENSIVES('list');assert(p.PartyCooldownConfig().mode=='list')
+SlashCmdList.PUZATIKPARTYDEFENSIVES('size 30');assert(p.PartyCooldownConfig().size==30)
+SlashCmdList.PUZATIKPARTYDEFENSIVES('left');assert(p.PartyCooldownConfig().side=='LEFT')
 assert(#p.PartyCooldownOrder()==2);assert(#p.PartyCooldownReport()>=2)
-assert(NDPPartyCooldownsDB.partycds.size==30,'saved in its own variables')
+assert(PuzatikPartyDefensivesDB.partycds.size==30,'saved in its own variables')
 -- /pcd alone opens the same settings page as in the full addon.
-SlashCmdList.NDPPARTYCOOLDOWNS('');assert(p.PartyCooldownWindow:IsShown())
+SlashCmdList.PUZATIKPARTYDEFENSIVES('');assert(p.PartyCooldownWindow:IsShown())
 p.UIControls['pcd:names']:Click();assert(p.PartyCooldownConfig().names==true)
 p.UIControls['pcd:enabled']:Click();assert(p.PartyCooldownConfig().enabled==false);p.UIControls['pcd:enabled']:Click();assert(p.PartyCooldownConfig().enabled==true)
-p.UIControls['pcd-view:abilities']:Click();p.UIControls['pcd-class:PRIEST']:Click();p.UIControls['pcd-spell:19236']:Click()
+p.UIControls['pcd-view:abilities']:Click();p.UIControls['pcd-class:PRIEST']:Click();assert(p.UIControls['pcd-spec:256'].label.text=='Discipline','spec names on the tabs, not numbers');p.UIControls['pcd-spell:19236']:Click()
 assert(not p.PartyCooldownTracked(19236,256),'switched off from the window')
 p.UIControls['pcd-close']:Click();assert(not p.PartyCooldownWindow:IsShown())
 C_AddOns.IsAddOnLoaded=function(name)return name=='NaowhDefensivePlanner'end

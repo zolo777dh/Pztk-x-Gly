@@ -28,6 +28,23 @@ local SPELLS={
     WARLOCK={{104773,180},{108416,60},{205180,120,265},{265187,60,266},{1122,120,267}},
     WARRIOR={{97462,180},{23920,25},{118038,120,71},{1719,90,72},{184364,120,72}},
 }
+-- Interrupts and crowd control (stuns, fears, knock-ups, grips...), same format. They follow the
+-- defensives on the icons and are switched off as groups on the Display page.
+local KICKS={
+    DEATHKNIGHT={{47528,15}},DEMONHUNTER={{183752,15}},DRUID={{106839,15,103,104},{78675,60,102}},EVOKER={{351338,20,1467,1473}},
+    HUNTER={{147362,24,253,254},{187707,15,255}},MAGE={{2139,25}},MONK={{116705,15,268,269}},PALADIN={{96231,15,66,70}},PRIEST={{15487,30,258}},
+    ROGUE={{1766,15}},SHAMAN={{57994,12}},WARLOCK={{19647,24,265,267},{89766,30,266}},WARRIOR={{6552,15},{386071,90,73}},
+}
+local STOPS={
+    DEATHKNIGHT={{207167,60},{108199,90,250}},DEMONHUNTER={{179057,45},{207684,120},{202138,60,581}},
+    DRUID={{99,30},{102793,60},{132469,30}},HUNTER={{109248,45},{19577,60}},MONK={{119381,60}},PALADIN={{853,45},{115750,90}},
+    PRIEST={{8122,40}},ROGUE={{2094,120}},SHAMAN={{192058,60}},WARLOCK={{30283,60}},WARRIOR={{46968,40},{5246,90}},
+}
+local KIND={}
+for kind,lists in pairs({kick=KICKS,cc=STOPS})do
+    for class,list in pairs(lists)do for _,s in ipairs(list)do table.insert(SPELLS[class],s);KIND[s[1]]=kind end end
+end
+ns.PartyCooldownKind=function(id)return KIND[id]end
 ns.PartyCooldownSpells=SPELLS
 local byID={}
 for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={class=class,cd=s[2],order=order,specs=#s>2 and{select(3,unpack(s))}or nil}end end
@@ -57,21 +74,28 @@ local TALENT_CD={
     [1122]={{1280483,add=-30}},[104773]={{386659,add=-45}},[108416]={{386686,add=-15}},
     [118038]={{391271,pct=-10}},[184364]={{391271,pct=-10}},[23920]={{spec=73,add=-5},{391271,pct=-10}},
     [191634]={{468571,add=-15},{454026,add=-15}},[106898]={{288826,add=-60}},[192077]={{462791,add=-30}},
-    [66]={{110959,add=-180},{210476,add=-60}},[374968]={{412713,pct=-10}},[204066]={{429539,add=-20}},[1250646]={{1251790,add=-15}},
+    [66]={{110959,add=-180},{210476,add=-60}},
+    -- Interrupts: only interrupts that land are seen, so cuts on a landed interrupt count.
+    [47528]={{378848,add=-3}},[78675]={{202918,add=-15}},[351338]={{412713,pct=-10}},[2139]={{382297,add=-5}},[57994]={{spec=264,add=18}},
+    [6552]={{391271,pct=-10}},
+    [119381]={{344359,add=-5}},[30283]={{1270255,add=-15}},[192058]={{381867,add=-5},{265046,add=-10},{445027,add=-5}},
+    [46968]={{275339,add=-15},{440992,add=-5}},[19577]={{459507,add=-20}},[115750]={{469325,add=-15}},
+    [8122]={{196704,add=-10}},[5246]={{424742,add=-15}},[207684]={{320418,add=-30},{389718,pct=-15}},[202138]={{389718,pct=-15}},
+    [132469]={{400140,add=-5}},[2094]={{200733,pct=-50},{256165,pct=-25},{441415,pct=-10}},[374968]={{412713,pct=-10}},[204066]={{429539,add=-20}},[1250646]={{1251790,add=-15}},
 }
 -- Usual lengths per spec for members whose talents are not read yet (the common build).
 local LIKELY={
-    [250]={[49028]=90,[48707]=40},[251]={[48707]=40},[252]={[48707]=40},
+    [250]={[49028]=90,[48707]=40,[47528]=12},[251]={[48707]=40,[47528]=12},[252]={[48707]=40,[47528]=12},
     [577]={[198589]=60,[196718]=180},[581]={[196718]=180},[1480]={[198589]=60,[196718]=180},
-    [102]={[194223]=120},[103]={[106951]=90},[104]={[22812]=34,[22842]=20,[204066]=40,[61336]=137,[106898]=60},[105]={[102342]=70},
+    [102]={[194223]=120,[78675]=45},[103]={[106951]=90},[104]={[22812]=34,[22842]=20,[204066]=40,[61336]=137,[106898]=60},[105]={[102342]=70},
     [253]={[19574]=30,[186265]=120},[254]={[186265]=120},[255]={[186265]=120},
-    [62]={[45438]=150,[342245]=55,[66]=60,[55342]=60},[63]={[190319]=60,[45438]=150,[342245]=50,[66]=60},[64]={[45438]=120,[342245]=50,[66]=60},
+    [62]={[45438]=150,[342245]=55,[66]=60,[55342]=60,[2139]=20},[63]={[190319]=60,[45438]=150,[342245]=50,[66]=60,[2139]=20},[64]={[45438]=120,[342245]=50,[66]=60,[2139]=20},
     [269]={[115203]=90},[270]={[116849]=75,[115203]=90},
     [65]={[1022]=240,[31884]=90,[642]=210,[498]=42,[31821]=150},[66]={[31884]=60,[31850]=63,[6940]=60},[70]={[31884]=60,[642]=210,[498]=63,[6940]=60},
     [257]={[19236]=70},[258]={[19236]=70},
     [262]={[114050]=120,[108271]=90},[263]={[114051]=120,[108271]=90},[264]={[108271]=90},
     [265]={[108416]=45},[266]={[108416]=45},[267]={[108416]=45},
-    [71]={[118038]=108,[23920]=23},[72]={[184364]=108,[23920]=23},[73]={[23920]=23},
+    [71]={[118038]=108,[23920]=23,[46968]=25},[72]={[184364]=108,[23920]=23,[46968]=25},[73]={[23920]=23,[46968]=25},
 }
 -- Cooldowns cut while the fight goes on, by the resource a member spends (read from their power
 -- bar): `sec` seconds per `per` spent, on these spells per spec. Warrior Anger Management (rage),
@@ -85,7 +109,8 @@ for _,mods in pairs(TALENT_CD)do for _,x in ipairs(mods)do if x[1]then WANTED[x[
 for _,sp in pairs(SPEND)do WANTED[sp.talent]=true end
 -- Other spell IDs the game uses for a tracked spell (a talent or hero version of it).
 local ALIAS={[77761]=106898,[77764]=106898,[110959]=66,[204018]=1022,[231895]=31884,[216331]=31884,[389539]=31884,[442204]=403631,
-    [102560]=194223,[102543]=106951,[414658]=45438}
+    [102560]=194223,[102543]=106951,[414658]=45438,
+    [389813]=207684,[389807]=202138,[474421]=19577,[119910]=19647,[132409]=19647,[1276467]=19647,[119914]=89766}
 -- Cooldowns cut by what a member does (resource spent, Bone Shield charges, crits, finishers,
 -- Barbed Shot...). The game hides all of that for others in combat, so their timers could not be
 -- exact: these are shown only for yourself, whose cooldowns the game gives. true = every spec.
@@ -94,6 +119,7 @@ local DYNAMIC={
     [106951]=true,[102558]=true,[19574]=true,[288613]=true, -- Feral Berserk (combo points), Guardian Incarnation (rage), Bestial Wrath (Barbed Shot), Trueshot (focus)
     [190319]=true,[123904]=true,[1719]=true,                -- Combustion (crits), Xuen (Combo Strikes), Recklessness (Anger Management)
     [31884]={66},                                           -- Protection Righteous Protector (Holy Power)
+    [853]=true,                                             -- Hammer of Justice (Fist of Justice, Holy Power)
 }
 local function Dynamic(id,spec)
     local d=DYNAMIC[id];if d==true then return true end
@@ -102,7 +128,7 @@ local function Dynamic(id,spec)
 end
 ns.PartyCooldownDynamic=Dynamic
 ns.PartyCooldownTalentMods=TALENT_CD
-local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},learned={},disabled={},specOff={},custom={},talentSpells={}}
+local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
     local store=ns.Store();store.partycds=store.partycds or{}
     local c=store.partycds
@@ -195,7 +221,8 @@ end
 -- anything they were seen casting.
 function ns.PartyCooldownList(member)
     local out,seen={},{}
-    local function add(id)if not seen[id]and ns.PartyCooldownTracked(id,member.spec)and(member.me or not Dynamic(id,member.spec))and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
+    local cfg=ns.PartyCooldownConfig()
+    local function add(id)if not seen[id]and(KIND[id]~="kick"or cfg.kicks~=false)and(KIND[id]~="cc"or cfg.cc~=false)and ns.PartyCooldownTracked(id,member.spec)and(member.me or not Dynamic(id,member.spec))and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
     if member.known then for id in pairs(member.known)do add(id)end
     elseif member.class and SPELLS[member.class]then
         -- Strictly the member's spec: your own list is what your spellbook knows right now; for
@@ -626,7 +653,7 @@ end
 -- is), so the moment a cooldown's buff appears its timer starts. Externals (Pain Suppression,
 -- Ironbark...) appear on the target and are credited to the group member who can cast them.
 -- Switch: "Buff sensors" on the page. The game may change this widget; then it simply stays off.
-local SELF,EXTERNAL=1,2
+local SELF,EXTERNAL,ENEMY=1,2,3
 -- Spells whose buff is not the spell itself, or that buff more than the caster. Every other
 -- tracked spell is sensed by its own ID on the caster. {kind, buff IDs...}
 local BUFFS={
@@ -650,6 +677,13 @@ local BUFFS={
     [374968]={EXTERNAL,375226,375229,375230,375234,375238,375240,375252,375253,375254,375255,375256,375257,375258},
     [97462]={EXTERNAL,97463},[227847]={SELF,227847,446035},[107574]={SELF,107574,401150},
 }
+-- Crowd control is seen as its debuff on enemy nameplates. `LAG`: seconds from the cast to the
+-- debuff (sigils and totems go off later).
+for id,debuffs in pairs({[119381]={119381},[179057]={179057},[30283]={30283},[192058]={118905},[46968]={132168},[109248]={117405,117526},
+    [853]={853},[19577]={24394,474421},[207167]={207167},[115750]={105421},[8122]={8122},[99]={99},[5246]={5246},[207684]={207685},
+    [202138]={204843},[108199]={374776},[102793]={127797},[132469]={61391},[2094]={2094}})do BUFFS[id]={ENEMY,unpack(debuffs)}end
+local LAG={[192058]=2,[207684]=2,[202138]=2}
+local PLATES=40
 ns.PartyCooldownBuffs=BUFFS
 local function BuffsOf(id)
     local b=BUFFS[id];if not b then return SELF,{[id]=true}end
@@ -870,6 +904,8 @@ function ns.PartyCooldownReport()
     lines[#lines+1]="NDP "..tostring(ns.version)..", in combat: "..tostring(InCombatLockdown and InCombatLockdown()or false)..". Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
         ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
         ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", power bars read "..spendState.plain.." hidden "..spendState.hidden..", exact times "..tostring(ns.PartyCooldownFine and ns.PartyCooldownFine()or false)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")
+    local k=ns.PartyCooldownKickStats and ns.PartyCooldownKickStats()
+    if k then lines[#lines+1]="Interrupts seen "..k.seen..": by the meter "..k.meter..", by name "..k.named..", only one ready "..k.ready..", unknown "..k.unsure end
     for _,name in ipairs(order)do local m=members[name]
         local sens=0;for _,s in ipairs(sensors)do if s.member==name then sens=sens+1 end end
         lines[#lines+1]=name..": "..tostring(m.class).." "..tostring(m.spec and ns.Catalog.specs[m.spec]or"spec unknown")..(m.talented and", talents read"or", talents not read")
@@ -879,12 +915,12 @@ function ns.PartyCooldownReport()
     end
     return lines
 end
-local function NewSensor(unit,buffs)
+local function NewSensor(unit,buffs,filter)
     if not sensorHost then sensorHost=CreateFrame("Frame",nil,UIParent);sensorHost:SetSize(1,1);sensorHost:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-20,0)end
     local ok,c=pcall(CreateFrame,"AuraContainer",nil,sensorHost,"CustomAuraContainerTemplate")
     if not ok or not c or not c.AddAuraGroup then sensorState.available=false;sensorState.reason="the game has no aura container widget";return nil end
     c:SetSize(1,1);c:ClearAllPoints();c:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-11,0);pcall(c.EnableMouse,c,false)
-    local added=pcall(c.AddAuraGroup,c,"ndp","HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs=buffs},
+    local added=pcall(c.AddAuraGroup,c,"ndp",filter or"HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs=buffs},
         initializeFrame=function(b)pcall(b.SetSize,b,1,1);pcall(b.SetMouseClickEnabled,b,false);pcall(b.SetMouseMotionEnabled,b,false)end,
         layout={elementWidth=50000,elementHeight=1,elementSpacing=0,lineSpacing=0}})
     if not added then sensorState.available=false;sensorState.reason="the aura container refused a buff group";return nil end
@@ -912,71 +948,90 @@ local function Sensed(m,id,at)
 end
 -- When each unit's auras last changed: the moment a buff appeared, read a frame later.
 local auraAt={}
-local function PollSensors()
+local function PollSensors(only)
     local now,redraw=GetTime(),false
-    for _,s in ipairs(sensors)do
+    for _,s in ipairs(sensors)do if not only or only[s.unit]then
         local v=SensorRead(s.frame)
         local at=auraAt[s.unit];if not at or now-at>0.5 or at>now then at=now end
+        at=at-(LAG[s.spell]or 0)
         -- A container just pointed at its unit shows the old answer for a moment: no edges then.
         if s.hold and now<s.hold then s.prev=v;s.lit=Plain(v)and v
         else
-            local m=s.kind==EXTERNAL and s.owner or members[s.member]
+            local shared=s.kind==EXTERNAL or s.kind==ENEMY
+            local m=shared and s.owner or members[s.member]
             -- A spell whose timer still runs cannot have been cast again.
             local running=m and ns.PartyCooldownLeft(m,s.spell)>0
             if running then
             elseif Plain(v)and Plain(s.prev)then
                 -- Out of combat the answer is plain: an ordinary timer, with seconds and a swipe.
                 if v and not s.prev then
-                    if s.kind==EXTERNAL then Sensed(ExternalOwner(s.spell),s.spell,at)else Sensed(m,s.spell,at)end
+                    if shared then Sensed(ExternalOwner(s.spell),s.spell,at)else Sensed(m,s.spell,at)end
                 end
             elseif m and ns.PartyCooldownTracked(s.spell,m.spec)then
                 local _,created=HiddenEdge(m,s.spell,v,s.prev,now,at);if created then redraw=true end
             end
             s.prev=v;s.lit=Plain(v)and v
         end
-    end
+    end end
     -- A new hidden timer needs its bars on the icon.
     if redraw then ns.DrawPartyCooldowns()end
 end
 ns.PartyCooldownPollSensors=function()PollSensors();SlideHidden()end
 -- Reads: a few frames right after a unit's auras change (the container updates on the same event),
 -- and every 0.25 s otherwise. Hidden timers are moved every frame.
-local driver=CreateFrame("Frame");local quick,lastRead=0,0
+-- The quick reads look only at the units whose auras changed.
+local driver=CreateFrame("Frame");local quick,lastRead,dirty=0,0,{}
+local sensorUnits={}
 driver:SetScript("OnUpdate",function()
     local now=GetTime()
-    if #sensors>0 and(quick>0 or now-lastRead>=0.25)then quick=math.max(0,quick-1);lastRead=now;PollSensors()end
+    if #sensors>0 and now-lastRead>=0.25 then quick=0;dirty={};lastRead=now;PollSensors()
+    elseif quick>0 then quick=quick-1;PollSensors(dirty);if quick==0 then dirty={}end end
     if next(shownHidden)then SlideHidden()end
 end)
 function ns.PartyCooldownAura(unit)
     if not ns.Plain(unit,"string")then return end
-    for _,s in ipairs(sensors)do if s.unit==unit then auraAt[unit]=GetTime();quick=3;return end end
+    if sensorUnits[unit]then auraAt[unit]=GetTime();dirty[unit]=true;quick=3 end
+end
+-- A nameplate token that now shows another enemy reads that enemy's debuffs: no edges for a moment.
+function ns.PartyCooldownPlate(unit)
+    if not(ns.Plain(unit,"string")and sensorUnits[unit])then return end
+    local hold=GetTime()+0.4
+    for _,s in ipairs(sensors)do if s.unit==unit then s.hold=hold end end
 end
 -- Builds the sensors for the group: each member's own buffs on them, and every external of the
 -- group on everyone. Out of combat only; containers are reused.
-local pool={}
+local pools={HELPFUL={},HARMFUL={}}
 function ns.RebuildPartyCooldownSensors()
-    for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();pool[#pool+1]=s.frame end
-    sensors={}
+    for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();local p=pools[s.filter];p[#p+1]=s.frame end
+    sensors={};sensorUnits={}
     local cfg=ns.PartyCooldownConfig()
     if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
     if not(cfg.enabled and cfg.sensors)or sensorState.available==false then return 0 end
     if InCombatLockdown and InCombatLockdown()then return 0 end
-    local externals,externalOwners={},{}
+    local externals,externalOwners,stops,stopOwners={},{},{},{}
     for _,name in ipairs(order)do local m=members[name]
         for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
             if kind==EXTERNAL then externals[id]=buffs;externalOwners[id]=externalOwners[id]or m
+            elseif kind==ENEMY then if not m.me then stops[id]=buffs;stopOwners[id]=stopOwners[id]or m end
+            elseif KIND[id]=="kick"then
             elseif not m.me then sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF}end
         end
     end
     for _,name in ipairs(order)do local m=members[name]
         for id,buff in pairs(externals)do sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buff,kind=EXTERNAL,owner=externalOwners[id]}end
     end
+    -- Crowd control of the others: its debuff on every enemy nameplate.
+    for id,debuffs in pairs(stops)do
+        for i=1,PLATES do sensors[#sensors+1]={unit="nameplate"..i,spell=id,buff=debuffs,kind=ENEMY,owner=stopOwners[id],filter="HARMFUL"}end
+    end
     local made={}
     for _,s in ipairs(sensors)do
-        local c=table.remove(pool)
+        s.filter=s.filter or"HELPFUL"
+        local c=table.remove(pools[s.filter])
         if c then pcall(c.SetAuraGroupCandidateFilters,c,"ndp",{includeSpellIDs=s.buff});c:Show()
-        else c=NewSensor(s.unit,s.buff)end
+        else c=NewSensor(s.unit,s.buff,s.filter)end
         if not c then break end
+        sensorUnits[s.unit]=true
         -- A container only follows its unit's auras while enabled; a full update reads what is up now.
         pcall(c.SetUnit,c,s.unit);pcall(c.SetEnabled,c,true);pcall(c.UpdateAllAuras,c)
         s.frame=c;s.prev=SensorRead(c);s.lit=Plain(s.prev)and s.prev;s.hold=GetTime()+0.6;made[#made+1]=s
@@ -1020,11 +1075,109 @@ function ns.PartyCooldownPower(unit)
         end
     end
 end
+---------------------------------------------------------------------------
+-- Interrupts of the others. In combat the game hides who cast what, but two things stay readable:
+-- an enemy's interrupted cast (sometimes with who interrupted it), and the order of the built-in
+-- damage meter's Interrupts list (names and classes; the counts are hidden). A member who joins
+-- that list or moves up in it has just interrupted. When neither tells who, the interrupt goes to
+-- the only member whose interrupt was ready, or to nobody. Interrupts that hit nothing are not seen.
+local kickState={seen=0,meter=0,named=0,ready=0,unsure=0}
+local meterOrder,lastKickAt,ownKickAt,lastKick=nil,0,0,{}
+local function KickOf(m)
+    for _,id in ipairs(ns.PartyCooldownList(m))do if KIND[id]=="kick"then return id end end
+end
+local function Kicked(m,at,how)
+    lastKickAt=GetTime()
+    if not m or m.me then return false end
+    local id=KickOf(m);if not id then return false end
+    -- The meter and the enemy's event can both report the same interrupt.
+    if lastKick[m.name]and math.abs(at-lastKick[m.name])<1 then return true end
+    lastKick[m.name]=at;kickState[how]=kickState[how]+1
+    m.used[id]=at;ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
+    return true
+end
+local specIcons={}
+local function SpecIcon(spec)
+    if specIcons[spec]==nil then
+        local get=(C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfoByID)or GetSpecializationInfoByID
+        local ok,_,_,_,icon=pcall(get or error,spec);specIcons[spec]=ok and ns.Plain(icon,"number")and icon or false
+    end
+    return specIcons[spec]or nil
+end
+-- The meter's Interrupts list for this fight, in order: a key per entry, with what is readable.
+local function MeterList()
+    local DM,E=C_DamageMeter,Enum
+    if not(DM and DM.GetCombatSessionFromType and E and E.DamageMeterType and E.DamageMeterType.Interrupts and E.DamageMeterSessionType)then return nil end
+    local ok,session=pcall(DM.GetCombatSessionFromType,E.DamageMeterSessionType.Current,E.DamageMeterType.Interrupts)
+    if not ok or not ns.Plain(session,"table")or not ns.Plain(session.combatSources,"table")then return nil end
+    local list,count={},{}
+    for _,src in ipairs(session.combatSources)do if ns.Plain(src,"table")then
+        local name,class,icon=src.name,src.classFilename,src.specIconID
+        name=ns.Plain(name,"string")and name~=""and(ns.ShortName(name)or name)or nil
+        class=ns.Plain(class,"string")and class~=""and class or nil
+        icon=ns.Plain(icon,"number")and icon or nil
+        if name or class then
+            local key=name or(class..":"..tostring(icon));count[key]=(count[key]or 0)+1
+            list[#list+1]={key=key..(count[key]>1 and("#"..count[key])or""),name=name,class=class,icon=icon}
+        end
+    end end
+    return list
+end
+local function MemberOf(e)
+    if e.name then return members[e.name]end
+    local found
+    for _,m in pairs(members)do
+        if m.class==e.class and not(e.icon and m.spec and SpecIcon(m.spec)and SpecIcon(m.spec)~=e.icon)then if found then return nil end;found=m end
+    end
+    return found
+end
+function ns.PartyCooldownMeter(base)
+    local list=MeterList();local old=meterOrder;meterOrder=list
+    if base or not(list and old)then return nil end
+    local was={};for i,e in ipairs(old)do was[e.key]=i end
+    local who,n=nil,0
+    for i,e in ipairs(list)do local o=was[e.key];if not o or i<o then who=e;n=n+1 end end
+    if n~=1 then return nil end
+    local m=MemberOf(who);if m then Kicked(m,GetTime(),"meter")end
+    return m
+end
+local ENEMY_UNIT={"^nameplate%d","^target$","^focus$","^boss%d"}
+function ns.PartyCooldownInterrupted(unit,by)
+    if not ns.Plain(unit,"string")then return end
+    local enemy=false;for _,p in ipairs(ENEMY_UNIT)do if unit:match(p)then enemy=true end end
+    if not enemy then return end
+    local ok,hostile=pcall(UnitCanAttack or error,"player",unit);if ok and ns.Plain(hostile,"boolean")and not hostile then return end
+    local now=GetTime();kickState.seen=kickState.seen+1
+    if ns.Plain(by,"string")and by~=""then
+        for _,m in pairs(members)do
+            local pet=m.me and"pet"or(m.unit or""):gsub("^(%a+)(%d+)$","%1pet%2")
+            for _,u in ipairs({m.unit,pet})do local okG,guid=pcall(UnitGUID or error,u);if okG and guid==by then Kicked(m,now,"named");return end end
+        end
+        return
+    end
+    -- Your own interrupt is seen as your cast.
+    if now-ownKickAt<0.6 then lastKickAt=now;return end
+    local function decide()
+        if lastKickAt>=now-0.05 then return end
+        local only
+        for _,m in pairs(members)do
+            local id=not m.me and KickOf(m)
+            if id and ns.PartyCooldownLeft(m,id)<=0 then if only then kickState.unsure=kickState.unsure+1;return end;only=m end
+        end
+        if only then Kicked(only,now,"ready")else kickState.unsure=kickState.unsure+1 end
+    end
+    -- The meter usually reports the same interrupt a moment later.
+    if C_Timer and C_Timer.After then C_Timer.After(0.4,decide)else decide()end
+end
+function ns.PartyCooldownKickStats()return kickState end
+
 local ownDraw
 local events=CreateFrame("Frame")
 local function Listen(on)
     for _,e in ipairs({"UNIT_SPELLCAST_SUCCEEDED","GROUP_ROSTER_UPDATE","PLAYER_SPECIALIZATION_CHANGED","TRAIT_CONFIG_UPDATED","INSPECT_READY",
-        "READY_CHECK","PLAYER_REGEN_ENABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD","UNIT_POWER_UPDATE","SPELL_UPDATE_COOLDOWN","UNIT_AURA"})do
+        "READY_CHECK","PLAYER_REGEN_ENABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD","UNIT_POWER_UPDATE","SPELL_UPDATE_COOLDOWN","UNIT_AURA",
+        "UNIT_SPELLCAST_INTERRUPTED","UNIT_SPELLCAST_CHANNEL_STOP","DAMAGE_METER_COMBAT_SESSION_UPDATED","DAMAGE_METER_CURRENT_SESSION_UPDATED","DAMAGE_METER_RESET",
+        "PLAYER_REGEN_DISABLED","NAME_PLATE_UNIT_ADDED","NAME_PLATE_UNIT_REMOVED"})do
         if on then pcall(events.RegisterEvent,events,e)elseif events.UnregisterEvent then events:UnregisterEvent(e)end
     end
 end
@@ -1035,9 +1188,18 @@ function ns.RefreshPartyCooldowns()
     ns.RebuildPartyCooldownSensors()
     return ns.DrawPartyCooldowns()
 end
-events:SetScript("OnEvent",function(_,event,a,_,c)
+events:SetScript("OnEvent",function(_,event,a,_,c,d)
     if event=="UNIT_SPELLCAST_SUCCEEDED"then
+        if a=="player"and ns.Plain(c,"number")and KIND[ALIAS[c]or c]=="kick"then ownKickAt=GetTime()end
         if ns.Plain(a,"string")and(a=="player"or a=="target"or a=="focus"or a:match("^party%d")or a:match("^raid%d")or a:match("^nameplate%d"))then ns.PartyCooldownCast(a,c)end
+    elseif event=="UNIT_SPELLCAST_INTERRUPTED"then ns.PartyCooldownInterrupted(a,d)
+    elseif event=="UNIT_SPELLCAST_CHANNEL_STOP"then
+        -- A channel that was stopped by someone names (or hides) who; an ended one names nobody.
+        if d~=nil then ns.PartyCooldownInterrupted(a,d)end
+    elseif event=="DAMAGE_METER_COMBAT_SESSION_UPDATED"then
+        if ns.Plain(a,"number")and Enum and Enum.DamageMeterType and a==Enum.DamageMeterType.Interrupts then ns.PartyCooldownMeter()end
+    elseif event=="DAMAGE_METER_CURRENT_SESSION_UPDATED"or event=="DAMAGE_METER_RESET"or event=="PLAYER_REGEN_DISABLED"then ns.PartyCooldownMeter(true)
+    elseif event=="NAME_PLATE_UNIT_ADDED"or event=="NAME_PLATE_UNIT_REMOVED"then ns.PartyCooldownPlate(a)
     elseif event=="UNIT_AURA"then ns.PartyCooldownAura(a)
     elseif event=="UNIT_POWER_UPDATE"then
         if ns.Plain(a,"string")then ns.PartyCooldownPower(a)end
@@ -1127,10 +1289,12 @@ local function DrawPage(parent)
     W.Toggle(c1,L("Also share my Cooldown Manager ones"),cfg.cdm,12,306,274,function(v)cfg.cdm=v;apply()end,"pcd:cdm")
     W.Toggle(c1,L("Auto 1 min+"),cfg.detect,12,336,130,function(v)cfg.detect=v;apply()end,"pcd:detect")
     W.Toggle(c1,L("Buff sensors"),cfg.sensors,156,336,130,function(v)cfg.sensors=v;apply()end,"pcd:sensors")
-    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,372,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Reset timers"),12,410,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Send mine now"),156,410,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
-    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,452,274,11,C.muted)
+    W.Toggle(c1,L("Interrupts"),cfg.kicks~=false,12,366,130,function(v)cfg.kicks=v;apply()end,"pcd:kicks")
+    W.Toggle(c1,L("Crowd control"),cfg.cc~=false,156,366,130,function(v)cfg.cc=v;apply()end,"pcd:cc")
+    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,402,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Reset timers"),12,440,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Send mine now"),156,440,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
+    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,482,274,11,C.muted)
     local c2=W.Card(parent,310,56,610,536,L("Group"))
     if cfg.enabled then ns.PartyCooldownRoster()end
     local names=order;local y=34

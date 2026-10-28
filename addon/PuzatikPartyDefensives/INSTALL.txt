@@ -1,10 +1,10 @@
-NDP Party Cooldowns
+Puzatik Party Defensives
 ===================
 The party cooldown tracker of Naowh Defensive Planner as a small addon of its own. It works next to
 any other addon (Naowh Smart Reminders, NSRT, ElvUI...). With Naowh Defensive Planner itself enabled
 it turns off, because the full addon already has it (/ndp party).
 
-Install: put the NDPPartyCooldowns folder into World of Warcraft\_retail_\Interface\AddOns and
+Install: put the PuzatikPartyDefensives folder into World of Warcraft\_retail_\Interface\AddOns and
 restart the game.
 
 It is on by default and shows the important cooldowns of every party member beside the Blizzard or
