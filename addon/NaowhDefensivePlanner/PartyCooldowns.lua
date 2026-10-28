@@ -641,6 +641,7 @@ local function DrawRows(g,entries,opts,unlocked)
     end
     for i=#entries+1,#g.rows do g.rows[i]:Hide()end
     f:SetSize(math.max(60,widest+8),math.max(size+8,y+4));f:EnableMouse(unlocked==true)
+    f.title:SetText(L(TITLES[g.key]))
     if unlocked then f.bg:Show();f.title:Show()else f.bg:Hide();f.title:Hide()end
     if #entries>0 or unlocked then f:Show()else f:Hide()end
     return #entries
@@ -1286,7 +1287,7 @@ local function DrawAbilities(parent,d)
     local right=W.Card(parent,212,56,708,536,L(CLASS_NAMES[d.class]))
     local specs=ns.ClassSpecs[d.class]or{}
     d.specs=d.specs or{};local spec=d.specs[d.class]or specs[1];d.specs[d.class]=spec
-    local tabs={};for _,sp in ipairs(specs)do tabs[#tabs+1]={value=sp,label=(ns.Catalog.specs[sp]or tostring(sp)):gsub(" "..CLASS_NAMES[d.class].."$","")}end
+    local tabs={};for _,sp in ipairs(specs)do tabs[#tabs+1]={value=sp,label=L((ns.Catalog.specs[sp]or tostring(sp)):gsub(" "..CLASS_NAMES[d.class].."$",""))}end
     W.Segmented(right,tabs,spec,12,30,684,function(v)d.specs[d.class]=v;kit.refresh()end,"pcd-spec")
     local ids=ns.PartyCooldownSpecSpells(d.class,spec)
     local list=W.Scroll(right,12,70,684,368,"pcd:spells",C.background);local y=4
@@ -1343,17 +1344,17 @@ local function DrawPage(parent)
     local sizes={};for _,s in ipairs({20,24,26,30,36})do sizes[#sizes+1]={value=s,label=s.." px"}end
     W.Select(c1,L("ICON SIZE"),sizes,tonumber(cfg.size)or 26,156,126,130,function(v)cfg.size=v;apply()end,"pcd:size")
     W.Toggle(c1,L("Include my own cooldowns"),cfg.self,12,186,274,function(v)cfg.self=v;apply()end,"pcd:self")
-    W.Toggle(c1,L("In raids, track my group"),cfg.raidGroup,12,216,274,function(v)cfg.raidGroup=v;apply()end,"pcd:raid")
-    W.Toggle(c1,L("Only in use"),cfg.hideReady,12,246,130,function(v)cfg.hideReady=v;apply()end,"pcd:hideReady")
-    W.Toggle(c1,L("Names"),cfg.names,156,246,130,function(v)cfg.names=v;apply()end,"pcd:names")
-    W.Toggle(c1,L("Share my cooldowns with the group"),cfg.share,12,276,274,function(v)cfg.share=v;if v then ns.SharePartyCooldowns(true)end;apply()end,"pcd:share")
-    W.Toggle(c1,L("Also share my Cooldown Manager ones"),cfg.cdm,12,306,274,function(v)cfg.cdm=v;apply()end,"pcd:cdm")
-    W.Toggle(c1,L("Auto 1 min+"),cfg.detect,12,336,130,function(v)cfg.detect=v;apply()end,"pcd:detect")
-    W.Toggle(c1,L("Buff sensors"),cfg.sensors,156,336,130,function(v)cfg.sensors=v;apply()end,"pcd:sensors")
-    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,372,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Reset timers"),12,410,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Send mine now"),156,440,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
-    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,452,274,11,C.muted)
+    W.Toggle(c1,L("In raids, track my group"),cfg.raidGroup,12,212,274,function(v)cfg.raidGroup=v;apply()end,"pcd:raid")
+    W.Toggle(c1,L("Only in use"),cfg.hideReady,12,238,274,function(v)cfg.hideReady=v;apply()end,"pcd:hideReady")
+    W.Toggle(c1,L("Names"),cfg.names,12,264,274,function(v)cfg.names=v;apply()end,"pcd:names")
+    W.Toggle(c1,L("Share my cooldowns with the group"),cfg.share,12,290,274,function(v)cfg.share=v;if v then ns.SharePartyCooldowns(true)end;apply()end,"pcd:share")
+    W.Toggle(c1,L("Also share my Cooldown Manager ones"),cfg.cdm,12,316,274,function(v)cfg.cdm=v;apply()end,"pcd:cdm")
+    W.Toggle(c1,L("Auto 1 min+"),cfg.detect,12,342,274,function(v)cfg.detect=v;apply()end,"pcd:detect")
+    W.Toggle(c1,L("Buff sensors"),cfg.sensors,12,368,274,function(v)cfg.sensors=v;apply()end,"pcd:sensors")
+    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,400,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Reset timers"),12,438,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Send mine now"),156,438,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
+    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,478,274,11,C.muted)
     local c2=W.Card(parent,310,56,610,536,L("Group"))
     if cfg.enabled then ns.PartyCooldownRoster()end
     local names=order;local y=34
@@ -1362,7 +1363,7 @@ local function DrawPage(parent)
         local m=members[name];local row=W.Panel(c2,12,y,586,40,C.raised,C.clear,6)
         W.Dot(row,8,15,kit.classColor(m.class));W.Label(row,ns.DisplayName and ns.DisplayName(name)or name,22,6,170,12,kit.classColor(m.class)):SetWordWrap(false)
         local source=m.me and L("You")or m.ndp and L("Sent by their addon")or m.talented and L("Talents from inspect")or L("Base cooldowns from the game")
-        W.Label(row,(m.spec and ns.Catalog.specs[m.spec]or L("Specialization unknown")).." · "..source,22,22,170,10,C.muted):SetWordWrap(false)
+        W.Label(row,(m.spec and ns.Catalog.specs[m.spec]and L(ns.Catalog.specs[m.spec])or L("Specialization unknown")).." · "..source,22,22,170,10,C.muted):SetWordWrap(false)
         if m.seen or m.hidden or m.sensed then
             local t=W.Label(row,L("Casts")..": "..(m.seen or 0).." "..L("seen")..", "..(m.hidden or 0).." "..L("hidden")..", "..(m.sensed or 0).." "..L("by buff"),396,14,184,10,(m.hidden or 0)>0 and C.warning or C.muted);t:SetJustifyH("RIGHT")
         end
