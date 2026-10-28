@@ -4,9 +4,22 @@ local _,ns=...
 local PREFIX="NDP"
 local queue,parts,serial,ticker={},{},0,nil
 ns.CommHandlers={}
+-- The prefix is registered at load, so messages arrive even before anything is sent. The game
+-- answers with a result code (older clients with true/false); an already registered prefix is fine.
+local isRegistered=false
 local function registered()
-    return C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix and pcall(C_ChatInfo.RegisterAddonMessagePrefix,PREFIX)
+    if isRegistered then return true end
+    if not(C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix)then return false end
+    local ok,result=pcall(C_ChatInfo.RegisterAddonMessagePrefix,PREFIX)
+    local codes=Enum and Enum.RegisterAddonMessagePrefixResult
+    if ok then
+        if result==nil or result==true then isRegistered=true
+        elseif codes then isRegistered=result==codes.Success or result==codes.DuplicatePrefix
+        else isRegistered=result==0 or result==1 end
+    end
+    return isRegistered
 end
+registered()
 function ns.GroupChannel()
     if IsInGroup and LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)and not(IsInGroup(LE_PARTY_CATEGORY_HOME))then return"INSTANCE_CHAT"end
     if IsInRaid and IsInRaid()then return"RAID"end

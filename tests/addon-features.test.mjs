@@ -908,8 +908,8 @@ units.party4={'Dk','DEATHKNIGHT'};ns.PartyCooldownRoster();local dk=m.Dk;dk.spec
 GetSpellBaseCooldown=function(id)return id==55233 and 90000 or id==227847 and 90000 or 0,0 end
 assert(ns.PartyCooldownCast('party4',55233));before=ns.PartyCooldownLeft(dk,55233)
 ns.PartyCooldownPower('party4');rage=70;ns.PartyCooldownPower('party4');assert(math.abs(before-ns.PartyCooldownLeft(dk,55233)-6)<0.01,'30 runic power = 6 s')
--- A talent the trees no longer show counts as taken; a rank of 0 does not.
-dk.ranks={};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)<89)
+-- Only a talent read with a rank cuts: an unread one and a rank of 0 do not.
+dk.ranks={};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)>89.9)
 dk.ranks={[205723]=0};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)>89.9)
 -- Another ID of a tracked spell counts as that spell (Greater Invisibility is Invisibility).
 GetSpellBaseCooldown=function(id)return id==66 and 300000 or 0,0 end
@@ -948,7 +948,8 @@ assert(G.kick.frame.icons[1]:GetWidth()==42,'the kick list has its own size')
 assert(cell(G.kick,1766).bar:IsShown()and not cell(G.cc,2094).bar:IsShown()and ns.UIControls['pcd-kick:width']and not ns.UIControls['pcd-cc:width'])
 m.Rogue.used[1766]=GetTime();assert(ns.DrawPartyCooldowns());local bar=cell(G.kick,1766).bar;ns.PartyCooldownUpdateBars(G.kick.frame,1)
 assert(bar.time:GetText()=='~15'and bar.dur==15,'the bar counts the kick down, marked as an estimate for a player without the addon')
-assert(not ns.PartyCooldownExact(m.Rogue,1766)and ns.PartyCooldownExact({me=true},1766)and ns.PartyCooldownExact({cds={[1766]=12}},1766));m.Rogue.used={}
+assert(not ns.PartyCooldownExact(m.Rogue,1766)and not ns.PartyCooldownExact({me=true,used={}},1766)and ns.PartyCooldownExact({cds={[1766]=12},used={},how={[1766]='cast'}},1766))
+assert(not ns.PartyCooldownExact({cds={[1766]=12},used={},how={[1766]='ready'}},1766)and not ns.PartyCooldownExact({cds={[1766]=12},used={},how={[1766]='cast'},cut={[1766]=true}},1766),'a guessed start or a shortened timer is an estimate');m.Rogue.used={}
 env.select('pcd-kick:dir','To the left');env.select('pcd-kick:width','240 px');assert(cfg.anchors.kick.dir=='LEFT'and cfg.anchors.kick.width==240 and bar:GetWidth()==240-42-2)
 env.select('pcd-kick:style','Icons');assert(cfg.anchors.kick.style=='icons'and not cell(G.kick,1766).bar:IsShown()and not ns.UIControls['pcd-kick:width'])
 local function count(g)local n=0;for _,icon in ipairs(g.frame.icons or{})do if icon:IsShown()then n=n+1 end end;return n end
@@ -985,6 +986,44 @@ m.Rogue.used={};for _,x in ipairs(list)do if x.spell==2094 and x.unit=='nameplat
 ns.PartyCooldownPlate('nameplate8');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,2094)==0)
 local printed={};local p=print;print=function(t)printed[#printed+1]=t end;ns.Command('pcd');print=p
 local found=false;for _,t in ipairs(printed)do if t:find('Interrupts seen',1,true)then found=true end end;assert(found)
+`));
+test('party cooldowns review fixes: added spells per class, own ready cooldown, checked messages, late senders, self hidden, expired hidden timers',()=>run(`
+local sent={};C_ChatInfo={RegisterAddonMessagePrefix=function()return 0 end,SendAddonMessage=function(_,text)sent[#sent+1]=text;return 0 end}
+local units={player={'Tester','DRUID'},party1={'Friend','PRIEST'},party2={'Rogue','ROGUE'}}
+function IsInGroup()return true end;function IsInRaid()return false end
+function UnitExists(u)return units[u]~=nil end;function UnitName(u)return units[u or'player']and units[u or'player'][1]end
+function UnitClass(u)local x=units[u or'player'];return'Class',x and x[2]end;function UnitIsUnit(a,b)return a==b end
+function GetSpellBaseCooldown(id)return 120000,0 end
+env.click('tab:partycds');env.click('pcd:enabled');local cfg=ns.PartyCooldownConfig();local m=ns.PartyCooldownMembers
+-- One added spell belongs to one class; removing it never breaks another class's list.
+assert(ns.AddPartyCooldownSpell('PRIEST','987654'));local ok,err=ns.AddPartyCooldownSpell('ROGUE','987654')
+assert(not ok and err:find('another class'),err)
+assert(ns.RemovePartyCooldownSpell('PRIEST',987654));ns.PartyCooldownClassSpells('ROGUE');ns.PartyCooldownClassSpells('PRIEST')
+assert(ns.AddPartyCooldownSpell('ROGUE','987654'),'free again after removal')
+-- The game saying a spell of yours is ready wins over a remembered cast.
+local me=m.Tester;me.used[22812]=GetTime()
+C_Spell.GetSpellCooldown=function(id)return{startTime=0,duration=0}end
+assert(ns.PartyCooldownLeft(me,22812)==0,'ready by the game')
+C_Spell.GetSpellCooldown=function(id)return{startTime=env.time,duration=60}end
+assert(math.abs(ns.PartyCooldownLeft(me,22812)-60)<0.01 and ns.PartyCooldownExact(me,22812))
+C_Spell.GetSpellCooldown=nil;me.used={}
+-- A message is checked as a whole: a spec of another class or another class's spell is not taken.
+ns.CommHandlers.PCD('256;33206=150','Friend');assert(m.Friend.spec==256 and m.Friend.cds[33206]==150)
+ns.CommHandlers.PCD('71;871=180','Friend');assert(m.Friend.spec==256 and m.Friend.cds[33206]==150 and not m.Friend.cds[871],'a warrior spec from a priest is refused')
+ns.CommHandlers.PCD('256;33206=150;1766=15','Friend');assert(m.Friend.cds[33206]and not m.Friend.cds[1766],'a rogue kick from a priest is skipped')
+-- A message that arrives before its sender is in the roster is read when they join.
+ns.CommHandlers.PCD('261;31224=100','Late');assert(not m.Late)
+units.party3={'Late','ROGUE'};ns.PartyCooldownRoster();assert(m.Late and m.Late.addon and m.Late.spec==261 and m.Late.cds[31224]==100,'late message read')
+-- Your own cooldowns off the display: still tracked inside.
+cfg.self=false;ns.PartyCooldownRoster();assert(m.Tester and m.Tester.me)
+local before=m.Tester.seen or 0;ns.PartyCooldownCast('player',22812);assert((m.Tester.seen or 0)==before+1,'own casts still counted')
+cfg.self=true
+-- A hidden timer is dropped one full length after the combat it started in.
+m.Rogue.hiddenCd={[31224]={cd=120,over=GetTime()+120,slot={}}};assert(ns.PartyCooldownHiddenTrack(m.Rogue,31224))
+env.advance(121);assert(not ns.PartyCooldownHiddenTrack(m.Rogue,31224)and not m.Rogue.hiddenCd[31224])
+-- The report says where timers come from.
+m.Rogue.used[31224]=GetTime();m.Rogue.how={[31224]='cast'};local rep=table.concat(ns.PartyCooldownReport(),'\\n')
+assert(rep:find('running 0 exact 1 estimated (cast 1)',1,true)and rep:find('lengths sent',1,true),rep)
 `));
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());

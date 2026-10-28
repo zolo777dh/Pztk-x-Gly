@@ -39,7 +39,7 @@ local ru={
     ["off"]="выкл.",["not available"]="недоступны",[" watching"]=" активны",["waiting for a group"]="ждут группу",
     ["the game has no aura container widget"]="в игре нет виджета контейнера аур",
     ["the aura container refused a buff group"]="контейнер аур не принял группу баффов",
-    ["Members without this addon show the cooldowns of their specialization at the game's base length; talents that shorten them are not known. Members with the addon send exactly what they have. A ~ on a timer marks an estimate; timers without it are exact."]="У игроков без аддона показываются кд их специализации с базовой длительностью из игры: таланты, которые их сокращают, неизвестны. Игроки с аддоном присылают точно то, что у них есть. Значок ~ на таймере означает оценку, таймеры без него точные.",
+    ["Members without this addon show the cooldowns of their specialization at the game's base length; talents that shorten them are not known. Members with the addon send the lengths they have. A ~ on a timer marks an estimate: a guessed start, a base or shortened length, or a timer the game hides."]="У игроков без аддона показываются кд их специализации с базовой длительностью из игры: таланты, которые их сокращают, неизвестны. Игроки с аддоном присылают свои длительности. Значок ~ на таймере означает оценку: начало угадано, длительность базовая или сокращена, или таймер скрыт игрой.",
     -- Interrupts and crowd control
     ["Interrupts"]="Кики",["Crowd control"]="Контроль",["Show"]="Показывать",
     ["GROWS"]="РОСТ",["STYLE"]="ВИД",["Icons"]="Иконки",["Bars"]="Полосы",["BAR HEIGHT"]="ВЫСОТА ПОЛОСЫ",["BAR WIDTH"]="ШИРИНА ПОЛОСЫ",
