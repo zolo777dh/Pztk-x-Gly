@@ -59,9 +59,12 @@ local TALENT_CD={
     [118038]={{391271,pct=-10}},[184364]={{391271,pct=-10}},
 }
 -- Cooldowns cut while the fight goes on, by the resource a member spends (read from their power
--- bar): warrior Anger Management, 1 second per `per` rage spent, on these spells per spec.
-local SPEND={WARRIOR={talent=152278,power=1,per={[71]=20,[72]=20,[73]=10},
-    spells={[71]={107574,227847},[72]={1719,107574,227847},[73]={107574,871}}}}
+-- bar): `sec` seconds per `per` spent, on these spells per spec. Warrior Anger Management (rage),
+-- Blood Red Thirst (runic power on Vampiric Blood), Guardian Ursoc's Guidance (rage on Incarnation).
+local SPEND={WARRIOR={talent=152278,power=1,sec=1,per={[71]=20,[72]=20,[73]=10},
+        spells={[71]={107574,227847},[72]={1719,107574,227847},[73]={107574,871}}},
+    DEATHKNIGHT={talent=205723,power=6,sec=2,per={[250]=10},spells={[250]={55233}}},
+    DRUID={talent=393414,power=1,sec=1,per={[104]=25},spells={[104]={102558}}}}
 -- Talents read from trees: those that change a cooldown and those that cut one by spending.
 local WANTED={}
 for _,mods in pairs(TALENT_CD)do for _,x in ipairs(mods)do if x[1]then WANTED[x[1]]=true end end end
@@ -936,7 +939,7 @@ function ns.PartyCooldownPower(unit)
                     local per=sp.per[m.spec]
                     while m.spent>=per do
                         m.spent=m.spent-per
-                        for _,id in ipairs(sp.spells[m.spec]or{})do Shorten(m,id,1)end
+                        for _,id in ipairs(sp.spells[m.spec]or{})do Shorten(m,id,sp.sec or 1)end
                     end
                 end
                 m.power=power
