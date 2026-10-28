@@ -1,7 +1,8 @@
 ## Interface: 120105
-## Title: Puzatik Party Defensives
+## Title: |cffb88cffPuzatik|r Party Defensives
 ## Notes: Party cooldowns from Naowh Defensive Planner as a standalone addon. Turns itself off when Naowh Defensive Planner is enabled.
 ## Author: Pztk x Glyalith
+## IconTexture: Interface\AddOns\PuzatikPartyDefensives\Media\Icon
 ## Version: 0.10.15
 ## SavedVariables: PuzatikPartyDefensivesDB
 Core.lua

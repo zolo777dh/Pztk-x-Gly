@@ -3,15 +3,16 @@
 local _,ns=...
 local W=ns.Widgets
 local C=W.colors
--- Black and gold from the Puzatik icon. The colours change in place, so every module holding W.colors sees them.
+-- Black and violet from the Puzatik icon. The colours change in place, so every module holding W.colors sees them.
 local palette={
-    background="070605",sidebar="0b0907",panel="110e0a",raised="1a150e",hover="241c11",line="2e2416",lineStrong="4a3a20",
-    accent="e0a526",accentSoft="2e220c",accentText="ffd36b",brand="f5c04a",brandDark="c88a1a",
-    text="f3ead8",soft="cfc2a6",muted="a3957a",faint="6b604c",iconIdle="8c7f66",dark="070605",warning="ffb347",
+    background="08050f",sidebar="0c0816",panel="120c1f",raised="1a1230",hover="24193f",line="2d2148",lineStrong="4a3878",
+    accent="9b5cff",accentSoft="26164a",accentText="c9a8ff",brand="b88cff",brandDark="7a3fe0",
+    text="efe9fb",soft="c8bde0",muted="9d90b8",faint="645880",iconIdle="8475a3",dark="08050f",warning="ffb347",
 }
 for key,value in pairs(palette)do
     local c=C[key];c[1],c[2],c[3],c[4]=tonumber(value:sub(1,2),16)/255,tonumber(value:sub(3,4),16)/255,tonumber(value:sub(5,6),16)/255,1
 end
+W.icon="Interface\\AddOns\\PuzatikPartyDefensives\\Media\\Icon"
 local WIDTH,HEIGHT=952,700
 local window,body,status,close
 local state={drafts={}}
@@ -50,8 +51,9 @@ function ns.OpenPartyCooldownWindow()
         window:EnableKeyboard(true);window:SetPropagateKeyboardInput(true)
         window:SetScript("OnKeyDown",function(self,key)if key=="ESCAPE"then self:Hide()end end)
         window:SetScript("OnHide",function()if W.popup then W.popup:Hide()end end)
-        W.Label(window,"Puzatik Party Defensives",20,18,400,16,C.brand,true)
-        W.Label(window,"v"..tostring(ns.version).." · /pcd help",20,40,400,11,C.faint)
+        W.Texture(window,W.icon,14,10,44,44)
+        W.Label(window,"Puzatik Party Defensives",66,16,400,16,C.brand,true)
+        W.Label(window,"v"..tostring(ns.version).." · /pcd help",66,38,400,11,C.faint)
         close=W.Button(window,"",WIDTH-44,14,28,function()window:Hide()end,false,"pcd-close",{h=28,kind="ghost",glyph="close",tooltip="Close"})
         status=W.Label(window,"",20,HEIGHT-24,WIDTH-40,11,C.muted)
         ns.PartyCooldownWindow=window
