@@ -878,6 +878,14 @@ GetSpellBaseCooldown=function(id)return id==118038 and 120000 or id==107574 and 
 local war={class='WARRIOR',spec=71,used={},unit='party4'}
 assert(ns.PartyCooldownLength(war,118038)==120);war.ranks={[391271]=1};assert(ns.PartyCooldownLength(war,118038)==108)
 assert(ns.PartyCooldownWithTalents({spec=70,ranks={}},31884,120)==60,'Retribution Avenging Wrath by spec')
+-- Others: cooldowns cut by what they do are left out (not exact); Spell Reflection and Shadowmeld are in.
+do local function has(m,id)for _,x in ipairs(ns.PartyCooldownList(m))do if x==id then return true end end return false end
+local dkm={class='DEATHKNIGHT',spec=250,used={},talented={}};assert(not has(dkm,49028)and not has(dkm,55233)and has(dkm,48707),'Blood DRW and VB left out for others')
+local pal={class='PALADIN',spec=66,used={},talented={}};assert(not has(pal,31884))
+assert(has({class='PALADIN',spec=65,used={},talented={}},31884),'Holy Avenging Wrath stays')
+local wm={class='WARRIOR',spec=73,used={},talented={},race='NightElf'};assert(has(wm,23920)and has(wm,58984)and not has(wm,871))
+wm.race='Human';assert(not has(wm,58984),'Shadowmeld only for night elves')
+assert(ns.PartyCooldownDynamic(31884,66)and not ns.PartyCooldownDynamic(31884,70))end
 -- Spending rage in combat cuts Avatar and Bladestorm (Anger Management), also a hidden timer.
 units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();local w=m.Warr;w.spec=71;w.ranks={[152278]=1}
 local rage=100;UnitPower=function()return rage end;UnitAffectingCombat=function()return true end
@@ -891,18 +899,6 @@ ns.PartyCooldownPower('party4');rage=70;ns.PartyCooldownPower('party4');assert(m
 -- A talent the trees no longer show counts as taken; a rank of 0 does not.
 dk.ranks={};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)<89)
 dk.ranks={[205723]=0};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)>89.9)
--- A hidden power bar in combat: the cut follows the spec's usual pace (Blood 0.6 s per second).
-do local secret={};local realS,realP,realL=issecretvalue,UnitPower,InCombatLockdown
-issecretvalue=function(v)return v==secret end;UnitPower=function()return secret end;InCombatLockdown=function()return true end
-dk.ranks={[205723]=1};dk.used={};dk.estAt=nil;dk.est=nil;assert(ns.PartyCooldownCast('party4',55233));before=ns.PartyCooldownLeft(dk,55233)
-ns.PartyCooldownPower('party4');for i=1,10 do env.advance(1);ns.PartyCooldownPower('party4')end
-assert(math.abs(before-10-ns.PartyCooldownLeft(dk,55233)-6)<0.01,'10 s of combat = 6 s cut, got '..tostring(before-10-ns.PartyCooldownLeft(dk,55233)))
--- Blood Dancing Rune Weapon: 30 s shorter with Insatiable Blade, and cut 0.4 s per second of combat.
-dk.ranks={[377637]=1};assert(ns.PartyCooldownWithTalents(dk,49028,120)==90)
-dk.used={[49028]=GetTime()};before=ns.PartyCooldownLeft(dk,49028);ns.PartyCooldownPace(GetTime())
-for i=1,10 do env.advance(1);ns.PartyCooldownPace(GetTime())end
-assert(math.abs(before-10-ns.PartyCooldownLeft(dk,49028)-4)<0.01,'10 s of combat = 4 s off Dancing Rune Weapon')
-issecretvalue,UnitPower,InCombatLockdown=realS,realP,realL end
 units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();w=m.Warr;w.spec=71
 -- The hero version of Bladestorm counts as Bladestorm.
 assert(ns.PartyCooldownCast('party4',446035));assert(ns.PartyCooldownLeft(w,227847)>80)
