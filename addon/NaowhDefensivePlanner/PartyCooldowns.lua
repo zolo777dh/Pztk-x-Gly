@@ -129,14 +129,16 @@ end
 ns.PartyCooldownDynamic=Dynamic
 ns.PartyCooldownTalentMods=TALENT_CD
 local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},
-    anchors={kick={x=-420,y=-60,style="bars",size=22,width=200,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false},
-        cc={x=-420,y=-220,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false}},learned={},disabled={},specOff={},custom={},talentSpells={}}
+    anchors={kick={x=-420,y=-60,style="bars",size=22,width=200,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture=""},
+        cc={x=-420,y=-220,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false,texture=""}},learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
     local store=ns.Store();store.partycds=store.partycds or{}
     local c=store.partycds
     for k,v in pairs(defaults)do if c[k]==nil then c[k]=type(v)=="table"and ns.Clone(v)or v end end
     for key,a in pairs(defaults.anchors)do
         c.anchors[key]=type(c.anchors[key])=="table"and c.anchors[key]or{}
+        -- 0.10.22: each list has its own "your own cooldowns" switch; it starts as the main one was.
+        if c.anchors[key].self==nil then c.anchors[key].self=c.self~=false end
         for k,v in pairs(a)do if c.anchors[key][k]==nil then c.anchors[key][k]=v end end
     end
     -- 0.10.2: icons beside the party frames, every cooldown of the spec shown, no names.
@@ -731,8 +733,24 @@ end
 -- Interrupts and crowd control: one cell per member and spell, as icons or as bars, in a grid.
 -- a.style "icons" or "bars"; a.size: icon size or bar height; a.width: bar width; a.dir "RIGHT" or
 -- "LEFT": where bars fill and the grid grows; a.grow "DOWN" or "UP"; a.perRow cells in a row, a.rows
--- rows at most.
-local BAR_TEXTURE="Interface\\TargetingFrame\\UI-StatusBar"
+-- rows at most; a.texture: the bar texture (see BarTextures); a.self: show your own spells.
+-- Bar textures: a few of the game's, and every one LibSharedMedia-3.0 lists when another addon loads it.
+local GAME_BARS={{value="",label="Blizzard",file="Interface\\TargetingFrame\\UI-StatusBar"},{value="flat",label="Flat",file="Interface\\Buttons\\WHITE8X8"},
+    {value="raid",label="Raid frame",file="Interface\\RaidFrame\\Raid-Bar-Hp-Fill"},{value="skills",label="Skill bar",file="Interface\\PaperDollInfoFrame\\UI-Character-Skills-Bar"}}
+local function SharedMedia()return LibStub and LibStub("LibSharedMedia-3.0",true)end
+function ns.PartyBarTextures()
+    local out={};for _,t in ipairs(GAME_BARS)do out[#out+1]={value=t.value,label=L(t.label)}end
+    local lsm=SharedMedia();if lsm and lsm.List then local ok,list=pcall(lsm.List,lsm,"statusbar")
+        if ok and type(list)=="table"then for _,name in ipairs(list)do out[#out+1]={value="lsm:"..name,label=name}end end end
+    return out
+end
+local function BarFile(choice)
+    for _,t in ipairs(GAME_BARS)do if t.value==choice then return t.file end end
+    if type(choice)=="string"and choice:sub(1,4)=="lsm:"then local lsm=SharedMedia()
+        local ok,file=pcall(function()return lsm and lsm:Fetch("statusbar",choice:sub(5),true)end);if ok and type(file)=="string"then return file end end
+    return GAME_BARS[1].file
+end
+ns.PartyBarFile=BarFile
 local function CellSpellName(id)
     local ok,name=pcall(C_Spell and C_Spell.GetSpellName or function()end,id)
     return ok and ns.Plain(name,"string")and name or""
@@ -747,7 +765,7 @@ local function Cell(g,i)
     local f=g.frame;f.icons=f.icons or{}
     local cell=Icon(f,i,10)
     if not cell.bar then
-        local bar=CreateFrame("StatusBar",nil,f);bar:SetStatusBarTexture(BAR_TEXTURE);bar:SetMinMaxValues(0,1);bar:SetValue(1)
+        local bar=CreateFrame("StatusBar",nil,f);bar:SetStatusBarTexture(GAME_BARS[1].file);bar:SetMinMaxValues(0,1);bar:SetValue(1)
         bar.bg=bar:CreateTexture(nil,"BACKGROUND");bar.bg:SetAllPoints();bar.bg:SetColorTexture(0,0,0,0.55)
         bar.name=bar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         bar.time=bar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
@@ -796,6 +814,7 @@ local function DrawAnchor(g,entries,a,unlocked)
                     bar:ClearAllPoints();bar:SetSize(width-size-gap,size)
                     if left then bar:SetPoint("RIGHT",cell,"LEFT",-gap,0)else bar:SetPoint("LEFT",cell,"RIGHT",gap,0)end
                     if bar.SetReverseFill then bar:SetReverseFill(left)end
+                    local file=BarFile(a.texture);if bar.file~=file then bar.file=file;bar:SetStatusBarTexture(file)end
                     bar:SetStatusBarColor(r,gr,b,1)
                     bar.start,bar.dur,bar.hidden,bar.approx=remain>0 and start or nil,dur,hidden~=nil,approx
                     if type(font)=="string"then bar.name:SetFont(font,11,"OUTLINE");bar.time:SetFont(font,11,"OUTLINE")end
@@ -832,8 +851,16 @@ function ns.DrawPartyCooldowns()
     if not(cfg.enabled or cfg.unlocked)then for _,g in pairs(groups)do g.frame:Hide()end;return false end
     ns.PartyCooldownRoster()
     local size=tonumber(cfg.size)or 26
-    -- You stay tracked (your casts, learned lengths, what you send); "self" only hides your icons.
-    local names={};for _,name in ipairs(order)do if cfg.self or not(members[name]and members[name].me)then names[#names+1]=name end end
+    -- You stay tracked (your casts, learned lengths, what you send); "self" only hides your icons,
+    -- for the main list (cfg.self) and for each of the kick and cc lists (anchors[key].self).
+    -- Unlocked with nobody else in the group, your own spells are the preview of every list.
+    local kickSelf,ccSelf=cfg.anchors.kick.self~=false,cfg.anchors.cc.self~=false
+    local names,others={},0
+    for _,name in ipairs(order)do local me=members[name]and members[name].me
+        if not me then others=others+1 end
+        if not me or cfg.self or kickSelf or ccSelf or cfg.unlocked then names[#names+1]=name end
+    end
+    local preview=cfg.unlocked and others==0
     if #names==0 and cfg.unlocked then
         local _,class=UnitClass("player");local me=UnitName("player")or"Player"
         members[me]=members[me]or{name=me,used={},me=true,class=class,spec=ns.Spec()};names={me}
@@ -843,7 +870,8 @@ function ns.DrawPartyCooldowns()
         local m=members[name];m.name=m.name or name
         local ids=ns.PartyCooldownList(m,"defensive")
         local frame=cfg.mode=="frames"and m.unit and UnitFrame(m.unit)
-        if frame then
+        if m.me and not cfg.self and not preview then -- your own icons are hidden in the main list
+        elseif frame then
             local holder=attached[name]
             if not holder then holder=CreateFrame("Frame",nil,UIParent);holder.icons={};attached[name]=holder end
             local side=SIDES[cfg.side]or SIDES.RIGHT
@@ -854,8 +882,9 @@ function ns.DrawPartyCooldowns()
             end
             holder:Show()
         else main[#main+1]={m,ids}end
-        local k=ns.PartyCooldownList(m,"kick");if #k>0 then kicks[#kicks+1]={m,k}end
-        local x=ns.PartyCooldownList(m,"cc");if #x>0 then cc[#cc+1]={m,x}end
+        local own=m.me and not preview
+        local k=(kickSelf or not own)and ns.PartyCooldownList(m,"kick")or{};if #k>0 then kicks[#kicks+1]={m,k}end
+        local x=(ccSelf or not own)and ns.PartyCooldownList(m,"cc")or{};if #x>0 then cc[#cc+1]={m,x}end
     end
     DrawRows(Group("main"),main,cfg,cfg.unlocked)
     DrawAnchor(Group("kick"),cfg.kicks~=false and kicks or{},cfg.anchors.kick,cfg.unlocked and cfg.kicks~=false)
@@ -1531,11 +1560,15 @@ function DrawAnchors(parent,apply)
         W.Select(card,L("VERTICAL"),{{value="DOWN",label=L("Down")},{value="UP",label=L("Up")}},a.grow or"DOWN",235,126,207,function(v)a.grow=v;apply()end,id.."grow")
         W.Select(card,L("PER ROW"),counts,tonumber(a.perRow)or 1,12,182,207,function(v)a.perRow=v;apply()end,id.."perRow")
         W.Select(card,L("ROWS"),counts,tonumber(a.rows)or 5,235,182,207,function(v)a.rows=v;apply()end,id.."rows")
-        if bars then W.Select(card,L("BAR WIDTH"),widths,tonumber(a.width)or 180,12,238,207,function(v)a.width=v;apply()end,id.."width")end
+        if bars then
+            W.Select(card,L("BAR WIDTH"),widths,tonumber(a.width)or 180,12,238,207,function(v)a.width=v;apply()end,id.."width")
+            W.Select(card,L("BAR TEXTURE"),ns.PartyBarTextures(),a.texture or"",235,238,207,function(v)a.texture=v;apply()end,id.."texture")
+        end
         W.Toggle(card,L("Names"),a.names,12,300,207,function(v)a.names=v;apply()end,id.."names")
         W.Toggle(card,L("Only in use"),a.hideReady,235,300,207,function(v)a.hideReady=v;apply()end,id.."hideReady")
-        W.Button(card,L("Reset position"),12,336,430,function()local d=defaults.anchors[key];a.x,a.y=d.x,d.y;apply()end,false,id.."reset",{kind="outline",align="CENTER"})
-        W.Label(card,L(ANCHOR_HELP[key]),12,378,430,11,C.muted)
+        W.Toggle(card,L("Include my own cooldowns"),a.self~=false,12,328,430,function(v)a.self=v;apply()end,id.."self")
+        W.Button(card,L("Reset position"),12,364,430,function()local d=defaults.anchors[key];a.x,a.y=d.x,d.y;apply()end,false,id.."reset",{kind="outline",align="CENTER"})
+        W.Label(card,L(ANCHOR_HELP[key]),12,406,430,11,C.muted)
     end
     W.Button(parent,cfg.unlocked and L("Lock")or L("Unlock and preview"),0,552,454,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
     W.Label(parent,L("Unlock shows every list with its name; drag them where you want them."),466,560,454,11,C.muted)
