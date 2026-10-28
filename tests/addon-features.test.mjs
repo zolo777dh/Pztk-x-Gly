@@ -817,7 +817,7 @@ ns.PartyCooldownForgetFrames();assert(ns.PartyCooldownFrame('party3')==custom)
 cfg.mode='list';cfg.names=true;assert(ns.DrawPartyCooldowns());cfg.names=false;assert(ns.DrawPartyCooldowns())
 -- Buff sensors: a member's own defensive buff and an external on anyone start the caster's timer.
 cfg.mode='frames';for _,x in pairs(m)do x.used={}end
-local n=ns.RebuildPartyCooldownSensors();assert(n>0,'sensors built')
+local n=ns.RebuildPartyCooldownSensors();assert(n>0,'sensors built');env.advance(1);ns.PartyCooldownPollSensors()
 local list,st=ns.PartyCooldownSensors();assert(st.available)
 local function light(spell,unit)for _,x in ipairs(list)do if x.spell==spell and(not unit or x.unit==unit)then x.frame.IsMouseOver=function()return true end end end end
 light(31224,'party2');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,31224)>100 and m.Rogue.sensed==1,'Cloak by buff')
@@ -837,7 +837,7 @@ assert(ns.PartyCooldownReadTalents(m.Rogue));local cloak=false;for _,id in ipair
 -- curve helper and drawn by bars whose range follows the clock.
 local hidden={};local real=issecretvalue;issecretvalue=function(v)return v==hidden end
 C_CurveUtil={EvaluateColorValueFromBoolean=function(b,y,n)if b==hidden then return y end;return b and y or n end}
-for _,x in pairs(m)do x.used={};x.hiddenCd=nil end;assert(ns.RebuildPartyCooldownSensors()>0)
+for _,x in pairs(m)do x.used={};x.hiddenCd=nil end;assert(ns.RebuildPartyCooldownSensors()>0);env.advance(1);ns.PartyCooldownPollSensors()
 list=ns.PartyCooldownSensors()
 for _,x in ipairs(list)do if x.spell==31224 and x.unit=='party2'then x.frame.IsMouseOver=function()return hidden end end end
 local drawn=0;local draw=ns.DrawPartyCooldowns;ns.DrawPartyCooldowns=function(...)drawn=drawn+1;return draw(...)end
@@ -861,6 +861,10 @@ ns.PartyCooldownShowHidden(icon,nil);assert(not parts.win:IsShown())
 -- After the cooldown the bar is empty; a slot rolls over before its window runs out.
 env.advance(t.cd);ns.PartyCooldownPollSensors();assert(ns.PartyCooldownHiddenLeft(t,GetTime())==0)
 for i=1,6 do env.advance(t.cd);ns.PartyCooldownPollSensors()end;assert(GetTime()-t.slot[t.cur].epoch<=t.open,'slot rolled')
+-- Cast before the pull: a buff seen in combat while that timer runs does not restart it.
+for _,x in pairs(m)do x.used={};x.hiddenCd=nil end;assert(ns.PartyCooldownCast('party2',31224));local started=m.Rogue.used[31224]
+for _,x in ipairs(list)do if x.spell==31224 and x.unit=='party2'then x.prev=false;x.frame.IsMouseOver=function()return hidden end end end
+env.advance(5);ns.PartyCooldownPollSensors();assert(m.Rogue.used[31224]==started and not(m.Rogue.hiddenCd and m.Rogue.hiddenCd[31224]),'running timer kept')
 issecretvalue=real
 local printed={};local p=print;print=function(t)printed[#printed+1]=t end;ns.Command('pcd');print=p;assert(#printed>=2 and printed[1]:find('Buff sensors',1,true),printed[1])
 -- Talents change the length: Arms Die by the Sword is 10% shorter with the talent taken.

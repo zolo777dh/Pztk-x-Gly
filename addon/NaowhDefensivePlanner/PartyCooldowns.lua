@@ -860,9 +860,14 @@ local function PollSensors()
     local now,redraw=GetTime(),false
     for _,s in ipairs(sensors)do
         local v=SensorRead(s.frame)
-        do
+        -- A container just pointed at its unit shows the old answer for a moment: no edges then.
+        if s.hold and now<s.hold then s.prev=v;s.lit=Plain(v)and v
+        else
             local m=s.kind==EXTERNAL and s.owner or members[s.member]
-            if Plain(v)and Plain(s.prev)then
+            -- A spell whose timer still runs cannot have been cast again.
+            local running=m and ns.PartyCooldownLeft(m,s.spell)>0
+            if running then
+            elseif Plain(v)and Plain(s.prev)then
                 -- Out of combat the answer is plain: an ordinary timer, with seconds and a swipe.
                 if v and not s.prev then
                     if s.kind==EXTERNAL then Sensed(ExternalOwner(s.spell),s.spell)else Sensed(m,s.spell)end
@@ -878,8 +883,6 @@ local function PollSensors()
     SlideHidden()
 end
 ns.PartyCooldownPollSensors=PollSensors
--- Entering combat: every container reads its unit again, then follows it.
-local function RefreshSensors()for _,s in ipairs(sensors)do pcall(s.frame.UpdateAllAuras,s.frame)end end
 -- Builds the sensors for the group: each member's own buffs on them, and every external of the
 -- group on everyone. Out of combat only; containers are reused.
 local pool={}
@@ -908,7 +911,7 @@ function ns.RebuildPartyCooldownSensors()
         if not c then break end
         -- A container only follows its unit's auras while enabled; a full update reads what is up now.
         pcall(c.SetUnit,c,s.unit);pcall(c.SetEnabled,c,true);pcall(c.UpdateAllAuras,c)
-        s.frame=c;s.prev=SensorRead(c);s.lit=Plain(s.prev)and s.prev;made[#made+1]=s
+        s.frame=c;s.prev=SensorRead(c);s.lit=Plain(s.prev)and s.prev;s.hold=GetTime()+0.6;made[#made+1]=s
     end
     sensors=made
     if #sensors>0 and C_Timer and C_Timer.NewTicker then sensorTicker=C_Timer.NewTicker(0.1,PollSensors)end
@@ -952,7 +955,7 @@ local ownDraw
 local events=CreateFrame("Frame")
 local function Listen(on)
     for _,e in ipairs({"UNIT_SPELLCAST_SUCCEEDED","GROUP_ROSTER_UPDATE","PLAYER_SPECIALIZATION_CHANGED","TRAIT_CONFIG_UPDATED","INSPECT_READY",
-        "READY_CHECK","PLAYER_REGEN_ENABLED","PLAYER_REGEN_DISABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD","UNIT_POWER_UPDATE","SPELL_UPDATE_COOLDOWN"})do
+        "READY_CHECK","PLAYER_REGEN_ENABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD","UNIT_POWER_UPDATE","SPELL_UPDATE_COOLDOWN"})do
         if on then pcall(events.RegisterEvent,events,e)elseif events.UnregisterEvent then events:UnregisterEvent(e)end
     end
 end
@@ -971,7 +974,6 @@ events:SetScript("OnEvent",function(_,event,a,_,c)
     elseif event=="SPELL_UPDATE_COOLDOWN"then
         -- Your own icons follow the game's cooldowns; one redraw for a burst of updates.
         if not ownDraw and C_Timer and C_Timer.NewTimer then ownDraw=C_Timer.NewTimer(0.2,function()ownDraw=nil;ns.DrawPartyCooldowns()end)end
-    elseif event=="PLAYER_REGEN_DISABLED"then RefreshSensors()
     elseif event=="PLAYER_REGEN_ENABLED"then
         for id in pairs(pendingLearn)do if Learn(id)then pendingLearn[id]=nil end end
         ns.SharePartyCooldowns();QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()
