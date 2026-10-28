@@ -965,6 +965,19 @@ local ownKick,ownCc=#ns.PartyCooldownList(m.Tester,'kick')>0,#ns.PartyCooldownLi
 assert(mine(G.kick)==ownKick and mine(G.cc)==ownCc)
 env.click('pcd-kick:self');env.click('pcd-cc:self');assert(cfg.anchors.kick.self==false and cfg.anchors.cc.self==false and not mine(G.kick)and not mine(G.cc),'your own kicks and stuns can be hidden list by list')
 assert(shows(G.kick,1766)and shows(G.cc,2094),'others stay');env.click('pcd-kick:self');assert(mine(G.kick)==ownKick and not mine(G.cc));env.click('pcd-cc:self')
+-- A bar carries the only countdown: its icon hides the game's numbers; plain icons keep them.
+local hide={};local function spy(g,id)local cd=cell(g,id).cd;cd.SetHideCountdownNumbers=function(_,v)hide[id]=v end end
+spy(G.kick,1766);spy(G.cc,2094);assert(ns.DrawPartyCooldowns());assert(hide[1766]==true and hide[2094]==false,'one countdown per kick bar')
+-- Load switches: off in the open world or solo, the lists hide and tracking goes on.
+local inside,instance=false,IsInInstance;IsInInstance=function()return inside end
+assert(cfg.loadWorld==true and cfg.loadSolo==true and ns.UIControls['pcd:loadWorld']==nil)
+env.click('pcd-view:display');assert(ns.UIControls['pcd:loadWorld']and ns.UIControls['pcd:loadSolo'])
+env.click('pcd:loadWorld');assert(cfg.loadWorld==false and not ns.PartyCooldownsLoaded()and not ns.DrawPartyCooldowns()and not G.kick.frame:IsShown(),'hidden in the open world')
+cfg.unlocked=true;assert(ns.DrawPartyCooldowns()and G.kick.frame:IsShown(),'unlocked still previews');cfg.unlocked=false
+inside=true;assert(ns.PartyCooldownsLoaded()and ns.DrawPartyCooldowns()and G.kick.frame:IsShown(),'shown in an instance')
+env.click('pcd:loadSolo');assert(cfg.loadSolo==false and ns.PartyCooldownsLoaded(),'in a group');local group=IsInGroup;IsInGroup=function()return false end
+assert(not ns.PartyCooldownsLoaded()and not ns.DrawPartyCooldowns(),'hidden solo')
+IsInGroup=group;env.click('pcd:loadWorld');env.click('pcd:loadSolo');IsInInstance=instance;assert(cfg.loadWorld and cfg.loadSolo and ns.DrawPartyCooldowns());env.click('pcd-view:anchors')
 cfg.anchors.cc.x=300;assert(ns.DrawPartyCooldowns());assert(G.cc.x==300);env.click('pcd-cc:reset');assert(cfg.anchors.cc.x==-420 and G.cc.x==-420)
 env.click('pcd:kicks');assert(cfg.kicks==false and not has(m.Rogue,1766)and not G.kick.frame:IsShown());env.click('pcd:cc');assert(not has(m.Rogue,2094)and not G.cc.frame:IsShown())
 env.click('pcd:kicks');env.click('pcd:cc');assert(has(m.Rogue,1766)and has(m.Rogue,2094))

@@ -23,7 +23,7 @@ local ru={
     ["Only in use"]="Только в откате",["Names"]="Имена",
     ["Share my cooldowns with the group"]="Делиться своими кд с группой",
     ["Also share my Cooldown Manager ones"]="И кд из менеджера кулдаунов",
-    ["Auto 1 min+"]="Авто 1 мин+",["Buff sensors"]="Датчики баффов",
+    ["Auto 1 min+"]="Авто 1 мин+",["Open world"]="Открытый мир",["Solo"]="Соло",["Buff sensors"]="Датчики баффов",
     ["Unlock and preview"]="Открепить и показать",["Lock"]="Закрепить",
     ["Reset timers"]="Сброс таймеров",["Send mine now"]="Отправить свои",
     ["All cooldowns are ready again"]="Все кд снова готовы",

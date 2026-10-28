@@ -128,7 +128,7 @@ local function Dynamic(id,spec)
 end
 ns.PartyCooldownDynamic=Dynamic
 ns.PartyCooldownTalentMods=TALENT_CD
-local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},
+local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,share=true,cdm=true,detect=true,loadWorld=true,loadSolo=true,pos={x=-420,y=120},
     anchors={kick={x=-420,y=-60,style="bars",size=22,width=200,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture=""},
         cc={x=-420,y=-220,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false,texture=""}},learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
@@ -805,6 +805,8 @@ local function DrawAnchor(g,entries,a,unlocked)
                 if remain>0 and start then cell.cd:SetCooldown(start,dur);cell.tex:SetDesaturated(true)else cell.cd:Clear();cell.tex:SetDesaturated(false)end
                 local approx=(remain>0 or hidden)and not ns.PartyCooldownExact(m,id)
                 if approx and not bars then cell.approx:Show()else cell.approx:Hide()end
+                -- Bars carry the time; the icon beside a bar shows no countdown of its own.
+                if cell.cd.SetHideCountdownNumbers then cell.cd:SetHideCountdownNumbers(bars)end
                 cell:Show();ShowHidden(cell,hidden)
                 local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
                 local r,gr,b=c and c.r or 0.6,c and c.g or 0.36,c and c.b or 1
@@ -844,11 +846,19 @@ local function DrawAnchor(g,entries,a,unlocked)
     return n
 end
 ns.PartyCooldownUpdateBars=UpdateBars
+-- Where the lists show: cfg.loadWorld off hides them outside dungeons, raids, scenarios and
+-- arenas; cfg.loadSolo off hides them while you are not in a group. Tracking goes on either way.
+function ns.PartyCooldownsLoaded()
+    local cfg=ns.PartyCooldownConfig()
+    if cfg.loadSolo==false and not(IsInGroup and IsInGroup())then return false end
+    if cfg.loadWorld==false then local ok,inside=pcall(IsInInstance or function()end);if not(ok and inside)then return false end end
+    return true
+end
 function ns.DrawPartyCooldowns()
     local cfg=ns.PartyCooldownConfig()
     attached=attached or{}
     for _,a in pairs(attached)do a:Hide()end
-    if not(cfg.enabled or cfg.unlocked)then for _,g in pairs(groups)do g.frame:Hide()end;return false end
+    if not((cfg.enabled and ns.PartyCooldownsLoaded())or cfg.unlocked)then for _,g in pairs(groups)do g.frame:Hide()end;return false end
     ns.PartyCooldownRoster()
     local size=tonumber(cfg.size)or 26
     -- You stay tracked (your casts, learned lengths, what you send); "self" only hides your icons,
@@ -1581,7 +1591,7 @@ local function DrawPage(parent)
     W.Segmented(parent,{{value="display",label=L("Display")},{value="anchors",label=L("Kicks & CC")},{value="abilities",label=L("Abilities")}},d.pcd.view,560,0,360,function(v)d.pcd.view=v;kit.refresh()end,"pcd-view")
     if d.pcd.view=="abilities"then return DrawAbilities(parent,d.pcd)end
     if d.pcd.view=="anchors"then return DrawAnchors(parent,apply)end
-    local c1=W.Card(parent,0,56,298,536,L("Display"))
+    local c1=W.Card(parent,0,56,298,566,L("Display"))
     W.Toggle(c1,L("Track party cooldowns"),cfg.enabled,12,34,274,function(v)cfg.enabled=v;apply()end,"pcd:enabled")
     W.Select(c1,L("SHOW"),{{value="list",label=L("As a list")},{value="frames",label=L("Beside party frames")}},cfg.mode,12,70,274,function(v)cfg.mode=v;apply()end,"pcd:mode")
     W.Select(c1,L("SIDE OF THE FRAME"),{{value="RIGHT",label=L("Right")},{value="LEFT",label=L("Left")},{value="TOP",label=L("Above")},{value="BOTTOM",label=L("Below")}},cfg.side,12,126,130,function(v)cfg.side=v;apply()end,"pcd:side")
@@ -1595,11 +1605,13 @@ local function DrawPage(parent)
     W.Toggle(c1,L("Also share my Cooldown Manager ones"),cfg.cdm,12,316,274,function(v)cfg.cdm=v;apply()end,"pcd:cdm")
     W.Toggle(c1,L("Auto 1 min+"),cfg.detect,12,342,274,function(v)cfg.detect=v;apply()end,"pcd:detect")
     W.Toggle(c1,L("Buff sensors"),cfg.sensors,12,368,274,function(v)cfg.sensors=v;apply()end,"pcd:sensors")
-    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,400,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Reset timers"),12,438,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Send mine now"),156,438,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
-    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,478,274,11,C.muted)
-    local c2=W.Card(parent,310,56,610,536,L("Group"))
+    W.Toggle(c1,L("Open world"),cfg.loadWorld~=false,12,394,130,function(v)cfg.loadWorld=v;apply()end,"pcd:loadWorld")
+    W.Toggle(c1,L("Solo"),cfg.loadSolo~=false,156,394,130,function(v)cfg.loadSolo=v;apply()end,"pcd:loadSolo")
+    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,428,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Reset timers"),12,466,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Send mine now"),156,466,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
+    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,506,274,11,C.muted)
+    local c2=W.Card(parent,310,56,610,566,L("Group"))
     if cfg.enabled then ns.PartyCooldownRoster()end
     local names=order;local y=34
     if #names==0 then W.Label(c2,cfg.enabled and L("Nobody to track yet. Join a party.")or L("Turn tracking on to see your group here."),12,y,580,12,C.muted)end
