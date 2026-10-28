@@ -8,7 +8,9 @@ export const SHARED=['Comms.lua','Widgets.lua','PartyCooldowns.lua','Media/UI/Di
  'Media/Fonts/URWGothic-Book.ttf','Media/Fonts/URWGothic-Demi.ttf','Media/Fonts/URWGothic-LICENSE.txt'];
 export async function partyCooldownFiles(root){
  const own=path.join(root,'addon','PuzatikPartyDefensives'),full=path.join(root,'addon','NaowhDefensivePlanner'),files={};
- for(const name of await fs.readdir(own))files['PuzatikPartyDefensives/'+name]=await fs.readFile(path.join(own,name));
+ for(const entry of await fs.readdir(own,{recursive:true,withFileTypes:true}))if(entry.isFile()){
+  const file=path.join(entry.parentPath??entry.path,entry.name);files['PuzatikPartyDefensives/'+path.relative(own,file).split(path.sep).join('/')]=await fs.readFile(file);
+ }
  for(const name of SHARED)files['PuzatikPartyDefensives/'+name]=await fs.readFile(path.join(full,name));
  // The widgets find their textures and fonts in this addon's folder.
  files['PuzatikPartyDefensives/Widgets.lua']=Buffer.from(files['PuzatikPartyDefensives/Widgets.lua'].toString('utf8').replace('Interface\\\\AddOns\\\\NaowhDefensivePlanner\\\\Media','Interface\\\\AddOns\\\\PuzatikPartyDefensives\\\\Media'));

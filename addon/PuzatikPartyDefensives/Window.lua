@@ -3,6 +3,15 @@
 local _,ns=...
 local W=ns.Widgets
 local C=W.colors
+-- Black and gold from the Puzatik icon. The colours change in place, so every module holding W.colors sees them.
+local palette={
+    background="070605",sidebar="0b0907",panel="110e0a",raised="1a150e",hover="241c11",line="2e2416",lineStrong="4a3a20",
+    accent="e0a526",accentSoft="2e220c",accentText="ffd36b",brand="f5c04a",brandDark="c88a1a",
+    text="f3ead8",soft="cfc2a6",muted="a3957a",faint="6b604c",iconIdle="8c7f66",dark="070605",warning="ffb347",
+}
+for key,value in pairs(palette)do
+    local c=C[key];c[1],c[2],c[3],c[4]=tonumber(value:sub(1,2),16)/255,tonumber(value:sub(3,4),16)/255,tonumber(value:sub(5,6),16)/255,1
+end
 local WIDTH,HEIGHT=952,700
 local window,body,status,close
 local state={drafts={}}
@@ -41,7 +50,7 @@ function ns.OpenPartyCooldownWindow()
         window:EnableKeyboard(true);window:SetPropagateKeyboardInput(true)
         window:SetScript("OnKeyDown",function(self,key)if key=="ESCAPE"then self:Hide()end end)
         window:SetScript("OnHide",function()if W.popup then W.popup:Hide()end end)
-        W.Label(window,"Puzatik Party Defensives",20,18,400,16,C.text,true)
+        W.Label(window,"Puzatik Party Defensives",20,18,400,16,C.brand,true)
         W.Label(window,"v"..tostring(ns.version).." · /pcd help",20,40,400,11,C.faint)
         close=W.Button(window,"",WIDTH-44,14,28,function()window:Hide()end,false,"pcd-close",{h=28,kind="ghost",glyph="close",tooltip="Close"})
         status=W.Label(window,"",20,HEIGHT-24,WIDTH-40,11,C.muted)

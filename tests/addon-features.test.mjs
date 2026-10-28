@@ -956,6 +956,7 @@ test('Puzatik Party Defensives runs the same tracking on its own, with /pcd sett
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
  const toc=files['PuzatikPartyDefensives/PuzatikPartyDefensives.toc'].toString('utf8');assert.match(toc,new RegExp('## Version: '+version.replaceAll('.','\\.')));
  const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','Slash.lua']);
+ assert.match(files['PuzatikPartyDefensives/Window.lua'].toString('utf8'),/background="070605"[\s\S]*accent="e0a526"/);
  const load=order.map(n=>`;(function(...)\n${files['PuzatikPartyDefensives/'+n].toString('utf8')}\nend)('PuzatikPartyDefensives',p)`).join('\n');
  await run(`
 C_ChatInfo={RegisterAddonMessagePrefix=function()return true end,SendAddonMessage=function()return 0 end}
