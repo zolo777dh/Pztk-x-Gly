@@ -1,0 +1,10 @@
+## Interface: 120105
+## Title: NDP Party Cooldowns
+## Notes: Party cooldowns from Naowh Defensive Planner as a standalone addon. Turns itself off when Naowh Defensive Planner is enabled.
+## Author: Pztk x Glyalith
+## Version: 0.10.15
+## SavedVariables: NDPPartyCooldownsDB
+Core.lua
+Comms.lua
+PartyCooldowns.lua
+Slash.lua

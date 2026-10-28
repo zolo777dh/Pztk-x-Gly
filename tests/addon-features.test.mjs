@@ -910,3 +910,27 @@ ns.instanceType='party';local before=#env.shown;ns.Fire({display={type='text',te
 local cm=ns.ContentMatches;ns.ContentMatches=function()return true end;ns.instanceType='raid';before=#env.shown;ns.Fire({display={type='text',text='Stack',tts=false}});ns.ContentMatches=cm;assert(#env.shown==before+1 and env.shown[#env.shown].tts==false,'raid stays silent')
 ns.Command('party');assert(ns.UIState.tab=='partycds')
 `));
+test('NDP Party Cooldowns runs the same tracking on its own, with /pcd settings, and stays off next to Naowh Defensive Planner',async()=>{
+ const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
+ const toc=files['NDPPartyCooldowns/NDPPartyCooldowns.toc'].toString('utf8');assert.match(toc,new RegExp('## Version: '+version.replaceAll('.','\\.')));
+ const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Comms.lua','PartyCooldowns.lua','Slash.lua']);
+ const load=order.map(n=>`;(function(...)\n${files['NDPPartyCooldowns/'+n].toString('utf8')}\nend)('NDPPartyCooldowns',p)`).join('\n');
+ await run(`
+C_ChatInfo={RegisterAddonMessagePrefix=function()return true end,SendAddonMessage=function()return 0 end}
+local units={player={'Tester','DRUID'},party1={'Friend','PRIEST'}}
+function IsInGroup()return true end;function IsInRaid()return false end
+function UnitExists(u)return units[u]~=nil end;function UnitName(u)return units[u or'player']and units[u or'player'][1]end
+function UnitClass(u)local x=units[u or'player'];return'Class',x and x[2]end;function UnitIsUnit(a,b)return a==b end
+strtrim=strtrim or function(s)return(s:gsub('^%s+',''):gsub('%s+$',''))end
+local p={}
+${load}
+assert(p.PartyCooldownConfig().enabled==true,'on by default')
+SlashCmdList.NDPPARTYCOOLDOWNS('list');assert(p.PartyCooldownConfig().mode=='list')
+SlashCmdList.NDPPARTYCOOLDOWNS('size 30');assert(p.PartyCooldownConfig().size==30)
+SlashCmdList.NDPPARTYCOOLDOWNS('left');assert(p.PartyCooldownConfig().side=='LEFT')
+assert(#p.PartyCooldownOrder()==2);assert(#p.PartyCooldownReport()>=2)
+assert(NDPPartyCooldownsDB.partycds.size==30,'saved in its own variables')
+C_AddOns.IsAddOnLoaded=function(name)return name=='NaowhDefensivePlanner'end
+assert(p.PartyCooldownConfig().enabled==false,'off next to the full addon')
+`);
+});
