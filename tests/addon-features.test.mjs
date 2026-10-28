@@ -851,16 +851,22 @@ env.advance(30);ns.PartyCooldownPollSensors();assert(math.abs(ns.PartyCooldownHi
 local icon=CreateFrame('Frame');icon.tex=icon:CreateTexture();icon:SetSize(26,26);icon.spellID=31224
 ns.PartyCooldownShowHidden(icon,t);local parts=icon.hidden;local p=parts[t.cur]
 local got={};p.fill.SetMinMaxValues=function(_,a,b)got.lo,got.hi=a,b end;p.fill.SetValue=function(_,v)got.v=v end
-p.pos.SetPoint=function(_,_,_,_,_,y)got.y=y end
+p.pos.SetPoint=function(_,_,_,_,_,y)got.y=y end;p.pos.SetValue=function(_,v)got.posv=v end
 ns.PartyCooldownSlideHidden()
 local fill=(got.v-got.lo)/(got.hi-got.lo);assert(fill>0.7 and fill<0.9,'dark part shows the time left '..fill)
-local left=ns.PartyCooldownHiddenLeft(t,math.floor(GetTime()));local top=got.y+got.v*t.window*parts.step
+local sl=t.slot[t.cur];local left=sl.wepoch+t.window*sl.whole-math.floor(GetTime());local top=got.y+got.posv*t.window*parts.step
 assert(math.abs(top/parts.step-left)<0.01,'column shows '..top/parts.step..' for '..left)
 assert(p.column:GetText():match('^1\\n2\\n'),'column 1, 2, 3 ... from the top')
 ns.PartyCooldownShowHidden(icon,nil);assert(not parts.win:IsShown())
 -- After the cooldown the bar is empty; a slot rolls over before its window runs out.
 env.advance(t.cd);ns.PartyCooldownPollSensors();assert(ns.PartyCooldownHiddenLeft(t,GetTime())==0)
 for i=1,6 do env.advance(t.cd);ns.PartyCooldownPollSensors()end;assert(GetTime()-t.slot[t.cur].epoch<=t.open,'slot rolled')
+-- The start is the moment the unit's auras changed, kept to the fraction of a second.
+assert(ns.PartyCooldownFine(),'the curve helper carries fine numbers')
+for _,x in pairs(m)do x.used={};x.hiddenCd=nil end
+for _,x in ipairs(list)do if x.spell==31224 and x.unit=='party2'then x.prev=false;x.frame.IsMouseOver=function()return hidden end end end
+env.advance(0.37);ns.PartyCooldownAura('party2');local t0=GetTime();env.advance(0.3);ns.PartyCooldownPollSensors()
+local tr=ns.PartyCooldownHiddenTrack(m.Rogue,31224);assert(math.abs(ns.PartyCooldownHiddenLeft(tr,GetTime())-(tr.cd-0.3))<0.001,'exact start '..ns.PartyCooldownHiddenLeft(tr,GetTime()))
 -- Cast before the pull: a buff seen in combat while that timer runs does not restart it.
 for _,x in pairs(m)do x.used={};x.hiddenCd=nil end;assert(ns.PartyCooldownCast('party2',31224));local started=m.Rogue.used[31224]
 for _,x in ipairs(list)do if x.spell==31224 and x.unit=='party2'then x.prev=false;x.frame.IsMouseOver=function()return hidden end end end
