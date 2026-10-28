@@ -802,7 +802,7 @@ local found=false;for _,id in ipairs(ns.PartyCooldownClassSpells('ROGUE'))do if 
 ns.PartyCooldownConfig().detect=false;assert(not ns.PartyCooldownCast('party2',6666666))
 -- Every specialization has cooldowns of its own or its class.
 for class,specs in pairs(ns.ClassSpecs)do for _,spec in ipairs(specs)do
- local list=ns.PartyCooldownList({class=class,spec=spec,used={},talented={}});assert(#list>=2,class..' '..spec..' '..#list)
+ local list=ns.PartyCooldownList({class=class,spec=spec,used={},talented={}});assert(#list>=(spec==581 and 1 or 2),class..' '..spec..' '..#list)
 end end
 -- Without inspect or addon, a tank or healer role gives the spec.
 assert(#ns.RoleSpecs('DRUID','HEALER')==1 and ns.RoleSpecs('DRUID','HEALER')[1]==105 and #ns.RoleSpecs('PRIEST','HEALER')==2)
@@ -828,7 +828,7 @@ cfg.sensors=false;assert(ns.RebuildPartyCooldownSensors()==0);cfg.sensors=true
 local book=C_SpellBook.IsSpellKnown;C_SpellBook.IsSpellKnown=function(id)return id==22812 or id==61336 end
 m.Tester.used={};local own=ns.PartyCooldownList(m.Tester);assert(#own==2,#own);C_SpellBook.IsSpellKnown=book
 UnitFactionGroup=function()return'Alliance'end;ns.PartyCooldownRoster()
-local lust,hero=false,false;for _,id in ipairs(ns.PartyCooldownList(m.Follower))do if id==2825 then lust=true elseif id==32182 then hero=true end end;assert(hero and not lust)
+local lust,hero=false,false;for _,id in ipairs(ns.PartyCooldownList(m.Follower))do if id==2825 then lust=true elseif id==32182 then hero=true end end;assert(not hero and not lust,'Bloodlust and Heroism are not tracked')
 -- Talents seen in any tree are not shown for a member whose talents are not read yet.
 assert(ns.PartyCooldownConfig().talentSpells[5277],'Evasion remembered as a talent')
 m.Rogue.talented=nil;m.Rogue.used={};for _,id in ipairs(ns.PartyCooldownList(m.Rogue))do assert(id~=5277 and id~=31224)end
@@ -876,7 +876,7 @@ local printed={};local p=print;print=function(t)printed[#printed+1]=t end;ns.Com
 -- Talents change the length: Arms Die by the Sword is 10% shorter with the talent taken.
 GetSpellBaseCooldown=function(id)return id==118038 and 120000 or id==107574 and 90000 or id==227847 and 90000 or 0,0 end
 local war={class='WARRIOR',spec=71,used={},unit='party4'}
-assert(ns.PartyCooldownLength(war,118038)==120);war.ranks={[391271]=1};assert(ns.PartyCooldownLength(war,118038)==108)
+assert(ns.PartyCooldownLength(war,118038)==108,'talents unread: the usual build');war.ranks={};assert(ns.PartyCooldownLength(war,118038)==120);war.ranks={[391271]=1};assert(ns.PartyCooldownLength(war,118038)==108)
 assert(ns.PartyCooldownWithTalents({spec=70,ranks={}},31884,120)==60,'Retribution Avenging Wrath by spec')
 -- Others: cooldowns cut by what they do are left out (not exact); Spell Reflection and Shadowmeld are in.
 do local function has(m,id)for _,x in ipairs(ns.PartyCooldownList(m))do if x==id then return true end end return false end
@@ -885,12 +885,14 @@ local pal={class='PALADIN',spec=66,used={},talented={}};assert(not has(pal,31884
 assert(has({class='PALADIN',spec=65,used={},talented={}},31884),'Holy Avenging Wrath stays')
 local wm={class='WARRIOR',spec=73,used={},talented={},race='NightElf'};assert(has(wm,23920)and has(wm,58984)and not has(wm,871))
 wm.race='Human';assert(not has(wm,58984),'Shadowmeld only for night elves')
+assert(has({class='PALADIN',spec=65,used={},talented={},race='Dwarf'},20594),'Stoneform for dwarves')
 assert(ns.PartyCooldownDynamic(31884,66)and not ns.PartyCooldownDynamic(31884,70))end
--- Spending rage in combat cuts Avatar and Bladestorm (Anger Management), also a hidden timer.
-units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();local w=m.Warr;w.spec=71;w.ranks={[152278]=1}
+-- Spending rage in combat cuts Recklessness (Anger Management) when the bar is readable.
+GetSpellBaseCooldown=function(id)return id==1719 and 90000 or 0,0 end
+units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();local w=m.Warr;w.spec=72;w.ranks={[152278]=1}
 local rage=100;UnitPower=function()return rage end;UnitAffectingCombat=function()return true end
-assert(ns.PartyCooldownCast('party4',107574));local before=ns.PartyCooldownLeft(w,107574)
-ns.PartyCooldownPower('party4');rage=40;ns.PartyCooldownPower('party4');assert(math.abs(before-ns.PartyCooldownLeft(w,107574)-3)<0.01,'60 rage = 3 s')
+assert(ns.PartyCooldownCast('party4',1719));local before=ns.PartyCooldownLeft(w,1719)
+ns.PartyCooldownPower('party4');rage=40;ns.PartyCooldownPower('party4');assert(math.abs(before-ns.PartyCooldownLeft(w,1719)-3)<0.01,'60 rage = 3 s')
 -- Blood: runic power spent cuts Vampiric Blood (Red Thirst, 2 s per 10).
 units.party4={'Dk','DEATHKNIGHT'};ns.PartyCooldownRoster();local dk=m.Dk;dk.spec=250;dk.ranks={[205723]=1};rage=100
 GetSpellBaseCooldown=function(id)return id==55233 and 90000 or id==227847 and 90000 or 0,0 end
@@ -899,9 +901,10 @@ ns.PartyCooldownPower('party4');rage=70;ns.PartyCooldownPower('party4');assert(m
 -- A talent the trees no longer show counts as taken; a rank of 0 does not.
 dk.ranks={};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)<89)
 dk.ranks={[205723]=0};dk.used={};assert(ns.PartyCooldownCast('party4',55233));rage=100;ns.PartyCooldownPower('party4');rage=90;ns.PartyCooldownPower('party4');assert(ns.PartyCooldownLeft(dk,55233)>89.9)
-units.party4={'Warr','WARRIOR'};ns.PartyCooldownRoster();w=m.Warr;w.spec=71
--- The hero version of Bladestorm counts as Bladestorm.
-assert(ns.PartyCooldownCast('party4',446035));assert(ns.PartyCooldownLeft(w,227847)>80)
+-- Another ID of a tracked spell counts as that spell (Greater Invisibility is Invisibility).
+GetSpellBaseCooldown=function(id)return id==66 and 300000 or 0,0 end
+units.party4={'Mage','MAGE'};ns.PartyCooldownRoster();local mg=m.Mage;mg.spec=64;mg.ranks={}
+assert(ns.PartyCooldownCast('party4',110959));assert(ns.PartyCooldownLeft(mg,66)>200)
 -- In dungeons every reminder is spoken by default.
 ns.instanceType='party';local before=#env.shown;ns.Fire({display={type='text',text='Stack',tts=false}});assert(#env.shown==before+1 and env.shown[#env.shown].tts==true,'mplus voice default')
 local cm=ns.ContentMatches;ns.ContentMatches=function()return true end;ns.instanceType='raid';before=#env.shown;ns.Fire({display={type='text',text='Stack',tts=false}});ns.ContentMatches=cm;assert(#env.shown==before+1 and env.shown[#env.shown].tts==false,'raid stays silent')
