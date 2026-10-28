@@ -344,6 +344,16 @@ Buff sensors (on by default): a hidden game aura container per member notices
 when a cooldown's buff appears, so hidden casts still start the timer;
 externals are credited to the member who can cast them. Abilities: pick a
 class, then a spec, to switch that spec's cooldowns on or off. Mythic+ keys and raid encounters reset all timers.
+Every tracked cooldown has a sensor: its own buff and the buff variants the
+spell can apply; group cooldowns (Bloodlust, Barrier, Rallying Cry...) are
+sensed on everyone and credited to the caster. Spells that leave no aura at all
+are caught only from visible casts. /ndp pcd prints the sensor state, the
+counted casts and what each member is tracked with.
+
+MYTHIC+ VOICE
+In dungeons every reminder is spoken by the game voice by default, even if its
+own Voice box is off. Settings > Sound > "Speak every Mythic+ reminder" turns
+this off. Raid reminders keep their own Voice setting.
 
 LIMITS
 No combat or active-encounter editing. No automatic ability presses. Native aura

@@ -49,7 +49,7 @@ SLASH_NDP5="/puzatik"
 function NaowhDefensivePlanner_OnAddonCompartmentClick()ns.Open()end
 local sections={sets="sets",defensives="sets",mythic="mythic",["m+"]="mythic",raid="raid",raids="raid",overview="overview",tl="timeline",timeline="timeline",
     notes="notes",reminders="notes",r="notes",preminders="notes",pr="notes",alerts="alerts",auras="debuffs",debuffs="debuffs",assign="assign",assignments="assign",
-    tools="raidtools",raidtools="raidtools",rt="raidtools",players="players",qol="qol",combat="combat",interrupts="combat",kicks="combat",pace="combat",nicks="players",party="partycds",partycds="partycds",pcd="partycds",display="display",profiles="profiles",settings="settings",config="settings"}
+    tools="raidtools",raidtools="raidtools",rt="raidtools",players="players",qol="qol",combat="combat",interrupts="combat",kicks="combat",pace="combat",nicks="players",party="partycds",partycds="partycds",display="display",profiles="profiles",settings="settings",config="settings"}
 -- Pull trace and plan reports (NSR trace / observed / keys / cds / calls / bosses), shown in the
 -- Diagnostics report box so they can be copied.
 local reports={trace="TraceText",observed="ObservedText",keys="KeysText",cds="CooldownsText",cd="CooldownsText",bosses="BossesText"}
@@ -113,6 +113,7 @@ function ns.Command(message)
     elseif reports[command]then ns.ShowText(ns[reports[command]]())
     elseif command=="calls"then ns.ShowText(ns.CallsText(rest))
     elseif command=="invite"then local n,err=ns.InviteFromNote();ns.Print(n and(n.." invites sent from the note.")or err)
+    elseif command=="pcd"then for _,line in ipairs(ns.PartyCooldownReport())do print("  "..line)end
     elseif command=="starter"then local n,err=ns.CreateStarterSets();ns.Print(n and("Starter set created for "..(n==2 and"Mythic+ and raids"or"one content")..". Review it on the Defensive sets page.")or err)
     else ns.Print("Unknown command: "..command..". Type /ndp help.")end
 end

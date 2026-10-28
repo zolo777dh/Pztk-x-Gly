@@ -522,44 +522,75 @@ end
 -- Ironbark...) appear on the target and are credited to the group member who can cast them.
 -- Switch: "Buff sensors" on the page. The game may change this widget; then it simply stays off.
 local SELF,EXTERNAL=1,2
--- Cast spell = {buff spell, kind}. Buffs not listed here are not sensed.
+-- Spells whose buff is not the spell itself, or that buff more than the caster. Every other
+-- tracked spell is sensed by its own ID on the caster. {kind, buff IDs...}
 local BUFFS={
-    [48707]={48707,SELF},[48792]={48792,SELF},[49028]={81256,SELF},[55233]={55233,SELF},[51271]={51271,SELF},
-    [198589]={212800,SELF},[196555]={196555,SELF},[191427]={162264,SELF},[187827]={187827,SELF},
-    [22812]={22812,SELF},[61336]={61336,SELF},[194223]={194223,SELF},[102560]={102560,SELF},[106951]={106951,SELF},[102543]={102543,SELF},
-    [50334]={50334,SELF},[102558]={102558,SELF},[33891]={117679,SELF},[102342]={102342,EXTERNAL},
-    [363916]={363916,SELF},[374348]={374348,SELF},[375087]={375087,SELF},[357170]={357170,EXTERNAL},
-    [186265]={186265,SELF},[264735]={264735,SELF},[19574]={19574,SELF},[288613]={288613,SELF},[360952]={360952,SELF},
-    [45438]={45438,SELF},[414658]={414658,SELF},[55342]={55342,SELF},[365350]={365362,SELF},[190319]={190319,SELF},[12472]={12472,SELF},
-    [115203]={120954,SELF},[122278]={122278,SELF},[122783]={122783,SELF},[115176]={115176,SELF},[116849]={116849,EXTERNAL},[137639]={137639,SELF},
-    [642]={642,SELF},[1022]={1022,EXTERNAL},[6940]={6940,EXTERNAL},[204018]={204018,EXTERNAL},[31884]={31884,SELF},[498]={498,SELF},
-    [31850]={31850,SELF},[86659]={86659,SELF},[184662]={184662,SELF},[403876]={403876,SELF},[216331]={216331,SELF},[231895]={231895,SELF},
-    [19236]={19236,SELF},[10060]={10060,EXTERNAL},[33206]={33206,EXTERNAL},[47788]={47788,EXTERNAL},[47536]={47536,SELF},[200183]={200183,SELF},
-    [47585]={47585,SELF},[15286]={15286,SELF},[391109]={391109,SELF},
-    [31224]={31224,SELF},[5277]={5277,SELF},[13750]={13750,SELF},[121471]={121471,SELF},
-    [108271]={108271,SELF},[114050]={114050,SELF},[114051]={114051,SELF},[114052]={114052,SELF},
-    [104773]={104773,SELF},[108416]={108416,SELF},
-    [97462]={97463,SELF},[107574]={107574,SELF},[118038]={118038,SELF},[184364]={184364,SELF},[1719]={1719,SELF},[871]={871,SELF},[12975]={12975,SELF},
+    [49028]={SELF,81256},[48707]={SELF,48707,444741},[51052]={EXTERNAL,51052,145629},
+    [198589]={SELF,212800},[191427]={SELF,162264},[196718]={EXTERNAL,209426},
+    [194223]={SELF,194223,102560,390414},[102560]={SELF,102560,390414},[106951]={SELF,106951,102543},[102543]={SELF,102543},
+    [740]={EXTERNAL,740,157982,1264623},[33891]={SELF,117679,33891},[102342]={EXTERNAL,102342},[77761]={EXTERNAL,77764,106898},
+    [357170]={EXTERNAL,357170},[374227]={EXTERNAL,374227},
+    [19574]={SELF,19574,186254,1235388,1285912},[365350]={SELF,365350,365362},[45438]={SELF,45438,414658},[414658]={SELF,414658,45438},
+    [342245]={SELF,342246},[80353]={EXTERNAL,80353},
+    [123904]={SELF,123904,1248992},[115203]={SELF,115203,120954},[116849]={EXTERNAL,116849},
+    [31884]={SELF,31884,231895,454351,216331,389539},[231895]={SELF,231895,31884},[216331]={SELF,216331,31884},
+    [498]={SELF,498,403876},[403876]={SELF,403876,498},[31821]={EXTERNAL,31821},
+    [1022]={EXTERNAL,1022},[6940]={EXTERNAL,6940},[204018]={EXTERNAL,204018},
+    [62618]={EXTERNAL,81782},[228260]={SELF,194249},[10060]={EXTERNAL,10060},[33206]={EXTERNAL,33206},[47788]={EXTERNAL,47788},
+    [64843]={EXTERNAL,64843,64844},[360194]={SELF,1249810,360194},
+    [114050]={SELF,114050,1219480},[98008]={EXTERNAL,325174},[198103]={SELF,198103,381755},[2825]={EXTERNAL,2825},[32182]={EXTERNAL,32182},
+    [265187]={SELF,1276767,265187},[1122]={SELF,1122,111685,266087,417282},
+    [97462]={EXTERNAL,97463},
 }
 ns.PartyCooldownBuffs=BUFFS
+local function BuffsOf(id)
+    local b=BUFFS[id];if not b then return SELF,{[id]=true}end
+    local set={};for i=2,#b do set[b[i]]=true end
+    return b[1],set
+end
 local sensorHost,sensorTicker
 local sensors={}
 local sensorState={available=nil,reason=nil}
 function ns.PartyCooldownSensors()return sensors,sensorState end
+-- In combat the game can return the answer as a hidden value; the game's colour curve helper
+-- turns a hidden yes/no into an ordinary number.
+local function Unhide(value)
+    if ns.Plain(value,"boolean")then return value end
+    local eval=C_CurveUtil and C_CurveUtil.EvaluateColorValueFromBoolean
+    if value==nil or not eval then return false end
+    local ok,n=pcall(eval,value,1,0)
+    if ok and ns.Plain(n,"number")then sensorState.unhidden=(sensorState.unhidden or 0)+1;return n>0.5 end
+    sensorState.stuck=(sensorState.stuck or 0)+1
+    return false
+end
+ns.PartyCooldownUnhide=Unhide
 local function SensorLit(c)
     local ok,lit=pcall(c.IsMouseOver,c,1e5,-1e5,0,0)
-    return ok and ns.Plain(lit,"boolean")and lit or false
+    if not ok then return false end
+    return Unhide(lit)
 end
-local function NewSensor(unit,buff)
+-- /ndp pcd: what the sensors and the cast tracking see, printed to chat.
+function ns.PartyCooldownReport()
+    local lines={}
+    lines[#lines+1]="Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
+        ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
+        ..", hidden answers read "..(sensorState.unhidden or 0)..", unreadable "..(sensorState.stuck or 0)
+    for _,name in ipairs(order)do local m=members[name]
+        local sens=0;for _,s in ipairs(sensors)do if s.member==name then sens=sens+1 end end
+        lines[#lines+1]=name..": "..tostring(m.class).." "..tostring(m.spec and ns.Catalog.specs[m.spec]or"spec unknown")..(m.talented and", talents read"or", talents not read")
+            ..", icons "..#ns.PartyCooldownList(m)..", sensors "..sens..", casts seen "..(m.seen or 0).." hidden "..(m.hidden or 0).." by buff "..(m.sensed or 0)
+    end
+    return lines
+end
+local function NewSensor(unit,buffs)
     if not sensorHost then sensorHost=CreateFrame("Frame",nil,UIParent);sensorHost:SetSize(1,1);sensorHost:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-20,0)end
     local ok,c=pcall(CreateFrame,"AuraContainer",nil,sensorHost,"CustomAuraContainerTemplate")
     if not ok or not c or not c.AddAuraGroup then sensorState.available=false;sensorState.reason="the game has no aura container widget";return nil end
     c:SetSize(1,1);c:ClearAllPoints();c:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-11,0);pcall(c.EnableMouse,c,false)
-    local added=pcall(c.AddAuraGroup,c,"ndp","HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs={[buff]=true}},
+    local added=pcall(c.AddAuraGroup,c,"ndp","HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs=buffs},
         initializeFrame=function(b)pcall(b.SetSize,b,1,1);pcall(b.SetMouseClickEnabled,b,false);pcall(b.SetMouseMotionEnabled,b,false)end,
         layout={elementWidth=50000,elementHeight=1,elementSpacing=0,lineSpacing=0}})
     if not added then sensorState.available=false;sensorState.reason="the aura container refused a buff group";return nil end
-    pcall(c.SetUnit,c,unit);pcall(c.SetEnabled,c,false)
     sensorState.available=true
     return c
 end
@@ -592,11 +623,13 @@ local function PollSensors()
     end
 end
 ns.PartyCooldownPollSensors=PollSensors
+-- Entering combat: every container reads its unit again, then follows it.
+local function RefreshSensors()for _,s in ipairs(sensors)do pcall(s.frame.UpdateAllAuras,s.frame)end end
 -- Builds the sensors for the group: each member's own buffs on them, and every external of the
 -- group on everyone. Out of combat only; containers are reused.
 local pool={}
 function ns.RebuildPartyCooldownSensors()
-    for _,s in ipairs(sensors)do pcall(s.frame.SetUnit,s.frame,nil);s.frame:Hide();pool[#pool+1]=s.frame end
+    for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();pool[#pool+1]=s.frame end
     sensors={}
     local cfg=ns.PartyCooldownConfig()
     if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
@@ -604,9 +637,9 @@ function ns.RebuildPartyCooldownSensors()
     if InCombatLockdown and InCombatLockdown()then return 0 end
     local externals={}
     for _,name in ipairs(order)do local m=members[name]
-        for _,id in ipairs(ns.PartyCooldownList(m))do local b=BUFFS[id]
-            if b and b[2]==EXTERNAL then externals[id]=b[1]
-            elseif b and not m.me then sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=b[1],kind=SELF}end
+        for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
+            if kind==EXTERNAL then externals[id]=buffs
+            elseif not m.me then sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF}end
         end
     end
     for _,name in ipairs(order)do local m=members[name]
@@ -615,10 +648,11 @@ function ns.RebuildPartyCooldownSensors()
     local made={}
     for _,s in ipairs(sensors)do
         local c=table.remove(pool)
-        if c then
-            pcall(c.SetAuraGroupCandidateFilters,c,"ndp",{includeSpellIDs={[s.buff]=true}});pcall(c.SetUnit,c,s.unit);c:Show()
+        if c then pcall(c.SetAuraGroupCandidateFilters,c,"ndp",{includeSpellIDs=s.buff});c:Show()
         else c=NewSensor(s.unit,s.buff)end
         if not c then break end
+        -- A container only follows its unit's auras while enabled; a full update reads what is up now.
+        pcall(c.SetUnit,c,s.unit);pcall(c.SetEnabled,c,true);pcall(c.UpdateAllAuras,c)
         s.frame=c;s.lit=SensorLit(c);made[#made+1]=s
     end
     sensors=made
@@ -629,7 +663,7 @@ end
 local events=CreateFrame("Frame")
 local function Listen(on)
     for _,e in ipairs({"UNIT_SPELLCAST_SUCCEEDED","GROUP_ROSTER_UPDATE","PLAYER_SPECIALIZATION_CHANGED","TRAIT_CONFIG_UPDATED","INSPECT_READY",
-        "READY_CHECK","PLAYER_REGEN_ENABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD"})do
+        "READY_CHECK","PLAYER_REGEN_ENABLED","PLAYER_REGEN_DISABLED","ENCOUNTER_END","CHALLENGE_MODE_START","PLAYER_ENTERING_WORLD"})do
         if on then pcall(events.RegisterEvent,events,e)elseif events.UnregisterEvent then events:UnregisterEvent(e)end
     end
 end
@@ -643,6 +677,7 @@ end
 events:SetScript("OnEvent",function(_,event,a,_,c)
     if event=="UNIT_SPELLCAST_SUCCEEDED"then
         if ns.Plain(a,"string")and(a=="player"or a=="target"or a=="focus"or a:match("^party%d")or a:match("^raid%d")or a:match("^nameplate%d"))then ns.PartyCooldownCast(a,c)end
+    elseif event=="PLAYER_REGEN_DISABLED"then RefreshSensors()
     elseif event=="PLAYER_REGEN_ENABLED"then
         for id in pairs(pendingLearn)do if Learn(id)then pendingLearn[id]=nil end end
         ns.SharePartyCooldowns();QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()

@@ -832,5 +832,13 @@ local lust,hero=false,false;for _,id in ipairs(ns.PartyCooldownList(m.Follower))
 assert(ns.PartyCooldownConfig().talentSpells[5277],'Evasion remembered as a talent')
 m.Rogue.talented=nil;m.Rogue.used={};for _,id in ipairs(ns.PartyCooldownList(m.Rogue))do assert(id~=5277 and id~=31224)end
 assert(ns.PartyCooldownReadTalents(m.Rogue));local cloak=false;for _,id in ipairs(ns.PartyCooldownList(m.Rogue))do if id==31224 then cloak=true end end;assert(cloak)
+-- A hidden yes from a sensor is read through the game's curve helper.
+local hidden={};local real=issecretvalue;issecretvalue=function(v)return v==hidden end
+C_CurveUtil={EvaluateColorValueFromBoolean=function(b,y,n)return b==hidden and y or n end}
+assert(ns.PartyCooldownUnhide(hidden)==true and ns.PartyCooldownUnhide(false)==false);issecretvalue=real
+local printed={};local p=print;print=function(t)printed[#printed+1]=t end;ns.Command('pcd');print=p;assert(#printed>=2 and printed[1]:find('Buff sensors',1,true),printed[1])
+-- In dungeons every reminder is spoken by default.
+ns.instanceType='party';local before=#env.shown;ns.Fire({display={type='text',text='Stack',tts=false}});assert(#env.shown==before+1 and env.shown[#env.shown].tts==true,'mplus voice default')
+local cm=ns.ContentMatches;ns.ContentMatches=function()return true end;ns.instanceType='raid';before=#env.shown;ns.Fire({display={type='text',text='Stack',tts=false}});ns.ContentMatches=cm;assert(#env.shown==before+1 and env.shown[#env.shown].tts==false,'raid stays silent')
 ns.Command('party');assert(ns.UIState.tab=='partycds')
 `));

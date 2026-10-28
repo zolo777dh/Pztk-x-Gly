@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.10.3"
+ns.version = "0.10.4"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -170,7 +170,13 @@ function ns.Fire(entry, display, occurrence)
     if ns.Trace and not entry.defensive then ns.Trace("show", ns.TraceName(entry)) end
     ns.ShowAbilityAlert(entry)
     if entry.defensive and ns.RenderDefensive then return ns.RenderDefensive(entry)end
-    if ns.Display then ns.Display(display or entry.display or {}) end
+    display = display or entry.display or {}
+    -- In dungeons every reminder is spoken unless "Speak every Mythic+ reminder" is off (Settings).
+    local settings = ns.Settings and ns.Settings() or {}
+    if display.tts == false and ns.instanceType == "party" and settings.mplusVoice ~= false and settings.voiceOn ~= false then
+        local spoken = {}; for k, v in pairs(display) do spoken[k] = v end; spoken.tts = true; display = spoken
+    end
+    if ns.Display then ns.Display(display) end
 end
 function ns.Reset()
     ns.Cancel(); ns.generation = ns.generation + 1; ns.occurrences = {}; ns.encounter = nil; ns.phase = nil; ns.simulation = nil
