@@ -13,6 +13,7 @@ local HELP={
     "/pcd names: names in the list, on/off",
     "/pcd self: your own cooldowns, on/off",
     "/pcd reset: every cooldown ready again",
+    "/pcd ext: ask your healers for an external",
     "/pcd report: what is being tracked, for bug reports",
 }
 local SIDE={left="LEFT",right="RIGHT",top="TOP",bottom="BOTTOM"}
@@ -29,6 +30,7 @@ SlashCmdList.PUZATIKPARTYDEFENSIVES=function(input)
     elseif cmd=="names"then cfg.names=not cfg.names;say(L("Names: ")..L(cfg.names and"on"or"off"))
     elseif cmd=="self"then cfg.self=not cfg.self;say(L("Your own cooldowns: ")..L(cfg.self and"on"or"off"))
     elseif cmd=="reset"then ns.PartyCooldownReset();say(L("All cooldowns are ready again"));return
+    elseif cmd=="ext"then if not ns.RequestExternal()then say(L("Join a group first"))end;return
     elseif cmd=="report"then for _,line in ipairs(ns.PartyCooldownReport())do print("  "..line)end;return
     elseif cmd==""then ns.OpenPartyCooldownWindow();return
     else for _,line in ipairs(HELP)do say(L(line))end;return end

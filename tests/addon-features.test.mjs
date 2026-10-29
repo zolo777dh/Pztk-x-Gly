@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','PartyCooldowns','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','PartyCooldowns','PartyExtras','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 // A recorded Heroic pull of the first raid boss, for the Timeline tests.
 const pulled=`ns.Store().timelines={['retail:3379:15']={events={{8,1260837},{18,1257717},{25,1276710},{37,1313393},{41,1260837},{44,1276710},{50,1257717},{60,1268562}},length=480,kill=true}};if ns.RefreshWorkspace then ns.RefreshWorkspace()end`;
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.RealDisplay=ns.Display;ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
@@ -764,7 +764,7 @@ assert(m.Friend.hidden==1 and m.Rogue.seen==2)
 ns.CommHandlers.PCD('256;33206=150;62618=180;10060=120;1234567=90','Friend')
 assert(m.Friend.spec==256 and m.Friend.addon and m.Friend.cds[33206]==150 and m.Friend.known[1234567])
 ns.CommHandlers.PCD('256;33206=150','Stranger');assert(not m.Stranger,'only group members are listened to')
-local list=ns.PartyCooldownList(m.Friend);assert(#list==4 and list[1]==10060 and list[4]==1234567,#list)
+local list=ns.PartyCooldownList(m.Friend);assert(#list==5 and list[1]==10060 and list[4]==1234567 and list[5]==ns.PartyCooldownPotion,#list)
 assert(ns.PartyCooldownCast('party1',33206));assert(math.abs(ns.PartyCooldownLeft(m.Friend,33206)-150)<0.01)
 env.advance(151);assert(ns.PartyCooldownLeft(m.Friend,33206)==0)
 -- Own cooldown learned from the cast and sent out of combat.
@@ -836,7 +836,7 @@ light(33206,'party3');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(
 cfg.sensors=false;assert(ns.RebuildPartyCooldownSensors()==0);cfg.sensors=true
 -- Strictly by spec: your own list is what your spellbook knows; one Bloodlust or Heroism by faction.
 local book=C_SpellBook.IsSpellKnown;C_SpellBook.IsSpellKnown=function(id)return id==22812 or id==61336 end
-m.Tester.used={};local own=ns.PartyCooldownList(m.Tester);assert(#own==2,#own);C_SpellBook.IsSpellKnown=book
+m.Tester.used={};local own=ns.PartyCooldownList(m.Tester);assert(#own==3 and own[3]==ns.PartyCooldownPotion,#own);C_SpellBook.IsSpellKnown=book
 UnitFactionGroup=function()return'Alliance'end;ns.PartyCooldownRoster()
 local lust,hero=false,false;for _,id in ipairs(ns.PartyCooldownList(m.Follower))do if id==2825 then lust=true elseif id==32182 then hero=true end end;assert(not hero and not lust,'Bloodlust and Heroism are not tracked')
 -- Talents seen in any tree are not shown for a member whose talents are not read yet.
@@ -969,15 +969,80 @@ assert(shows(G.kick,1766)and shows(G.cc,2094),'others stay');env.click('pcd-kick
 local hide={};local function spy(g,id)local cd=cell(g,id).cd;cd.SetHideCountdownNumbers=function(_,v)hide[id]=v end end
 spy(G.kick,1766);spy(G.cc,2094);assert(ns.DrawPartyCooldowns());assert(hide[1766]==true and hide[2094]==false,'one countdown per kick bar')
 -- Load switches: off in the open world or solo, the lists hide and tracking goes on.
-local inside,instance=false,IsInInstance;IsInInstance=function()return inside end
-assert(cfg.loadWorld==true and cfg.loadSolo==true and ns.UIControls['pcd:loadWorld']==nil)
-env.click('pcd-view:display');assert(ns.UIControls['pcd:loadWorld']and ns.UIControls['pcd:loadSolo'])
-env.click('pcd:loadWorld');assert(cfg.loadWorld==false and not ns.PartyCooldownsLoaded()and not ns.DrawPartyCooldowns()and not G.kick.frame:IsShown(),'hidden in the open world')
+local inside,kind,instance=false,nil,IsInInstance;IsInInstance=function()return inside,kind end
+assert(cfg.loadWhere=='all'and cfg.loadSolo==true and ns.UIControls['pcd:loadWhere']==nil)
+env.click('pcd-view:display');assert(ns.UIControls['pcd:loadWhere']and ns.UIControls['pcd:loadSolo'])
+env.select('pcd:loadWhere','Instances');assert(cfg.loadWhere=='instances'and not ns.PartyCooldownsLoaded()and not ns.DrawPartyCooldowns()and not G.kick.frame:IsShown(),'hidden in the open world')
 cfg.unlocked=true;assert(ns.DrawPartyCooldowns()and G.kick.frame:IsShown(),'unlocked still previews');cfg.unlocked=false
-inside=true;assert(ns.PartyCooldownsLoaded()and ns.DrawPartyCooldowns()and G.kick.frame:IsShown(),'shown in an instance')
+inside,kind=true,'raid';assert(ns.PartyCooldownsLoaded()and ns.DrawPartyCooldowns()and G.kick.frame:IsShown(),'shown in an instance')
+env.select('pcd:loadWhere','Dungeons');assert(cfg.loadWhere=='dungeons'and not ns.PartyCooldownsLoaded(),'a raid is not a dungeon');kind='party';assert(ns.PartyCooldownsLoaded(),'shown in a dungeon')
 env.click('pcd:loadSolo');assert(cfg.loadSolo==false and ns.PartyCooldownsLoaded(),'in a group');local group=IsInGroup;IsInGroup=function()return false end
 assert(not ns.PartyCooldownsLoaded()and not ns.DrawPartyCooldowns(),'hidden solo')
-IsInGroup=group;env.click('pcd:loadWorld');env.click('pcd:loadSolo');IsInInstance=instance;assert(cfg.loadWorld and cfg.loadSolo and ns.DrawPartyCooldowns());env.click('pcd-view:anchors')
+IsInGroup=group;env.select('pcd:loadWhere','Everywhere');env.click('pcd:loadSolo');IsInInstance=instance;assert(cfg.loadWhere=='all'and cfg.loadSolo and ns.DrawPartyCooldowns());env.click('pcd-view:anchors')
+-- 0.11.0. Stuns, other crowd control, movement and potions each have a list of their own.
+assert(ns.PartyCooldownKind(853)=='stun'and ns.PartyCooldownKind(2094)=='cc'and ns.PartyCooldownKind(1044)=='move'and ns.PartyCooldownKind(ns.PartyCooldownPotion)=='potion')
+local P=ns.PartyCooldownPotion;assert(only(m.Rogue,'potion',P)and not only(m.Rogue,'defensive',P),'every member has the shared potion cooldown')
+assert(ns.PartyCooldownCast(m.Rogue.unit,1236994)and ns.PartyCooldownLeft(m.Rogue,P)>290,'any combat potion starts the shared 5 minute timer')
+assert(ns.DrawPartyCooldowns()and shows(G.potion,P)and cell(G.potion,P).bar:IsShown(),'potions show as bars')
+assert(not shows(G.main,1044)and ns.PartyCooldownBuffs[P][1]==1,'movement off the main list; potions sensed by their buff')
+env.click('pcd-pair:2');assert(ns.UIControls['pcd-stun:size']and ns.UIControls['pcd-move:size']and not ns.UIControls['pcd-kick:size'])
+env.click('pcd-pair:3');assert(ns.UIControls['pcd-potion:size']and ns.UIControls['pcd:perRow']and ns.UIControls['pcd:tooltip'])
+env.click('pcd:potions');assert(cfg.potions==false and not G.potion.frame:IsShown());env.click('pcd:potions');env.click('pcd-pair:1')
+-- Lists can hide in raids.
+env.click('pcd-kick:hideInRaid');assert(cfg.anchors.kick.hideInRaid);local raid=IsInRaid;IsInRaid=function()return true end
+ns.DrawPartyCooldowns();assert(not G.kick.frame:IsShown(),'hidden in a raid');IsInRaid=raid;ns.DrawPartyCooldowns();assert(G.kick.frame:IsShown());env.click('pcd-kick:hideInRaid')
+-- The raid roster has nobody else here, so the party members came back new.
+m.Friend.spec=258;m.Rogue.spec=261;m.Friend.ranks={};m.Rogue.ranks={}
+-- A kick keeps the raid marker of the enemy it hit; a new timer gets a gold edge for a moment.
+local marked;GetRaidTargetIndex=function(u)return u=='nameplate4'and 8 or nil end;SetRaidTargetIconTexture=function(t,i)marked=i end
+m.Rogue.used={};env.advance(5);ns.PartyCooldownInterrupted('nameplate4','G-party2');assert(m.Rogue.marks[1766]==8)
+ns.DrawPartyCooldowns();local kc=cell(G.kick,1766);assert(kc.mark:IsShown()and marked==8 and kc.hl:IsShown(),'marker and highlight on the kick')
+env.advance(4);ns.DrawPartyCooldowns();assert(not cell(G.kick,1766).hl:IsShown(),'the highlight goes after 3 seconds')
+env.click('pcd-kick:mark');ns.DrawPartyCooldowns();assert(not cell(G.kick,1766).mark:IsShown());env.click('pcd-kick:mark')
+env.click('pcd-kick:dark');assert(cfg.anchors.kick.dark);ns.DrawPartyCooldowns();assert(cell(G.kick,1766).bar.name.textColor[1]~=1 or cell(G.kick,1766).bar.name.textColor[2]~=1);env.click('pcd-kick:dark')
+GetRaidTargetIndex=nil;SetRaidTargetIconTexture=nil;m.Rogue.used={}
+-- Tooltips, more rows and your own order of the icons.
+local tip={};GameTooltip={SetOwner=function()end,SetSpellByID=function(_,id)tip.id=id end,AddLine=function(_,t)tip.line=t end,Show=function()tip.shown=true end,Hide=function()end}
+env.click('pcd-pair:3');env.click('pcd:tooltip');assert(cfg.tooltip);ns.PartyCooldownTooltip(cell(G.kick,1766));assert(tip.id==1766 and tip.line:find('Rogue')and tip.shown)
+env.click('pcd:tooltip');GameTooltip=nil
+local per,small=ns.PartyCooldownGrid(10,26,{perRow=4,size2=18});assert(per==4 and small==18);per,small=ns.PartyCooldownGrid(3,26,{perRow=4,size2=18});assert(per==3 and small==26)
+env.select('pcd:perRow','3');assert(cfg.perRow==3);env.select('pcd:perRow','One row');env.click('pcd-pair:1')
+local before=ns.PartyCooldownSpecSpells('ROGUE',261);assert(ns.MovePartyCooldown('ROGUE',261,before[2],-1));local after=ns.PartyCooldownSpecSpells('ROGUE',261)
+assert(after[1]==before[2]and after[2]==before[1]);assert(not ns.MovePartyCooldown('ROGUE',261,after[1],-1),'the first cannot go up')
+m.Rogue.spec=261;local shown=ns.PartyCooldownList(m.Rogue,'defensive');local last=shown[#shown];while ns.MovePartyCooldown('ROGUE',261,last,-1)do end
+assert(ns.PartyCooldownList(m.Rogue,'defensive')[1]==last,'the icons follow your order');cfg.order={}
+-- Extras: the kick rotation on bosses.
+local e=ns.PartyExtrasConfig();assert(e.rotation.on==false and e.request.on==true and e.request.word=='hx')
+env.click('pcd-view:extras');assert(ns.UIControls['pcdx:rotation']and ns.UIControls['pcdx:ask']and ns.UIControls['pcdx:ccbars'])
+env.click('pcdx:rotation');env.input('pcdx:names','Rogue, Tester, Friend');env.click('pcdx:rottest');assert(e.rotation.on and #ns.KickRotationList()==3,'names from the field')
+local played={};PlaySound=function(id)played[#played+1]=id end
+ns.KickRotationStart(true);local R=ns.PartyExtraHolders.rotation;assert(R:IsShown()and R.num.text=='1'and R.name.text:find('Rogue'))
+assert(ns.KickRotationInterrupt('boss1')and R.num.text=='2'and R.name.text=='You kick next'and played[#played]==12889,'your turn is next')
+assert(not ns.KickRotationInterrupt('boss1'),'one interrupt counts once');assert(not ns.KickRotationInterrupt('nameplate2'),'only bosses');env.advance(2)
+ns.PartyCooldownInterrupted('boss1',nil);assert(ns.KickRotationState().index==3,'interrupts on a boss pass the turn');ns.KickRotationStart(false);assert(not R:IsShown(),'rotation hidden after the fight '..tostring(cfg.unlocked)..tostring(ns.KickRotationState().fight))
+local leader=ns.GroupAuthority;ns.GroupAuthority=function(n)return n=='Friend'end
+ns.CommHandlers.PKR('A, B','Rogue');assert(#ns.KickRotationList()==3,'only the leader');ns.CommHandlers.PKR('A, B','Friend');assert(#ns.KickRotationList()==2);ns.GroupAuthority=leader
+-- Asking for an external, and seeing a request with your ready externals.
+local sent={};local send=ns.Send;ns.Send=function(k,t)sent[#sent+1]=k;return true end
+assert(ns.RequestExternal()and sent[#sent]=='PXR');assert(not ns.RequestExternal(),'not twice in 3 seconds');env.advance(4)
+local whispered;e.request.whisper=true;UnitGroupRolesAssigned=function(u)return u=='party1'and'HEALER'or'DAMAGER'end;SendChatMessage=function(t,_,_,to)whispered=to..':'..t end
+assert(ns.RequestExternal()and whispered=='Friend:hx');e.request.whisper=false;ns.Send=send
+ns.CommHandlers.PXR('1','Friend');local Q=ns.PartyExtraHolders.request;assert(Q:IsShown()and Q.text.text:find('needs an external'))
+Q:Hide();assert(not ns.PartyExternalWhisper('hello','Friend'));assert(ns.PartyExternalWhisper('HX','Friend-Realm')and Q:IsShown(),'the word in a whisper');assert(not ns.PartyExternalWhisper('hx','Stranger'))
+-- Aura displays: built on the game's aura containers, which time the auras themselves.
+local groups={};local create=CreateFrame;CreateFrame=function(kind,...)local f=create(kind,...);if kind=='AuraContainer'then f.AddAuraGroup=function(_,key,filter,o)groups[#groups+1]={key=key,filter=filter,o=o}end end;return f end
+local sounds={};C_UnitAuras={AddAuraSound=function(_,info)sounds[#sounds+1]=info.unitToken..':'..info.spellID;return #sounds end,RemoveAuraSound=function()end}
+env.click('pcdx:ccbars');env.click('pcdx:externals');env.click('pcdx:lust');assert(e.ccbars.on and e.externals.on and e.lust.on)
+local byKey={};for _,g in ipairs(groups)do byKey[g.key]=g end
+assert(byKey.ccbars and byKey.ccbars.filter=='HARMFUL'and byKey.ccbars.o.candidateFilters.includeSpellIDs[2094],'crowd control bars over nameplates')
+assert(byKey.externals and byKey.externals.filter=='HELPFUL|EXTERNAL_DEFENSIVE'and byKey.lust and byKey.lust.o.candidateFilters.includeSpellIDs[2825]and byKey.lust.o.candidateFilters.includeSpellIDs[1236994])
+local bar=create('Frame');local got={};bar.SetDurationBar=function(_,b)got.bar=b end;bar.SetIcon=function(_,t)got.icon=t end;bar.SetDurationText=function(_,t)got.text=t end
+byKey.ccbars.o.initializeFrame(bar);assert(got.bar and got.icon and got.text,'the game runs the bar down')
+local icon=create('Frame');icon.SetDurationCooldown=function(_,c)got.cd=c end;byKey.externals.o.initializeFrame(icon);assert(got.cd)
+local has2=function(x)for _,v in ipairs(sounds)do if v==x then return true end end end
+assert(has2('target:2094')and has2('player:2825')and has2('player:33206'),'sounds the game plays when the aura lands')
+env.click('pcdx:ccbars');env.click('pcdx:externals');env.click('pcdx:lust');CreateFrame=create;C_UnitAuras=nil;PlaySound=nil
+env.click('pcd-view:anchors')
 cfg.anchors.cc.x=300;assert(ns.DrawPartyCooldowns());assert(G.cc.x==300);env.click('pcd-cc:reset');assert(cfg.anchors.cc.x==-420 and G.cc.x==-420)
 env.click('pcd:kicks');assert(cfg.kicks==false and not has(m.Rogue,1766)and not G.kick.frame:IsShown());env.click('pcd:cc');assert(not has(m.Rogue,2094)and not G.cc.frame:IsShown())
 env.click('pcd:kicks');env.click('pcd:cc');assert(has(m.Rogue,1766)and has(m.Rogue,2094))
@@ -1050,16 +1115,16 @@ assert(rep:find('running 0 exact 1 estimated (cast 1)',1,true)and rep:find('leng
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
  const toc=files['PuzatikPartyDefensives/PuzatikPartyDefensives.toc'].toString('utf8');assert.match(toc,new RegExp('## Version: '+version.replaceAll('.','\\.')));
- const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Locale.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','Slash.lua']);
+ const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Locale.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','PartyExtras.lua','Slash.lua']);
  assert.match(files['PuzatikPartyDefensives/Window.lua'].toString('utf8'),/background="08050f"[\s\S]*accent="9b5cff"/);
  assert.match(toc,/^## IconTexture: Interface\\AddOns\\PuzatikPartyDefensives\\Media\\Icon$/m);const icon=files['PuzatikPartyDefensives/Media/Icon.tga'];
  assert.ok(icon&&icon[2]===2&&icon.readUInt16LE(12)===128&&icon.readUInt16LE(14)===128&&icon[16]===32,'128 px uncompressed RGBA icon');
  const load=order.map(n=>`;(function(...)\n${files['PuzatikPartyDefensives/'+n].toString('utf8')}\nend)('PuzatikPartyDefensives',p)`).join('\n');
  // Every interface string has its Russian text.
  const text=n=>files['PuzatikPartyDefensives/'+n].toString('utf8');const ru=text('Locale.lua');
- const keys=new Set();for(const n of ['PartyCooldowns.lua','Window.lua','Slash.lua'])for(const m of text(n).matchAll(/L\("((?:[^"\\]|\\.)*)"\)/g))keys.add(m[1]);
+ const keys=new Set();for(const n of ['PartyCooldowns.lua','PartyExtras.lua','Window.lua','Slash.lua'])for(const m of text(n).matchAll(/L\("((?:[^"\\]|\\.)*)"\)/g))keys.add(m[1]);
  for(const m of text('Slash.lua').matchAll(/^\s*"(\/pcd[^"]*)",?$/gm))keys.add(m[1]);
- for(const m of text('PartyCooldowns.lua').matchAll(/(?:main|kick|cc)="([^"]+)"|^\s*(?:kick|cc)="([^"]+)",$/gm))keys.add(m[1]||m[2]);
+ for(const n of ['PartyCooldowns.lua','PartyExtras.lua'])for(const m of text(n).matchAll(/(?:main|kick|cc|stun|move|potion|rotation|request|externals|lust)="([^"]+)"|^\s*(?:kick|cc|stun|move|potion)="([^"]+)",$/gm))keys.add(m[1]||m[2]);
  const missing=[...keys].filter(k=>!ru.includes('["'+k+'"]'));assert.deepEqual(missing,[],'Russian text for every interface string');
  const russian=['Core.lua','Locale.lua'].map(n=>`;(function(...)\n${text(n)}\nend)('PuzatikPartyDefensives',r)`).join('\n');
  await run(`
