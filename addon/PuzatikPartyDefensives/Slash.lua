@@ -38,7 +38,7 @@ SlashCmdList.PUZATIKPARTYDEFENSIVES=function(input)
         local rows={};for key,p in pairs(ns.PartyCooldownPerf())do rows[#rows+1]={key,p}end
         table.sort(rows,function(a,b)return a[2].ms>b[2].ms end)
         say(L("Time spent since the last reset (ms)")..": "..L("sensors")..": "..ns.PartyCooldownSensorCount())
-        for _,r in ipairs(rows)do local p=r[2];print(("  %s: %.1f ms, %d x, %.2f avg, %.1f max"):format(r[1],p.ms,p.n,p.ms/math.max(1,p.n),p.max))end
+        for _,r in ipairs(rows)do local p=r[2];print(("  %s: %.1f ms, %d x, %.2f avg, %.1f max, %d KB"):format(r[1],p.ms,p.n,p.ms/math.max(1,p.n),p.max,math.floor(p.kb or 0)))end
         return
     elseif cmd==""then ns.OpenPartyCooldownWindow();return
     else for _,line in ipairs(HELP)do say(L(line))end;return end
