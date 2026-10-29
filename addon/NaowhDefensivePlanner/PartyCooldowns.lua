@@ -942,27 +942,37 @@ local TITLES={main="Party cooldowns",kick="Interrupts",cc="Crowd control",stun="
 -- how far the icon is zoomed, and for the main list the offset from the party frame.
 local Style={}
 Style.defaults={align="LEFT",gap=2,alpha=100,numbers=0,nameSize=0,border="none",zoom="normal",offX=0,offY=0}
--- Fonts to pick: the window's own, the game's, and every one LibSharedMedia-3.0 lists.
-Style.fonts={{value="",label="Default"},{value="book",label="Gothic Book",file=function()return W.fonts and W.fonts.book end},
-    {value="game",label="Friz Quadrata",file="Fonts\\FRIZQT__.TTF"},{value="narrow",label="Arial Narrow",file="Fonts\\ARIALN.TTF"},
-    {value="skurri",label="Skurri",file="Fonts\\SKURRI.TTF"},{value="morpheus",label="Morpheus",file="Fonts\\MORPHEUS.TTF"}}
+-- Fonts to pick: only the files in the addon's Media\\Fonts folder (the addon cannot list a folder,
+-- so the names are here). A file that is not there falls back to the addon's own font.
+Style.fonts={"URWGothic-Demi.ttf","URWGothic-Book.ttf","Arial Bold.ttf","Arial Narrow.ttf","Avant Garde.ttf","Barlow Condensed.ttf",
+    "Changa.ttf","Cinzel Decorative.ttf","Exo.otf","Expressway Bold.ttf","Expressway CAPS.ttf","Expressway.ttf","FiraSans Bold.ttf",
+    "FiraSans Light.ttf","FiraSans Medium.ttf","Future X Black.otf","Gotham Narrow Ultra.otf","Gotham Narrow.otf","Homespun.ttf",
+    "HWT Artz.ttf","KMT Kimberley.otf","KMT Ninja Naruto.ttf","Custom.ttf","Poppins.ttf","Russo One.ttf","Ubuntu.ttf"}
 function ns.PartyFontChoices()
-    local out={};for _,f in ipairs(Style.fonts)do out[#out+1]={value=f.value,label=L(f.label)}end
-    local lsm=LibStub and LibStub("LibSharedMedia-3.0",true)
-    if lsm and lsm.List then local ok,list=pcall(lsm.List,lsm,"font")
-        if ok and type(list)=="table"then for _,name in ipairs(list)do out[#out+1]={value="lsm:"..name,label=name}end end end
+    local out={};for i,f in ipairs(Style.fonts)do out[#out+1]={value=i==1 and""or f,label=(f:gsub("%.%a+$",""))}end
     return out
+end
+-- A font file that loads, or nil: a missing file would draw no text at all.
+Style.loads={}
+function Style.Loads(file)
+    if Style.loads[file]~=nil then return Style.loads[file]end
+    local ok=true
+    if CreateFrame and UIParent then
+        Style.probe=Style.probe or UIParent:CreateFontString(nil,"OVERLAY")
+        local done,res=pcall(Style.probe.SetFont,Style.probe,file,12,"")
+        ok=done and res~=false
+    end
+    Style.loads[file]=ok;return ok
 end
 -- The font of the whole addon (cfg.font): every list, bar, timer and extra.
 function Style.Font()
     local v=ns.PartyCooldownConfig().font;if type(v)~="string"then v=""end
-    if v:sub(1,4)=="lsm:"then
-        local lsm=LibStub and LibStub("LibSharedMedia-3.0",true)
-        local ok,file=pcall(function()return lsm:Fetch("font",v:sub(5),true)end)
-        if ok and type(file)=="string"then return file end
-    end
-    for _,f in ipairs(Style.fonts)do if f.value==v and f.file then local file=type(f.file)=="function"and f.file()or f.file;if file then return file end end end
-    return(W.fonts and W.fonts.demi)or"Fonts\\FRIZQT__.TTF"
+    local own=(W.fonts and W.fonts.demi)or"Fonts\\FRIZQT__.TTF"
+    if v==""then return own end
+    local dir=own:match("^(.*[\\/])")or""
+    local file=dir..v
+    for _,f in ipairs(Style.fonts)do if f==v then return Style.Loads(file)and file or own end end
+    return own
 end
 -- In the addon of its own the picked font is the font of everything, its window too.
 function ns.ApplyPartyFont()

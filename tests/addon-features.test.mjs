@@ -1390,8 +1390,9 @@ local function pick(key,value)p.UIControls[key]:Click();for _,r in ipairs(p.Widg
 SlashCmdList.PUZATIKPARTYDEFENSIVES('');p.UIControls['pcd-view:display']:Click();pick('pcd-language','Русский')
 assert(PuzatikPartyDefensivesDB.lang=='ruRU'and p.L('Party cooldowns')=='Кд группы'and p.UIControls['pcd-reset'].label.text=='Сброс таймеров','Russian picked in the window')
 -- One font for everything, the window too.
-p.PartyCooldownConfig().font='game';p.RefreshPartyCooldowns();assert(p.Widgets.Font(true)=='Fonts\\\\FRIZQT__.TTF'and p.Widgets.Font(false)=='Fonts\\\\FRIZQT__.TTF','the picked font is the font of the window')
-p.PartyCooldownConfig().font='';p.RefreshPartyCooldowns();assert(p.Widgets.Font(true)~='Fonts\\\\FRIZQT__.TTF','back to the own font')
+p.PartyCooldownConfig().font='Arial Bold.ttf';p.RefreshPartyCooldowns();assert(p.Widgets.Font(true):match('Fonts.Arial Bold%.ttf$')and p.Widgets.Font(false)==p.Widgets.Font(true),'the picked font is the font of the window')
+p.PartyCooldownConfig().font='';p.RefreshPartyCooldowns();assert(p.Widgets.Font(true):match('URWGothic%-Demi'),'back to the own font')
+assert(#p.PartyFontChoices()==26,'only the fonts of the folder')
 pick('pcd-language','Auto (game client)');assert(PuzatikPartyDefensivesDB.lang==nil and p.L('Party cooldowns')=='Party cooldowns')
 p.UIControls['pcd-close']:Click()
 assert(p.PartyCooldownConfig().enabled==true,'on by default')
