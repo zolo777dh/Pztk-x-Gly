@@ -153,6 +153,18 @@ function ns.BossCallFor(encounter, spell)
     local boss = C[tonumber(encounter)]
     return boss and boss[tonumber(spell)]
 end
+-- The timeline spell a planner ability stands for: the same ID, or a timeline spell with the
+-- same journal name (the journal sometimes lists another ID of the same ability).
+function ns.BossCallSpell(encounter, spell)
+    encounter, spell = tonumber(encounter), tonumber(spell)
+    if not encounter or not spell or not C[encounter] then return nil end
+    if C[encounter][spell] then return spell end
+    local name = ns.AbilityName and ns.AbilityName(spell, encounter)
+    if not ns.Plain(name, "string") or name == "" then return nil end
+    for _, id in ipairs(ns.BossTimerSpells and ns.BossTimerSpells[encounter] or {}) do
+        if C[encounter][id] and ns.AbilityName(id, encounter) == name then return id end
+    end
+end
 local function Role()
     local role = UnitGroupRolesAssigned and UnitGroupRolesAssigned("player")
     return ns.Plain(role, "string") and role or nil
