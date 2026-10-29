@@ -13,4 +13,5 @@ Widgets.lua
 Window.lua
 PartyCooldowns.lua
 PartyExtras.lua
+PartyProfile.lua
 Slash.lua

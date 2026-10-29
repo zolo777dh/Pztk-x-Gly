@@ -74,7 +74,12 @@ local ru={
     ["Unlocked: drag the list"]="Откреплено: перетащите списки",["Locked"]="Закреплено",
     -- 0.11.0: more lists and the extras
     ["ready"]="готово",["Move up"]="Выше",["Move down"]="Ниже",["Hide in raids"]="Скрыть в рейде",
-    ["Look"]="Вид",["Look of each window"]="Вид каждого окна",["WINDOW"]="ОКНО",["SHORT LAST ROW"]="НЕПОЛНЫЙ РЯД",["Centre"]="По центру",
+    ["Look"]="Вид",["Profile"]="Профиль",["Share my settings"]="Поделиться настройками",["Use someone's settings"]="Взять чужие настройки",
+    ["Every setting of the party cooldowns, lists, look and extras in one string. Press the box, then Ctrl+A and Ctrl+C, and share it."]="Все настройки кд группы, списков, вида и дополнений в одной строке. Нажми на поле, затем Ctrl+A и Ctrl+C, и поделись ею.",
+    ["Make the string"]="Создать строку",["Import"]="Импорт",["Profile imported"]="Профиль импортирован",
+    ["Paste a profile string and press Import. Your settings are replaced; your learned cooldown lengths stay."]="Вставь строку профиля и нажми «Импорт». Твои настройки заменятся, выученные длины кулдаунов останутся.",
+    ["Paste a profile string first"]="Сначала вставь строку профиля",["This profile string is too long"]="Строка профиля слишком длинная",
+    ["This is not a party cooldowns profile string"]="Это не строка профиля кд группы",["This profile string is damaged"]="Строка профиля повреждена",["Look of each window"]="Вид каждого окна",["WINDOW"]="ОКНО",["SHORT LAST ROW"]="НЕПОЛНЫЙ РЯД",["Centre"]="По центру",
     ["SPACING"]="ОТСТУП",["OPACITY"]="ПРОЗРАЧНОСТЬ",["TIMER NUMBERS"]="ЦИФРЫ ТАЙМЕРА",["Game default"]="Как в игре",["NAME SIZE"]="РАЗМЕР ИМЁН",["Default"]="По умолчанию",
     ["BORDER"]="РАМКА",["None"]="Нет",["Thin"]="Тонкая",["Thick"]="Толстая",["ICON ZOOM"]="УВЕЛИЧЕНИЕ ИКОНКИ",["Normal"]="Обычное",["Zoomed in"]="Крупнее",["Whole icon"]="Вся иконка",
     ["OFFSET FROM THE FRAME X"]="СДВИГ ОТ РАМКИ X",["OFFSET FROM THE FRAME Y"]="СДВИГ ОТ РАМКИ Y",["Reset the look"]="Сбросить вид",

@@ -2238,8 +2238,9 @@ local function DrawPage(parent)
     local function apply()ns.RefreshPartyCooldowns();kit.refresh()end
     local d=kit.state.drafts;d.pcd=d.pcd or{view="display"}
     kit.header(parent,L("Party cooldowns"),L("Important defensive, external, raid and burst cooldowns of every specialization, for each party member."))
-    W.Segmented(parent,{{value="display",label=L("Display")},{value="anchors",label=L("Lists")},{value="extras",label=L("Extras")},{value="abilities",label=L("Abilities")}},d.pcd.view,560,0,360,function(v)d.pcd.view=v;kit.refresh()end,"pcd-view")
+    W.Segmented(parent,{{value="display",label=L("Display")},{value="anchors",label=L("Lists")},{value="extras",label=L("Extras")},{value="abilities",label=L("Abilities")},{value="profile",label=L("Profile")}},d.pcd.view,470,0,450,function(v)d.pcd.view=v;kit.refresh()end,"pcd-view")
     if d.pcd.view=="abilities"then return DrawAbilities(parent,d.pcd)end
+    if d.pcd.view=="profile"and ns.DrawPartyProfile then return ns.DrawPartyProfile(parent,apply,d.pcd)end
     if d.pcd.view=="extras"and ns.DrawPartyExtras then return ns.DrawPartyExtras(parent,apply,d.pcd)end
     if d.pcd.view=="anchors"then return DrawAnchors(parent,apply,d.pcd)end
     local c1=W.Card(parent,0,56,298,566,L("Display"))

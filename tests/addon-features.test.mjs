@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','PartyCooldowns','PartyExtras','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','PartyCooldowns','PartyExtras','PartyProfile','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 // A recorded Heroic pull of the first raid boss, for the Timeline tests.
 const pulled=`ns.Store().timelines={['retail:3379:15']={events={{8,1260837},{18,1257717},{25,1276710},{37,1313393},{41,1260837},{44,1276710},{50,1257717},{60,1268562}},length=480,kill=true}};if ns.RefreshWorkspace then ns.RefreshWorkspace()end`;
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.RealDisplay=ns.Display;ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
@@ -979,6 +979,16 @@ assert(cfg.styles.cc.gap==6 and cfg.styles.cc.alpha==50 and cfg.styles.cc.border
 assert(G.cc.frame.icons[1].border and G.cc.frame.icons[1].border:IsShown(),'border drawn')
 env.click('pcd-style:reset');assert(next(cfg.styles.cc)==nil and ns.PartyStyle('cc').align=='CENTER','reset to the look of the game')
 cfg.anchors.cc.perRow=1;ns.DrawPartyCooldowns();env.click('pcd-pair:1')
+-- A profile string carries every setting, never the learned lengths, and reads back.
+cfg.learned.x={1};cfg.size=36;cfg.styles.cc={align='RIGHT'}
+local str=ns.PartyProfileExport();assert(str:match('^!PPD1:'),'profile string')
+assert(not ns.PartyProfileBase64.decode(str:sub(7)):find('learned',1,true),'learned lengths stay home')
+cfg.size=20;cfg.styles.cc={};assert(ns.PartyProfileImport('  '..str..string.char(10)));assert(cfg.size==36 and cfg.styles.cc.align=='RIGHT'and cfg.learned.x,'imported, own learned kept')
+assert(not ns.PartyProfileImport('hello')and not ns.PartyProfileImport('!PPD1:@@@@')and not ns.PartyProfileImport(str:sub(1,40))and not ns.PartyProfileImport(''),'bad strings refused')
+cfg.styles.cc={};cfg.size=26
+env.click('pcd-view:profile');env.click('pcd-profile:make');assert(ns.UIControls['pcd-profile:export']:GetText():match('^!PPD1:'),'string on the page')
+ns.UIControls['pcd-profile:import']:SetText(str);env.click('pcd-profile:importButton');assert(cfg.size==36,'imported from the page');cfg.size=26;cfg.styles.cc={}
+env.click('pcd-view:anchors')
 env.select('pcd-kick:style','Bars')
 -- Bars take a texture of their own; each list has its own switch for your own spells.
 assert(ns.UIControls['pcd-kick:texture']and not ns.UIControls['pcd-cc:texture']);env.select('pcd-kick:texture','Flat');assert(cfg.anchors.kick.texture=='flat'and cell(G.kick,1766).bar.file==ns.PartyBarFile('flat')and ns.PartyBarFile('flat')~=ns.PartyBarFile(''),'the kick bars use the chosen texture')
@@ -1342,14 +1352,14 @@ ns.Plain=keep
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
  const toc=files['PuzatikPartyDefensives/PuzatikPartyDefensives.toc'].toString('utf8');assert.match(toc,new RegExp('## Version: '+version.replaceAll('.','\\.')));
- const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Locale.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','PartyExtras.lua','Slash.lua']);
+ const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Locale.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','PartyExtras.lua','PartyProfile.lua','Slash.lua']);
  assert.match(files['PuzatikPartyDefensives/Window.lua'].toString('utf8'),/background="08050f"[\s\S]*accent="9b5cff"/);
  assert.match(toc,/^## IconTexture: Interface\\AddOns\\PuzatikPartyDefensives\\Media\\Icon$/m);const icon=files['PuzatikPartyDefensives/Media/Icon.tga'];
  assert.ok(icon&&icon[2]===2&&icon.readUInt16LE(12)===128&&icon.readUInt16LE(14)===128&&icon[16]===32,'128 px uncompressed RGBA icon');
  const load=order.map(n=>`;(function(...)\n${files['PuzatikPartyDefensives/'+n].toString('utf8')}\nend)('PuzatikPartyDefensives',p)`).join('\n');
  // Every interface string has its Russian text.
  const text=n=>files['PuzatikPartyDefensives/'+n].toString('utf8');const ru=text('Locale.lua');
- const keys=new Set();for(const n of ['PartyCooldowns.lua','PartyExtras.lua','Window.lua','Slash.lua'])for(const m of text(n).matchAll(/L\("((?:[^"\\]|\\.)*)"\)/g))keys.add(m[1]);
+ const keys=new Set();for(const n of ['PartyCooldowns.lua','PartyExtras.lua','PartyProfile.lua','Window.lua','Slash.lua'])for(const m of text(n).matchAll(/L\("((?:[^"\\]|\\.)*)"\)/g))keys.add(m[1]);
  for(const m of text('Slash.lua').matchAll(/^\s*"(\/pcd[^"]*)",?$/gm))keys.add(m[1]);
  for(const n of ['PartyCooldowns.lua','PartyExtras.lua'])for(const m of text(n).matchAll(/(?:main|kick|cc|stun|move|potion|rotation|request|externals|lust)="([^"]+)"|^\s*(?:kick|cc|stun|move|potion)="([^"]+)",$/gm))keys.add(m[1]||m[2]);
  const missing=[...keys].filter(k=>!ru.includes('["'+k+'"]'));assert.deepEqual(missing,[],'Russian text for every interface string');
