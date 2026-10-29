@@ -101,7 +101,7 @@ local function BarFrame(width,height)
         if E and E.StatusBarTimerDirection then opts.direction=E.StatusBarTimerDirection.RemainingTime end
         pcall(f.SetDurationBar,f,bar,opts)
         local text=bar:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");text:SetPoint("RIGHT",bar,"RIGHT",-3,0)
-        local font=W.Font and W.Font(true);if type(font)=="string"then pcall(text.SetFont,text,font,math.max(9,height-4),"OUTLINE")end
+        local font=(ns.PartyStyleFont and ns.PartyStyleFont()or W.Font and W.Font(true));if type(font)=="string"then pcall(text.SetFont,text,font,math.max(9,height-4),"OUTLINE")end
         pcall(f.SetDurationText,f,text,{})
     end
 end
@@ -213,7 +213,7 @@ function ns.DrawKickRotation()
         h.num=h:CreateFontString(nil,"OVERLAY","GameFontHighlightLarge");h.num:SetPoint("CENTER",h.box,"CENTER",0,0)
         h.name=h:CreateFontString(nil,"OVERLAY","GameFontHighlight");h.name:SetPoint("LEFT",h.box,"RIGHT",6,0)
     end
-    local size=tonumber(e.size)or 44;local font=W.Font and W.Font(true)
+    local size=tonumber(e.size)or 44;local font=(ns.PartyStyleFont and ns.PartyStyleFont()or W.Font and W.Font(true))
     h:SetSize(size+130,size);h.box:SetSize(size,size)
     local mine=IsMe(name)
     if mine then h.box:SetColorTexture(1,0.82,0,0.9)else h.box:SetColorTexture(0.1,0.08,0.16,0.9)end
@@ -275,7 +275,7 @@ function ns.ShowExternalRequest(name)
     if not h.text then
         h.text=h:CreateFontString(nil,"OVERLAY","GameFontHighlightLarge");h.text:SetPoint("TOP",h,"TOP",0,0);h.icons={}
     end
-    local font=W.Font and W.Font(true);if type(font)=="string"then pcall(h.text.SetFont,h.text,font,16,"OUTLINE")end
+    local font=(ns.PartyStyleFont and ns.PartyStyleFont()or W.Font and W.Font(true));if type(font)=="string"then pcall(h.text.SetFont,h.text,font,16,"OUTLINE")end
     h.text:SetText(ns.PartyName(name).." "..L("needs an external"));h.text:SetTextColor(ClassColor(name))
     local ids=ReadyExternals()
     for i,id in ipairs(ids)do local t=h.icons[i]or h:CreateTexture(nil,"ARTWORK");h.icons[i]=t

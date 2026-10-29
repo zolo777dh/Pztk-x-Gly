@@ -942,6 +942,29 @@ local TITLES={main="Party cooldowns",kick="Interrupts",cc="Crowd control",stun="
 -- how far the icon is zoomed, and for the main list the offset from the party frame.
 local Style={}
 Style.defaults={align="LEFT",gap=2,alpha=100,numbers=0,nameSize=0,border="none",zoom="normal",offX=0,offY=0}
+-- Fonts to pick: the window's own, the game's, and every one LibSharedMedia-3.0 lists.
+Style.fonts={{value="",label="Default"},{value="book",label="Gothic Book",file=function()return W.fonts and W.fonts.book end},
+    {value="game",label="Friz Quadrata",file="Fonts\\FRIZQT__.TTF"},{value="narrow",label="Arial Narrow",file="Fonts\\ARIALN.TTF"},
+    {value="skurri",label="Skurri",file="Fonts\\SKURRI.TTF"},{value="morpheus",label="Morpheus",file="Fonts\\MORPHEUS.TTF"}}
+function ns.PartyFontChoices()
+    local out={};for _,f in ipairs(Style.fonts)do out[#out+1]={value=f.value,label=L(f.label)}end
+    local lsm=LibStub and LibStub("LibSharedMedia-3.0",true)
+    if lsm and lsm.List then local ok,list=pcall(lsm.List,lsm,"font")
+        if ok and type(list)=="table"then for _,name in ipairs(list)do out[#out+1]={value="lsm:"..name,label=name}end end end
+    return out
+end
+-- The font of the whole addon (cfg.font): every list, bar, timer and extra.
+function Style.Font()
+    local v=ns.PartyCooldownConfig().font;if type(v)~="string"then v=""end
+    if v:sub(1,4)=="lsm:"then
+        local lsm=LibStub and LibStub("LibSharedMedia-3.0",true)
+        local ok,file=pcall(function()return lsm:Fetch("font",v:sub(5),true)end)
+        if ok and type(file)=="string"then return file end
+    end
+    for _,f in ipairs(Style.fonts)do if f.value==v and f.file then local file=type(f.file)=="function"and f.file()or f.file;if file then return file end end end
+    return(W.Font and W.Font(true))or"Fonts\\FRIZQT__.TTF"
+end
+ns.PartyStyleFont=Style.Font
 Style.keys={"main","kick","stun","cc","move","potion"}
 ns.PartyStyleKeys=Style.keys
 function ns.PartyStyle(key)
@@ -957,6 +980,7 @@ end
 Style.zoom={normal={0.07,0.93},zoom={0.15,0.85},full={0,1}}
 -- Dresses one icon in a window's look.
 function Style.Icon(icon,st)
+    icon.styleFont=Style.Font()
     local z=Style.zoom[st.zoom]or Style.zoom.normal
     icon.tex:SetTexCoord(z[1],z[2],z[1],z[2])
     if icon.ownGrey then icon.ownGrey:SetTexCoord(z[1],z[2],z[1],z[2])end
@@ -969,7 +993,8 @@ function Style.Icon(icon,st)
     if fs and fs.GetFont then
         if not icon.numberFont then icon.numberFont={fs:GetFont()}end
         local f=icon.numberFont
-        if st.numbers>0 then pcall(fs.SetFont,fs,f[1],st.numbers,"OUTLINE")elseif f[1]then pcall(fs.SetFont,fs,f[1],f[2],f[3])end
+        local file=Style.Font()or f[1]
+        if st.numbers>0 then pcall(fs.SetFont,fs,file,st.numbers,"OUTLINE")elseif file then pcall(fs.SetFont,fs,file,f[2],f[3]or"OUTLINE")end
     end
 end
 ns.PartyStyleIcon=Style.Icon
@@ -1226,8 +1251,8 @@ end
 -- hideReady, grow ("DOWN" or "UP").
 local function DrawRows(g,entries,opts,unlocked)
     local f=g.frame;Anchor(g,false,opts.grow=="UP")
-    local size=tonumber(opts.size)or 26;local font=W.Font and W.Font(true);local y,widest=0,0
     local up=opts.grow=="UP";local st=ns.PartyStyle("main");local gap=st.gap;f:SetAlpha(st.alpha/100)
+    local size=tonumber(opts.size)or 26;local font=Style.Font();local y,widest=0,0
     for i,e in ipairs(entries)do
         local m,ids=e[1],e[2]
         local row=Row(g,i)
@@ -1359,7 +1384,7 @@ local function DrawAnchor(g,entries,a,unlocked)
     local left,up,gap=a.dir=="LEFT",a.grow=="UP",st.gap
     local nameSize=st.nameSize>0 and st.nameSize
     local h,v=left and"RIGHT"or"LEFT",up and"BOTTOM"or"TOP"
-    local font=W.Font and W.Font(true)
+    local font=Style.Font()
     local n=0
     for _,e in ipairs(entries)do local m=e[1]
         for _,id in ipairs(e[2])do
@@ -1385,7 +1410,7 @@ local function DrawAnchor(g,entries,a,unlocked)
                 cell:Show()
                 if bars then
                     ShowHidden(cell,nil);local box=cell.bar.timeBox;box:ClearAllPoints();box:SetAllPoints(cell.bar)
-                    box.textAt=left and"LEFT"or"RIGHT";ShowHidden(box,track)
+                    box.textAt=left and"LEFT"or"RIGHT";box.styleFont=font;ShowHidden(box,track)
                 else ShowHidden(cell,track);if cell.bar then ShowHidden(cell.bar.timeBox,nil)end end
                 local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
                 local r,gr,b=c and c.r or 0.6,c and c.g or 0.36,c and c.b or 1
@@ -1712,6 +1737,13 @@ local function HiddenParts(icon)
         p.fill=Bar(icon,0,0,0,0.55);p.fill:SetAllPoints(icon)
         -- Grey copy of the icon, seen through a clip that covers the icon while time is left.
         p.gate=Bar(hiddenLayer,0,0,0,0)
+        -- On a bar the cover runs sideways: a gate filling to the left whose edge is the start of the
+        -- grey part, so the bar turns from grey to colour as the timer runs, like a seen timer.
+        -- The seconds stay in the on/off cover below, so they are never cut by the sideways one.
+        if icon.textOnly then p.hgate=Bar(hiddenLayer,0,0,0,0);pcall(p.hgate.SetOrientation,p.hgate,"HORIZONTAL");pcall(p.hgate.SetReverseFill,p.hgate,true)
+            p.hveil=CreateFrame("Frame",nil,icon);pcall(p.hveil.SetClipsChildren,p.hveil,true)
+            p.hgrey=p.hveil:CreateTexture(nil,"ARTWORK");p.hgrey:SetAllPoints(icon);p.hgrey:SetColorTexture(0.3,0.3,0.33,0.92)
+        end
         p.veil=CreateFrame("Frame",nil,icon);pcall(p.veil.SetClipsChildren,p.veil,true)
         p.grey=p.veil:CreateTexture(nil,"ARTWORK");p.grey:SetAllPoints(icon);p.grey:SetTexCoord(0.07,0.93,0.07,0.93)
         pcall(p.grey.SetDesaturated,p.grey,true);p.grey:SetVertexColor(0.55,0.55,0.55)
@@ -1733,8 +1765,8 @@ local function DressHidden(icon,t)
     local size=icon.textOnly and icon:GetHeight()or icon:GetWidth();if not ns.Plain(size,"number")or size<=0 then size=26 end
     -- On a bar the cover spans the whole bar and the seconds sit at its end.
     local width=icon.textOnly and icon:GetWidth()or size;if not ns.Plain(width,"number")or width<=0 then width=size end
-    local font=(W.Font and W.Font(true))or"Fonts\\FRIZQT__.TTF";local ts=math.max(9,math.floor(size*0.42))
-    local sig=t.cd.."|"..size.."|"..width.."|"..ts..(icon.textOnly and(icon.textAt or"")or"")
+    local font=icon.styleFont or(W.Font and W.Font(true))or"Fonts\\FRIZQT__.TTF";local ts=math.max(9,math.floor(size*0.42))
+    local sig=t.cd.."|"..size.."|"..width.."|"..ts..(icon.textOnly and(icon.textAt or"")or"").."|"..tostring(font)
     if parts.sig==sig then return parts end
     local step=LineStep(font,ts);local jump=size+4
     parts.step,parts.jump,parts.sig=step,jump,sig
@@ -1748,6 +1780,12 @@ local function DressHidden(icon,t)
         p.gate:SetSize(1,t.window*jump);pcall(p.gate.SetMinMaxValues,p.gate,0,1)
         local edge=p.gate.GetStatusBarTexture and p.gate:GetStatusBarTexture()or p.gate
         p.veil:ClearAllPoints();p.veil:SetPoint("TOP",edge,"TOP",0,0);p.veil:SetPoint("BOTTOM",edge,"TOP",0,-(t.cd+1)*jump);p.veil:SetWidth(width)
+        if p.hgate then
+            parts.k=width/t.cd;p.hgate:SetSize(t.window*parts.k,1);pcall(p.hgate.SetMinMaxValues,p.hgate,0,1)
+            local hedge=p.hgate.GetStatusBarTexture and p.hgate:GetStatusBarTexture()or p.hgate
+            p.hveil:ClearAllPoints();p.hveil:SetPoint("LEFT",hedge,"LEFT",0,0);p.hveil:SetSize(width+4,size+4)
+            p.hveil:SetFrameLevel((icon:GetFrameLevel()or 0)+1)
+        end
         local top=p.pos.GetStatusBarTexture and p.pos:GetStatusBarTexture()or p.pos
         pcall(p.column.SetFont,p.column,font,ts,"OUTLINE");pcall(p.column.SetSpacing,p.column,0);p.column:SetTextColor(1,1,1)
         p.column:SetText(Column(t.cd));p.column:ClearAllPoints();p.column:SetPoint("TOP",top,"TOP",0,0)
@@ -1771,6 +1809,10 @@ local function SlideHidden()
                 pcall(p.pos.SetValue,p.pos,sl.whole);pcall(p.gate.SetValue,p.gate,sl.code)
                 -- The grey cover follows the clock every frame, so it leaves the icon on time.
                 p.gate:ClearAllPoints();p.gate:SetPoint("BOTTOM",icon,"BOTTOM",0,-(now-sl.epoch)*parts.jump)
+                if p.hgate then
+                    pcall(p.hgate.SetValue,p.hgate,sl.code)
+                    p.hgate:ClearAllPoints();p.hgate:SetPoint("RIGHT",icon,"RIGHT",(now-sl.epoch)*parts.k,0)
+                end
                 -- Whole seconds: the column moves once per second.
                 if p.second~=second or p.epoch~=sl.wepoch then
                     p.second,p.epoch=second,sl.wepoch
@@ -1785,15 +1827,14 @@ function ShowHidden(icon,t)
     icon.track=t
     local parts=icon.hidden
     if not t then
-        if parts then parts.win:Hide();for k=1,2 do parts[k].fill:Hide();parts[k].veil:Hide();parts[k].pos:Hide();parts[k].gate:Hide()end end
+        if parts then parts.win:Hide();for k=1,2 do parts[k].fill:Hide();parts[k].veil:Hide();parts[k].pos:Hide();parts[k].gate:Hide();if parts[k].hveil then parts[k].hveil:Hide()end end end
         shownHidden[icon]=nil;return
     end
     parts=DressHidden(icon,t)
     local tex=icon.spellID and W.SpellTexture(icon.spellID)
     -- On a bar only the seconds show: no dark fill and no grey copy of an icon.
     parts.win:Show();for k=1,2 do
-        if icon.textOnly then parts[k].grey:SetColorTexture(0.3,0.3,0.33,0.92);parts[k].fill:Hide()else parts[k].grey:SetTexture(tex);parts[k].fill:Show()end
-        parts[k].grey:Show()
+        if icon.textOnly then parts[k].grey:Hide();parts[k].fill:Hide();parts[k].hveil:Show()else parts[k].grey:SetTexture(tex);parts[k].grey:Show();parts[k].fill:Show()end
         parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
     shownHidden[icon]=t
 end
@@ -2278,7 +2319,7 @@ local DrawMainCard
 function DrawAnchors(parent,apply,d)
     local cfg=ns.PartyCooldownConfig()
     local function list(values,suffix)local out={};for _,v in ipairs(values)do out[#out+1]={value=v,label=v..(suffix or"")}end;return out end
-    local sizes,widths,counts=list({16,18,20,22,24,26,30,36,42,48}," px"),list({120,150,180,200,240,280,320}," px"),list({1,2,3,4,5,6,7,8,9,10})
+    local sizes,widths,counts=list({16,18,20,22,24,26,30,36,40,42,44,48,52,56,60}," px"),list({120,150,180,200,240,280,320}," px"),list({1,2,3,4,5,6,7,8,9,10})
     d.pair=d.pair or 1
     local tabs={};for i,p in ipairs(PAIRS)do
         tabs[#tabs+1]={value=i,label=p[1]=="style"and L("Look")or L(TITLES[p[1]]).." · "..L(p[2]=="main"and"Main list"or TITLES[p[2]])}end
@@ -2337,6 +2378,7 @@ function Style.Card(parent,apply,d)
         W.Select(card,L("OFFSET FROM THE FRAME X"),offs,st.offX,315,208,290,set("offX"),id.."offX")
         W.Select(card,L("OFFSET FROM THE FRAME Y"),offs,st.offY,618,208,290,set("offY"),id.."offY")
     end
+    W.Select(card,L("FONT OF THE WHOLE ADDON"),ns.PartyFontChoices(),type(ns.PartyCooldownConfig().font)=="string"and ns.PartyCooldownConfig().font or"",618,34,290,function(v)ns.PartyCooldownConfig().font=v;if ns.RefreshPartyExtras then ns.RefreshPartyExtras()end;apply()end,"pcd:font")
     W.Button(card,L("Reset the look"),12,272,290,function()ns.PartyCooldownConfig().styles[key]={};apply()end,false,id.."reset",{kind="outline",align="CENTER"})
     W.Label(card,L("Every window has the same look settings: pick a window, then set where a short last row sits, the space between icons, opacity, the size of the timer numbers and names, a border and the icon zoom. Icons beside party frames use the main list's look and can be moved away from the frame."),12,316,896,11,C.muted)
 end
@@ -2345,7 +2387,7 @@ function DrawMainCard(parent,x,apply)
     local cfg=ns.PartyCooldownConfig()
     local card=W.Card(parent,x,96,454,462,L("Main list"))
     local per={{value=0,label=L("One row")}};for _,n in ipairs({3,4,5,6,8})do per[#per+1]={value=n,label=tostring(n)}end
-    local small={};for _,n in ipairs({16,18,20,22,24,26})do small[#small+1]={value=n,label=n.." px"}end
+    local small={};for _,n in ipairs({16,18,20,22,24,26,30,36,40,44,48,52,56,60})do small[#small+1]={value=n,label=n.." px"}end
     W.Select(card,L("PER ROW"),per,math.floor(tonumber(cfg.perRow)or 0),12,34,207,function(v)cfg.perRow=v;apply()end,"pcd:perRow")
     W.Select(card,L("SIZE ON MORE ROWS"),small,tonumber(cfg.size2)or 20,235,34,207,function(v)cfg.size2=v;apply()end,"pcd:size2")
     W.Toggle(card,L("Highlight new timers"),cfg.highlight,12,96,430,function(v)cfg.highlight=v;apply()end,"pcd:highlight")
@@ -2366,7 +2408,7 @@ local function DrawPage(parent)
     W.Toggle(c1,L("Track party cooldowns"),cfg.enabled,12,34,274,function(v)cfg.enabled=v;apply()end,"pcd:enabled")
     W.Select(c1,L("SHOW"),{{value="list",label=L("As a list")},{value="frames",label=L("Beside party frames")}},cfg.mode,12,70,274,function(v)cfg.mode=v;apply()end,"pcd:mode")
     W.Select(c1,L("SIDE OF THE FRAME"),{{value="RIGHT",label=L("Right")},{value="LEFT",label=L("Left")},{value="TOP",label=L("Above")},{value="BOTTOM",label=L("Below")}},cfg.side,12,126,130,function(v)cfg.side=v;apply()end,"pcd:side")
-    local sizes={};for _,s in ipairs({20,24,26,30,36})do sizes[#sizes+1]={value=s,label=s.." px"}end
+    local sizes={};for _,s in ipairs({20,24,26,30,36,40,44,48,52,56,60})do sizes[#sizes+1]={value=s,label=s.." px"}end
     W.Select(c1,L("ICON SIZE"),sizes,tonumber(cfg.size)or 26,156,126,130,function(v)cfg.size=v;apply()end,"pcd:size")
     W.Toggle(c1,L("Include my own cooldowns"),cfg.self,12,186,274,function(v)cfg.self=v;apply()end,"pcd:self")
     W.Toggle(c1,L("In raids, track my group"),cfg.raidGroup,12,212,274,function(v)cfg.raidGroup=v;apply()end,"pcd:raid")

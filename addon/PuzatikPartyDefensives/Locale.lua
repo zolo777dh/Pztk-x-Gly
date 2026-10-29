@@ -74,7 +74,7 @@ local ru={
     ["Unlocked: drag the list"]="Откреплено: перетащите списки",["Locked"]="Закреплено",
     -- 0.11.0: more lists and the extras
     ["ready"]="готово",["Move up"]="Выше",["Move down"]="Ниже",["Hide in raids"]="Скрыть в рейде",
-    ["Look"]="Вид",["Profile"]="Профиль",["Share my settings"]="Поделиться настройками",["Use someone's settings"]="Взять чужие настройки",
+    ["Look"]="Вид",["FONT OF THE WHOLE ADDON"]="ШРИФТ ВСЕГО АДДОНА",["Gothic Book"]="Gothic Book",["Profile"]="Профиль",["Share my settings"]="Поделиться настройками",["Use someone's settings"]="Взять чужие настройки",
     ["Every setting of the party cooldowns, lists, look and extras in one string. Press the box, then Ctrl+A and Ctrl+C, and share it."]="Все настройки кд группы, списков, вида и дополнений в одной строке. Нажми на поле, затем Ctrl+A и Ctrl+C, и поделись ею.",
     ["Make the string"]="Создать строку",["Import"]="Импорт",["Profile imported"]="Профиль импортирован",
     ["Paste a profile string and press Import. Your settings are replaced; your learned cooldown lengths stay."]="Вставь строку профиля и нажми «Импорт». Твои настройки заменятся, выученные длины кулдаунов останутся.",

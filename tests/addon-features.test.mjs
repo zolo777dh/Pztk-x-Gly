@@ -1343,6 +1343,10 @@ local lock=InCombatLockdown
 ns.PartyCooldownShowHidden(ic,track());assert(grey==nil,'out of combat a hidden timer keeps the colour')
 InCombatLockdown=function()return true end
 ns.PartyCooldownShowHidden(ic,track());assert(grey==nil,'in combat only the grey cover shows a running timer')
+-- On a bar a hidden timer's grey cover runs sideways, like a seen timer filling.
+local box=CreateFrame('Frame');box.textOnly=true;box:SetSize(170,20);ns.PartyCooldownShowHidden(box,track());ns.PartyCooldownSlideHidden()
+assert(box.hidden[1].hveil and math.abs(box.hidden.k-170/120)<1e-9,'sideways cover on a bar')
+ns.PartyCooldownShowHidden(box,nil)
 local hm={hiddenCd={[2094]=track()}};assert(ns.PartyCooldownHiddenTrack(hm,2094),'in combat the track stays')
 InCombatLockdown=lock
 assert(ns.PartyCooldownHiddenTrack(hm,2094)==nil and hm.hiddenCd[2094]==nil,'out of combat an empty track is dropped')
