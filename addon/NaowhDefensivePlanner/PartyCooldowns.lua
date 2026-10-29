@@ -180,6 +180,16 @@ function ns.PartyCooldownConfig()
             local out,seen={},{};for _,id in ipairs(list)do id=ALIAS[id]or id;if not seen[id]then seen[id]=true;out[#out+1]=id end end;c.order[spec]=out
         end end
     end
+    -- 0.11.5: lengths learned before 0.11.1 could be a global cooldown read too early. Those that
+    -- look like one (3 s or less, or under a quarter of the spell's usual length) are learned again.
+    if(c.learnedVersion or 0)<1 then c.learnedVersion=1
+        for _,t in pairs(c.learned)do if type(t)=="table"then
+            local bad={};for id,v in pairs(t)do local info=byID[tonumber(id)]
+                if type(v)~="number"or v<=3 or(info and(info.cd or 0)>0 and v<info.cd*0.25)then bad[#bad+1]=id end
+            end
+            for _,id in ipairs(bad)do t[id]=nil end
+        end end
+    end
     return c
 end
 local members={}
@@ -209,13 +219,14 @@ function ns.AddPartyCooldownSpell(class,id)
     if byID[id]and byID[id].sent then byID[id].class=class end
     if byID[id]and byID[id].class~=class then return nil,"This spell is already added for another class"end
     local cfg=ns.PartyCooldownConfig();cfg.custom[class]=cfg.custom[class]or{};cfg.custom[class][id]=true;cfg.disabled[id]=nil
-    Register(id,class,900+id%1000);ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns();return true
+    Register(id,class,900+id%1000).added=true;ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns();return true
 end
 function ns.RemovePartyCooldownSpell(class,id)
     local cfg=ns.PartyCooldownConfig();local ids=cfg.custom[class];if not ids or not ids[id]then return nil,"Only added spells can be removed"end
     ids[id]=nil
     local used=false;for _,other in pairs(cfg.custom)do if other[id]then used=true end end
-    if byID[id]and byID[id].added and not used then byID[id]=nil end
+    -- Only your setting goes: a spell the group still sends stays tracked for them.
+    if byID[id]and byID[id].added and not used then if byID[id].sent then byID[id].added=nil else byID[id]=nil end end
     ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns();return true
 end
 -- Switched off spells are neither shown nor timed: for one spec, or with no spec for the whole class.
@@ -248,11 +259,17 @@ local function ForSpec(info,spec,candidates)
     end
     return false
 end
+-- Known to you or to your pet: the pet's spellbook is a book of its own (Spell Lock, Axe Toss).
 local function Known(id)
     local known=C_SpellBook and(C_SpellBook.IsSpellKnownOrInSpellBook or C_SpellBook.IsSpellKnown)or IsPlayerSpell
     if not known then return false end
-    local ok,v=pcall(known,id);return ok and ns.Plain(v,"boolean")and v
+    local ok,v=pcall(known,id);if ok and ns.Plain(v,"boolean")and v then return true end
+    local bank=C_SpellBook and Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Pet
+    if bank~=nil then local ok2,pet=pcall(known,id,bank);return ok2 and ns.Plain(pet,"boolean")and pet or false end
+    return false
 end
+-- Pet interrupts: whether your pet has one now, whatever the lists show.
+local PET_KICK={[19647]=true,[89766]=true}
 local FACTION={[2825]="Horde",[32182]="Alliance"}
 local TANKS={[66]=1,[73]=1,[104]=1,[250]=1,[268]=1,[581]=1}
 local HEALERS={[65]=1,[105]=1,[256]=1,[257]=1,[264]=1,[270]=1,[1468]=1}
@@ -445,12 +462,55 @@ end
 -- spell versions are read again.
 local function Prune(m,spec)
     for id in pairs(m.used or{})do local info=byID[id]
-        if info and spec and not ForSpec(info,spec)then m.used[id]=nil;if m.how then m.how[id]=nil end;if m.hiddenCd then m.hiddenCd[id]=nil end end
+        if info and spec and not ForSpec(info,spec)then m.used[id]=nil;if m.how then m.how[id]=nil end;if m.hiddenCd then m.hiddenCd[id]=nil end;if m.chg then m.chg[id]=nil end end
     end
     m.face=nil
 end
 ns.PartyCooldownPrune=Prune
+-- Charges. Yours come from the game; others' count is what their addon sent (c<id>=n). Their
+-- charges come back one at a time, each after a full length: m.chg[id] keeps how many are
+-- there and when the next one is back.
+local function OwnCharges(id)
+    local get=C_Spell and C_Spell.GetSpellCharges;if not get or id==POTION then return nil end
+    local ok,c=pcall(get,id);if not ok or not ns.Plain(c,"table")then return nil end
+    local read,cur,max,start,dur=pcall(function()return c.currentCharges,c.maxCharges,c.cooldownStartTime,c.cooldownDuration end)
+    if not read or not(ns.Plain(cur,"number")and ns.Plain(max,"number"))or max<2 then return nil end
+    return cur,max,ns.Plain(start,"number")and start or nil,ns.Plain(dur,"number")and dur or nil
+end
+ns.PartyCooldownOwnCharges=OwnCharges
+local function MaxCharges(m,id)
+    if m.me then local _,max=OwnCharges(id);return max or 1 end
+    return m.charges and m.charges[id]or 1
+end
+local function Recharge(m,id,now)
+    local st=m.chg and m.chg[id];if not st then return nil end
+    local max,len=MaxCharges(m,id),ns.PartyCooldownLength(m,id)
+    while st.next and now>=st.next and st.avail<max do
+        st.avail=st.avail+1;st.next=st.avail<max and st.next+len or nil
+    end
+    if st.avail>=max then st.avail,st.next=max,nil end
+    return st
+end
+-- Charges left, the most there can be, and the recharge running now (start, length), or nil.
+function ns.PartyCooldownCharges(m,id)
+    if not m then return nil end
+    if m.me then
+        local cur,max,start,dur=OwnCharges(id);if not cur then return nil end
+        return cur,max,(cur<max and start and dur and dur>0)and start or nil,dur
+    end
+    local max=MaxCharges(m,id);if max<2 then return nil end
+    local st=Recharge(m,id,GetTime())
+    if not st then return max,max end
+    local len=ns.PartyCooldownLength(m,id)
+    return st.avail,max,st.next and st.next-len or nil,len
+end
 local function Started(m,id,at,how,mark)
+    -- A spell with charges spends one; its timer runs only when none is left.
+    local max=not m.me and MaxCharges(m,id)or 1
+    if max>1 then
+        m.chg=m.chg or{};local st=m.chg[id]or{avail=max};m.chg[id]=st;Recharge(m,id,at)
+        st.avail=math.max(0,st.avail-1);if not st.next then st.next=at+ns.PartyCooldownLength(m,id)end
+    end
     m.used[id]=at;m.how=m.how or{};m.how[id]=how;if m.cut then m.cut[id]=nil end
     m.marks=m.marks or{};m.marks[id]=mark
     if ns.PartyCooldownConfig().highlight and C_Timer and C_Timer.NewTimer then C_Timer.NewTimer(HIGHLIGHT+0.1,function()ns.DrawPartyCooldowns()end)end
@@ -459,6 +519,10 @@ end
 function ns.PartyCooldownLeft(member,id)
     if member and member.me then local start,dur=OwnCooldown(id);if start then return start>0 and math.max(0,start+dur-GetTime())or 0 end end
     local start=member and member.used and member.used[id];if not start then return 0 end
+    if not member.me and MaxCharges(member,id)>1 then
+        local st=Recharge(member,id,GetTime());if not st then return 0 end
+        return st.avail>0 and 0 or math.max(0,(st.next or 0)-GetTime())
+    end
     return math.max(0,start+ns.PartyCooldownLength(member,id)-GetTime())
 end
 
@@ -527,9 +591,10 @@ local function InspectNext()
         -- No answer (out of range...): asked again after 15 s, up to 6 times.
         -- Out of reach (CanInspect false): tried again every 15 s for 5 minutes, then after a
         -- 2 minute pause the same again, for as long as they are in the group.
-        if m and not m.me and not m.addon and(not m.spec or not m.talented)and(m.tries or 0)<6 and(m.far or 0)>=20 then
+        -- The same for asks that got no answer (6 in a row).
+        if m and not m.me and not m.addon and(not m.spec or not m.talented)and((m.tries or 0)>=6 or(m.far or 0)>=20)then
             local rest=120-(GetTime()-(m.asked or 0))
-            if rest<=0 then m.far=0 elseif not soonest or rest<soonest then soonest=rest end
+            if rest<=0 then m.far=0;m.tries=0 elseif not soonest or rest<soonest then soonest=rest end
         end
         if m and not m.me and not m.addon and(not m.spec or not m.talented)and(m.tries or 0)<6 and(m.far or 0)<20 then
             local wait=m.asked and 15-(GetTime()-m.asked)or 0
@@ -601,6 +666,8 @@ function ns.PartyCooldownPayload()
         id=ALIAS[id]or id
         if done[id]or #parts>60 then return end;done[id]=true
         parts[#parts+1]=id.."="..math.floor(ns.PartyCooldownLength(me,id)+0.5)
+        -- Charges ride as a field of their own, which older versions skip.
+        local _,max=OwnCharges(id);if max and max>1 then parts[#parts+1]="c"..id.."="..math.min(5,max)end
     end
     for _,id in ipairs(ns.PartyCooldownClassSpells(class))do if ForSpec(byID[id],spec)and Known(id)and not(FACTION[id]and UnitFactionGroup and FACTION[id]~=UnitFactionGroup("player"))then add(id)end end
     if ns.PartyCooldownConfig().cdm then for _,id in ipairs(ns.CooldownManagerSpells())do add(id)end end
@@ -647,8 +714,10 @@ local function ReadPCD(m,text)
         for _,s in ipairs(m.class and ns.ClassSpecs and ns.ClassSpecs[m.class]or{})do if s==spec then fits=true end end
         if not fits then return false end
     end
-    local known,cds,new,face={},{},{},{}
+    local known,cds,new,face,charges={},{},{},{},{}
     for i=2,#fields do
+        local cid,n=fields[i]:match("^c(%d+)=(%d+)$");cid,n=tonumber(cid),tonumber(n)
+        if cid and n and n>1 and n<=5 then charges[ALIAS[cid]or cid]=n end
         local id,cd=fields[i]:match("^(%d+)=(%d+)$");id,cd=tonumber(id),tonumber(cd)
         if id and cd and id>0 and cd>0 and cd<=1800 then
             -- Another version of a tracked spell counts as that spell, its own icon kept.
@@ -671,6 +740,7 @@ local function ReadPCD(m,text)
         end
     end
     m.sentSpec=spec>0 and spec or nil;m.spec=m.sentSpec or m.spec;m.known=known;m.cds=cds;m.addon=true;m.sentAt=GetTime();m.face=face;m.listFull=#fields<=60
+    for id in pairs(charges)do if not known[id]then charges[id]=nil end end;m.charges=charges
     -- The owner's message is newer than any inspect: what they know is taken, not hidden.
     if m.talented then for id in pairs(known)do m.talented[id]=true end end
     return true
@@ -718,6 +788,8 @@ local pendingLearn,LearnPending={},nil
 local function Learn(id,since)
     if not(C_Spell and C_Spell.GetSpellCooldown)then return true end
     local start,dur,_,gcd=OwnInfo(id)
+    -- A spell with charges: its recharge is the length.
+    local _,max,_,charge=OwnCharges(id);if max and charge and charge>1.5 then start,dur,gcd=1,charge,false end
     if not(ns.Plain(start,"number")and ns.Plain(dur,"number"))then return false end
     if ns.Plain(gcd,"boolean")and gcd or dur<=1.5 then
         -- Still the global cooldown (or charges left): given up a few seconds after the cast.
@@ -771,7 +843,7 @@ function ns.PartyCooldownCast(unit,id)
     return true
 end
 -- Resets the timers this addon keeps. Your own cooldowns are the game's and stay as they are.
-function ns.PartyCooldownReset()for _,m in pairs(members)do m.used={};m.hiddenCd=nil;m.hiddenCast=nil end;ns.DrawPartyCooldowns()end
+function ns.PartyCooldownReset()for _,m in pairs(members)do m.used={};m.hiddenCd=nil;m.hiddenCast=nil;m.chg=nil end;ns.DrawPartyCooldowns()end
 
 ---------------------------------------------------------------------------
 -- Display: a movable list (name and icons per member), or icons beside the Blizzard or ElvUI
@@ -848,6 +920,11 @@ end
 -- The look every icon shares: tooltips, the new-timer edge and the raid marker of a kick.
 local function Dress(icon,m,id,left,mark)
     local cfg=ns.PartyCooldownConfig()
+    -- Charges: how many are left in the corner; while one comes back, its swipe on a lit icon.
+    if not icon.count then icon.count=icon.cd:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");icon.count:SetPoint("BOTTOMRIGHT",icon,"BOTTOMRIGHT",-1,1)end
+    local avail,max,rs,rd=ns.PartyCooldownCharges(m,id)
+    if max then icon.count:SetText(tostring(avail));icon.count:Show()else icon.count:SetText("");icon.count:Hide()end
+    if max and left<=0 and rs and rd and not(m.me and OwnHidden(m,id))then icon.cd:SetCooldown(rs,rd)end
     icon.member=m.name;pcall(icon.EnableMouse,icon,cfg.tooltip==true)
     local start=m.used and m.used[id]
     if cfg.highlight and left>0 and start and GetTime()-start<HIGHLIGHT then icon.hl:Show()else icon.hl:Hide()end
@@ -1487,7 +1564,7 @@ local function Sensed(m,id,at)
     if not m or not ns.PartyCooldownTracked(id,m.spec)then return end
     local last=m.used[id]
     -- The cast itself was seen, or the cooldown is still running: nothing new.
-    if last and GetTime()-last<ns.PartyCooldownLength(m,id)-1 then return end
+    if last and GetTime()-last<ns.PartyCooldownLength(m,id)-1 and not(MaxCharges(m,id)>1 and GetTime()-last>1)then return end
     Started(m,id,at or GetTime(),"sensor");m.sensed=(m.sensed or 0)+1
     ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
 end
@@ -1635,11 +1712,11 @@ local kickState={seen=0,meter=0,named=0,ready=0,unsure=0}
 local meterOrder,lastKickAt,ownKickAt,lastKick=nil,0,0,{}
 local ownUnsureAt=-100 -- the last cast of yours the game hid
 -- Pet interrupts (Spell Lock, Axe Toss): your list has one when your pet can interrupt.
-local PET_KICK={[19647]=true,[89766]=true}
 local function OwnPetKick()
-    for _,m in pairs(members)do if m.me then for _,id in ipairs(ns.PartyCooldownList(m))do if PET_KICK[id]then return true end end end end
+    for id in pairs(PET_KICK)do if Known(id)then return true end end
     return false
 end
+ns.PartyCooldownOwnPetKick=OwnPetKick
 local function KickOf(m)
     for _,id in ipairs(ns.PartyCooldownList(m))do if KIND[id]=="kick"then return id end end
 end
@@ -1806,7 +1883,7 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
     else
         if event~="READY_CHECK"then ns.PartyCooldownRoster()end
         -- A roster change is a fresh chance to reach members that were out of range.
-        if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then for _,m in pairs(members)do m.far=nil end;QueueInspect();frameCache={}end
+        if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then for _,m in pairs(members)do m.far=nil;m.tries=nil end;QueueInspect();frameCache={}end
         if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.tries=nil;m.far=nil;m.talented=nil;m.ranks=nil;m.spec=nil;m.sentSpec=nil;m.known=nil;m.cds=nil;Prune(m,nil)
             -- Spec-only timers go now; the class-wide ones stay.
             for id in pairs(m.used)do local info=byID[id];if info and info.specs then m.used[id]=nil end end end end;QueueInspect()end

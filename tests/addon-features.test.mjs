@@ -1255,6 +1255,30 @@ cfg.learned.x={[414658]=170};cfg.aliasMigrated=nil;ns.PartyCooldownConfig();asse
 local asks2=0;NotifyInspect=function()asks2=asks2+1 end;CanInspect=function()return true end
 rg.tries=nil;rg.far=20;rg.asked=GetTime();rg.spec=nil;rg.talented=nil;fire2('GROUP_ROSTER_UPDATE');env.advance(16);assert(asks2>=1,'asked again after the roster change')
 NotifyInspect=nil;CanInspect=nil
+-- Seventh review. A pet's spell is known from the pet's own spellbook.
+Enum=Enum or{};Enum.SpellBookSpellBank={Player=0,Pet=1};local book=C_SpellBook
+C_SpellBook={IsSpellKnown=function(id,bank)return bank==1 and id==19647 end}
+assert(ns.PartyCooldownOwnPetKick(),'Spell Lock in the pet book');C_SpellBook=book
+-- Asks without an answer: a pause, then again; a roster change starts over.
+local asks3=0;NotifyInspect=function()asks3=asks3+1 end;CanInspect=function()return true end
+rg.tries=6;rg.far=nil;rg.asked=GetTime();rg.spec=nil;rg.talented=nil;fire2('GROUP_ROSTER_UPDATE');env.advance(16);assert(asks3>=1,'tries again')
+NotifyInspect=nil;CanInspect=nil
+-- Lengths learned by older versions that look like a global cooldown are learned again.
+cfg.learned.y={[1022]=2,[642]=300};cfg.learnedVersion=nil;ns.PartyCooldownConfig();assert(cfg.learned.y[1022]==nil and cfg.learned.y[642]==300);cfg.learned.y=nil
+-- Removing your own setting keeps a spell the group still sends.
+ns.CommHandlers.PCD('258;10060=120;999002=90','Other','PARTY','Other-RealmB')
+assert(ns.RemovePartyCooldownSpell('PALADIN',999002));assert(ns.PartyCooldownTracked(999002,258)and pr.known[999002],'still tracked for the priest')
+-- Charges: two uses before the timer runs, each comes back after a full length.
+ns.CommHandlers.PCD('258;10060=120;c10060=2','Other','PARTY','Other-RealmB');assert(pr.charges[10060]==2)
+pr.used={};pr.chg=nil;ns.PartyCooldownCast('party1',10060);local av,mx=ns.PartyCooldownCharges(pr,10060)
+assert(av==1 and mx==2 and ns.PartyCooldownLeft(pr,10060)==0,'one charge left')
+env.advance(2);ns.PartyCooldownCast('party1',10060);assert(ns.PartyCooldownLeft(pr,10060)>100,'both spent')
+env.advance(119);av=ns.PartyCooldownCharges(pr,10060);assert(av==1 and ns.PartyCooldownLeft(pr,10060)==0,'the first is back')
+env.advance(121);av=ns.PartyCooldownCharges(pr,10060);assert(av==2)
+-- Your own charges come from the game and go out with your list.
+C_Spell.GetSpellCharges=function(id)if id==22812 then return{currentCharges=1,maxCharges=2,cooldownStartTime=GetTime(),cooldownDuration=60}end end
+local cur,max2,rs=ns.PartyCooldownCharges(m['Tester-Home'],22812);assert(cur==1 and max2==2 and rs)
+assert(ns.PartyCooldownPayload():find('c22812=2',1,true),'charges sent');C_Spell.GetSpellCharges=nil
 units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
 `));
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
