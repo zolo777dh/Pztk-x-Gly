@@ -731,7 +731,7 @@ local function ReadOwnTalents()
 end
 ns.PartyCooldownReadOwnTalents=ReadOwnTalents
 ns.PartyCooldownReadTalents=ReadTalents
-local function QueueInspect()if not inspectTimer and C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(1,InspectNext)end end
+local function QueueInspect()if not inspectTimer and C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(0.3,InspectNext)end end
 
 ---------------------------------------------------------------------------
 -- Sharing: "spec;id=seconds;id=seconds..." for the tracked spells this character knows.
@@ -1172,16 +1172,18 @@ local function Look(f)
     return ns.Plain(u,"string")and(f:GetHeight()or 0)>=16 and u or nil
 end
 local function Area(f)
-    local ok,w,h=pcall(function()return f:GetWidth(),f:GetHeight()end)
+    local ok,w=pcall(f.GetWidth,f);local ok2,h=pcall(f.GetHeight,f);ok=ok and ok2
     if not ok or not ns.Plain(w,"number")or not ns.Plain(h,"number")or w>400 or h>200 then return -1 end
     return w*h
 end
 local function Step()
     if InCombatLockdown and InCombatLockdown()then return end -- goes on after combat
     Timed("frame scan",function()
-        local f=walk.at
-        for _=1,250 do
-            if not f then break end
+        -- As many frames as fit in 4 ms of each screen frame: the walk ends in a fraction of a
+        -- second and never stalls the game.
+        local f=walk.at;local t0=Clock();local n=0
+        while f do
+            n=n+1;if n%100==0 and Clock()-t0>=4 then break end
             local ok,u=pcall(Look,f)
             if ok and u and f~=TargetFrame and f~=FocusFrame then
                 -- Party frames before the player frame for yourself.
@@ -1198,14 +1200,14 @@ local function Step()
     for u,fr in pairs(walk.found)do frameCache[u]=fr end
     walk=nil;walker:SetScript("OnUpdate",nil);ns.DrawPartyCooldowns()
     -- Frame addons build their frames a little after the group forms: a unit with no frame yet
-    -- is looked for again 10 s later, three times for each group at most.
+    -- is looked for again 1.5 s later, five times for each group at most.
     local missing=false
     for _,name in ipairs(order)do local m=members[name]
         if m and m.unit and not m.me and not frameCache[m.unit]then missing=true end
     end
     retries=retries+1
-    if missing and retries<=3 and C_Timer and C_Timer.NewTimer then
-        C_Timer.NewTimer(10,function()lastScan=nil;ns.DrawPartyCooldowns()end)
+    if missing and retries<=5 and C_Timer and C_Timer.NewTimer then
+        C_Timer.NewTimer(1.5,function()lastScan=nil;ns.DrawPartyCooldowns()end)
     end
 end
 -- Runs a started walk to its end at once (tests, the report).
@@ -2261,6 +2263,8 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
         for _,m in pairs(members)do
             if not m.me and UnitGUID and ns.Plain(a,"string")then local ok,guid=pcall(UnitGUID,m.unit);if ok and guid==a then ReadTalents(m)end end
         end
+        -- An answer came: the next member is asked at once, not after the 2 s wait for a missing one.
+        if inspectTimer and inspectTimer.Cancel then inspectTimer:Cancel()end;inspectTimer=nil
         QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()
     else
         if event~="READY_CHECK"then ns.PartyCooldownRoster()end
