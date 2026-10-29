@@ -165,9 +165,9 @@ function ns.PartyCooldownConfig()
     if c.loadWorld==false and c.loadWhere=="all"then c.loadWhere="instances"end;c.loadWorld=nil
     -- 0.10.2: icons beside the party frames, every cooldown of the spec shown, no names.
     if(c.layout or 0)<2 then c.layout=2;c.mode="frames";c.hideReady=false;c.names=false end
-    -- 0.11.3: an added spell that is another version of a tracked one becomes that one, with its
+    -- 0.11.3 (learned lengths too since 0.11.4): an added spell that is another version of a tracked one becomes that one, with its
     -- switches and place in the order.
-    if(c.aliasMigrated or 0)<1 then c.aliasMigrated=1
+    if(c.aliasMigrated or 0)<2 then c.aliasMigrated=2
         for _,ids in pairs(c.custom)do for id in pairs(ids)do local base=ALIAS[tonumber(id)]if base then ids[id]=nil end end end
         -- Keys are collected first: a table cannot get new keys while it is walked.
         local function move(t)
@@ -175,6 +175,7 @@ function ns.PartyCooldownConfig()
             for _,x in ipairs(found)do t[x[1]]=nil;if t[x[2]]==nil then t[x[2]]=x[3]end end
         end
         move(c.disabled);for _,off in pairs(c.specOff)do if type(off)=="table"then move(off)end end
+        for _,t in pairs(c.learned)do if type(t)=="table"then move(t)end end
         for spec,list in pairs(c.order)do if type(list)=="table"then
             local out,seen={},{};for _,id in ipairs(list)do id=ALIAS[id]or id;if not seen[id]then seen[id]=true;out[#out+1]=id end end;c.order[spec]=out
         end end
@@ -288,6 +289,7 @@ function ns.MovePartyCooldown(class,spec,id,step)
 end
 -- The spells shown for one member: exactly what they sent, otherwise their spec's list, plus
 -- anything they were seen casting. `kind`: only "kick", only "cc", or "defensive" for the rest.
+local Dropped -- a class spell the member's own list no longer has; defined with the timers
 function ns.PartyCooldownList(member,kind)
     local out,seen={},{}
     local cfg=ns.PartyCooldownConfig()
@@ -307,7 +309,9 @@ function ns.PartyCooldownList(member,kind)
     for _,s in ipairs(member.race and RACIAL[member.race]or{})do if not member.me or Known(s[1])then add(s[1])end end
     add(POTION)
     -- Spells seen cast count while they fit the current spec (shared ones always).
-    for id in pairs(member.used or{})do local info=byID[id];if not(info and member.spec and not ForSpec(info,member.spec))then add(id)end end
+    for id in pairs(member.used or{})do local info=byID[id]
+        if not(info and member.spec and not ForSpec(info,member.spec))and not Dropped(member,id)then add(id)end
+    end
     table.sort(out,Sorter(member.spec))
     return out
 end
@@ -432,6 +436,11 @@ ns.PartyCooldownMarkOf=MarkOf
 -- A timer starts. `mark`: the raid marker of the enemy a kick hit. A new timer is highlighted for
 -- a moment, so one more redraw takes the highlight off.
 local HIGHLIGHT=3
+-- A class spell the member's own full list does not have (talent taken off).
+Dropped=function(m,id)
+    local info=byID[id]
+    return m.known and m.listFull and info and info.class and info.class==m.class and not info.detected and not info.added and not m.known[id]or false
+end
 -- A spec change: timers of spells the new spec does not have are dropped, and the icons of
 -- spell versions are read again.
 local function Prune(m,spec)
@@ -516,7 +525,12 @@ local function InspectNext()
     local soonest
     for _,name in ipairs(order)do local m=members[name]
         -- No answer (out of range...): asked again after 15 s, up to 6 times.
-        -- Out of reach (CanInspect false): tried again every 15 s, for up to 5 minutes.
+        -- Out of reach (CanInspect false): tried again every 15 s for 5 minutes, then after a
+        -- 2 minute pause the same again, for as long as they are in the group.
+        if m and not m.me and not m.addon and(not m.spec or not m.talented)and(m.tries or 0)<6 and(m.far or 0)>=20 then
+            local rest=120-(GetTime()-(m.asked or 0))
+            if rest<=0 then m.far=0 elseif not soonest or rest<soonest then soonest=rest end
+        end
         if m and not m.me and not m.addon and(not m.spec or not m.talented)and(m.tries or 0)<6 and(m.far or 0)<20 then
             local wait=m.asked and 15-(GetTime()-m.asked)or 0
             if wait<=0 then
@@ -641,14 +655,22 @@ local function ReadPCD(m,text)
             if ALIAS[id]then face[ALIAS[id]]=id;id=ALIAS[id]end
             local info=byID[id]
             if not info then new[#new+1]={id,i}
-            elseif info.class and m.class and info.class~=m.class and not info.sent then id=nil end
+            elseif info.class and m.class and info.class~=m.class and not(info.sent or info.added)then id=nil
+            elseif info.added and info.class~=m.class then info.sent=true end
             if id then known[id]=true;cds[id]=cd end
         end
     end
     -- A spell only heard of in messages belongs to no class: any class may send it.
     for _,x in ipairs(new)do if m.class then Register(x[1],m.class,800+x[2]).sent=true else known[x[1]],cds[x[1]]=nil,nil end end
     if spec>0 and m.spec and m.spec~=spec then Prune(m,spec)end
-    m.sentSpec=spec>0 and spec or nil;m.spec=m.sentSpec or m.spec;m.known=known;m.cds=cds;m.addon=true;m.sentAt=GetTime();m.face=face
+    -- A full list (under the size cap) is the whole truth: class spells seen cast that it no
+    -- longer has were talents taken off.
+    if #fields<=60 then
+        for id in pairs(m.used)do local info=byID[id]
+            if info and info.class and info.class==m.class and not info.detected and not info.added and not known[id]then m.used[id]=nil;if m.hiddenCd then m.hiddenCd[id]=nil end end
+        end
+    end
+    m.sentSpec=spec>0 and spec or nil;m.spec=m.sentSpec or m.spec;m.known=known;m.cds=cds;m.addon=true;m.sentAt=GetTime();m.face=face;m.listFull=#fields<=60
     -- The owner's message is newer than any inspect: what they know is taken, not hidden.
     if m.talented then for id in pairs(known)do m.talented[id]=true end end
     return true
@@ -716,8 +738,16 @@ local function RedrawLater(seconds)
 end
 -- A tracked cast by unit: starts the timer. Returns true when it counted. Every cast is counted as
 -- seen or hidden (the game hid its spell), so a pull shows how much of the group was visible.
+-- A pet's unit: its owner's ("pet" is yours, partypet2 belongs to party2).
+local function OwnerUnit(unit)
+    if unit=="pet"then return"player"end
+    local kind,n=unit:match("^(%a+)pet(%d+)$");if kind then return kind..n end
+    return unit
+end
+ns.PartyCooldownOwnerUnit=OwnerUnit
 function ns.PartyCooldownCast(unit,id)
     if not ns.Plain(unit,"string")then return false end
+    unit=OwnerUnit(unit)
     local m
     for _,x in pairs(members)do if x.unit==unit then m=x end end
     -- Target, focus and nameplates show the same casts of a member as their party unit.
@@ -1604,6 +1634,12 @@ end
 local kickState={seen=0,meter=0,named=0,ready=0,unsure=0}
 local meterOrder,lastKickAt,ownKickAt,lastKick=nil,0,0,{}
 local ownUnsureAt=-100 -- the last cast of yours the game hid
+-- Pet interrupts (Spell Lock, Axe Toss): your list has one when your pet can interrupt.
+local PET_KICK={[19647]=true,[89766]=true}
+local function OwnPetKick()
+    for _,m in pairs(members)do if m.me then for _,id in ipairs(ns.PartyCooldownList(m))do if PET_KICK[id]then return true end end end end
+    return false
+end
 local function KickOf(m)
     for _,id in ipairs(ns.PartyCooldownList(m))do if KIND[id]=="kick"then return id end end
 end
@@ -1691,7 +1727,9 @@ function ns.PartyCooldownInterrupted(unit,by)
     local mine=now-ownUnsureAt<0.6
     local function decide()
         if lastKickAt>=now-0.05 then return end
-        if mine then kickState.unsure=kickState.unsure+1;return end
+        -- Your own cast can arrive just after the enemy's event: read again at the decision.
+        if math.abs(ownKickAt-now)<0.6 then lastKickAt=now;return end
+        if mine or math.abs(ownUnsureAt-now)<0.6 then kickState.unsure=kickState.unsure+1;return end
         local only
         for _,m in pairs(members)do
             local id=not m.me and KickOf(m)
@@ -1724,9 +1762,13 @@ function ns.RefreshPartyCooldowns()
 end
 events:SetScript("OnEvent",function(_,event,a,_,c,d)
     if event=="UNIT_SPELLCAST_SUCCEEDED"then
-        -- Your own cast: a kick, or hidden (it may have been your kick).
-        if a=="player"then if not ns.Plain(c,"number")then ownUnsureAt=GetTime()elseif KIND[ALIAS[c]or c]=="kick"then ownKickAt=GetTime()end end
-        if ns.Plain(a,"string")and(a=="player"or a=="target"or a=="focus"or a:match("^party%d")or a:match("^raid%d")or a:match("^nameplate%d"))then ns.PartyCooldownCast(a,c)end
+        -- Your own cast or your pet's: a kick, or hidden (it may have been your kick). Hidden pet
+        -- casts count only when your pet can interrupt (an imp casts all the time).
+        if a=="player"or a=="pet"then
+            if not ns.Plain(c,"number")then if a=="player"or OwnPetKick()then ownUnsureAt=GetTime()end
+            elseif KIND[ALIAS[c]or c]=="kick"then ownKickAt=GetTime()end
+        end
+        if ns.Plain(a,"string")and(a=="player"or a=="pet"or a=="target"or a=="focus"or a:match("^party%d")or a:match("^raid%d")or a:match("^partypet%d")or a:match("^raidpet%d")or a:match("^nameplate%d"))then ns.PartyCooldownCast(a,c)end
     elseif event=="UNIT_SPELLCAST_INTERRUPTED"then ns.PartyCooldownInterrupted(a,d)
     elseif event=="UNIT_SPELLCAST_CHANNEL_STOP"then
         -- A channel that was stopped by someone names (or hides) who; an ended one names nobody.
@@ -1763,7 +1805,8 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
         QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()
     else
         if event~="READY_CHECK"then ns.PartyCooldownRoster()end
-        if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then QueueInspect();frameCache={}end
+        -- A roster change is a fresh chance to reach members that were out of range.
+        if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then for _,m in pairs(members)do m.far=nil end;QueueInspect();frameCache={}end
         if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.tries=nil;m.far=nil;m.talented=nil;m.ranks=nil;m.spec=nil;m.sentSpec=nil;m.known=nil;m.cds=nil;Prune(m,nil)
             -- Spec-only timers go now; the class-wide ones stay.
             for id in pairs(m.used)do local info=byID[id];if info and info.specs then m.used[id]=nil end end end end;QueueInspect()end

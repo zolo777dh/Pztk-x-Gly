@@ -1235,6 +1235,25 @@ assert(ns.AddPartyCooldownSpell('PALADIN','999001'));ns.CommHandlers.PCD('258;99
 local asks=0;NotifyInspect=function()asks=asks+1 end;local reach=false;CanInspect=function()return reach end
 rg.tries=nil;rg.far=nil;rg.asked=nil;rg.spec=nil;rg.talented=nil;fire2('GROUP_ROSTER_UPDATE');env.advance(2)
 assert(asks==0 and(rg.far or 0)>=1,'out of reach');reach=true;env.advance(16);assert(asks>=1,'inspected once in reach')
+-- Sixth review. Your own kick arriving just after the enemy's event still blocks the guess.
+local pending;C_Timer.After=function(_,fn)pending=fn end
+env.advance(5);rg.used={};ns.PartyCooldownInterrupted('boss1',nil);fire2('UNIT_SPELLCAST_SUCCEEDED','player','x',106839);pending()
+assert(not rg.used[1766],'your own Skull Bash, not the rogue')
+-- Your pet's kick counts as yours; pet units belong to their owners.
+env.advance(5);fire2('UNIT_SPELLCAST_SUCCEEDED','pet','x',19647);ns.PartyCooldownInterrupted('boss1',nil);pending()
+assert(not rg.used[1766],'your pet interrupted');C_Timer.After=nil
+assert(ns.PartyCooldownOwnerUnit('partypet2')=='party2'and ns.PartyCooldownOwnerUnit('pet')=='player'and ns.PartyCooldownOwnerUnit('raidpet7')=='raid7')
+env.advance(5);ns.PartyCooldownCast('partypet2',1766);assert(rg.used[1766],'a pet cast goes to its owner')
+-- A talent taken off in the same spec: its timer and icon go with the next full list.
+pr.used[15286]=GetTime();ns.CommHandlers.PCD('258;10060=120','Other','PARTY','Other-RealmB')
+assert(not pr.used[15286]);for _,id in ipairs(ns.PartyCooldownList(pr))do assert(id~=15286)end
+-- Added for one class first, then heard from another: still taken.
+assert(ns.AddPartyCooldownSpell('PALADIN','999002'));ns.CommHandlers.PCD('258;10060=120;999002=90','Other','PARTY','Other-RealmB');assert(pr.known[999002]and pr.cds[999002]==90)
+-- Learned lengths move with the migration.
+cfg.learned.x={[414658]=170};cfg.aliasMigrated=nil;ns.PartyCooldownConfig();assert(cfg.learned.x[45438]==170 and not cfg.learned.x[414658]);cfg.learned.x=nil
+-- Out of reach past the limit: a roster change, or a 2 minute pause, tries again.
+local asks2=0;NotifyInspect=function()asks2=asks2+1 end;CanInspect=function()return true end
+rg.tries=nil;rg.far=20;rg.asked=GetTime();rg.spec=nil;rg.talented=nil;fire2('GROUP_ROSTER_UPDATE');env.advance(16);assert(asks2>=1,'asked again after the roster change')
 NotifyInspect=nil;CanInspect=nil
 units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
 `));
