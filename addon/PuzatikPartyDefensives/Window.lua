@@ -56,7 +56,7 @@ function ns.OpenPartyCooldownWindow()
         W.Texture(window,W.icon,12,8,72,72)
         W.Label(window,"Puzatik Party Defensives",92,22,500,20,C.brand,true)
         W.Label(window,"v"..tostring(ns.version).." · /pcd help",92,50,400,11,C.faint)
-        language=W.Select(window,ns.L("LANGUAGE"),{{value="auto",label="Auto (game client)"},{value="enUS",label="English"},{value="ruRU",label="Русский"}},
+        language=W.Select(window,ns.L("LANGUAGE"),{{value="auto",label="Auto (game client)"},{value="enUS",label="English"},{value="ruRU",label="Русский"},{value="frFR",label="Français"},{value="deDE",label="Deutsch"}},
             PuzatikPartyDefensivesDB and PuzatikPartyDefensivesDB.lang or"auto",WIDTH-250,8,190,function(v)
             ns.SetLanguage(v);if ns.RefreshPartyCooldowns then ns.RefreshPartyCooldowns()end
             -- The header and its controls are built once: a new language builds the window again.

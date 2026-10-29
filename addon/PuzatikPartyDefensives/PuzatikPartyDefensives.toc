@@ -2,6 +2,8 @@
 ## Title: |cffb88cffPuzatik|r Party Defensives
 ## Notes: Defensive, interrupt and crowd control cooldowns of every party member, beside the party frames or in movable lists.
 ## Notes-ruRU: Защитные кд, кики и контроль каждого игрока группы у рамок группы или в перемещаемых списках.
+## Notes-frFR: Temps de recharge défensifs, interruptions et contrôles de chaque membre du groupe, à côté des cadres de groupe ou dans des listes déplaçables.
+## Notes-deDE: Defensive Abklingzeiten, Unterbrechungen und Kontrolle jedes Gruppenmitglieds, neben den Gruppenrahmen oder in verschiebbaren Listen.
 ## Author: Pztk x Glyalith
 ## IconTexture: Interface\AddOns\PuzatikPartyDefensives\Media\Icon
 ## Version: 0.10.15

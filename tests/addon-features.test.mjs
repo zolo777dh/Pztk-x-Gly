@@ -1385,6 +1385,13 @@ assert(r.L('Party cooldowns')=='Кд группы'and r.L('Discipline')=='Пос
 assert(r.Upper('Кики и контроль, ёж')=='КИКИ И КОНТРОЛЬ, ЁЖ'and r.Upper('Size')=='SIZE')
 GetLocale=nil
 assert(p.L('Party cooldowns')=='Party cooldowns','English on other clients')end
+-- French and German clients, and every Russian text has a French and a German one.
+do local r={};GetLocale=function()return'frFR'end
+${russian}
+assert(r.L('Party cooldowns')=='Temps de recharge du groupe'and r.L('Discipline Priest')=='Discipline (Prêtre)'and r.Upper('Épaisse')=='ÉPAISSE')
+GetLocale=function()return'deDE'end;assert(r.L('Party cooldowns')=='Abklingzeiten der Gruppe'and r.L('Priest')=='Priester'and r.Upper('größe')=='GRÖßE')
+local T=r.LocaleTables;for k in pairs(T.ruRU)do assert(T.frFR[k]and T.deDE[k],'French and German text for '..k)end
+GetLocale=nil end
 -- The language can be picked in the window, whatever the client.
 local function pick(key,value)p.UIControls[key]:Click();for _,r in ipairs(p.Widgets.menu.rows)do if r.shown and r.label.text==value then r:Click();return end end;error('Missing option '..value)end
 SlashCmdList.PUZATIKPARTYDEFENSIVES('');p.UIControls['pcd-view:display']:Click();pick('pcd-language','Русский')
