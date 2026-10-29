@@ -50,15 +50,39 @@ function ns.ShortName(name)
     if Ambiguate then local ok,short=pcall(Ambiguate,name,"none");if ok and type(short)=="string"then return short end end
     return(name:match("^([^%-]+)"))
 end
--- Leader or assistant of the current group, by short name.
+-- Realms as group messages name them: no spaces or hyphens.
+local function Realm(realm)
+    if type(realm)~="string"or realm==""then return nil end
+    realm=realm:gsub("[%s%-]","");return realm~=""and realm or nil
+end
+function ns.MyRealm()
+    for _,get in ipairs({GetNormalizedRealmName or false,GetRealmName or false})do
+        if get then local ok,r=pcall(get);r=ok and ns.Plain(r,"string")and Realm(r);if r then return r end end
+    end
+end
+-- "Name-Realm" for a player: the realm given, or the one in the name, or your own. Two players of
+-- the same name on different realms never share it. Short names are only for showing.
+function ns.FullName(name,realm)
+    if not(ns.Plain(name,"string")and name~="")then return nil end
+    local short,inName=name:match("^([^%-]+)%-(.+)$")
+    if short then name,realm=short,inName end
+    realm=Realm(realm)or ns.MyRealm()
+    return realm and name.."-"..realm or name
+end
+function ns.UnitFullName(unit)
+    if not UnitName then return nil end
+    local ok,name,realm=pcall(UnitName,unit);if not ok or not ns.Plain(name,"string")then return nil end
+    return ns.FullName(name,ns.Plain(realm,"string")and realm or nil)
+end
+-- Leader or assistant of the current group, by full name.
 function ns.GroupAuthority(name)
-    name=ns.ShortName(name);if not name then return false end
+    name=ns.FullName(name);if not name then return false end
     if IsInRaid and IsInRaid()and GetRaidRosterInfo then
-        for i=1,40 do local who,rank=GetRaidRosterInfo(i);if ns.ShortName(who)==name then return(tonumber(rank)or 0)>=1 end end
+        for i=1,40 do local who,rank=GetRaidRosterInfo(i);if ns.FullName(who)==name then return(tonumber(rank)or 0)>=1 end end
         return false
     end
     for _,unit in ipairs({"player","party1","party2","party3","party4"})do
-        if UnitExists and UnitExists(unit)and ns.ShortName(UnitName(unit))==name then return UnitIsGroupLeader and UnitIsGroupLeader(unit)==true end
+        if UnitExists and UnitExists(unit)and ns.UnitFullName(unit)==name then return UnitIsGroupLeader and UnitIsGroupLeader(unit)==true end
     end
     return false
 end
@@ -66,7 +90,7 @@ local events=CreateFrame("Frame")
 events:RegisterEvent("CHAT_MSG_ADDON")
 events:SetScript("OnEvent",function(_,_,prefix,text,channel,sender)
     if prefix~=PREFIX or type(text)~="string"then return end
-    local me=UnitName and UnitName("player");if ns.ShortName(sender)==me then return end
+    local full=ns.FullName(sender);if not full or full==ns.UnitFullName("player")then return end
     local kind,id,i,count,chunk=text:match("^(%w+)\t(%d+)\t(%d+)\t(%d+)\t(.*)$")
     if not kind then return end
     i,count=tonumber(i),tonumber(count);if count<1 or count>200 or i<1 or i>count then return end
@@ -86,5 +110,6 @@ events:SetScript("OnEvent",function(_,_,prefix,text,channel,sender)
     if not p[i]then p[i]=chunk;p.n=p.n+1 end
     if p.n<count then return end
     parts[key]=nil;local handler=ns.CommHandlers[kind]
-    if handler then pcall(handler,table.concat(p,"",1,count),ns.ShortName(sender),channel)end
+    -- Handlers get the short name (nicknames, notes) and the full one (who exactly sent it).
+    if handler then pcall(handler,table.concat(p,"",1,count),ns.ShortName(sender),channel,full)end
 end)

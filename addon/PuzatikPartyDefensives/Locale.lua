@@ -26,7 +26,7 @@ local ru={
     ["Auto 1 min+"]="Авто 1 мин+",["Open world"]="Открытый мир",["Solo"]="Соло",["Buff sensors"]="Датчики баффов",
     ["Unlock and preview"]="Открепить и показать",["Lock"]="Закрепить",
     ["Reset timers"]="Сброс таймеров",["Send mine now"]="Отправить свои",
-    ["All cooldowns are ready again"]="Все кд снова готовы",
+    ["Group timers were reset; yours follow the game"]="Таймеры группы сброшены; ваши берутся из игры",
     ["Turn tracking on, join a group and leave combat first"]="Сначала включите отслеживание, вступите в группу и выйдите из боя",
     ["Your cooldowns were sent to the group"]="Ваши кд отправлены группе",
     ["Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."]="Таймер идёт от каста. Скрытые игрой касты не угадываются. В начале ключа М+ и боя с боссом все кд готовы.",

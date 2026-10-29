@@ -1028,7 +1028,7 @@ assert(ns.RequestExternal()and sent[#sent]=='PXR');assert(not ns.RequestExternal
 local whispered;e.request.whisper=true;UnitGroupRolesAssigned=function(u)return u=='party1'and'HEALER'or'DAMAGER'end;SendChatMessage=function(t,_,_,to)whispered=to..':'..t end
 assert(ns.RequestExternal()and whispered=='Friend:hx');e.request.whisper=false;ns.Send=send
 ns.CommHandlers.PXR('1','Friend');local Q=ns.PartyExtraHolders.request;assert(Q:IsShown()and Q.text.text:find('needs an external'))
-Q:Hide();assert(not ns.PartyExternalWhisper('hello','Friend'));assert(ns.PartyExternalWhisper('HX','Friend-Realm')and Q:IsShown(),'the word in a whisper');assert(not ns.PartyExternalWhisper('hx','Stranger'))
+Q:Hide();assert(not ns.PartyExternalWhisper('hello','Friend'));assert(ns.PartyExternalWhisper('HX','Friend')and Q:IsShown(),'the word in a whisper');assert(not ns.PartyExternalWhisper('hx','Stranger'))
 -- Aura displays: built on the game's aura containers, which time the auras themselves.
 local groups={};local create=CreateFrame;CreateFrame=function(kind,...)local f=create(kind,...);if kind=='AuraContainer'then f.AddAuraGroup=function(_,key,filter,o)groups[#groups+1]={key=key,filter=filter,o=o}end end;return f end
 local sounds={};C_UnitAuras={AddAuraSound=function(_,info)sounds[#sounds+1]=info.unitToken..':'..info.spellID;return #sounds end,RemoveAuraSound=function()end}
@@ -1111,6 +1111,66 @@ env.advance(121);assert(not ns.PartyCooldownHiddenTrack(m.Rogue,31224)and not m.
 -- The report says where timers come from.
 m.Rogue.used[31224]=GetTime();m.Rogue.how={[31224]='cast'};local rep=table.concat(ns.PartyCooldownReport(),'\\n')
 assert(rep:find('running 0 exact 1 estimated (cast 1)',1,true)and rep:find('lengths sent',1,true),rep)
+`));
+test('party cooldowns second review: Name-Realm members, checked senders, hidden own cooldowns, newer messages over inspect, off for every extra, sync on load, no GCD learned, channel ends',()=>run(`
+local sent={};C_ChatInfo={RegisterAddonMessagePrefix=function()return 0 end,SendAddonMessage=function(_,text,channel)sent[#sent+1]=text;return 0 end}
+function GetNormalizedRealmName()return'Home'end
+local units={player={'Tester','DRUID'},party1={'Other','PRIEST','RealmB'},party2={'Other','ROGUE'}}
+function IsInGroup()return true end;function IsInRaid()return false end
+function UnitExists(u)return units[u]~=nil end
+function UnitName(u)local x=units[u or'player'];if x then return x[1],x[3]end end
+function UnitClass(u)local x=units[u or'player'];return'Class',x and x[2]end;function UnitIsUnit(a,b)return a==b end
+function GetSpellBaseCooldown(id)return 120000,0 end
+env.click('tab:partycds');env.click('pcd:enabled');local cfg=ns.PartyCooldownConfig();local m=ns.PartyCooldownMembers
+ns.PartyCooldownRoster()
+-- Same name on two realms: two members, and you stay yourself.
+assert(m['Other-RealmB']and m['Other-Home']and m['Other-RealmB']~=m['Other-Home'],'kept apart by realm')
+assert(m['Tester-Home'].me and not m['Other-Home'].me and not m['Other-RealmB'].me)
+assert(ns.FullName('Other-Realm B')=='Other-RealmB'and ns.FullName('Other')=='Other-Home')
+-- Messages are matched by Name-Realm and only on group channels.
+ns.CommHandlers.PCD('256;33206=150','Other','PARTY','Other-OutsideRealm');assert(not m['Other-RealmB'].addon,'a stranger of the same name is not a member')
+ns.CommHandlers.PCD('256;33206=150','Other','WHISPER','Other-RealmB');assert(not m['Other-RealmB'].addon,'whispers are not group data')
+ns.CommHandlers.PCD('256;33206=150','Other','PARTY','Other-RealmB');assert(m['Other-RealmB'].addon and m['Other-RealmB'].cds[33206]==150 and not m['Other-Home'].addon)
+-- A newer message of the owner wins over an old inspect that said "not taken".
+local pr=m['Other-RealmB'];pr.talented={[33206]=false}
+ns.CommHandlers.PCD('256;33206=150','Other','PARTY','Other-RealmB')
+local has=false;for _,id in ipairs(ns.PartyCooldownList(pr))do if id==33206 then has=true end end;assert(has,'learned since the inspect')
+-- Your own cooldown hidden by the game is not "ready": the game's timer object draws it.
+local me=m['Tester-Home'];me.used={}
+local secret=setmetatable({},{__index=function()error('secret')end})
+local was=ns.Plain;ns.Plain=function(v,t)if v==secret then return false end;return was(v,t)end
+C_Spell.GetSpellCooldown=function()return{startTime=secret,duration=secret,isActive=secret,isOnGCD=secret}end
+local object={};C_Spell.GetSpellCooldownDuration=function()return object end
+assert(ns.PartyCooldownOwn(22812)==nil and ns.PartyCooldownOwnHidden(me,22812)==object and ns.PartyCooldownExact(me,22812))
+C_Spell.GetSpellCooldown=function()return{startTime=secret,duration=secret,isActive=false,isOnGCD=secret}end
+assert(ns.PartyCooldownOwn(22812)==0 and ns.PartyCooldownOwnHidden(me,22812)==nil,'inactive is ready')
+-- Learning skips the global cooldown and reads again on the next update.
+C_Spell.GetSpellCooldown=function()return{startTime=env.time,duration=2,isActive=true,isOnGCD=true}end
+assert(not ns.PartyCooldownLearn(1022))
+C_Spell.GetSpellCooldown=function()return{startTime=env.time,duration=300,isActive=true,isOnGCD=false}end
+assert(ns.PartyCooldownLearn(1022));local learned=cfg.learned[ns.PartyCooldownLearnKey(me)];assert(learned[1022]==300,'the real cooldown')
+C_Spell.GetSpellCooldown=nil;C_Spell.GetSpellCooldownDuration=nil;ns.Plain=was
+-- After a load the others are asked once, and each answers.
+local asked=false;for _,t in ipairs(sent)do if t:find('^PCDQ')then asked=true end end;assert(asked,'asks after a load')
+sent={};ns.SharePartyCooldowns(true);for _,t in ipairs(sent)do assert(not t:find('^PCDQ'),'once')end
+sent={};env.advance(11);ns.CommHandlers.PCDQ('1','Other','PARTY','Other-RealmB');local answered=false;for _,t in ipairs(sent)do if t:find('^PCD\\t')then answered=true end end;assert(answered,'answers a request')
+-- A channel that just ends never moves the kick rotation.
+local moved=0;local kr=ns.KickRotationInterrupt;ns.KickRotationInterrupt=function()moved=moved+1 end
+function UnitCanAttack()return true end
+local fire=function(ev,...)for _,f in ipairs(env.frames)do if f.events[ev]and f.scripts.OnEvent then f.scripts.OnEvent(f,ev,...)end end end
+fire('UNIT_SPELLCAST_CHANNEL_STOP','boss1',nil,nil,'');fire('UNIT_SPELLCAST_CHANNEL_STOP','boss1',nil,nil,nil);assert(moved==0,'an ordinary end')
+fire('UNIT_SPELLCAST_CHANNEL_STOP','boss1',nil,nil,'Player-1-ABC');assert(moved==1,'a named interrupter')
+ns.KickRotationInterrupt=kr
+-- /pcd off stops every extra: requests, rotation, the boxes.
+local e=ns.PartyExtrasConfig();e.request.on=true;e.rotation.on=true;e.rotation.names='Tester';ns.KickRotationStart(true)
+cfg.enabled=false;ns.RefreshPartyCooldowns()
+assert(not ns.ShowExternalRequest('Other-RealmB'),'no request shown');assert(not ns.RequestExternal(),'no request sent')
+assert(not ns.KickRotationInterrupt('boss1')and not ns.DrawKickRotation(),'no rotation')
+cfg.enabled=true;ns.RefreshPartyCooldowns();ns.KickRotationStart(false)
+-- The external hint lists only defensive externals, never Blessing of Freedom.
+assert(ns.PartyCooldownKind(1044)=='move');for _,id in ipairs(ns.PartyReadyExternals())do assert(id~=1044)end
+for _,id in ipairs(ns.PartyExtrasAuraIDs(2,true))do assert(id~=1044)end
+units.party1=nil;units.party2=nil;GetNormalizedRealmName=nil
 `));
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
