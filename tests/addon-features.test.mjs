@@ -1301,7 +1301,7 @@ local function track()return{cd=120,window=240,unit=1,slot={{epoch=0,wepoch=0,co
 local lock=InCombatLockdown
 ns.PartyCooldownShowHidden(ic,track());assert(grey==nil,'out of combat a hidden timer keeps the colour')
 InCombatLockdown=function()return true end
-ns.PartyCooldownShowHidden(ic,track());assert(grey==true,'in combat a hidden timer greys the icon')
+ns.PartyCooldownShowHidden(ic,track());assert(grey==nil,'in combat only the grey cover shows a running timer')
 local hm={hiddenCd={[2094]=track()}};assert(ns.PartyCooldownHiddenTrack(hm,2094),'in combat the track stays')
 InCombatLockdown=lock
 assert(ns.PartyCooldownHiddenTrack(hm,2094)==nil and hm.hiddenCd[2094]==nil,'out of combat an empty track is dropped')

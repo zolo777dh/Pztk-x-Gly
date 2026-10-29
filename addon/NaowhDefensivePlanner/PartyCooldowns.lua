@@ -1557,9 +1557,6 @@ function ShowHidden(icon,t)
         shownHidden[icon]=nil;return
     end
     parts=DressHidden(icon,t)
-    -- In combat a hidden timer may run: the icon is grey, never lit as if ready. Out of combat
-    -- the grey cover alone shows it, and ready icons keep their colour.
-    if icon.tex and InCombatLockdown and InCombatLockdown()then icon.tex:SetDesaturated(true)end
     local tex=icon.spellID and W.SpellTexture(icon.spellID)
     parts.win:Show();for k=1,2 do parts[k].grey:SetTexture(tex);parts[k].fill:Show();parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
     shownHidden[icon]=t
@@ -1937,8 +1934,6 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
     elseif event=="DAMAGE_METER_COMBAT_SESSION_UPDATED"then
         if ns.Plain(a,"number")and Enum and Enum.DamageMeterType and a==Enum.DamageMeterType.Interrupts then ns.PartyCooldownMeter()end
     elseif event=="DAMAGE_METER_CURRENT_SESSION_UPDATED"or event=="DAMAGE_METER_RESET"or event=="PLAYER_REGEN_DISABLED"then ns.PartyCooldownMeter(true)
-        -- Lockdown starts just after this event: grey the hidden timers a moment later.
-        if event=="PLAYER_REGEN_DISABLED"and next(shownHidden)and C_Timer and C_Timer.NewTimer then C_Timer.NewTimer(0.1,function()ns.DrawPartyCooldowns()end)end
     elseif event=="NAME_PLATE_UNIT_ADDED"or event=="NAME_PLATE_UNIT_REMOVED"then ns.PartyCooldownPlate(a)
     elseif event=="UNIT_AURA"then ns.PartyCooldownAura(a)
     elseif event=="UNIT_POWER_UPDATE"then
