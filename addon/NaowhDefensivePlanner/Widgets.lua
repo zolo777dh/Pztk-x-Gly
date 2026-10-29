@@ -42,7 +42,8 @@ function W.SetFont(choice)
     elseif W.fontChoice=="naowh"then fontBook,fontDemi=W.fonts.naowh,W.fonts.naowh
     else fontBook,fontDemi=W.fonts.book,W.fonts.demi end
 end
-function W.Font(bold)return bold and fontDemi or fontBook end
+-- A font picked for the whole addon (W.customFont) wins over the choice above.
+function W.Font(bold)return W.customFont or(bold and fontDemi or fontBook)end
 ---------------------------------------------------------------------------
 -- WoW frames cannot be destroyed. Reuse dynamic controls across redraws.
 local framePools,fontPool,texturePool,iconPool={},{},{},{}

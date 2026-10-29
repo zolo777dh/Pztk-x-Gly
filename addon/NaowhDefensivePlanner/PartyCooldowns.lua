@@ -962,7 +962,13 @@ function Style.Font()
         if ok and type(file)=="string"then return file end
     end
     for _,f in ipairs(Style.fonts)do if f.value==v and f.file then local file=type(f.file)=="function"and f.file()or f.file;if file then return file end end end
-    return(W.Font and W.Font(true))or"Fonts\\FRIZQT__.TTF"
+    return(W.fonts and W.fonts.demi)or"Fonts\\FRIZQT__.TTF"
+end
+-- In the addon of its own the picked font is the font of everything, its window too.
+function ns.ApplyPartyFont()
+    if not ns.OpenPartyCooldownWindow then return end
+    local v=ns.PartyCooldownConfig().font
+    W.customFont=type(v)=="string"and v~=""and Style.Font()or nil
 end
 ns.PartyStyleFont=Style.Font
 Style.keys={"main","kick","stun","cc","move","potion"}
@@ -2195,6 +2201,7 @@ local function Listen(on)
 end
 function ns.RefreshPartyCooldowns()
     ns.PartyCooldownListDirty()
+    ns.ApplyPartyFont()
     local cfg=ns.PartyCooldownConfig();LoadCustom();Listen(cfg.enabled==true)
     -- Your own record first, then your talents into it.
     if cfg.enabled then ns.PartyCooldownRoster();ReadOwnTalents();QueueInspect();ns.SharePartyCooldowns()end
