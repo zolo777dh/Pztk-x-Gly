@@ -1284,8 +1284,9 @@ local function DrawAnchor(g,entries,a,unlocked)
             end
         end
     end
-    -- A last row shorter than the others sits in the middle, like the game's cooldown manager.
-    local short=n>perRow and n%perRow or 0
+    -- Crowd control: a last row shorter than the others sits in the middle, like the game's
+    -- cooldown manager.
+    local short=g.key=="cc"and n>perRow and n%perRow or 0
     if short>0 then
         local shift=(perRow-short)*(width+gap)/2;local row=math.floor((n-1)/perRow)
         for i=n-short+1,n do local cell=f.icons[i];local col=(i-1)%perRow
@@ -1352,11 +1353,8 @@ DrawNow=function()
             local per,s=Grid(Visible(m,ids,cfg),size,cfg)
             local n=FillIcons(holder,m,ids,s,cfg);local lines=math.max(1,math.ceil(n/per))
             holder:ClearAllPoints();holder:SetPoint(side[1],frame,side[2],side[3],side[4]);holder:SetSize(math.max(1,math.min(n,per)*(s+2)),lines*(s+2)-2)
-            local short=n>per and n%per or 0
             for i=1,n do local icon=holder.icons[i];icon:ClearAllPoints();local col,line=(i-1)%per,math.floor((i-1)/per)
-                -- A short last row is centred.
-                local x=col*(s+2)+((short>0 and i>n-short)and(per-short)*(s+2)/2 or 0)
-                if side[5]>0 then icon:SetPoint("TOPLEFT",holder,"TOPLEFT",x,-line*(s+2))else icon:SetPoint("TOPRIGHT",holder,"TOPRIGHT",-x,-line*(s+2))end
+                if side[5]>0 then icon:SetPoint("TOPLEFT",holder,"TOPLEFT",col*(s+2),-line*(s+2))else icon:SetPoint("TOPRIGHT",holder,"TOPRIGHT",-col*(s+2),-line*(s+2))end
             end
             holder:Show()
         else main[#main+1]={m,ids}end
