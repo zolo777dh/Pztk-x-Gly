@@ -1619,7 +1619,9 @@ local function HiddenParts(icon)
         pcall(p.grey.SetDesaturated,p.grey,true);p.grey:SetVertexColor(0.55,0.55,0.55)
         -- Seconds column, pushed up through the window.
         p.pos=Bar(hiddenLayer,0,0,0,0)
-        p.text=CreateFrame("Frame",nil,parts.win);p.text:SetAllPoints(parts.win)
+        -- The numbers live inside the grey cover: a slot with no running timer has no cover over
+        -- the icon, so its numbers are never seen behind the running one.
+        p.text=CreateFrame("Frame",nil,p.veil);pcall(p.text.SetClipsChildren,p.text,true)
         p.column=p.text:CreateFontString(nil,"OVERLAY");p.column:SetJustifyH("CENTER")
         parts[k]=p
     end
@@ -1645,6 +1647,7 @@ local function DressHidden(icon,t)
         local top=p.pos.GetStatusBarTexture and p.pos:GetStatusBarTexture()or p.pos
         pcall(p.column.SetFont,p.column,font,ts,"OUTLINE");pcall(p.column.SetSpacing,p.column,0);p.column:SetTextColor(1,1,1)
         p.column:SetText(Column(t.cd));p.column:ClearAllPoints();p.column:SetPoint("TOP",top,"TOP",0,0)
+        p.text:ClearAllPoints();p.text:SetAllPoints(parts.win);pcall(p.text.SetFrameLevel,p.text,(icon:GetFrameLevel()or 0)+6)
         p.second=nil
     end
     return parts
@@ -1681,9 +1684,8 @@ function ShowHidden(icon,t)
         shownHidden[icon]=nil;return
     end
     parts=DressHidden(icon,t)
-    -- No seconds column: its numbers ran behind the icon. The grey cover and the dark fill show the time.
     local tex=icon.spellID and W.SpellTexture(icon.spellID)
-    parts.win:Hide();for k=1,2 do parts[k].grey:SetTexture(tex);parts[k].fill:Show();parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
+    parts.win:Show();for k=1,2 do parts[k].grey:SetTexture(tex);parts[k].fill:Show();parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
     shownHidden[icon]=t
 end
 ns.PartyCooldownShowHidden=ShowHidden
