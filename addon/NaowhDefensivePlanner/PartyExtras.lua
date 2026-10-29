@@ -220,7 +220,7 @@ function ns.DrawKickRotation()
     if type(font)=="string"then pcall(h.num.SetFont,h.num,font,math.floor(size*0.6),"OUTLINE");pcall(h.name.SetFont,h.name,font,14,"OUTLINE")end
     h.num:SetText(tostring(pos));h.num:SetTextColor(mine and 0.1 or 1,mine and 0.1 or 0.2,mine and 0.1 or 0.2)
     local r,g,b=ClassColor(name)
-    h.name:SetText(mine and L("You kick next")or((ns.DisplayName and ns.DisplayName(name)or name).." · "..pos.."/"..total));h.name:SetTextColor(r,g,b)
+    h.name:SetText(mine and L("You kick next")or(ns.PartyName(name).." · "..pos.."/"..total));h.name:SetTextColor(r,g,b)
     h:Show();return true
 end
 -- An interrupt landed on a boss: the turn passes on (once per interrupt, whatever unit shows it).
@@ -276,7 +276,7 @@ function ns.ShowExternalRequest(name)
         h.text=h:CreateFontString(nil,"OVERLAY","GameFontHighlightLarge");h.text:SetPoint("TOP",h,"TOP",0,0);h.icons={}
     end
     local font=W.Font and W.Font(true);if type(font)=="string"then pcall(h.text.SetFont,h.text,font,16,"OUTLINE")end
-    h.text:SetText((ns.DisplayName and ns.DisplayName(name)or name).." "..L("needs an external"));h.text:SetTextColor(ClassColor(name))
+    h.text:SetText(ns.PartyName(name).." "..L("needs an external"));h.text:SetTextColor(ClassColor(name))
     local ids=ReadyExternals()
     for i,id in ipairs(ids)do local t=h.icons[i]or h:CreateTexture(nil,"ARTWORK");h.icons[i]=t
         t:SetSize(size,size);t:ClearAllPoints();t:SetPoint("TOP",h,"TOP",(i-(#ids+1)/2)*(size+4),-24);t:SetTexture(W.SpellTexture(id));t:SetTexCoord(0.07,0.93,0.07,0.93);t:Show()

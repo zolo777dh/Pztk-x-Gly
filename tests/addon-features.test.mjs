@@ -822,7 +822,7 @@ UnitGroupRolesAssigned=roleOf
 -- Any unit frame addon: a shown frame showing exactly that unit.
 local custom=CreateFrame('Button');custom.unit='party3';custom.h=40
 local all={custom};function EnumerateFrames(f)if not f then return all[1]end;for i,x in ipairs(all)do if x==f then return all[i+1]end end end
-ns.PartyCooldownForgetFrames();assert(ns.PartyCooldownFrame('party3')==custom)
+ns.PartyCooldownForgetFrames();assert(ns.PartyCooldownFrame('party3')==nil,'looked up a bit at a time');ns.PartyCooldownFinishWalk();assert(ns.PartyCooldownFrame('party3')==custom)
 cfg.mode='list';cfg.names=true;assert(ns.DrawPartyCooldowns());cfg.names=false;assert(ns.DrawPartyCooldowns())
 -- Buff sensors: a member's own defensive buff and an external on anyone start the caster's timer.
 cfg.mode='frames';for _,x in pairs(m)do x.used={}end
@@ -1293,6 +1293,9 @@ env.advance(11);ns.SharePartyCooldowns();env.advance(11);ns.SharePartyCooldowns(
 local perf=ns.PartyCooldownPerf();assert(perf.draw and perf.draw.n>0 and perf['sensor rebuild'])
 units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
 ns.PartyCooldownRoster();assert(ns.RebuildPartyCooldownSensors()==0,'no sensors alone')
+assert(ns.PartyName('Other-RealmB')=='Other','names without the realm')
+local ic=CreateFrame('Frame');ic.tex=ic:CreateTexture();ic.spellID=2094;ic:SetSize(26,26);local grey;ic.tex.SetDesaturated=function(_,v)grey=v end
+ns.PartyCooldownShowHidden(ic,{cd=120,window=240,unit=1,slot={{epoch=0,wepoch=0,code=0,whole=0},{epoch=0,wepoch=0,code=0,whole=0}},cur=1});assert(grey==true,'a hidden timer greys the icon')
 `));
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());

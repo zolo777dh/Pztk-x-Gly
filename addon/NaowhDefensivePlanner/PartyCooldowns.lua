@@ -192,6 +192,11 @@ function ns.PartyCooldownConfig()
     end
     return c
 end
+-- A player's name as shown: the nickname or the name, never the realm.
+function ns.PartyName(name)
+    local shown=ns.DisplayName and ns.DisplayName(name)or name
+    return type(shown)=="string"and(shown:match("^([^%-]+)")or shown)or tostring(name)
+end
 local members={}
 ns.PartyCooldownMembers=members
 -- Time spent per part (/pcd perf): milliseconds and calls since the last reset.
@@ -928,7 +933,7 @@ function ns.PartyCooldownTooltip(icon)
         -- A hidden cooldown of yours: the game draws its time on the icon; "ready" only when sure.
         local state=left>0 and not own and((ns.PartyCooldownExact(m,icon.spellID)and""or"~")..math.ceil(left).." s")
             or(own and ObjectZero(own)~=true and"?")or L("ready")
-        GameTooltip:AddLine((ns.DisplayName and ns.DisplayName(m.name)or m.name)..": "..state,1,1,1)
+        GameTooltip:AddLine(ns.PartyName(m.name)..": "..state,1,1,1)
     end
     GameTooltip:Show()
 end
@@ -949,6 +954,7 @@ end
 ns.PartyCooldownDress=Dress
 -- Blizzard compact party/raid frames and ElvUI party/raid frames, by the unit they show.
 local frameCache,lastScan={},nil -- frames found, and the group they were looked up for
+local StartWalk -- the walk over every frame, a few hundred at a time
 function ns.PartyCooldownForgetFrames()frameCache={};lastScan=nil end
 local FRAME_NAMES={"CompactPartyFrameMember%d","CompactRaidFrame%d","ElvUF_PartyGroup1UnitButton%d"}
 local function UnitFrame(unit)
@@ -974,28 +980,45 @@ local function UnitFrame(unit)
     local cached=frameCache[unit]
     if type(cached)=="table"and match(cached)then return cached end
     -- Walking every frame of the interface is costly: one walk finds the frames of all units,
-    -- once for each make-up of the group and never in combat.
+    -- once for each make-up of the group, never in combat, and a few hundred frames per screen
+    -- frame, so it never stalls the game. The icons follow when it is done.
     local group=table.concat(order,",")
     if InCombatLockdown and InCombatLockdown()or not EnumerateFrames or lastScan==group then return nil end
-    lastScan=group
+    lastScan=group;StartWalk()
+    return nil
+end
+local walker,walk=nil,nil
+local function Look(f)
+    if f.IsForbidden and f:IsForbidden()or not f:IsVisible()then return nil end
+    local u=rawget(f,"unit")or(f.GetAttribute and f:GetAttribute("unit"))
+    return ns.Plain(u,"string")and(f:GetHeight()or 0)>=16 and u or nil
+end
+local function Step()
+    if InCombatLockdown and InCombatLockdown()then return end -- goes on after combat
     Timed("frame scan",function()
-        local found={}
-        local f=EnumerateFrames()
-        while f do
-            local ok,u=pcall(function()
-                if f.IsForbidden and f:IsForbidden()or not f:IsVisible()then return nil end
-                local u=rawget(f,"unit")or(f.GetAttribute and f:GetAttribute("unit"))
-                return ns.Plain(u,"string")and(f:GetHeight()or 0)>=16 and u or nil
-            end)
+        local f=walk.at
+        for _=1,250 do
+            if not f then break end
+            local ok,u=pcall(Look,f)
             if ok and u and f~=TargetFrame and f~=FocusFrame then
                 -- Party frames before the player frame for yourself.
-                local best=found[u];if not best or(best==PlayerFrame and f~=PlayerFrame)then found[u]=f end
+                local best=walk.found[u];if not best or(best==PlayerFrame and f~=PlayerFrame)then walk.found[u]=f end
             end
             f=EnumerateFrames(f)
         end
-        for u,fr in pairs(found)do frameCache[u]=fr end
+        walk.at=f
     end)
-    local hit=frameCache[unit];return type(hit)=="table"and hit or nil
+    if walk.at then return end
+    for u,fr in pairs(walk.found)do frameCache[u]=fr end
+    walk=nil;walker:SetScript("OnUpdate",nil);ns.DrawPartyCooldowns()
+end
+-- Runs a started walk to its end at once (tests, the report).
+function ns.PartyCooldownFinishWalk()while walk and not(InCombatLockdown and InCombatLockdown())do Step()end end
+StartWalk=function()
+    if walk then return end
+    walker=walker or CreateFrame("Frame")
+    walk={at=EnumerateFrames(),found={}}
+    walker:SetScript("OnUpdate",Step)
 end
 ns.PartyCooldownFrame=UnitFrame
 local ShowHidden -- hidden timers on icons, defined with the buff sensors
@@ -1059,7 +1082,7 @@ local function DrawRows(g,entries,opts,unlocked)
         local start=opts.names and 94 or 6
         if not row.bar then row.bar=row:CreateTexture(nil,"ARTWORK")end
         row.bar:SetColorTexture(c and c.r or 1,c and c.g or 1,c and c.b or 1,1);row.bar:ClearAllPoints();row.bar:SetPoint("LEFT",row,"LEFT",0,0);row.bar:SetSize(3,size)
-        if opts.names then row.name:SetText(ns.DisplayName and ns.DisplayName(m.name)or m.name);row.name:Show();row.bar:Hide()else row.name:SetText("");row.name:Hide();row.bar:Show()end
+        if opts.names then row.name:SetText(ns.PartyName(m.name));row.name:Show();row.bar:Hide()else row.name:SetText("");row.name:Hide();row.bar:Show()end
         row.name:ClearAllPoints();row.name:SetPoint("LEFT",row,"LEFT",0,0);row.name:SetWidth(90)
         local per,s=Grid(Visible(m,ids,opts),size,opts)
         local n=FillIcons(row,m,ids,s,opts);local lines=math.max(1,math.ceil(n/per))
@@ -1161,7 +1184,7 @@ local function DrawAnchor(g,entries,a,unlocked)
                 local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
                 local r,gr,b=c and c.r or 0.6,c and c.g or 0.36,c and c.b or 1
                 local bar,label=cell.bar,cell.label
-                local name=ns.DisplayName and ns.DisplayName(m.name)or m.name
+                local name=ns.PartyName(m.name)
                 if bars then
                     bar:ClearAllPoints();bar:SetSize(width-size-gap,size)
                     if left then bar:SetPoint("RIGHT",cell,"LEFT",-gap,0)else bar:SetPoint("LEFT",cell,"RIGHT",gap,0)end
@@ -1526,6 +1549,8 @@ function ShowHidden(icon,t)
         shownHidden[icon]=nil;return
     end
     parts=DressHidden(icon,t)
+    -- A hidden timer may run: the icon is grey, never lit as if ready.
+    if icon.tex then icon.tex:SetDesaturated(true)end
     local tex=icon.spellID and W.SpellTexture(icon.spellID)
     parts.win:Show();for k=1,2 do parts[k].grey:SetTexture(tex);parts[k].fill:Show();parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
     shownHidden[icon]=t
@@ -2083,7 +2108,7 @@ local function DrawPage(parent)
     if #names==0 then W.Label(c2,cfg.enabled and L("Nobody to track yet. Join a party.")or L("Turn tracking on to see your group here."),12,y,580,12,C.muted)end
     for i,name in ipairs(names)do if i<=10 then
         local m=members[name];local row=W.Panel(c2,12,y,586,40,C.raised,C.clear,6)
-        W.Dot(row,8,15,kit.classColor(m.class));W.Label(row,ns.DisplayName and ns.DisplayName(name)or name,22,6,170,12,kit.classColor(m.class)):SetWordWrap(false)
+        W.Dot(row,8,15,kit.classColor(m.class));W.Label(row,ns.PartyName(name),22,6,170,12,kit.classColor(m.class)):SetWordWrap(false)
         local source=m.me and L("You")or m.addon and L("Sent by their addon")or m.talented and L("Talents from inspect")or L("Base cooldowns from the game")
         W.Label(row,(m.spec and ns.Catalog.specs[m.spec]and L(ns.Catalog.specs[m.spec])or L("Specialization unknown")).." · "..source,22,22,170,10,C.muted):SetWordWrap(false)
         if m.seen or m.hidden or m.sensed then
