@@ -945,6 +945,7 @@ local function Icon(row,i,size)
     if not icon then
         icon=CreateFrame("Frame",nil,row);icon.tex=icon:CreateTexture(nil,"ARTWORK");icon.tex:SetAllPoints();icon.tex:SetTexCoord(0.07,0.93,0.07,0.93)
         icon.cd=CreateFrame("Cooldown",nil,icon,"CooldownFrameTemplate");icon.cd:SetAllPoints();row.icons[i]=icon
+        pcall(icon.cd.SetDrawEdge,icon.cd,false);pcall(icon.cd.SetDrawBling,icon.cd,false)
         icon.approx=icon.cd:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");icon.approx:SetPoint("TOPRIGHT",icon,"TOPRIGHT",-1,-1);icon.approx:SetText("~");icon.approx:Hide()
         -- A gold edge behind the icon marks a timer that just started.
         icon.hl=icon:CreateTexture(nil,"BACKGROUND");icon.hl:SetPoint("TOPLEFT",icon,"TOPLEFT",-2,2);icon.hl:SetPoint("BOTTOMRIGHT",icon,"BOTTOMRIGHT",2,-2)
@@ -1119,7 +1120,10 @@ local function FillIcons(row,m,ids,size,cfg)
             else icon.cd:Clear();icon.tex:SetDesaturated(false)end
             if(left>0 or hidden)and not ns.PartyCooldownExact(m,id)then icon.approx:Show()else icon.approx:Hide()end
             Dress(icon,m,id,left,false)
-            icon:Show();ShowHidden(icon,hidden)
+            -- A timer with its own numbers (yours, or a seen start) never also shows the hidden one:
+            -- its moving bar and column would run across those numbers.
+            local plain=(own and own~=true)or(left>0 and start)
+            icon:Show();ShowHidden(icon,not plain and hidden or nil)
         end
     end
     for i=n+1,#row.icons do row.icons[i]:Hide();ShowHidden(row.icons[i],nil)end
@@ -1243,7 +1247,8 @@ local function DrawAnchor(g,entries,a,unlocked)
                 -- A timer the game draws from its own object keeps its numbers on the icon.
                 if cell.cd.SetHideCountdownNumbers then cell.cd:SetHideCountdownNumbers(bars and not object)end
                 Dress(cell,m,id,remain,a.mark)
-                cell:Show();ShowHidden(cell,hidden)
+                local plain=object or(remain>0 and start)
+                cell:Show();ShowHidden(cell,not plain and hidden or nil)
                 local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
                 local r,gr,b=c and c.r or 0.6,c and c.g or 0.36,c and c.b or 1
                 local bar,label=cell.bar,cell.label
@@ -1565,7 +1570,7 @@ local function DressHidden(icon,t)
     if parts.sig==sig then return parts end
     local step=LineStep(font,ts);local jump=size+4
     parts.step,parts.jump,parts.sig=step,jump,sig
-    parts.win:ClearAllPoints();parts.win:SetPoint("CENTER",icon,"CENTER",0,0);parts.win:SetSize(size+6,step)
+    parts.win:ClearAllPoints();parts.win:SetPoint("CENTER",icon,"CENTER",0,0);parts.win:SetSize(size+6,math.min(step,ts+1))
     pcall(parts.win.SetFrameLevel,parts.win,(icon:GetFrameLevel()or 0)+6)
     for k=1,2 do local p=parts[k]
         p.fill:SetFrameLevel((icon:GetFrameLevel()or 0)+3);p.veil:SetFrameLevel((icon:GetFrameLevel()or 0)+2)
