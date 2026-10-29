@@ -744,7 +744,8 @@ local function DrawSettings(parent)
     local window_=W.Card(parent,0,top+280,cw,232,L("Window"))
     W.Select(window_,L("Theme"),{{value="mockup",label=L("Like the mockup")},{value="logo",label=L("Logo blue")}},prefs.theme or"mockup",12,34,cw-24,function(v)prefs.theme=v;ApplyPrefs();Refresh()end,"ui:theme")
     W.Select(window_,L("Font"),{{value="urw",label="URW Gothic"},{value="naowh",label=L("Naowh.ttf (your own file)")},{value="game",label=L("Game font")}},prefs.font or"urw",12,86,cw-24,function(v)prefs.font=v;ApplyPrefs();Refresh()end,"ui:font")
-    W.Label(window_,L("Naowh.ttf is not shipped: put your own copy in Media/Fonts and restart the game."),12,142,cw-24,11,C.muted)
+    W.Label(window_,L("Naowh.ttf is not shipped: put your own copy in Media/Fonts and restart the game."),12,140,cw-24,11,C.muted)
+    W.Select(window_,L("LANGUAGE"),{{value="auto",label=L("Auto (game client)")},{value="enUS",label="English"},{value="ruRU",label="Русский"}},NaowhDefensivePlannerDB and NaowhDefensivePlannerDB.lang or"auto",12,172,cw-24,function(v)ns.SetLanguage(v);if ns.RefreshPartyCooldowns then ns.RefreshPartyCooldowns()end;Refresh()end,"ui:language")
     -- Phrases the built-in cues speak; blank keeps the default.
     local phrases=W.Card(parent,col*2,top+280,cw-8,184,L("Voice phrases"))
     local phrases_=s.voicePhrases or{}

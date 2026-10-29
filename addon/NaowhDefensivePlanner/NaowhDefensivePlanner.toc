@@ -43,4 +43,5 @@ RaidTools.lua
 QoL.lua
 Combat.lua
 PartyCooldowns.lua
+PartySlash.lua
 Main.lua
