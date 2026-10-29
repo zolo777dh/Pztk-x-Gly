@@ -64,7 +64,7 @@ function ns.StartBreak(minutes,remote)
     return true
 end
 function ns.BreakRemaining()return breakEnds and math.max(0,breakEnds-GetTime())or nil end
-ns.CommHandlers.BREAK=function(minutes,sender)if ns.GroupAuthority(sender)then ns.StartBreak(minutes,true)end end
+ns.CommHandlers.BREAK=function(minutes,sender,_,full)if ns.GroupAuthority(full or sender)then ns.StartBreak(minutes,true)end end
 ---------------------------------------------------------------------------
 -- Invites.
 local function keywords()

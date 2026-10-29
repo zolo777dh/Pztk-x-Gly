@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','BossCalls','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','PartyCooldowns','PartySlash','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','PartyCooldowns','PartyExtras','PartySlash','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 // A recorded Heroic pull of the first raid boss, for the Timeline tests.
 const pulled=`ns.Store().timelines={['retail:3379:15']={events={{8,1260837},{18,1257717},{25,1276710},{37,1313393},{41,1260837},{44,1276710},{50,1257717},{60,1268562}},length=480,kill=true}};if ns.RefreshWorkspace then ns.RefreshWorkspace()end`;
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.RealDisplay=ns.Display;ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
@@ -764,7 +764,7 @@ assert(m.Friend.hidden==1 and m.Rogue.seen==2)
 ns.CommHandlers.PCD('256;33206=150;62618=180;10060=120;1234567=90','Friend')
 assert(m.Friend.spec==256 and m.Friend.addon and m.Friend.cds[33206]==150 and m.Friend.known[1234567])
 ns.CommHandlers.PCD('256;33206=150','Stranger');assert(not m.Stranger,'only group members are listened to')
-local list=ns.PartyCooldownList(m.Friend);assert(#list==4 and list[1]==10060 and list[4]==1234567,#list)
+local list=ns.PartyCooldownList(m.Friend);assert(#list==5 and list[1]==10060 and list[4]==1234567 and list[5]==ns.PartyCooldownPotion,#list)
 assert(ns.PartyCooldownCast('party1',33206));assert(math.abs(ns.PartyCooldownLeft(m.Friend,33206)-150)<0.01)
 env.advance(151);assert(ns.PartyCooldownLeft(m.Friend,33206)==0)
 -- Own cooldown learned from the cast and sent out of combat.
@@ -836,7 +836,7 @@ light(33206,'party3');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(
 cfg.sensors=false;assert(ns.RebuildPartyCooldownSensors()==0);cfg.sensors=true
 -- Strictly by spec: your own list is what your spellbook knows; one Bloodlust or Heroism by faction.
 local book=C_SpellBook.IsSpellKnown;C_SpellBook.IsSpellKnown=function(id)return id==22812 or id==61336 end
-m.Tester.used={};local own=ns.PartyCooldownList(m.Tester);assert(#own==2,#own);C_SpellBook.IsSpellKnown=book
+m.Tester.used={};local own=ns.PartyCooldownList(m.Tester);assert(#own==3 and own[3]==ns.PartyCooldownPotion,#own);C_SpellBook.IsSpellKnown=book
 UnitFactionGroup=function()return'Alliance'end;ns.PartyCooldownRoster()
 local lust,hero=false,false;for _,id in ipairs(ns.PartyCooldownList(m.Follower))do if id==2825 then lust=true elseif id==32182 then hero=true end end;assert(not hero and not lust,'Bloodlust and Heroism are not tracked')
 -- Talents seen in any tree are not shown for a member whose talents are not read yet.
@@ -969,15 +969,80 @@ assert(shows(G.kick,1766)and shows(G.cc,2094),'others stay');env.click('pcd-kick
 local hide={};local function spy(g,id)local cd=cell(g,id).cd;cd.SetHideCountdownNumbers=function(_,v)hide[id]=v end end
 spy(G.kick,1766);spy(G.cc,2094);assert(ns.DrawPartyCooldowns());assert(hide[1766]==true and hide[2094]==false,'one countdown per kick bar')
 -- Load switches: off in the open world or solo, the lists hide and tracking goes on.
-local inside,instance=false,IsInInstance;IsInInstance=function()return inside end
-assert(cfg.loadWorld==true and cfg.loadSolo==true and ns.UIControls['pcd:loadWorld']==nil)
-env.click('pcd-view:display');assert(ns.UIControls['pcd:loadWorld']and ns.UIControls['pcd:loadSolo'])
-env.click('pcd:loadWorld');assert(cfg.loadWorld==false and not ns.PartyCooldownsLoaded()and not ns.DrawPartyCooldowns()and not G.kick.frame:IsShown(),'hidden in the open world')
+local inside,kind,instance=false,nil,IsInInstance;IsInInstance=function()return inside,kind end
+assert(cfg.loadWhere=='all'and cfg.loadSolo==true and ns.UIControls['pcd:loadWhere']==nil)
+env.click('pcd-view:display');assert(ns.UIControls['pcd:loadWhere']and ns.UIControls['pcd:loadSolo'])
+env.select('pcd:loadWhere','Instances');assert(cfg.loadWhere=='instances'and not ns.PartyCooldownsLoaded()and not ns.DrawPartyCooldowns()and not G.kick.frame:IsShown(),'hidden in the open world')
 cfg.unlocked=true;assert(ns.DrawPartyCooldowns()and G.kick.frame:IsShown(),'unlocked still previews');cfg.unlocked=false
-inside=true;assert(ns.PartyCooldownsLoaded()and ns.DrawPartyCooldowns()and G.kick.frame:IsShown(),'shown in an instance')
+inside,kind=true,'raid';assert(ns.PartyCooldownsLoaded()and ns.DrawPartyCooldowns()and G.kick.frame:IsShown(),'shown in an instance')
+env.select('pcd:loadWhere','Dungeons');assert(cfg.loadWhere=='dungeons'and not ns.PartyCooldownsLoaded(),'a raid is not a dungeon');kind='party';assert(ns.PartyCooldownsLoaded(),'shown in a dungeon')
 env.click('pcd:loadSolo');assert(cfg.loadSolo==false and ns.PartyCooldownsLoaded(),'in a group');local group=IsInGroup;IsInGroup=function()return false end
 assert(not ns.PartyCooldownsLoaded()and not ns.DrawPartyCooldowns(),'hidden solo')
-IsInGroup=group;env.click('pcd:loadWorld');env.click('pcd:loadSolo');IsInInstance=instance;assert(cfg.loadWorld and cfg.loadSolo and ns.DrawPartyCooldowns());env.click('pcd-view:anchors')
+IsInGroup=group;env.select('pcd:loadWhere','Everywhere');env.click('pcd:loadSolo');IsInInstance=instance;assert(cfg.loadWhere=='all'and cfg.loadSolo and ns.DrawPartyCooldowns());env.click('pcd-view:anchors')
+-- 0.11.0. Stuns, other crowd control, movement and potions each have a list of their own.
+assert(ns.PartyCooldownKind(853)=='stun'and ns.PartyCooldownKind(2094)=='cc'and ns.PartyCooldownKind(1044)=='move'and ns.PartyCooldownKind(ns.PartyCooldownPotion)=='potion')
+local P=ns.PartyCooldownPotion;assert(only(m.Rogue,'potion',P)and not only(m.Rogue,'defensive',P),'every member has the shared potion cooldown')
+assert(ns.PartyCooldownCast(m.Rogue.unit,1236994)and ns.PartyCooldownLeft(m.Rogue,P)>290,'any combat potion starts the shared 5 minute timer')
+assert(ns.DrawPartyCooldowns()and shows(G.potion,P)and cell(G.potion,P).bar:IsShown(),'potions show as bars')
+assert(not shows(G.main,1044)and ns.PartyCooldownBuffs[P][1]==1,'movement off the main list; potions sensed by their buff')
+env.click('pcd-pair:2');assert(ns.UIControls['pcd-stun:size']and ns.UIControls['pcd-move:size']and not ns.UIControls['pcd-kick:size'])
+env.click('pcd-pair:3');assert(ns.UIControls['pcd-potion:size']and ns.UIControls['pcd:perRow']and ns.UIControls['pcd:tooltip'])
+env.click('pcd:potions');assert(cfg.potions==false and not G.potion.frame:IsShown());env.click('pcd:potions');env.click('pcd-pair:1')
+-- Lists can hide in raids.
+env.click('pcd-kick:hideInRaid');assert(cfg.anchors.kick.hideInRaid);local raid=IsInRaid;IsInRaid=function()return true end
+ns.DrawPartyCooldowns();assert(not G.kick.frame:IsShown(),'hidden in a raid');IsInRaid=raid;ns.DrawPartyCooldowns();assert(G.kick.frame:IsShown());env.click('pcd-kick:hideInRaid')
+-- The raid roster has nobody else here, so the party members came back new.
+m.Friend.spec=258;m.Rogue.spec=261;m.Friend.ranks={};m.Rogue.ranks={}
+-- A kick keeps the raid marker of the enemy it hit; a new timer gets a gold edge for a moment.
+local marked;GetRaidTargetIndex=function(u)return u=='nameplate4'and 8 or nil end;SetRaidTargetIconTexture=function(t,i)marked=i end
+m.Rogue.used={};env.advance(5);ns.PartyCooldownInterrupted('nameplate4','G-party2');assert(m.Rogue.marks[1766]==8)
+ns.DrawPartyCooldowns();local kc=cell(G.kick,1766);assert(kc.mark:IsShown()and marked==8 and kc.hl:IsShown(),'marker and highlight on the kick')
+env.advance(4);ns.DrawPartyCooldowns();assert(not cell(G.kick,1766).hl:IsShown(),'the highlight goes after 3 seconds')
+env.click('pcd-kick:mark');ns.DrawPartyCooldowns();assert(not cell(G.kick,1766).mark:IsShown());env.click('pcd-kick:mark')
+env.click('pcd-kick:dark');assert(cfg.anchors.kick.dark);ns.DrawPartyCooldowns();assert(cell(G.kick,1766).bar.name.textColor[1]~=1 or cell(G.kick,1766).bar.name.textColor[2]~=1);env.click('pcd-kick:dark')
+GetRaidTargetIndex=nil;SetRaidTargetIconTexture=nil;m.Rogue.used={}
+-- Tooltips, more rows and your own order of the icons.
+local tip={};GameTooltip={SetOwner=function()end,SetSpellByID=function(_,id)tip.id=id end,AddLine=function(_,t)tip.line=t end,Show=function()tip.shown=true end,Hide=function()end}
+env.click('pcd-pair:3');env.click('pcd:tooltip');assert(cfg.tooltip);ns.PartyCooldownTooltip(cell(G.kick,1766));assert(tip.id==1766 and tip.line:find('Rogue')and tip.shown)
+env.click('pcd:tooltip');GameTooltip=nil
+local per,small=ns.PartyCooldownGrid(10,26,{perRow=4,size2=18});assert(per==4 and small==18);per,small=ns.PartyCooldownGrid(3,26,{perRow=4,size2=18});assert(per==3 and small==26)
+env.select('pcd:perRow','3');assert(cfg.perRow==3);env.select('pcd:perRow','One row');env.click('pcd-pair:1')
+local before=ns.PartyCooldownSpecSpells('ROGUE',261);assert(ns.MovePartyCooldown('ROGUE',261,before[2],-1));local after=ns.PartyCooldownSpecSpells('ROGUE',261)
+assert(after[1]==before[2]and after[2]==before[1]);assert(not ns.MovePartyCooldown('ROGUE',261,after[1],-1),'the first cannot go up')
+m.Rogue.spec=261;local shown=ns.PartyCooldownList(m.Rogue,'defensive');local last=shown[#shown];while ns.MovePartyCooldown('ROGUE',261,last,-1)do end
+assert(ns.PartyCooldownList(m.Rogue,'defensive')[1]==last,'the icons follow your order');cfg.order={}
+-- Extras: the kick rotation on bosses.
+local e=ns.PartyExtrasConfig();assert(e.rotation.on==false and e.request.on==true and e.request.word=='hx')
+env.click('pcd-view:extras');assert(ns.UIControls['pcdx:rotation']and ns.UIControls['pcdx:ask']and ns.UIControls['pcdx:ccbars'])
+env.click('pcdx:rotation');env.input('pcdx:names','Rogue, Tester, Friend');env.click('pcdx:rottest');assert(e.rotation.on and #ns.KickRotationList()==3,'names from the field')
+local played={};PlaySound=function(id)played[#played+1]=id end
+ns.KickRotationStart(true);local R=ns.PartyExtraHolders.rotation;assert(R:IsShown()and R.num.text=='1'and R.name.text:find('Rogue'))
+assert(ns.KickRotationInterrupt('boss1')and R.num.text=='2'and R.name.text=='You kick next'and played[#played]==12889,'your turn is next')
+assert(not ns.KickRotationInterrupt('boss1'),'one interrupt counts once');assert(not ns.KickRotationInterrupt('nameplate2'),'only bosses');env.advance(2)
+ns.PartyCooldownInterrupted('boss1',nil);assert(ns.KickRotationState().index==3,'interrupts on a boss pass the turn');ns.KickRotationStart(false);assert(not R:IsShown(),'rotation hidden after the fight '..tostring(cfg.unlocked)..tostring(ns.KickRotationState().fight))
+local leader=ns.GroupAuthority;ns.GroupAuthority=function(n)return n=='Friend'end
+ns.CommHandlers.PKR('A, B','Rogue');assert(#ns.KickRotationList()==3,'only the leader');ns.CommHandlers.PKR('A, B','Friend');assert(#ns.KickRotationList()==2);ns.GroupAuthority=leader
+-- Asking for an external, and seeing a request with your ready externals.
+local sent={};local send=ns.Send;ns.Send=function(k,t)sent[#sent+1]=k;return true end
+assert(ns.RequestExternal()and sent[#sent]=='PXR');assert(not ns.RequestExternal(),'not twice in 3 seconds');env.advance(4)
+local whispered;e.request.whisper=true;UnitGroupRolesAssigned=function(u)return u=='party1'and'HEALER'or'DAMAGER'end;SendChatMessage=function(t,_,_,to)whispered=to..':'..t end
+assert(ns.RequestExternal()and whispered=='Friend:hx');e.request.whisper=false;ns.Send=send
+ns.CommHandlers.PXR('1','Friend');local Q=ns.PartyExtraHolders.request;assert(Q:IsShown()and Q.text.text:find('needs an external'))
+Q:Hide();assert(not ns.PartyExternalWhisper('hello','Friend'));assert(ns.PartyExternalWhisper('HX','Friend')and Q:IsShown(),'the word in a whisper');assert(not ns.PartyExternalWhisper('hx','Stranger'))
+-- Aura displays: built on the game's aura containers, which time the auras themselves.
+local groups={};local create=CreateFrame;CreateFrame=function(kind,...)local f=create(kind,...);if kind=='AuraContainer'then f.AddAuraGroup=function(_,key,filter,o)groups[#groups+1]={key=key,filter=filter,o=o}end end;return f end
+local sounds={};C_UnitAuras={AddAuraSound=function(_,info)sounds[#sounds+1]=info.unitToken..':'..info.spellID;return #sounds end,RemoveAuraSound=function()end}
+env.click('pcdx:ccbars');env.click('pcdx:externals');env.click('pcdx:lust');assert(e.ccbars.on and e.externals.on and e.lust.on)
+local byKey={};for _,g in ipairs(groups)do byKey[g.key]=g end
+assert(byKey.ccbars and byKey.ccbars.filter=='HARMFUL'and byKey.ccbars.o.candidateFilters.includeSpellIDs[2094],'crowd control bars over nameplates')
+assert(byKey.externals and byKey.externals.filter=='HELPFUL|EXTERNAL_DEFENSIVE'and byKey.lust and byKey.lust.o.candidateFilters.includeSpellIDs[2825]and byKey.lust.o.candidateFilters.includeSpellIDs[1236994])
+local bar=create('Frame');local got={};bar.SetDurationBar=function(_,b)got.bar=b end;bar.SetIcon=function(_,t)got.icon=t end;bar.SetDurationText=function(_,t)got.text=t end
+byKey.ccbars.o.initializeFrame(bar);assert(got.bar and got.icon and got.text,'the game runs the bar down')
+local icon=create('Frame');icon.SetDurationCooldown=function(_,c)got.cd=c end;byKey.externals.o.initializeFrame(icon);assert(got.cd)
+local has2=function(x)for _,v in ipairs(sounds)do if v==x then return true end end end
+assert(has2('target:2094')and has2('player:2825')and has2('player:33206'),'sounds the game plays when the aura lands')
+env.click('pcdx:ccbars');env.click('pcdx:externals');env.click('pcdx:lust');CreateFrame=create;C_UnitAuras=nil;PlaySound=nil
+env.click('pcd-view:anchors')
 cfg.anchors.cc.x=300;assert(ns.DrawPartyCooldowns());assert(G.cc.x==300);env.click('pcd-cc:reset');assert(cfg.anchors.cc.x==-420 and G.cc.x==-420)
 env.click('pcd:kicks');assert(cfg.kicks==false and not has(m.Rogue,1766)and not G.kick.frame:IsShown());env.click('pcd:cc');assert(not has(m.Rogue,2094)and not G.cc.frame:IsShown())
 env.click('pcd:kicks');env.click('pcd:cc');assert(has(m.Rogue,1766)and has(m.Rogue,2094))
@@ -1047,9 +1112,103 @@ env.advance(121);assert(not ns.PartyCooldownHiddenTrack(m.Rogue,31224)and not m.
 m.Rogue.used[31224]=GetTime();m.Rogue.how={[31224]='cast'};local rep=table.concat(ns.PartyCooldownReport(),'\\n')
 assert(rep:find('running 0 exact 1 estimated (cast 1)',1,true)and rep:find('lengths sent',1,true),rep)
 `));
+test('party cooldowns second review: Name-Realm members, checked senders, hidden own cooldowns, newer messages over inspect, off for every extra, sync on load, no GCD learned, channel ends',()=>run(`
+local sent={};C_ChatInfo={RegisterAddonMessagePrefix=function()return 0 end,SendAddonMessage=function(_,text,channel)sent[#sent+1]=text;return 0 end}
+function GetNormalizedRealmName()return'Home'end
+local units={player={'Tester','DRUID'},party1={'Other','PRIEST','RealmB'},party2={'Other','ROGUE'}}
+function IsInGroup()return true end;function IsInRaid()return false end
+function UnitExists(u)return units[u]~=nil end
+function UnitName(u)local x=units[u or'player'];if x then return x[1],x[3]end end
+function UnitClass(u)local x=units[u or'player'];return'Class',x and x[2]end;function UnitIsUnit(a,b)return a==b end
+function GetSpellBaseCooldown(id)return 120000,0 end
+env.click('tab:partycds');env.click('pcd:enabled');local cfg=ns.PartyCooldownConfig();local m=ns.PartyCooldownMembers
+ns.PartyCooldownRoster()
+-- Same name on two realms: two members, and you stay yourself.
+assert(m['Other-RealmB']and m['Other-Home']and m['Other-RealmB']~=m['Other-Home'],'kept apart by realm')
+assert(m['Tester-Home'].me and not m['Other-Home'].me and not m['Other-RealmB'].me)
+assert(ns.FullName('Other-Realm B')=='Other-RealmB'and ns.FullName('Other')=='Other-Home')
+-- Messages are matched by Name-Realm and only on group channels.
+ns.CommHandlers.PCD('256;33206=150','Other','PARTY','Other-OutsideRealm');assert(not m['Other-RealmB'].addon,'a stranger of the same name is not a member')
+ns.CommHandlers.PCD('256;33206=150','Other','WHISPER','Other-RealmB');assert(not m['Other-RealmB'].addon,'whispers are not group data')
+ns.CommHandlers.PCD('256;33206=150','Other','PARTY','Other-RealmB');assert(m['Other-RealmB'].addon and m['Other-RealmB'].cds[33206]==150 and not m['Other-Home'].addon)
+-- A newer message of the owner wins over an old inspect that said "not taken".
+local pr=m['Other-RealmB'];pr.talented={[33206]=false}
+ns.CommHandlers.PCD('256;33206=150','Other','PARTY','Other-RealmB')
+local has=false;for _,id in ipairs(ns.PartyCooldownList(pr))do if id==33206 then has=true end end;assert(has,'learned since the inspect')
+-- Your own cooldown hidden by the game is not "ready": the game's timer object draws it.
+local me=m['Tester-Home'];me.used={}
+local secret=setmetatable({},{__index=function()error('secret')end})
+local was=ns.Plain;ns.Plain=function(v,t)if v==secret then return false end;return was(v,t)end
+C_Spell.GetSpellCooldown=function()return{startTime=secret,duration=secret,isActive=secret,isOnGCD=secret}end
+local object={};C_Spell.GetSpellCooldownDuration=function()return object end
+assert(ns.PartyCooldownOwn(22812)==nil and ns.PartyCooldownOwnHidden(me,22812)==object and ns.PartyCooldownExact(me,22812))
+C_Spell.GetSpellCooldown=function()return{startTime=secret,duration=secret,isActive=false,isOnGCD=secret}end
+assert(ns.PartyCooldownOwn(22812)==0 and ns.PartyCooldownOwnHidden(me,22812)==nil,'inactive is ready')
+-- Learning skips the global cooldown and reads again on the next update.
+C_Spell.GetSpellCooldown=function()return{startTime=env.time,duration=2,isActive=true,isOnGCD=true}end
+assert(not ns.PartyCooldownLearn(1022))
+C_Spell.GetSpellCooldown=function()return{startTime=env.time,duration=300,isActive=true,isOnGCD=false}end
+assert(ns.PartyCooldownLearn(1022));local learned=cfg.learned[ns.PartyCooldownLearnKey(me)];assert(learned[1022]==300,'the real cooldown')
+C_Spell.GetSpellCooldown=nil;C_Spell.GetSpellCooldownDuration=nil;ns.Plain=was
+-- After a load the others are asked once, and each answers.
+local asked=false;for _,t in ipairs(sent)do if t:find('^PCDQ')then asked=true end end;assert(asked,'asks after a load')
+sent={};ns.SharePartyCooldowns(true);for _,t in ipairs(sent)do assert(not t:find('^PCDQ'),'once')end
+sent={};env.advance(11);ns.CommHandlers.PCDQ('1','Other','PARTY','Other-RealmB');local answered=false;for _,t in ipairs(sent)do if t:find('^PCD\\t')then answered=true end end;assert(answered,'answers a request')
+-- A channel that just ends never moves the kick rotation.
+local moved=0;local kr=ns.KickRotationInterrupt;ns.KickRotationInterrupt=function()moved=moved+1 end
+function UnitCanAttack()return true end
+local fire=function(ev,...)for _,f in ipairs(env.frames)do if f.events[ev]and f.scripts.OnEvent then f.scripts.OnEvent(f,ev,...)end end end
+fire('UNIT_SPELLCAST_CHANNEL_STOP','boss1',nil,nil,'');fire('UNIT_SPELLCAST_CHANNEL_STOP','boss1',nil,nil,nil);assert(moved==0,'an ordinary end')
+fire('UNIT_SPELLCAST_CHANNEL_STOP','boss1',nil,nil,'Player-1-ABC');assert(moved==1,'a named interrupter')
+ns.KickRotationInterrupt=kr
+-- /pcd off stops every extra: requests, rotation, the boxes.
+local e=ns.PartyExtrasConfig();e.request.on=true;e.rotation.on=true;e.rotation.names='Tester';ns.KickRotationStart(true)
+cfg.enabled=false;ns.RefreshPartyCooldowns()
+assert(not ns.ShowExternalRequest('Other-RealmB'),'no request shown');assert(not ns.RequestExternal(),'no request sent')
+assert(not ns.KickRotationInterrupt('boss1')and not ns.DrawKickRotation(),'no rotation')
+cfg.enabled=true;ns.RefreshPartyCooldowns();ns.KickRotationStart(false)
+-- The external hint lists only defensive externals, never Blessing of Freedom.
+assert(ns.PartyCooldownKind(1044)=='move');for _,id in ipairs(ns.PartyReadyExternals())do assert(id~=1044)end
+for _,id in ipairs(ns.PartyExtrasAuraIDs(2,true))do assert(id~=1044)end
+-- Fourth review. The game's timer object wins over a timer from a seen cast, and only "over" is ready.
+local me=m['Tester-Home'];me.used[22812]=GetTime()
+local secret2=setmetatable({},{__index=function()error('secret')end});local was2=ns.Plain;ns.Plain=function(v,t)if v==secret2 then return false end;return was2(v,t)end
+C_Spell.GetSpellCooldown=function()return{startTime=secret2,duration=secret2,isActive=secret2,isOnGCD=secret2}end
+local zero=false;local object={IsZero=function()return zero end};C_Spell.GetSpellCooldownDuration=function()return object end
+assert(ns.PartyCooldownOwnHidden(me,22812)==object,'the game timer first');assert(ns.PartyCooldownReady(me,22812)==false,'running is not ready')
+zero=true;assert(ns.PartyCooldownReady(me,22812)==true);object.IsZero=function()return secret2 end;assert(ns.PartyCooldownReady(me,22812)==false,'unknown is not ready')
+C_Spell.GetSpellCooldown=nil;C_Spell.GetSpellCooldownDuration=nil;ns.Plain=was2;me.used={}
+-- Another version of a spell counts as the tracked one, with its own icon.
+units.party3={'Magey','MAGE'};ns.PartyCooldownRoster();local mg=m['Magey-Home']
+ns.CommHandlers.PCD('64;414658=180','Magey','PARTY','Magey-Home');assert(mg.known[45438]and not mg.known[414658]and mg.cds[45438]==180 and mg.face[45438]==414658)
+ns.PartyCooldownCast('party3',414658);assert(mg.used[45438]and not mg.used[414658])
+local count=0;for _,id in ipairs(ns.PartyCooldownList(mg))do if id==45438 or id==414658 then count=count+1 end end;assert(count==1,'one icon')
+-- A spell only heard of in messages may come from any class.
+ns.CommHandlers.PCD('64;45438=180;999001=120','Magey','PARTY','Magey-Home');ns.CommHandlers.PCD('256;33206=150;999001=120','Other','PARTY','Other-RealmB')
+assert(mg.known[999001]and m['Other-RealmB'].known[999001],'shared by two classes')
+-- Load options stop the sensors too.
+local inst=IsInInstance;IsInInstance=function()return false end;cfg.loadWhere='dungeons';assert(ns.RebuildPartyCooldownSensors()==0,'no sensors outside');cfg.loadWhere='all';IsInInstance=inst
+-- A reused field keeps one hook, with the latest handler.
+local hooks,seen=0,nil;local box={HookScript=function(self,_,fn)hooks=hooks+1;self.run=fn end}
+ns.Widgets.OnText(box,function()seen=1 end);ns.Widgets.OnText(box,function()seen=2 end);box.run(box);assert(hooks==1 and seen==2)
+-- CC bars come back over nameplates already shown; switching off in combat drops sounds and boxes.
+local groups={};local create=CreateFrame;CreateFrame=function(kind,...)local f=create(kind,...);if kind=='AuraContainer'then f.AddAuraGroup=function(_,key,filter,o)groups[#groups+1]=key end end;return f end
+local sounds,removed={},0;C_UnitAuras={AddAuraSound=function()sounds[#sounds+1]=1;return #sounds end,RemoveAuraSound=function()removed=removed+1 end}
+local plate=create('Frame');C_NamePlate={GetNamePlateForUnit=function()return plate end};local ue=UnitExists;UnitExists=function(u)return u=='nameplate1'or ue(u)end
+e.ccbars.on=true;e.externals.on=true;e.externals.sound=true;ns.RefreshPartyExtras()
+assert(ns.PartyPlateBars[1].frame:IsShown(),'bar over a plate already up');e.ccbars.on=false;ns.RefreshPartyExtras();assert(not ns.PartyPlateBars[1].frame:IsShown())
+e.ccbars.on=true;ns.RefreshPartyExtras();assert(ns.PartyPlateBars[1].frame:IsShown(),'shown again')
+local list=ns.PartyExtrasSounds();assert(#list>0)
+ns.ShowExternalRequest('Other-RealmB');assert(ns.PartyExtraHolders.request:IsShown())
+InCombatLockdown=function()return true end;cfg.enabled=false;ns.RefreshPartyExtras()
+assert(#ns.PartyExtrasSounds()==0 and removed>0,'sounds removed in combat');assert(not ns.PartyExtraHolders.request:IsShown()and not ns.PartyPlateBars[1].frame:IsShown()and not ns.PartyExtraHolders.externals:IsShown())
+InCombatLockdown=function()return false end;cfg.enabled=true;e.ccbars.on=false;e.externals.on=false;ns.RefreshPartyExtras()
+CreateFrame=create;C_UnitAuras=nil;C_NamePlate=nil;UnitExists=ue
+units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
+`));
 test('party cooldowns of the former Puzatik Party Defensives live in NDP: /pcd, Russian text and the language choice',async()=>{
  const text=n=>fs.readFile(path.join(root,n),'utf8');const ru=await text('Locale.lua');
- const keys=new Set();for(const n of ['PartyCooldowns.lua','PartySlash.lua'])for(const m of (await text(n)).matchAll(/L\("((?:[^"\\]|\\.)*)"\)/g))keys.add(m[1]);
+ const keys=new Set();for(const n of ['PartyCooldowns.lua','PartyExtras.lua','PartySlash.lua'])for(const m of (await text(n)).matchAll(/L\("((?:[^"\\]|\\.)*)"\)/g))keys.add(m[1]);
  for(const m of (await text('PartySlash.lua')).matchAll(/^\s*"(\/pcd[^"]*)",?$/gm))keys.add(m[1]);
  const missing=[...keys].filter(k=>!ru.includes('["'+k+'"]'));assert.deepEqual(missing,[],'Russian text for every party cooldowns string');
  await run(`
