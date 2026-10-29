@@ -1440,7 +1440,8 @@ local SELF,EXTERNAL,ENEMY=1,2,3
 -- tracked spell is sensed by its own ID on the caster. {kind, buff IDs...}
 local BUFFS={
     [49028]={SELF,81256},[48707]={SELF,48707,444741},[51052]={EXTERNAL,51052,145629},
-    [198589]={SELF,212800},[191427]={SELF,162264},[196718]={EXTERNAL,209426},
+    [198589]={SELF,212800},[196718]={EXTERNAL,209426},
+    -- No sensor for Havoc Metamorphosis: Eye Beam (Demonic) gives the same buff without the cast.
     [194223]={SELF,194223,102560,390414},[102560]={SELF,102560,390414},[106951]={SELF,106951,102543},[102543]={SELF,102543},
     [740]={EXTERNAL,740,157982,1264623},[33891]={SELF,117679,33891},[102342]={EXTERNAL,102342},[106898]={EXTERNAL,106898,77761,77764},
     [357170]={EXTERNAL,357170},[374227]={EXTERNAL,374227},
@@ -1680,8 +1681,9 @@ function ShowHidden(icon,t)
         shownHidden[icon]=nil;return
     end
     parts=DressHidden(icon,t)
+    -- No seconds column: its numbers ran behind the icon. The grey cover and the dark fill show the time.
     local tex=icon.spellID and W.SpellTexture(icon.spellID)
-    parts.win:Show();for k=1,2 do parts[k].grey:SetTexture(tex);parts[k].fill:Show();parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
+    parts.win:Hide();for k=1,2 do parts[k].grey:SetTexture(tex);parts[k].fill:Show();parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
     shownHidden[icon]=t
 end
 ns.PartyCooldownShowHidden=ShowHidden
