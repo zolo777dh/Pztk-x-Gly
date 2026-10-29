@@ -963,6 +963,12 @@ env.select('pcd-kick:style','Icons');assert(cfg.anchors.kick.style=='icons'and n
 local function count(g)local n=0;for _,icon in ipairs(g.frame.icons or{})do if icon:IsShown()then n=n+1 end end;return n end
 local all=count(G.cc);assert(all>=2,'more than one crowd control spell in the group')
 env.select('pcd-cc:perRow','1');env.select('pcd-cc:rows','1');assert(count(G.cc)==1,'one row of one icon');env.select('pcd-cc:rows','10');assert(count(G.cc)==all)
+-- A short last row is centred.
+assert(all>=3,'enough crowd control to wrap')
+local xs={};for i,icon in ipairs(G.cc.frame.icons)do icon.SetPoint=function(_,_,_,_,x)xs[i]=x end end
+cfg.anchors.cc.perRow=all-1;ns.DrawPartyCooldowns();local sz=tonumber(cfg.anchors.cc.size)or 26
+assert(math.abs(math.abs(xs[all])-(3+(all-2)*(sz+2)/2))<0.01,'last icon in the middle '..tostring(xs[all]))
+cfg.anchors.cc.perRow=1;ns.DrawPartyCooldowns()
 env.select('pcd-kick:style','Bars')
 -- Bars take a texture of their own; each list has its own switch for your own spells.
 assert(ns.UIControls['pcd-kick:texture']and not ns.UIControls['pcd-cc:texture']);env.select('pcd-kick:texture','Flat');assert(cfg.anchors.kick.texture=='flat'and cell(G.kick,1766).bar.file==ns.PartyBarFile('flat')and ns.PartyBarFile('flat')~=ns.PartyBarFile(''),'the kick bars use the chosen texture')
