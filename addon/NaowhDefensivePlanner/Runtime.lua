@@ -1,7 +1,7 @@
 -- Independent runtime. Imported profiles are data; no profile Lua is executed.
 local _, ns = ...
 _G.NaowhDefensivePlanner = ns
-ns.version = "0.11.2"
+ns.version = "0.12.0"
 ns.timers, ns.occurrences, ns.generation = {}, {}, 0
 function ns.Plain(value, kind)
     return not (issecretvalue and issecretvalue(value)) and (not kind or type(value) == kind)
@@ -411,6 +411,7 @@ function ns.Mechanic(spell, duration, identity, encounter, skipDefensive, repeat
     if not profile then return end
     if ns.Enabled and not ns.Enabled()then return end
     encounter = encounter or ns.encounter
+    if ns.BossCall then ns.BossCall(spell, duration, identity, encounter) end
     local prefix = "ability:" .. tostring(identity or spell) .. ":"
     if duration then ns.Cancel(prefix)
     else

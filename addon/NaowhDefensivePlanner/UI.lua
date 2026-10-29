@@ -172,9 +172,17 @@ local function VaryingPhase(timeline,at)
     return found and found.vary and found or nil
 end
 local function abilityCount(content,g,n,a)return #ns.RuleOptions(entityContext(content,g,n,a))end
+-- Built-in boss calls (BossCalls.lua) that are on for a raid boss; they count as its reminders.
+local function bossCallCount(n)
+    local enc=n and(n.encounterId or n.id);local calls=enc and ns.BossCalls and ns.BossCalls[tonumber(enc)]
+    if not calls then return 0 end
+    local on,_,off=ns.BossCallSettings();if not on then return 0 end
+    local total=0;for spell,call in pairs(calls)do if not off[tostring(enc)..":"..tostring(spell)]and(not call.diff or call.diff[state.difficulty or 15])then total=total+1 end end
+    return total
+end
 local function entityCount(content,g,n)
     local total=0;for _,a in ipairs(allowedAbilities(content,n))do total=total+abilityCount(content,g,n,a)end
-    if content=="raid"then total=total+#timedRules(entityContext(content,g,n))end
+    if content=="raid"then total=total+#timedRules(entityContext(content,g,n))+bossCallCount(n)end
     return total
 end
 local function groupCount(content,g)
@@ -411,6 +419,20 @@ local function DrawInspector(parent,ctx,rules)
         end,"rule:"..key)
     end
     local function heading(text)W.Heading(content,text,6,cy,384);cy=cy+24 end
+    -- Built-in boss call of this mechanic (BossCalls.lua): shown and switched here, saved at once.
+    local callSpell=ctx.scope=="raid"and ctx.spell and ns.BossCallSpell and ns.BossCallSpell(ctx.encounter,ctx.spell)
+    local call=callSpell and ns.BossCallFor(ctx.encounter,callSpell)
+    if call then
+        heading("BUILT-IN CALL")
+        local _,_,off=ns.BossCallSettings();local key=tostring(ctx.encounter)..":"..tostring(callSpell)
+        local who={tank="tanks",threat="the tank with threat",nontank="everyone but the off-tank",healer="healers",damager="damage dealers"}
+        local bits={call.bar and L("bar")or L("text"),L("for ")..L(who[call.who]or"everyone")}
+        if call.voice then bits[#bits+1]=L("says ").."\""..(call.voice==true and call.say or call.voice).."\""end
+        if call.taunt then bits[#bits+1]=L("Taunt for the other tank after the cast")end
+        if call.diff then bits[#bits+1]=L("Mythic only")end
+        W.Toggle(content,"\""..call.say.."\"  ·  "..(call.lead or 5)..L(" s before the cast"),not off[key],6,cy,384,function(v)done(ns.SetBossCallEnabled(ctx.encounter,callSpell,v),nil,v and L("Built-in call on")or L("Built-in call off"))end,"bosscall:"..key);cy=cy+28
+        W.Label(content,table.concat(bits," · ")..L(". Your own text alert on this mechanic replaces it."),6,cy,384,11,C.muted);cy=cy+40
+    end
     field("REMINDER NAME","name");cy=cy+56
     heading("WHEN")
     if ctx.kind~="trash"then
@@ -559,7 +581,7 @@ local function DrawMechanics(parent)
     if ability then state.ability=ability.id end
     local mechanics=W.Scroll(parent,234,96,238,504,"mechanics:abilities");W.Caption(mechanics,L("Mechanics"),8,8,200)
     local my=28
-    for _,a in ipairs(abilities)do W.Button(mechanics,name(a.id,a.name),0,my,210,function()state.ability=a.id;state.form=nil;state.ruleKey=nil;state.timed=false;Refresh()end,ability==a and not state.timed,"ability:"..a.id,{h=32,icon=a.id,marker=true,badge=abilityCount(content,g,n,a)});my=my+36 end
+    for _,a in ipairs(abilities)do W.Button(mechanics,name(a.id,a.name),0,my,210,function()state.ability=a.id;state.form=nil;state.ruleKey=nil;state.timed=false;Refresh()end,ability==a and not state.timed,"ability:"..a.id,{h=32,icon=a.id,marker=true,badge=abilityCount(content,g,n,a)+((content=="raid"and n and ns.BossCallSpell and ns.BossCallSpell(n.encounterId or n.id,a.id)and not(ns.BossCallSettings and ns.BossCallSettings()==false))and 1 or 0)});my=my+36 end
     if content=="raid"and n then
         W.Caption(mechanics,L("Timed"),8,my+8,200);my=my+28
         -- Existing pull/phase reminders remain visible even when no spell is attached.
@@ -710,16 +732,20 @@ local function DrawSettings(parent)
     W.Caption(bars,L("BAR W x H"),24+half,84,half)
     W.Input(bars,state.settingFields.barWidth or s.barWidth or 240,24+half,100,math.floor(half/2)-3,"setting:barWidth")
     W.Input(bars,state.settingFields.barHeight or s.barHeight or"",24+half+math.floor(half/2)+3,100,math.floor(half/2)-3,"setting:barHeight")
-    local covered=W.Card(parent,col,top+280,cw,232,L("Already covered"))
+    local covered=W.Card(parent,col,top+280,cw,232,L("Already covered · boss calls"))
     W.Toggle(covered,L("Skip when a defensive is already up"),s.coveredSkip==true and s.coveredSkipDefaultOn~=false,12,34,cw-24,function(v)s.coveredSkip=v;s.coveredSkipDefaultOn=v end,"setting:coveredSkip")
     W.Label(covered,L("Counts as cast for (sec)"),12,82,170,13);W.Input(covered,state.settingFields.coveredCastWindow or s.coveredCastWindow or 3,cw-102,74,90,"setting:coveredCastWindow")
     W.Label(covered,L("No call-out while an ability of the set is active on you or was cast within these seconds. Data the game hides in combat counts as not covered."),12,118,cw-24,11,C.muted)
+    -- Built-in boss calls (BossCalls.lua): text, bar and voice for every mechanic of the supported raid bosses.
+    W.Toggle(covered,L("Built-in boss calls (/ndp bosscalls)"),s.bossCalls~=false,12,166,cw-24,function(v)s.bossCalls=v end,"setting:bossCalls")
+    W.Toggle(covered,L("Speak boss calls"),s.bossCallsVoice~=false,12,196,cw-24,function(v)s.bossCallsVoice=v end,"setting:bossCallsVoice")
     -- Local window preferences.
     local prefs=UIPrefs()
     local window_=W.Card(parent,0,top+280,cw,232,L("Window"))
     W.Select(window_,L("Theme"),{{value="mockup",label=L("Like the mockup")},{value="logo",label=L("Logo blue")}},prefs.theme or"mockup",12,34,cw-24,function(v)prefs.theme=v;ApplyPrefs();Refresh()end,"ui:theme")
     W.Select(window_,L("Font"),{{value="urw",label="URW Gothic"},{value="naowh",label=L("Naowh.ttf (your own file)")},{value="game",label=L("Game font")}},prefs.font or"urw",12,86,cw-24,function(v)prefs.font=v;ApplyPrefs();Refresh()end,"ui:font")
-    W.Label(window_,L("Naowh.ttf is not shipped: put your own copy in Media/Fonts and restart the game."),12,142,cw-24,11,C.muted)
+    W.Label(window_,L("Naowh.ttf is not shipped: put your own copy in Media/Fonts and restart the game."),12,140,cw-24,11,C.muted)
+    W.Select(window_,L("LANGUAGE"),{{value="auto",label=L("Auto (game client)")},{value="enUS",label="English"},{value="ruRU",label="Русский"}},NaowhDefensivePlannerDB and NaowhDefensivePlannerDB.lang or"auto",12,172,cw-24,function(v)ns.SetLanguage(v);if ns.RefreshPartyCooldowns then ns.RefreshPartyCooldowns()end;Refresh()end,"ui:language")
     -- Phrases the built-in cues speak; blank keeps the default.
     local phrases=W.Card(parent,col*2,top+280,cw-8,184,L("Voice phrases"))
     local phrases_=s.voicePhrases or{}
@@ -834,6 +860,14 @@ local function DrawTimeline(parent)
     if recorded then table.insert(lanes,1,{key="boss",label=recorded.expected and L("Boss (logs)")or recorded.shared and L("Boss (shared)")or L("Boss")});maxT=math.max(maxT,(tonumber(recorded.length)or 0)+10)
     elseif #untimed>0 then table.insert(lanes,1,{key="boss",label=L("Boss")})end
     if #mech>0 then lanes[#lanes+1]={key="mech",label=L("Mechanics")}end
+    -- Built-in boss calls at the casts of the timeline they hang on.
+    local callsOn,callsOff=false,{};if ns.BossCallSettings then local _;callsOn,_,callsOff=ns.BossCallSettings()end
+    local calls={}
+    if callsOn and recorded then for _,ev in ipairs(recorded.events or{})do
+        local spell=ns.BossCallSpell(ctx.encounter,ev[2]);local call=spell and ns.BossCallFor(ctx.encounter,spell)
+        if call and not callsOff[tostring(ctx.encounter)..":"..tostring(spell)]and(not call.diff or call.diff[state.tlDifficulty])then calls[#calls+1]={at=ev[1],spell=spell,call=call}end
+    end end
+    if #calls>0 then lanes[#lanes+1]={key="calls",label=L("Boss calls")}end
     -- Cooldowns lane: which spell of each planned defensive set will be ready at each call.
     local uses={}
     do local profile=ns.Active();local sets=ns.ScopePresets(profile,"raid",state.spec);local active=ns.ScopeActive(profile,"raid",state.spec)
@@ -932,6 +966,16 @@ local function DrawTimeline(parent)
                 W.Button(card,"",x-9,mid,18,function()open(m.r.key,nil,m.spell)end,false,"tl-mech:"..tostring(m.r.key)..":"..m.spell..":"..j,{kind="ghost",h=18,tooltip=(m.r.entry.name or name(m.spell)).." · "..stamp(at)})
                 W.Label(card,m.r.entry.name or name(m.spell),x+12,mid-9,90,10,C.soft)
             end end end
+        end
+        if lane.key=="calls"then
+            local lastX=-100
+            for j,c in ipairs(calls)do if j<=200 and shown(c.at)then
+                local x=X(c.at);local call=c.call
+                W.Icon(card,c.spell,x-9,mid,18)
+                local who=call.who and(" · "..L("for ")..call.who)or""
+                W.Button(card,"",x-9,mid,18,function()open(nil,nil,c.spell)end,false,"tl-call:"..j,{kind="ghost",h=18,tooltip="\""..call.say.."\" · "..stamp(math.max(0,c.at-(call.lead or 5)))..L(" (")..(call.lead or 5)..L(" s before ")..name(c.spell)..")"..who..(call.voice and(L(" · says \"")..(call.voice==true and call.say or call.voice).."\"")or"")..L(" · click to change or switch it off")})
+                if x-lastX>=96 then W.Label(card,call.say,x+12,mid-9,84,10,C.soft);lastX=x end
+            end end
         end
         if lane.key=="cds"then
             for j,u in ipairs(planned)do if shown(u.at)then
@@ -1107,7 +1151,8 @@ local function DrawTimeline(parent)
             W.Button(list,"x",x+170,98,26,function()done(ns.DeleteTemplate(t.index),nil,L("Template deleted"))end,false,"tl-template-delete:"..i,{kind="danger",align="CENTER",h=26})
         end end
     end
-    if #rules==0 and #mech==0 and not pick then W.Label(list,L("No reminders on this boss yet. Add one with + Timed reminder or on the Raids page."),12,36,700,12,C.muted)end
+    local builtIn=bossCallCount(n)
+    if #rules==0 and #mech==0 and not pick then W.Label(list,builtIn>0 and(builtIn..L(" built-in boss calls are on for this boss (Boss calls lane). Add your own with + Timed reminder or on the Raids page."))or L("No reminders on this boss yet. Add one with + Timed reminder or on the Raids page."),12,36,700,12,C.muted)end
     local i=0
     local rows=pick and 0 or templatesOpen and 4 or 6
     for _,r in ipairs(rules)do i=i+1;if i<=rows then
@@ -1139,7 +1184,7 @@ end
 local commands={{"/ndp · help · status","window, commands, state"},{"/ndp test · diag · mem","test call, report, memory"},{"/ndp sets · mythic · raid · tl","open a section"},
     {"/ndp notes · tools · players","raid sections"},{"/ndp qol · combat","quality of life, combat"},{"/ndp note · clear · pclear","note frame, clear notes"},{"/ndp anchors","move reminder anchors"},
     {"/ndp pull 10 · rc · break 10","pull, ready check, break"},{"/ndp inv · arrange · promote","invites, groups, assist"},{"/ndp invite · arrange note","invite, sort from note"},
-    {"/ndp nick Name · versions","nickname, version check"},{"/ndp trace · observed · keys","what the last pulls did"},{"/ndp trace on · off · clear","pull trace switch"},{"/ndp cds · calls · bosses","cooldowns, calls, bosses"},
+    {"/ndp nick Name · versions","nickname, version check"},{"/ndp trace · observed · keys","what the last pulls did"},{"/ndp trace on · off · clear","pull trace switch"},{"/ndp cds · calls · bosses","cooldowns, calls, bosses"},{"/ndp bosscalls · bc on|off","built-in boss calls"},
     {"/ndp party · pcd","party cooldowns, their report"},{"/ndp starter","starter defensive sets"},{"/ndp roster · export","roster, export profile"},{"/ndp wipe · credits","reset all data, thanks"}}
 ns.CommandHelp=commands
 local function DrawDiagnostics(parent)

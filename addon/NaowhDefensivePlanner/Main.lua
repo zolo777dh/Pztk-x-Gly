@@ -112,6 +112,13 @@ function ns.Command(message)
     elseif command=="trace"and rest=="clear"then ns.ClearTrace();ns.Print("Pull trace cleared.")
     elseif reports[command]then ns.ShowText(ns[reports[command]]())
     elseif command=="calls"then ns.ShowText(ns.CallsText(rest))
+    elseif command=="bosscalls"or command=="bc"then
+        local verb,arg=rest:match("^(%S+)%s*(.-)$")
+        if verb=="on"or verb=="off"then
+            local enc,spell=tostring(arg or""):match("^(%d+)[:%s]+(%d+)$")
+            if enc then local ok,err=ns.SetBossCallEnabled(tonumber(enc),tonumber(spell),verb=="on");ns.Print(ok and("Boss call "..enc..":"..spell.." "..verb..".")or err)
+            else local ok,err=ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.bossCalls=verb=="on";return true end);ns.Print(ok and("Built-in boss calls "..verb..".")or err)end
+        else ns.ShowText(ns.BossCallsText(rest))end
     elseif command=="invite"then local n,err=ns.InviteFromNote();ns.Print(n and(n.." invites sent from the note.")or err)
     elseif command=="pcd"then for _,line in ipairs(ns.PartyCooldownReport())do print("  "..line)end
     elseif command=="starter"then local n,err=ns.CreateStarterSets();ns.Print(n and("Starter set created for "..(n==2 and"Mythic+ and raids"or"one content")..". Review it on the Defensive sets page.")or err)
@@ -152,10 +159,20 @@ function ns.MemoryReport()
     local before=usage()
     collectgarbage("collect")
     local after=usage()
-    if before and after then lines[#lines+1]=string.format("Memory: %.1f MB, %.1f MB after collecting garbage",before/1024,after/1024)end
+    if before and after then lines[#lines+1]=string.format("Memory: %.1f MB, %.1f MB after collecting garbage (%.1f MB was garbage)",before/1024,after/1024,(before-after)/1024)end
+    -- What each saved part costs in memory: the growth of a copy of it.
     local store=ns.Store();local parts={}
-    for key,value in pairs(store)do if type(value)=="table"then local packed=ns.Pack(value);parts[#parts+1]={key=key,size=packed and #packed or 0}end end
+    local function cost(value)collectgarbage("collect");local b=collectgarbage("count");local copy=ns.Clone(value);local n=collectgarbage("count")-b;copy=nil;return n end
+    for key,value in pairs(store)do if type(value)=="table"then parts[#parts+1]={key=key,size=cost(value)}end end
+    for client,other in pairs(NaowhDefensivePlannerDB and NaowhDefensivePlannerDB.clients or{})do if other~=store and type(other)=="table"then parts[#parts+1]={key="other client: "..tostring(client),size=cost(other)}end end
     table.sort(parts,function(a,b)return a.size>b.size end)
-    for i,p in ipairs(parts)do if i<=8 then lines[#lines+1]=string.format("%s: %.1f KB saved (compressed)",p.key,p.size/1024)end end
+    for i,p in ipairs(parts)do if i<=8 then lines[#lines+1]=string.format("  saved %s: %.0f KB",p.key,p.size)end end
+    local sensors=ns.PartyCooldownSensors and ns.PartyCooldownSensors()
+    if sensors then lines[#lines+1]="  party cooldown sensors: "..#sensors end
+    -- Garbage made in the next 10 seconds: what keeps the number high between collections.
+    if C_Timer and C_Timer.After and after then
+        lines[#lines+1]="Measuring the garbage made in the next 10 seconds..."
+        C_Timer.After(10,function()local now=usage();if now then ns.Print(string.format("NDP made %.0f KB of garbage in 10 s (%.0f KB/s).",now-after,(now-after)/10))end end)
+    end
     return lines
 end

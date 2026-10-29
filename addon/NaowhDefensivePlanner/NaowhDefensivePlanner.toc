@@ -3,7 +3,7 @@
 ## Title: Naowh Defensive Planner
 ## Notes: In-game Mythic+ defensive sets and raid mechanic / encounter-time reminders.
 ## Author: Pztk x Glyalith
-## Version: 0.11.2
+## Version: 0.12.0
 ## SavedVariables: NaowhDefensivePlannerDB, PztkRemindersDB
 ## IconTexture: Interface\AddOns\NaowhDefensivePlanner\Media\Logo
 ## AddonCompartmentFunc: NaowhDefensivePlanner_OnAddonCompartmentClick
@@ -23,6 +23,7 @@ AuraSounds.lua
 Providers.lua
 BossTimers.lua
 BossTimerData.lua
+BossCalls.lua
 Journal.lua
 LogTimelines.lua
 Simulate.lua
@@ -43,4 +44,5 @@ QoL.lua
 Combat.lua
 PartyCooldowns.lua
 PartyExtras.lua
+PartySlash.lua
 Main.lua

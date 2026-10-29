@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {execFileSync} from 'node:child_process';import fengari from 'fengari';
-const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','PartyCooldowns','PartyExtras','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
+const root=path.resolve('addon/NaowhDefensivePlanner'),files=['Runtime','Locale','Catalog','Codec','Profiles','Display','RuleRuntime','AuraSounds','Providers','BossTimers','BossTimerData','Journal','LogTimelines','Simulate','Planner','Triggers','Analysis','Trace','Editor','Import','Widgets','UI','Comms','Debuffs','Notes','Players','RaidTools','QoL','Combat','PartyCooldowns','PartyExtras','PartySlash','Main'],sources=await Promise.all(files.map(f=>fs.readFile(root+'/'+f+'.lua','utf8'))),harness=await fs.readFile('tests/helpers/wow-workspace.lua','utf8');
 // A recorded Heroic pull of the first raid boss, for the Timeline tests.
 const pulled=`ns.Store().timelines={['retail:3379:15']={events={{8,1260837},{18,1257717},{25,1276710},{37,1313393},{41,1260837},{44,1276710},{50,1257717},{60,1268562}},length=480,kill=true}};if ns.RefreshWorkspace then ns.RefreshWorkspace()end`;
 async function run(body){const script=`local env=(function()\n${harness}\nend)()\n`+(process.env.DOCTOR_LUA51?`strmatch=string.match;dofile(${JSON.stringify(root+'/Libs/LibStub.lua')});dofile(${JSON.stringify(root+'/Libs/LibSerialize.lua')});dofile(${JSON.stringify(root+'/Libs/LibDeflate.lua')})`:`local libs={};function LibStub(key)return libs[key]end;libs.LibSerialize={Serialize=function(_,p)return p.name end};libs.LibDeflate={CompressDeflate=function(_,s)return s end,EncodeForPrint=function(_,s)return s end}`)+`\nlocal function boot()local ns={}\n`+sources.map(s=>`;(function(...)\n${s}\nend)('NaowhDefensivePlanner',ns)`).join('\n')+`\nreturn ns end;local ns=boot();ns.Open();ns.RealDisplay=ns.Display;ns.Display=function(d)env.shown[#env.shown+1]=d end\nfunction env.reload()for i=#env.frames,1,-1 do local f=env.frames[i];if f.events.PLAYER_LOGOUT then f.scripts.OnEvent(f,'PLAYER_LOGOUT');break end end;ns.WorkspaceWindow:SetScript('OnHide',nil);ns.WorkspaceWindow:Hide();local lib=LibStub('LibSerialize');if lib.Deserialize then local ok,db=lib:Deserialize(lib:Serialize(NaowhDefensivePlannerDB));assert(ok);NaowhDefensivePlannerDB=db else NaowhDefensivePlannerDB=ns.Clone(NaowhDefensivePlannerDB)end;ns=boot();ns.Open();ns.Display=function(d)env.shown[#env.shown+1]=d end end\n${body}`;
@@ -1065,7 +1065,7 @@ assert(ns.PartyCooldownKickStats().unsure>=1)
 -- Crowd control: Blind's debuff on any enemy nameplate starts the rogue's Blind.
 ns.RebuildPartyCooldownSensors();env.advance(1);ns.PartyCooldownPollSensors()
 local list=ns.PartyCooldownSensors();local plates=0
-for _,x in ipairs(list)do if x.spell==2094 and x.unit:match('^nameplate')then plates=plates+1 end end;assert(plates==40,plates)
+for _,x in ipairs(list)do if x.spell==2094 and x.unit:match('^nameplate')then plates=plates+1 end end;assert(plates==20,plates)
 for _,x in ipairs(list)do if x.spell==2094 and x.unit=='nameplate7'then x.frame.IsMouseOver=function()return true end end end
 ns.PartyCooldownAura('nameplate7');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,2094)>100,'Blind by its debuff')
 -- A nameplate that now shows another enemy is not an edge.
@@ -1206,54 +1206,18 @@ InCombatLockdown=function()return false end;cfg.enabled=true;e.ccbars.on=false;e
 CreateFrame=create;C_UnitAuras=nil;C_NamePlate=nil;UnitExists=ue
 units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
 `));
-test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
- const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
- const toc=files['PuzatikPartyDefensives/PuzatikPartyDefensives.toc'].toString('utf8');assert.match(toc,new RegExp('## Version: '+version.replaceAll('.','\\.')));
- const order=toc.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#'));assert.deepEqual(order,['Core.lua','Locale.lua','Comms.lua','Widgets.lua','Window.lua','PartyCooldowns.lua','PartyExtras.lua','Slash.lua']);
- assert.match(files['PuzatikPartyDefensives/Window.lua'].toString('utf8'),/background="08050f"[\s\S]*accent="9b5cff"/);
- assert.match(toc,/^## IconTexture: Interface\\AddOns\\PuzatikPartyDefensives\\Media\\Icon$/m);const icon=files['PuzatikPartyDefensives/Media/Icon.tga'];
- assert.ok(icon&&icon[2]===2&&icon.readUInt16LE(12)===128&&icon.readUInt16LE(14)===128&&icon[16]===32,'128 px uncompressed RGBA icon');
- const load=order.map(n=>`;(function(...)\n${files['PuzatikPartyDefensives/'+n].toString('utf8')}\nend)('PuzatikPartyDefensives',p)`).join('\n');
- // Every interface string has its Russian text.
- const text=n=>files['PuzatikPartyDefensives/'+n].toString('utf8');const ru=text('Locale.lua');
- const keys=new Set();for(const n of ['PartyCooldowns.lua','PartyExtras.lua','Window.lua','Slash.lua'])for(const m of text(n).matchAll(/L\("((?:[^"\\]|\\.)*)"\)/g))keys.add(m[1]);
- for(const m of text('Slash.lua').matchAll(/^\s*"(\/pcd[^"]*)",?$/gm))keys.add(m[1]);
- for(const n of ['PartyCooldowns.lua','PartyExtras.lua'])for(const m of text(n).matchAll(/(?:main|kick|cc|stun|move|potion|rotation|request|externals|lust)="([^"]+)"|^\s*(?:kick|cc|stun|move|potion)="([^"]+)",$/gm))keys.add(m[1]||m[2]);
- const missing=[...keys].filter(k=>!ru.includes('["'+k+'"]'));assert.deepEqual(missing,[],'Russian text for every interface string');
- const russian=['Core.lua','Locale.lua'].map(n=>`;(function(...)\n${text(n)}\nend)('PuzatikPartyDefensives',r)`).join('\n');
+test('party cooldowns of the former Puzatik Party Defensives live in NDP: /pcd, Russian text and the language choice',async()=>{
+ const text=n=>fs.readFile(path.join(root,n),'utf8');const ru=await text('Locale.lua');
+ const keys=new Set();for(const n of ['PartyCooldowns.lua','PartyExtras.lua','PartySlash.lua'])for(const m of (await text(n)).matchAll(/L\("((?:[^"\\]|\\.)*)"\)/g))keys.add(m[1]);
+ for(const m of (await text('PartySlash.lua')).matchAll(/^\s*"(\/pcd[^"]*)",?$/gm))keys.add(m[1]);
+ const missing=[...keys].filter(k=>!ru.includes('["'+k+'"]'));assert.deepEqual(missing,[],'Russian text for every party cooldowns string');
  await run(`
-C_ChatInfo={RegisterAddonMessagePrefix=function()return true end,SendAddonMessage=function()return 0 end}
-local units={player={'Tester','DRUID'},party1={'Friend','PRIEST'}}
-function IsInGroup()return true end;function IsInRaid()return false end
-function UnitExists(u)return units[u]~=nil end;function UnitName(u)return units[u or'player']and units[u or'player'][1]end
-function UnitClass(u)local x=units[u or'player'];return'Class',x and x[2]end;function UnitIsUnit(a,b)return a==b end
-strtrim=strtrim or function(s)return(s:gsub('^%s+',''):gsub('%s+$',''))end
-local p={}
-${load}
-do local r={};GetLocale=function()return'ruRU'end
-${russian}
-assert(r.L('Party cooldowns')=='Кд группы'and r.L('Discipline')=='Послушание'and r.L('Discipline Priest')=='Послушание (Жрец)'and r.L('Priest')=='Жрец')
-assert(r.Upper('Кики и контроль, ёж')=='КИКИ И КОНТРОЛЬ, ЁЖ'and r.Upper('Size')=='SIZE')
-GetLocale=nil
-assert(p.L('Party cooldowns')=='Party cooldowns','English on other clients')end
--- The language can be picked in the window, whatever the client.
-local function pick(key,value)p.UIControls[key]:Click();for _,r in ipairs(p.Widgets.menu.rows)do if r.shown and r.label.text==value then r:Click();return end end;error('Missing option '..value)end
-SlashCmdList.PUZATIKPARTYDEFENSIVES('');p.UIControls['pcd-view:display']:Click();pick('pcd-language','Русский')
-assert(PuzatikPartyDefensivesDB.lang=='ruRU'and p.L('Party cooldowns')=='Кд группы'and p.UIControls['pcd-reset'].label.text=='Сброс таймеров','Russian picked in the window')
-pick('pcd-language','Auto (game client)');assert(PuzatikPartyDefensivesDB.lang==nil and p.L('Party cooldowns')=='Party cooldowns')
-p.UIControls['pcd-close']:Click()
-assert(p.PartyCooldownConfig().enabled==true,'on by default')
-SlashCmdList.PUZATIKPARTYDEFENSIVES('list');assert(p.PartyCooldownConfig().mode=='list')
-SlashCmdList.PUZATIKPARTYDEFENSIVES('size 30');assert(p.PartyCooldownConfig().size==30)
-SlashCmdList.PUZATIKPARTYDEFENSIVES('left');assert(p.PartyCooldownConfig().side=='LEFT')
-assert(#p.PartyCooldownOrder()==2);assert(#p.PartyCooldownReport()>=2)
-assert(PuzatikPartyDefensivesDB.partycds.size==30,'saved in its own variables')
--- /pcd alone opens the same settings page as in the full addon.
-SlashCmdList.PUZATIKPARTYDEFENSIVES('');assert(p.PartyCooldownWindow:IsShown())
-p.UIControls['pcd:names']:Click();assert(p.PartyCooldownConfig().names==true)
-p.UIControls['pcd:enabled']:Click();assert(p.PartyCooldownConfig().enabled==false);p.UIControls['pcd:enabled']:Click();assert(p.PartyCooldownConfig().enabled==true)
-p.UIControls['pcd-view:abilities']:Click();p.UIControls['pcd-class:PRIEST']:Click();assert(p.UIControls['pcd-spec:256'].label.text=='Discipline','spec names on the tabs, not numbers');p.UIControls['pcd-spell:19236']:Click()
-assert(not p.PartyCooldownTracked(19236,256),'switched off from the window')
-p.UIControls['pcd-close']:Click();assert(not p.PartyCooldownWindow:IsShown())
+assert(ns.L('Party cooldowns')=='Party cooldowns','English by default')
+SlashCmdList.PUZATIKPARTYDEFENSIVES('size 30');assert(ns.PartyCooldownConfig().size==30)
+SlashCmdList.PUZATIKPARTYDEFENSIVES('list');assert(ns.PartyCooldownConfig().mode=='list')
+SlashCmdList.PUZATIKPARTYDEFENSIVES('');assert(ns.UIState.tab=='partycds','/pcd opens the Party cooldowns page')
+env.click('tab:settings');ns.UIControls['ui:language']:Click();for _,r in ipairs(ns.Widgets.menu.rows)do if r.shown and r.label.text=='Русский'then r:Click()break end end
+assert(NaowhDefensivePlannerDB.lang=='ruRU'and ns.L('Party cooldowns')=='Кд группы'and ns.L('Discipline Priest')=='Послушание (Жрец)')
+ns.SetLanguage('auto');assert(NaowhDefensivePlannerDB.lang==nil and ns.L('Party cooldowns')=='Party cooldowns')
 `);
 });

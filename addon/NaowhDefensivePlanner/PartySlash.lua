@@ -1,9 +1,10 @@
--- /pcd: the settings of the party cooldowns, typed in chat.
+-- /pcd and /ppd: the party cooldown settings typed in chat (from Puzatik Party Defensives, now part
+-- of this addon). /pcd alone opens the Party cooldowns page.
 local _,ns=...
 local L=ns.L
-local function say(text)print("|cffb88cffPuzatik Party Defensives|r "..text)end
+local function say(text)print("|cff33c3a6NDP|r "..text)end
 local HELP={
-    "/pcd: the settings window",
+    "/pcd: the Party cooldowns page",
     "/pcd on | off: track party cooldowns",
     "/pcd frames | list: icons beside the party frames, or a movable list",
     "/pcd left | right | top | bottom: side of the party frame",
@@ -19,7 +20,7 @@ local HELP={
 local SIDE={left="LEFT",right="RIGHT",top="TOP",bottom="BOTTOM"}
 SLASH_PUZATIKPARTYDEFENSIVES1="/pcd";SLASH_PUZATIKPARTYDEFENSIVES2="/ppd"
 SlashCmdList.PUZATIKPARTYDEFENSIVES=function(input)
-    local cmd,arg=strtrim(input or""):lower():match("^(%S*)%s*(.-)$")
+    local cmd,arg=tostring(input or""):lower():match("^%s*(%S*)%s*(.-)%s*$")
     local cfg=ns.PartyCooldownConfig()
     if cmd=="on"or cmd=="off"then cfg.enabled=cmd=="on";say(L(cfg.enabled and"Tracking on"or"Tracking off"))
     elseif cmd=="frames"or cmd=="list"then cfg.mode=cmd;say(L(cmd=="frames"and"Beside the party frames"or"As a list"))
@@ -32,7 +33,7 @@ SlashCmdList.PUZATIKPARTYDEFENSIVES=function(input)
     elseif cmd=="reset"then ns.PartyCooldownReset();say(L("Group timers were reset; yours follow the game"));return
     elseif cmd=="ext"then if not ns.RequestExternal()then say(L("Join a group first"))end;return
     elseif cmd=="report"then for _,line in ipairs(ns.PartyCooldownReport())do print("  "..line)end;return
-    elseif cmd==""then ns.OpenPartyCooldownWindow();return
+    elseif cmd==""then ns.OpenWorkspace("partycds");return
     else for _,line in ipairs(HELP)do say(L(line))end;return end
     ns.RefreshPartyCooldowns()
 end

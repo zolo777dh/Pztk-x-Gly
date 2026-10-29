@@ -152,7 +152,10 @@ local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidG
         potion={x=-640,y=-60,style="bars",size=20,width=170,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture="",hideInRaid=false}},
     learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
-    local store=ns.Store();store.partycds=store.partycds or{}
+    local store=ns.Store()
+    -- Settings of the former Puzatik Party Defensives addon move over once, while it is still loaded.
+    if store.partycds==nil and type(PuzatikPartyDefensivesDB)=="table"and type(PuzatikPartyDefensivesDB.partycds)=="table"then store.partycds=ns.Clone(PuzatikPartyDefensivesDB.partycds)end
+    store.partycds=store.partycds or{}
     local c=store.partycds
     for k,v in pairs(defaults)do if c[k]==nil then c[k]=type(v)=="table"and ns.Clone(v)or v end end
     for key,a in pairs(defaults.anchors)do
@@ -1155,7 +1158,9 @@ for id,debuffs in pairs({[119381]={119381},[179057]={179057},[30283]={30283},[19
     [202138]={204843},[108199]={374776},[102793]={127797},[132469]={61391},[2094]={2094}})do BUFFS[id]={ENEMY,unpack(debuffs)}end
 BUFFS[POTION]={SELF,unpack(POTIONS)}
 local LAG={[192058]=2,[207684]=2,[202138]=2}
-local PLATES=40
+-- Enemy nameplates read for crowd control. Each one costs an aura container per CC spell of the
+-- group, so the count is kept to what a pull shows at once.
+local PLATES=20
 ns.PartyCooldownBuffs=BUFFS
 local function BuffsOf(id)
     local b=BUFFS[id];if not b then return SELF,{[id]=true}end
@@ -1473,8 +1478,8 @@ local driver=CreateFrame("Frame");local quick,lastRead,dirty=0,0,{}
 local sensorUnits={}
 driver:SetScript("OnUpdate",function()
     local now=GetTime()
-    if #sensors>0 and now-lastRead>=POLL then quick=0;dirty={};lastRead=now;PollSensors()
-    elseif quick>0 then quick=quick-1;PollSensors(dirty);if quick==0 then dirty={}end end
+    if #sensors>0 and now-lastRead>=POLL then quick=0;for k in pairs(dirty)do dirty[k]=nil end;lastRead=now;PollSensors()
+    elseif quick>0 then quick=quick-1;PollSensors(dirty);if quick==0 then for k in pairs(dirty)do dirty[k]=nil end end end
     if next(shownHidden)then SlideHidden()end
 end)
 function ns.PartyCooldownAura(unit)
@@ -1499,6 +1504,8 @@ function ns.RebuildPartyCooldownSensors()
     sensors={};sensorUnits={}
     if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
     if not(cfg.enabled and cfg.sensors and ns.PartyCooldownsLoaded())or sensorState.available==false then return 0 end
+    -- Alone there is nobody else to read: your own cooldowns come from the game.
+    if not(IsInGroup and IsInGroup())then return 0 end
     local externals,externalOwners,stops,stopOwners={},{},{},{}
     for _,name in ipairs(order)do local m=members[name]
         for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
