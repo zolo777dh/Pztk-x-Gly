@@ -969,6 +969,16 @@ local xs={};for i,icon in ipairs(G.cc.frame.icons)do icon.SetPoint=function(_,_,
 cfg.anchors.cc.perRow=all-1;ns.DrawPartyCooldowns();local sz=tonumber(cfg.anchors.cc.size)or 26
 assert(math.abs(math.abs(xs[all])-(3+(all-2)*(sz+2)/2))<0.01,'last icon in the middle '..tostring(xs[all]))
 cfg.anchors.cc.perRow=1;ns.DrawPartyCooldowns()
+-- Every window has the same look settings.
+env.click('pcd-pair:4');assert(ns.UIControls['pcd-style:window']and ns.UIControls['pcd-style:offX'],'look page, main list with frame offset')
+env.select('pcd-style:window','Crowd control');assert(not ns.UIControls['pcd-style:offX'],'offset only for the main list')
+env.select('pcd-style:align','Left');assert(cfg.styles.cc.align=='LEFT')
+cfg.anchors.cc.perRow=all-1;ns.DrawPartyCooldowns();assert(math.abs(math.abs(xs[all])-3)<0.01,'left aligned short row '..tostring(xs[all]))
+env.select('pcd-style:gap','6 px');env.select('pcd-style:alpha','50%');env.select('pcd-style:border','Thick');env.select('pcd-style:zoom','Whole icon');env.select('pcd-style:numbers','16 px')
+assert(cfg.styles.cc.gap==6 and cfg.styles.cc.alpha==50 and cfg.styles.cc.border=='thick'and cfg.styles.cc.zoom=='full'and cfg.styles.cc.numbers==16)
+assert(G.cc.frame.icons[1].border and G.cc.frame.icons[1].border:IsShown(),'border drawn')
+env.click('pcd-style:reset');assert(next(cfg.styles.cc)==nil and ns.PartyStyle('cc').align=='CENTER','reset to the look of the game')
+cfg.anchors.cc.perRow=1;ns.DrawPartyCooldowns();env.click('pcd-pair:1')
 env.select('pcd-kick:style','Bars')
 -- Bars take a texture of their own; each list has its own switch for your own spells.
 assert(ns.UIControls['pcd-kick:texture']and not ns.UIControls['pcd-cc:texture']);env.select('pcd-kick:texture','Flat');assert(cfg.anchors.kick.texture=='flat'and cell(G.kick,1766).bar.file==ns.PartyBarFile('flat')and ns.PartyBarFile('flat')~=ns.PartyBarFile(''),'the kick bars use the chosen texture')

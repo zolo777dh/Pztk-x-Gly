@@ -449,6 +449,7 @@ local function OwnGrey(icon,object)
     local g=icon.ownGrey
     if not g then
         g=icon:CreateTexture(nil,"ARTWORK",nil,7);g:SetAllPoints(icon.tex);g:SetTexCoord(0.07,0.93,0.07,0.93)
+        if icon.tex.GetTexCoord then pcall(function()g:SetTexCoord(icon.tex:GetTexCoord())end)end
         pcall(g.SetDesaturated,g,true);icon.ownGrey=g
     end
     g:SetTexture(icon.tex:GetTexture())
@@ -905,6 +906,50 @@ function ns.PartyCooldownReset()for _,m in pairs(members)do m.used={};m.hiddenCd
 local attached
 local groups={}
 local TITLES={main="Party cooldowns",kick="Interrupts",cc="Crowd control",stun="Stuns",move="Movement",potion="Potions"}
+-- The look of each window, the same settings for every one (cfg.styles[key]): where a short last
+-- row sits, the space between icons, opacity, the size of the timer numbers and of names, a border,
+-- how far the icon is zoomed, and for the main list the offset from the party frame.
+local Style={}
+Style.defaults={align="LEFT",gap=2,alpha=100,numbers=0,nameSize=0,border="none",zoom="normal",offX=0,offY=0}
+Style.keys={"main","kick","stun","cc","move","potion"}
+ns.PartyStyleKeys=Style.keys
+function ns.PartyStyle(key)
+    local cfg=ns.PartyCooldownConfig()
+    if type(cfg.styles)~="table"then cfg.styles={}end
+    local saved=cfg.styles[key];if type(saved)~="table"then saved={};cfg.styles[key]=saved end
+    local st={};for k,v in pairs(Style.defaults)do st[k]=v end
+    if key=="cc"then st.align="CENTER"end -- like the game's cooldown manager
+    for k,v in pairs(saved)do if Style.defaults[k]~=nil and type(v)==type(Style.defaults[k])then st[k]=v end end
+    st.gap=math.max(0,math.min(20,st.gap));st.alpha=math.max(10,math.min(100,st.alpha))
+    return st,saved
+end
+Style.zoom={normal={0.07,0.93},zoom={0.15,0.85},full={0,1}}
+-- Dresses one icon in a window's look.
+function Style.Icon(icon,st)
+    local z=Style.zoom[st.zoom]or Style.zoom.normal
+    icon.tex:SetTexCoord(z[1],z[2],z[1],z[2])
+    if icon.ownGrey then icon.ownGrey:SetTexCoord(z[1],z[2],z[1],z[2])end
+    local edge=st.border=="thin"and 1 or st.border=="thick"and 2 or 0
+    if edge>0 then
+        if not icon.border then icon.border=icon:CreateTexture(nil,"BACKGROUND",nil,-8);icon.border:SetColorTexture(0,0,0,1)end
+        icon.border:ClearAllPoints();icon.border:SetPoint("TOPLEFT",icon,"TOPLEFT",-edge,edge);icon.border:SetPoint("BOTTOMRIGHT",icon,"BOTTOMRIGHT",edge,-edge);icon.border:Show()
+    elseif icon.border then icon.border:Hide()end
+    local fs=icon.cd and icon.cd.GetCountdownFontString and icon.cd:GetCountdownFontString()
+    if fs and fs.GetFont then
+        if not icon.numberFont then icon.numberFont={fs:GetFont()}end
+        local f=icon.numberFont
+        if st.numbers>0 then pcall(fs.SetFont,fs,f[1],st.numbers,"OUTLINE")elseif f[1]then pcall(fs.SetFont,fs,f[1],f[2],f[3])end
+    end
+end
+ns.PartyStyleIcon=Style.Icon
+-- How far a short last row moves along its row: 0, half or all of the free room. `back` is true
+-- when the row grows to the left on screen.
+function Style.Shift(st,free,back)
+    if st.align=="CENTER"then return free/2 end
+    if(st.align=="RIGHT"and not back)or(st.align=="LEFT"and back)then return free end
+    return 0
+end
+ns.PartyAlignShift=Style.Shift
 -- Where a list sits: the main list keeps cfg.pos, the anchors keep x/y in their own settings.
 local function Place(key)
     local cfg=ns.PartyCooldownConfig()
@@ -1105,12 +1150,12 @@ local function Grid(n,size,cfg)
 end
 ns.PartyCooldownGrid=Grid
 local function FillIcons(row,m,ids,size,cfg)
-    local n=0
+    local n=0;local st=ns.PartyStyle("main")
     for _,id in ipairs(ids)do
         local left=ns.PartyCooldownLeft(m,id)
         local hidden=Hidden(m,id);local own=OwnHidden(m,id)
         if not(cfg.hideReady and left<=0 and not hidden and not MaybeRunning(m,id))then
-            n=n+1;local icon=Icon(row,n,size)
+            n=n+1;local icon=Icon(row,n,size);Style.Icon(icon,st)
             icon.tex:SetTexture(W.SpellTexture(m.face and m.face[id]or id));icon.spellID=id
             local start,dur;if m.me then start,dur=OwnCooldown(id)end
             if start==0 then start=nil elseif not start and m.used[id]then start,dur=m.used[id],ns.PartyCooldownLength(m,id)end
@@ -1134,14 +1179,14 @@ end
 local function DrawRows(g,entries,opts,unlocked)
     local f=g.frame;Anchor(g)
     local size=tonumber(opts.size)or 26;local font=W.Font and W.Font(true);local y,widest=0,0
-    local up=opts.grow=="UP"
+    local up=opts.grow=="UP";local st=ns.PartyStyle("main");local gap=st.gap;f:SetAlpha(st.alpha/100)
     for i,e in ipairs(entries)do
         local m,ids=e[1],e[2]
         local row=Row(g,i)
         row:ClearAllPoints()
         if up then row:SetPoint("BOTTOMLEFT",f,"BOTTOMLEFT",4,y+4)else row:SetPoint("TOPLEFT",f,"TOPLEFT",4,-y-4)end
         row:SetSize(1,size)
-        if type(font)=="string"then row.name:SetFont(font,12,"OUTLINE")end
+        if type(font)=="string"then row.name:SetFont(font,st.nameSize>0 and st.nameSize or 12,"OUTLINE")end
         local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
         row.name:SetTextColor(c and c.r or 1,c and c.g or 1,c and c.b or 1)
         -- Without names a thin bar in the class colour starts each row.
@@ -1152,9 +1197,11 @@ local function DrawRows(g,entries,opts,unlocked)
         row.name:ClearAllPoints();row.name:SetPoint("LEFT",row,"LEFT",0,0);row.name:SetWidth(90)
         local per,s=Grid(Visible(m,ids,opts),size,opts)
         local n=FillIcons(row,m,ids,s,opts);local lines=math.max(1,math.ceil(n/per))
-        row:SetSize(1,lines*(s+2)-2);row.bar:SetHeight(lines*(s+2)-2)
-        for k=1,n do local icon=row.icons[k];icon:ClearAllPoints();icon:SetPoint("TOPLEFT",row,"TOPLEFT",start+((k-1)%per)*(s+2),-math.floor((k-1)/per)*(s+2))end
-        widest=math.max(widest,start+math.min(n,per)*(s+2));row:Show();y=y+math.max(size,lines*(s+2)-2)+4
+        row:SetSize(1,lines*(s+gap)-gap);row.bar:SetHeight(lines*(s+gap)-gap)
+        local short=n>per and n%per or 0;local shift=short>0 and Style.Shift(st,(per-short)*(s+gap),false)or 0
+        for k=1,n do local icon=row.icons[k];icon:ClearAllPoints()
+            icon:SetPoint("TOPLEFT",row,"TOPLEFT",start+((k-1)%per)*(s+gap)+(k>n-short and shift or 0),-math.floor((k-1)/per)*(s+gap))end
+        widest=math.max(widest,start+math.min(n,per)*(s+gap));row:Show();y=y+math.max(size,lines*(s+gap)-gap)+4
     end
     for i=#entries+1,#g.rows do g.rows[i]:Hide()end
     f:SetSize(math.max(60,widest+8),math.max(size+8,y+4));f:EnableMouse(unlocked==true)
@@ -1224,7 +1271,9 @@ local function DrawAnchor(g,entries,a,unlocked)
     local f=g.frame;Anchor(g)
     local bars=a.style=="bars";local size=tonumber(a.size)or 26;local width=bars and math.max(size+20,tonumber(a.width)or 180)or size
     local perRow=math.max(1,math.floor(tonumber(a.perRow)or 1));local rows=math.max(1,math.floor(tonumber(a.rows)or 5))
-    local left,up,gap=a.dir=="LEFT",a.grow=="UP",2
+    local st=ns.PartyStyle(g.key);f:SetAlpha(st.alpha/100)
+    local left,up,gap=a.dir=="LEFT",a.grow=="UP",st.gap
+    local nameSize=st.nameSize>0 and st.nameSize
     local h,v=left and"RIGHT"or"LEFT",up and"BOTTOM"or"TOP"
     local font=W.Font and W.Font(true)
     local n=0
@@ -1232,7 +1281,7 @@ local function DrawAnchor(g,entries,a,unlocked)
         for _,id in ipairs(e[2])do
             local remain,start,dur,hidden=Timing(m,id);local own=OwnHidden(m,id)
             if n<perRow*rows and not(a.hideReady and remain<=0 and not hidden and not MaybeRunning(m,id))then
-                n=n+1;local cell=Cell(g,n);local col,row=(n-1)%perRow,math.floor((n-1)/perRow)
+                n=n+1;local cell=Cell(g,n);local col,row=(n-1)%perRow,math.floor((n-1)/perRow);Style.Icon(cell,st)
                 cell:ClearAllPoints();cell:SetSize(size,size)
                 cell:SetPoint(v..h,f,v..h,(left and-1 or 1)*(3+col*(width+gap)),(up and 1 or-1)*(3+row*(size+gap)))
                 cell.tex:SetTexture(W.SpellTexture(m.face and m.face[id]or id));cell.spellID=id;cell.member=m.name
@@ -1267,7 +1316,7 @@ local function DrawAnchor(g,entries,a,unlocked)
                         local E=Enum;local ok=pcall(bar.SetTimerDuration,bar,object,E and E.StatusBarInterpolation and E.StatusBarInterpolation.Immediate,E and E.StatusBarTimerDirection and E.StatusBarTimerDirection.RemainingTime)
                         if ok then bar.object=object end
                     end
-                    if type(font)=="string"then bar.name:SetFont(font,11,"OUTLINE");bar.time:SetFont(font,11,"OUTLINE")end
+                    if type(font)=="string"then bar.name:SetFont(font,nameSize or 11,"OUTLINE");bar.time:SetFont(font,nameSize or 11,"OUTLINE")end
                     bar.name:ClearAllPoints();bar.time:ClearAllPoints()
                     bar.name:SetPoint(left and"RIGHT"or"LEFT",bar,left and"RIGHT"or"LEFT",left and-4 or 4,0)
                     bar.time:SetPoint(left and"LEFT"or"RIGHT",bar,left and"LEFT"or"RIGHT",left and 4 or-4,0)
@@ -1276,7 +1325,7 @@ local function DrawAnchor(g,entries,a,unlocked)
                 else
                     bar:Hide();bar.start=nil
                     if a.names then
-                        if type(font)=="string"then label:SetFont(font,9,"OUTLINE")end
+                        if type(font)=="string"then label:SetFont(font,nameSize or 9,"OUTLINE")end
                         label:ClearAllPoints();label:SetPoint("BOTTOM",cell,"BOTTOM",0,1);label:SetWidth(size)
                         label:SetText(name);label:SetTextColor(r,gr,b);label:Show()
                     else label:Hide()end
@@ -1284,11 +1333,12 @@ local function DrawAnchor(g,entries,a,unlocked)
             end
         end
     end
-    -- Crowd control: a last row shorter than the others sits in the middle, like the game's
-    -- cooldown manager.
-    local short=g.key=="cc"and n>perRow and n%perRow or 0
-    if short>0 then
-        local shift=(perRow-short)*(width+gap)/2;local row=math.floor((n-1)/perRow)
+    -- A last row shorter than the others: where it sits is the window's alignment (crowd control
+    -- is centred by default, like the game's cooldown manager).
+    local short=n>perRow and n%perRow or 0
+    local shift=short>0 and Style.Shift(st,(perRow-short)*(width+gap),left)or 0
+    if short>0 and shift~=0 then
+        local row=math.floor((n-1)/perRow)
         for i=n-short+1,n do local cell=f.icons[i];local col=(i-1)%perRow
             cell:ClearAllPoints();cell:SetPoint(v..h,f,v..h,(left and-1 or 1)*(3+col*(width+gap)+shift),(up and 1 or-1)*(3+row*(size+gap)))
         end
@@ -1352,9 +1402,13 @@ DrawNow=function()
             local side=SIDES[cfg.side]or SIDES.RIGHT
             local per,s=Grid(Visible(m,ids,cfg),size,cfg)
             local n=FillIcons(holder,m,ids,s,cfg);local lines=math.max(1,math.ceil(n/per))
-            holder:ClearAllPoints();holder:SetPoint(side[1],frame,side[2],side[3],side[4]);holder:SetSize(math.max(1,math.min(n,per)*(s+2)),lines*(s+2)-2)
+            local st=ns.PartyStyle("main");local gap=st.gap;holder:SetAlpha(st.alpha/100)
+            holder:ClearAllPoints();holder:SetPoint(side[1],frame,side[2],side[3]+st.offX,side[4]+st.offY);holder:SetSize(math.max(1,math.min(n,per)*(s+gap)),lines*(s+gap)-gap)
+            -- Next to the frame the icons start at its edge; a short last row moves only if asked.
+            local short=n>per and n%per or 0;local shift=short>0 and Style.Shift(st,(per-short)*(s+gap),side[5]<0)or 0
             for i=1,n do local icon=holder.icons[i];icon:ClearAllPoints();local col,line=(i-1)%per,math.floor((i-1)/per)
-                if side[5]>0 then icon:SetPoint("TOPLEFT",holder,"TOPLEFT",col*(s+2),-line*(s+2))else icon:SetPoint("TOPRIGHT",holder,"TOPRIGHT",-col*(s+2),-line*(s+2))end
+                local x=col*(s+gap)+(i>n-short and shift or 0)
+                if side[5]>0 then icon:SetPoint("TOPLEFT",holder,"TOPLEFT",x,-line*(s+gap))else icon:SetPoint("TOPRIGHT",holder,"TOPRIGHT",-x,-line*(s+gap))end
             end
             holder:Show()
         else main[#main+1]={m,ids}end
@@ -2098,16 +2152,17 @@ local ANCHOR_HELP={
     potion="Combat potions share one cooldown of 5 minutes, whatever potion was drunk. Seen from the cast, or from the potion's buff when the game hides the cast.",
 }
 -- Which lists are set up side by side on the page.
-local PAIRS={{"kick","cc"},{"stun","move"},{"potion","main"}}
+local PAIRS={{"kick","cc"},{"stun","move"},{"potion","main"},{"style"}}
 local DrawMainCard
 function DrawAnchors(parent,apply,d)
     local cfg=ns.PartyCooldownConfig()
     local function list(values,suffix)local out={};for _,v in ipairs(values)do out[#out+1]={value=v,label=v..(suffix or"")}end;return out end
     local sizes,widths,counts=list({16,18,20,22,24,26,30,36,42,48}," px"),list({120,150,180,200,240,280,320}," px"),list({1,2,3,4,5,6,7,8,9,10})
     d.pair=d.pair or 1
-    local tabs={};for i,p in ipairs(PAIRS)do tabs[#tabs+1]={value=i,label=L(TITLES[p[1]]).." · "..L(p[2]=="main"and"Main list"or TITLES[p[2]])}end
+    local tabs={};for i,p in ipairs(PAIRS)do
+        tabs[#tabs+1]={value=i,label=p[1]=="style"and L("Look")or L(TITLES[p[1]]).." · "..L(p[2]=="main"and"Main list"or TITLES[p[2]])}end
     W.Segmented(parent,tabs,d.pair,0,56,920,function(v)d.pair=v;kit.refresh()end,"pcd-pair")
-    for i,key in ipairs(PAIRS[d.pair]or PAIRS[1])do if key=="main"then DrawMainCard(parent,(i-1)*466,apply)else
+    for i,key in ipairs(PAIRS[d.pair]or PAIRS[1])do if key=="style"then Style.Card(parent,apply,d)elseif key=="main"then DrawMainCard(parent,(i-1)*466,apply)else
         local a=cfg.anchors[key];local field=FIELD[key];local id="pcd-"..key..":"
         local bars=a.style=="bars"
         local card=W.Card(parent,(i-1)*466,96,454,462,L(TITLES[key]))
@@ -2135,6 +2190,34 @@ function DrawAnchors(parent,apply,d)
     end end
     W.Button(parent,cfg.unlocked and L("Lock")or L("Unlock and preview"),0,568,454,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
     W.Label(parent,L("Unlock shows every list with its name; drag them where you want them."),466,576,454,11,C.muted)
+end
+-- The look of each window: one set of settings, the same for every window.
+function Style.Card(parent,apply,d)
+    local key=d.styleKey or"main"
+    local wins={};for _,k in ipairs(Style.keys)do wins[#wins+1]={value=k,label=L(k=="main"and"Main list"or TITLES[k])}end
+    local st,saved=ns.PartyStyle(key)
+    local function set(field)return function(v)saved[field]=v;apply()end end
+    local function list(values,fmt)local out={};for _,v in ipairs(values)do out[#out+1]={value=v,label=fmt and fmt(v)or tostring(v)}end;return out end
+    local px=function(v)return v.." px"end
+    local card=W.Card(parent,0,96,920,462,L("Look of each window"))
+    W.Select(card,L("WINDOW"),wins,key,12,34,290,function(v)d.styleKey=v;kit.refresh()end,"pcd-style:window")
+    local id="pcd-style:"
+    W.Select(card,L("SHORT LAST ROW"),{{value="LEFT",label=L("Left")},{value="CENTER",label=L("Centre")},{value="RIGHT",label=L("Right")}},st.align,12,96,290,set("align"),id.."align")
+    W.Select(card,L("SPACING"),list({0,1,2,3,4,6,8,10,14},px),st.gap,315,96,290,set("gap"),id.."gap")
+    W.Select(card,L("OPACITY"),list({100,90,80,70,60,50,40,30},function(v)return v.."%"end),st.alpha,618,96,290,set("alpha"),id.."alpha")
+    local numbers=list({10,11,12,13,14,16,18,20,24},px);table.insert(numbers,1,{value=0,label=L("Game default")})
+    W.Select(card,L("TIMER NUMBERS"),numbers,st.numbers,12,152,290,set("numbers"),id.."numbers")
+    local names=list({8,9,10,11,12,13,14,16},px);table.insert(names,1,{value=0,label=L("Default")})
+    W.Select(card,L("NAME SIZE"),names,st.nameSize,315,152,290,set("nameSize"),id.."nameSize")
+    W.Select(card,L("BORDER"),{{value="none",label=L("None")},{value="thin",label=L("Thin")},{value="thick",label=L("Thick")}},st.border,618,152,290,set("border"),id.."border")
+    W.Select(card,L("ICON ZOOM"),{{value="normal",label=L("Normal")},{value="zoom",label=L("Zoomed in")},{value="full",label=L("Whole icon")}},st.zoom,12,208,290,set("zoom"),id.."zoom")
+    if key=="main"then
+        local offs=list({-20,-15,-10,-6,-4,-2,0,2,4,6,10,15,20},px)
+        W.Select(card,L("OFFSET FROM THE FRAME X"),offs,st.offX,315,208,290,set("offX"),id.."offX")
+        W.Select(card,L("OFFSET FROM THE FRAME Y"),offs,st.offY,618,208,290,set("offY"),id.."offY")
+    end
+    W.Button(card,L("Reset the look"),12,272,290,function()ns.PartyCooldownConfig().styles[key]={};apply()end,false,id.."reset",{kind="outline",align="CENTER"})
+    W.Label(card,L("Every window has the same look settings: pick a window, then set where a short last row sits, the space between icons, opacity, the size of the timer numbers and names, a border and the icon zoom. Icons beside party frames use the main list's look and can be moved away from the frame."),12,316,896,11,C.muted)
 end
 -- The main list: icons beside the party frames or in the movable list.
 function DrawMainCard(parent,x,apply)

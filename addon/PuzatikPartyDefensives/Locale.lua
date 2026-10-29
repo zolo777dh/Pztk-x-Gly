@@ -73,7 +73,12 @@ local ru={
     ["Beside the party frames"]="У рамок группы",["Side: "]="Сторона: ",["Icon size "]="Размер иконок ",["Size from 20 to 40"]="Размер от 20 до 40",
     ["Unlocked: drag the list"]="Откреплено: перетащите списки",["Locked"]="Закреплено",
     -- 0.11.0: more lists and the extras
-    ["ready"]="готово",["Move up"]="Выше",["Move down"]="Ниже",["Hide in raids"]="Скрыть в рейде",["Target marker"]="Метка цели",["Dark bars"]="Тёмные полосы",
+    ["ready"]="готово",["Move up"]="Выше",["Move down"]="Ниже",["Hide in raids"]="Скрыть в рейде",
+    ["Look"]="Вид",["Look of each window"]="Вид каждого окна",["WINDOW"]="ОКНО",["SHORT LAST ROW"]="НЕПОЛНЫЙ РЯД",["Centre"]="По центру",
+    ["SPACING"]="ОТСТУП",["OPACITY"]="ПРОЗРАЧНОСТЬ",["TIMER NUMBERS"]="ЦИФРЫ ТАЙМЕРА",["Game default"]="Как в игре",["NAME SIZE"]="РАЗМЕР ИМЁН",["Default"]="По умолчанию",
+    ["BORDER"]="РАМКА",["None"]="Нет",["Thin"]="Тонкая",["Thick"]="Толстая",["ICON ZOOM"]="УВЕЛИЧЕНИЕ ИКОНКИ",["Normal"]="Обычное",["Zoomed in"]="Крупнее",["Whole icon"]="Вся иконка",
+    ["OFFSET FROM THE FRAME X"]="СДВИГ ОТ РАМКИ X",["OFFSET FROM THE FRAME Y"]="СДВИГ ОТ РАМКИ Y",["Reset the look"]="Сбросить вид",
+    ["Every window has the same look settings: pick a window, then set where a short last row sits, the space between icons, opacity, the size of the timer numbers and names, a border and the icon zoom. Icons beside party frames use the main list's look and can be moved away from the frame."]="У каждого окна одинаковые настройки вида: выбери окно и задай, где стоит неполный последний ряд, отступ между иконками, прозрачность, размер цифр таймера и имён, рамку и увеличение иконки. Иконки у рамок группы берут вид основного списка и могут быть сдвинуты от рамки.",["Target marker"]="Метка цели",["Dark bars"]="Тёмные полосы",
     ["Main list"]="Основной список",["One row"]="Одна строка",["SIZE ON MORE ROWS"]="РАЗМЕР НА НЕСКОЛЬКИХ СТРОКАХ",["Highlight new timers"]="Подсвечивать новые таймеры",["Tooltips"]="Подсказки",
     ["With more icons than Per row, a member's icons go on more rows at the smaller size. A new timer gets a gold edge for 3 seconds. Tooltips show the spell and the time left when you point at an icon; with them on the icons take the mouse. The order of the icons is set per specialization on the Abilities page."]="Если иконок больше, чем в строке, они переносятся на следующие строки меньшего размера. Новый таймер 3 секунды обведён золотым. Подсказки показывают способность и оставшееся время при наведении; с ними иконки ловят мышь. Порядок иконок задаётся для каждой специализации на вкладке «Способности».",
     ["Lists"]="Списки",["Extras"]="Ещё",["Everywhere"]="Везде",["Instances"]="Подземелья и рейды",["Dungeons"]="Только подземелья",
