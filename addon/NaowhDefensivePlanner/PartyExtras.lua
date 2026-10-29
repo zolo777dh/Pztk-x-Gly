@@ -32,6 +32,7 @@ local function ClassColor(name)
 end
 local function Me()for _,m in pairs(ns.PartyCooldownMembers)do if m.me then return m end end end
 -- Everything here follows the main switch and the load options: /pcd off turns it all off.
+local StopAll -- defined with the refresh
 local function Active()
     local cfg=ns.PartyCooldownConfig();return cfg.enabled==true and ns.PartyCooldownsLoaded()
 end
@@ -151,6 +152,8 @@ local function BuildPlateBars()
         local on=e.on==true and Active()
         pcall(p.frame.SetEnabled,p.frame,on);if on then pcall(p.frame.UpdateAllAuras,p.frame)else p.frame:Hide()end
     end
+    -- Nameplates already up get their bars now, not only the ones added later.
+    if e.on and Active()then for i=1,PLATES do local unit="nameplate"..i;if UnitExists and UnitExists(unit)then ns.PartyPlateAdded(unit)end end end
     return true
 end
 function ns.PartyPlateAdded(unit)
@@ -243,7 +246,7 @@ end
 ---------------------------------------------------------------------------
 -- External request: you ask, the healers of the group see who needs one and which of their
 -- externals are ready. Players without this addon get the word in a whisper (switch).
-local lastAsk=0
+local lastAsk,hideAt=0,nil
 function ns.RequestExternal()
     if not(IsInGroup and IsInGroup())or not ns.PartyCooldownConfig().enabled or GetTime()-lastAsk<3 then return false end
     lastAsk=GetTime();local e=ns.PartyExtrasConfig().request
@@ -260,12 +263,11 @@ local function ReadyExternals()
     local me=Me();if not me then return{}end
     local out={}
     for _,id in ipairs(ns.PartyCooldownList(me))do local b=ns.PartyCooldownBuffs[id]
-        if b and b[1]==2 and not ns.PartyCooldownKind(id)and ns.PartyCooldownLeft(me,id)<=0 then out[#out+1]=id end
+        if b and b[1]==2 and not ns.PartyCooldownKind(id)and ns.PartyCooldownReady(me,id)then out[#out+1]=id end
     end
     return out
 end
 ns.PartyReadyExternals=ReadyExternals
-local hideAt
 function ns.ShowExternalRequest(name)
     local e=ns.PartyExtrasConfig().request;if not e.on or not name or not Active()then return false end
     local h=Place("request");local size=tonumber(e.size)or 40
@@ -298,11 +300,21 @@ function ns.PartyExternalWhisper(text,sender)
 end
 
 ---------------------------------------------------------------------------
+-- Switched off (or not loaded here): sounds removed, containers stopped and every box hidden at
+-- once; what the game refuses in combat is set up again by the refresh after combat.
+function StopAll()
+    ClearSounds()
+    for _,p in pairs(plateBars)do pcall(p.frame.SetEnabled,p.frame,false);p.frame:Hide()end
+    for _,o in pairs(own)do pcall(o.frame.SetEnabled,o.frame,false)end
+    for key,h in pairs(holders)do if not(key=="request"and ns.PartyCooldownConfig().unlocked)then h:Hide()end end
+    hideAt=nil
+end
+ns.PartyExtrasStop=StopAll
 function ns.RefreshPartyExtras()
     local cfg=ns.PartyCooldownConfig();local e=ns.PartyExtrasConfig()
     if InCombatLockdown and InCombatLockdown()then
         -- Containers are rebuilt after combat; switched off now, they are hidden at once.
-        if not Active()then for _,p in pairs(plateBars)do p.frame:Hide()end;for key in pairs(own)do if holders[key]then holders[key]:Hide()end end end
+        if not Active()then StopAll()end
         ns.DrawKickRotation();return false
     end
     ClearSounds()
@@ -318,7 +330,8 @@ function ns.RefreshPartyExtras()
     end
     if ns.PartyCooldownConfig().unlocked then
         if e.request.on then local h=Place("request");h:SetSize(220,(tonumber(e.request.size)or 40)+24);h:Show()end
-    elseif holders.request and not(hideAt and GetTime()<hideAt)then holders.request:Hide()end
+    elseif holders.request and not(on and hideAt and GetTime()<hideAt)then holders.request:Hide()end
+    if not on then StopAll()end
     ns.DrawKickRotation()
     return true
 end
@@ -350,7 +363,7 @@ function ns.DrawPartyExtras(parent,apply)
     W.Label(left,L("Stuns, fears and other crowd control get a bar over the enemy's nameplate that runs down with the debuff. The game draws the bars, so they work in combat. Enemy nameplates must be shown."),12,92,430,11,C.muted)
     W.Toggle(left,L("Kick rotation on bosses"),e.rotation.on,12,150,430,function(v)e.rotation.on=v;again()end,"pcdx:rotation")
     local field=W.Field(left,L("ORDER (NAMES, SEPARATED BY COMMAS)"),e.rotation.names or"",12,180,430,"pcdx:names")
-    if field and field.HookScript then field:HookScript("OnTextChanged",function(self)e.rotation.names=self:GetText()end)end
+    W.OnText(field,function(self)e.rotation.names=self:GetText()end)
     W.Toggle(left,L("Sounds when you are next and when the boss casts"),e.rotation.sound,12,240,430,function(v)e.rotation.sound=v;again()end,"pcdx:rotsound")
     W.Toggle(left,L("Accept lists from the leader"),e.rotation.accept,12,268,430,function(v)e.rotation.accept=v;again()end,"pcdx:accept")
     -- What is typed is saved as it is typed; the buttons read the field too.
@@ -362,7 +375,7 @@ function ns.DrawPartyExtras(parent,apply)
     W.Toggle(right,L("Show external requests from the group"),e.request.on,12,34,430,function(v)e.request.on=v;again()end,"pcdx:request")
     W.Toggle(right,L("Also whisper the word to healers"),e.request.whisper,12,62,430,function(v)e.request.whisper=v;again()end,"pcdx:whisper")
     local word=W.Field(right,L("WORD"),e.request.word or"hx",12,92,120,"pcdx:word")
-    if word and word.HookScript then word:HookScript("OnTextChanged",function(self)local t=self:GetText();if t and t:match("%S")then e.request.word=t end end)end
+    W.OnText(word,function(self)local t=self:GetText();if t and t:match("%S")then e.request.word=t end end)
     W.Button(right,L("Ask for an external"),146,108,296,function()kit.done(ns.RequestExternal(),L("Join a group first"),L("Your healers were asked"))end,false,"pcdx:ask",{align="CENTER"})
     W.Label(right,L("Type /pcd ext or put it in a macro. Healers with this addon see who asked and their ready externals; a whisper of the word from a group member shows the same."),12,150,430,11,C.muted)
     W.Toggle(right,L("Externals on you"),e.externals.on,12,206,430,function(v)e.externals.on=v;again()end,"pcdx:externals")

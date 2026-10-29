@@ -77,6 +77,13 @@ local function forwardWheel(f,parent)
     else f:EnableMouseWheel(false)end
 end
 W.ForwardWheel=forwardWheel
+-- Follows what is typed into a reused field: one hook per field for good, and the handler of the
+-- latest drawing, so redrawing never stacks handlers.
+function W.OnText(field,fn)
+    if not(field and field.HookScript)then return end
+    field.onTextHandler=fn
+    if not field.onTextHooked then field.onTextHooked=true;field:HookScript("OnTextChanged",function(self,...)if self.onTextHandler then self.onTextHandler(self,...)end end)end
+end
 local resetScripts={"OnClick","OnEnter","OnLeave","OnEscapePressed","OnEnterPressed","OnTextChanged","OnKeyDown","OnUpdate","OnEditFocusGained","OnEditFocusLost","OnMouseWheel","OnVerticalScroll","OnScrollRangeChanged","OnReceiveDrag","OnMouseUp","OnMouseDown"}
 function W.Frame(kind,unused,parent,template)
     if not W.building then local f=CreateFrame(kind,nil,parent,template);if kind=="Button"or kind=="EditBox"then forwardWheel(f,parent)end;return f end

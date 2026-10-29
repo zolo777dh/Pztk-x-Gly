@@ -1170,7 +1170,41 @@ cfg.enabled=true;ns.RefreshPartyCooldowns();ns.KickRotationStart(false)
 -- The external hint lists only defensive externals, never Blessing of Freedom.
 assert(ns.PartyCooldownKind(1044)=='move');for _,id in ipairs(ns.PartyReadyExternals())do assert(id~=1044)end
 for _,id in ipairs(ns.PartyExtrasAuraIDs(2,true))do assert(id~=1044)end
-units.party1=nil;units.party2=nil;GetNormalizedRealmName=nil
+-- Fourth review. The game's timer object wins over a timer from a seen cast, and only "over" is ready.
+local me=m['Tester-Home'];me.used[22812]=GetTime()
+local secret2=setmetatable({},{__index=function()error('secret')end});local was2=ns.Plain;ns.Plain=function(v,t)if v==secret2 then return false end;return was2(v,t)end
+C_Spell.GetSpellCooldown=function()return{startTime=secret2,duration=secret2,isActive=secret2,isOnGCD=secret2}end
+local zero=false;local object={IsZero=function()return zero end};C_Spell.GetSpellCooldownDuration=function()return object end
+assert(ns.PartyCooldownOwnHidden(me,22812)==object,'the game timer first');assert(ns.PartyCooldownReady(me,22812)==false,'running is not ready')
+zero=true;assert(ns.PartyCooldownReady(me,22812)==true);object.IsZero=function()return secret2 end;assert(ns.PartyCooldownReady(me,22812)==false,'unknown is not ready')
+C_Spell.GetSpellCooldown=nil;C_Spell.GetSpellCooldownDuration=nil;ns.Plain=was2;me.used={}
+-- Another version of a spell counts as the tracked one, with its own icon.
+units.party3={'Magey','MAGE'};ns.PartyCooldownRoster();local mg=m['Magey-Home']
+ns.CommHandlers.PCD('64;414658=180','Magey','PARTY','Magey-Home');assert(mg.known[45438]and not mg.known[414658]and mg.cds[45438]==180 and mg.face[45438]==414658)
+ns.PartyCooldownCast('party3',414658);assert(mg.used[45438]and not mg.used[414658])
+local count=0;for _,id in ipairs(ns.PartyCooldownList(mg))do if id==45438 or id==414658 then count=count+1 end end;assert(count==1,'one icon')
+-- A spell only heard of in messages may come from any class.
+ns.CommHandlers.PCD('64;45438=180;999001=120','Magey','PARTY','Magey-Home');ns.CommHandlers.PCD('256;33206=150;999001=120','Other','PARTY','Other-RealmB')
+assert(mg.known[999001]and m['Other-RealmB'].known[999001],'shared by two classes')
+-- Load options stop the sensors too.
+local inst=IsInInstance;IsInInstance=function()return false end;cfg.loadWhere='dungeons';assert(ns.RebuildPartyCooldownSensors()==0,'no sensors outside');cfg.loadWhere='all';IsInInstance=inst
+-- A reused field keeps one hook, with the latest handler.
+local hooks,seen=0,nil;local box={HookScript=function(self,_,fn)hooks=hooks+1;self.run=fn end}
+ns.Widgets.OnText(box,function()seen=1 end);ns.Widgets.OnText(box,function()seen=2 end);box.run(box);assert(hooks==1 and seen==2)
+-- CC bars come back over nameplates already shown; switching off in combat drops sounds and boxes.
+local groups={};local create=CreateFrame;CreateFrame=function(kind,...)local f=create(kind,...);if kind=='AuraContainer'then f.AddAuraGroup=function(_,key,filter,o)groups[#groups+1]=key end end;return f end
+local sounds,removed={},0;C_UnitAuras={AddAuraSound=function()sounds[#sounds+1]=1;return #sounds end,RemoveAuraSound=function()removed=removed+1 end}
+local plate=create('Frame');C_NamePlate={GetNamePlateForUnit=function()return plate end};local ue=UnitExists;UnitExists=function(u)return u=='nameplate1'or ue(u)end
+e.ccbars.on=true;e.externals.on=true;e.externals.sound=true;ns.RefreshPartyExtras()
+assert(ns.PartyPlateBars[1].frame:IsShown(),'bar over a plate already up');e.ccbars.on=false;ns.RefreshPartyExtras();assert(not ns.PartyPlateBars[1].frame:IsShown())
+e.ccbars.on=true;ns.RefreshPartyExtras();assert(ns.PartyPlateBars[1].frame:IsShown(),'shown again')
+local list=ns.PartyExtrasSounds();assert(#list>0)
+ns.ShowExternalRequest('Other-RealmB');assert(ns.PartyExtraHolders.request:IsShown())
+InCombatLockdown=function()return true end;cfg.enabled=false;ns.RefreshPartyExtras()
+assert(#ns.PartyExtrasSounds()==0 and removed>0,'sounds removed in combat');assert(not ns.PartyExtraHolders.request:IsShown()and not ns.PartyPlateBars[1].frame:IsShown()and not ns.PartyExtraHolders.externals:IsShown())
+InCombatLockdown=function()return false end;cfg.enabled=true;e.ccbars.on=false;e.externals.on=false;ns.RefreshPartyExtras()
+CreateFrame=create;C_UnitAuras=nil;C_NamePlate=nil;UnitExists=ue
+units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
 `));
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
