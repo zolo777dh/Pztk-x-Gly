@@ -1077,7 +1077,9 @@ local has2=function(x)for _,v in ipairs(sounds)do if v==x then return true end e
 assert(has2('target:2094')and has2('player:2825')and has2('player:33206'),'sounds the game plays when the aura lands')
 env.click('pcdx:ccbars');env.click('pcdx:externals');env.click('pcdx:lust');CreateFrame=create;C_UnitAuras=nil;PlaySound=nil
 env.click('pcd-view:anchors')
-cfg.anchors.cc.x=300;assert(ns.DrawPartyCooldowns());assert(G.cc.x==300);env.click('pcd-cc:reset');assert(cfg.anchors.cc.x==-420 and G.cc.x==-420)
+cfg.anchors.cc.x=300;assert(ns.DrawPartyCooldowns());assert(G.cc.x==300);local w=G.cc.frame:GetWidth();env.click('pcd-cc:reset')
+-- A reset puts the list back where it starts and keeps it at the corner it grows from.
+assert(cfg.anchors.cc.edge and G.cc.x==cfg.anchors.cc.x and G.cc.point~='CENTER','reset to the start, held at the corner it grows from')
 env.click('pcd:kicks');assert(cfg.kicks==false and not has(m.Rogue,1766)and not G.kick.frame:IsShown());env.click('pcd:cc');assert(not has(m.Rogue,2094)and not G.cc.frame:IsShown())
 env.click('pcd:kicks');env.click('pcd:cc');assert(has(m.Rogue,1766)and has(m.Rogue,2094))
 env.click('pcd-unlock');assert(cfg.unlocked and G.kick.frame:IsShown()and G.cc.frame:IsShown());env.click('pcd-unlock');env.click('pcd-view:display')

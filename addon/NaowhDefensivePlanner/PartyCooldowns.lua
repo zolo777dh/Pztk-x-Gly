@@ -515,6 +515,8 @@ end
 function ns.PartyCooldownExact(member,id)
     if not member then return false end
     if member.me then local start=OwnCooldown(id);if start and start>0 then return true end
+        -- Your own potion is timed from your own cast, which is always seen.
+        if id==POTION and member.used[id]then return true end
         local object=OwnHidden(member,id);if object and object~=true then return true end end
     if Hidden(member,id)and not member.used[id]then return false end
     local how=member.how and member.how[id]
@@ -995,8 +997,10 @@ local function Group(key)
     f:SetScript("OnDragStop",function(self)
         self:StopMovingOrSizing()
         local x,y=self:GetCenter();local ux,uy=UIParent:GetCenter()
+        local pos=Place(key)
+        if pos.edge then x=g.left and self:GetRight()or self:GetLeft();y=g.up and self:GetBottom()or self:GetTop()end
         if type(x)=="number"and type(ux)=="number"then
-            local pos=Place(key);pos.x,pos.y=math.floor(x-ux+0.5),math.floor(y-uy+0.5);g.x,g.y=pos.x,pos.y
+            pos.x,pos.y=math.floor(x-ux+0.5),math.floor(y-uy+0.5);g.x,g.y=pos.x,pos.y
         end
     end)
     f:Hide()
@@ -1005,9 +1009,20 @@ local function Group(key)
 end
 ns.PartyCooldownGroups=groups
 -- Moves the list only when its saved place changed (a reset), never in the middle of a drag.
-local function Anchor(g)
+-- A list keeps the corner it grows from in place (pos.edge): a list to the right and down stays at
+-- its top left corner whatever the number of icons. Positions saved as the centre before are
+-- turned into that corner once, on the first draw (Settle).
+local function Anchor(g,left,up)
     local pos=Place(g.key);local x,y=tonumber(pos.x)or 0,tonumber(pos.y)or 0
-    if g.x~=x or g.y~=y then g.frame:ClearAllPoints();g.frame:SetPoint("CENTER",UIParent,"CENTER",x,y);g.x,g.y=x,y end
+    local point=pos.edge and((up and"BOTTOM"or"TOP")..(left and"RIGHT"or"LEFT"))or"CENTER"
+    g.left,g.up=left,up
+    if g.x~=x or g.y~=y or g.point~=point then g.frame:ClearAllPoints();g.frame:SetPoint(point,UIParent,"CENTER",x,y);g.x,g.y,g.point=x,y,point end
+end
+ns.PartyCooldownSettle=function(g)
+    local pos=Place(g.key);if pos.edge then return end
+    local w,h=g.frame:GetWidth(),g.frame:GetHeight();if not(ns.Plain(w,"number")and ns.Plain(h,"number"))then return end
+    pos.x=math.floor((tonumber(pos.x)or 0)+(g.left and w/2 or-w/2)+0.5);pos.y=math.floor((tonumber(pos.y)or 0)+(g.up and-h/2 or h/2)+0.5)
+    pos.edge=true;Anchor(g,g.left,g.up)
 end
 local function Row(g,i)
     local row=g.rows[i];if row then return row end
@@ -1210,7 +1225,7 @@ end
 -- One list: a row per member, a class bar or the name, then the icons. `opts`: size, names,
 -- hideReady, grow ("DOWN" or "UP").
 local function DrawRows(g,entries,opts,unlocked)
-    local f=g.frame;Anchor(g)
+    local f=g.frame;Anchor(g,false,opts.grow=="UP")
     local size=tonumber(opts.size)or 26;local font=W.Font and W.Font(true);local y,widest=0,0
     local up=opts.grow=="UP";local st=ns.PartyStyle("main");local gap=st.gap;f:SetAlpha(st.alpha/100)
     for i,e in ipairs(entries)do
@@ -1237,7 +1252,7 @@ local function DrawRows(g,entries,opts,unlocked)
         widest=math.max(widest,start+math.min(n,per)*(s+gap));row:Show();y=y+math.max(size,lines*(s+gap)-gap)+4
     end
     for i=#entries+1,#g.rows do g.rows[i]:Hide()end
-    f:SetSize(math.max(60,widest+8),math.max(size+8,y+4));f:EnableMouse(unlocked==true)
+    f:SetSize(math.max(60,widest+8),math.max(size+8,y+4));f:EnableMouse(unlocked==true);ns.PartyCooldownSettle(g)
     f.title:SetText(L(TITLES[g.key]))
     if unlocked then f.bg:Show();f.title:Show()else f.bg:Hide();f.title:Hide()end
     if #entries>0 or unlocked then f:Show()else f:Hide()end
@@ -1281,6 +1296,8 @@ local function Cell(g,i)
         local bar=CreateFrame("StatusBar",nil,f);bar:SetStatusBarTexture(GAME_BARS[1].file);bar:SetMinMaxValues(0,1);bar:SetValue(1)
         bar.bg=bar:CreateTexture(nil,"BACKGROUND");bar.bg:SetAllPoints();bar.bg:SetColorTexture(0,0,0,0.55)
         bar.textLayer=CreateFrame("Frame",nil,bar);bar.textLayer:SetAllPoints(bar);bar.textLayer:SetFrameLevel(bar:GetFrameLevel()+3)
+        -- A hidden timer's seconds run on the bar, where the time of the others is written.
+        bar.timeBox=CreateFrame("Frame",nil,bar.textLayer);bar.timeBox.textOnly=true
         bar.name=bar.textLayer:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         bar.time=bar.textLayer:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         cell.bar=bar
@@ -1306,10 +1323,15 @@ local function PotionShade(bar,track,now)
             bar.shades[k]=shade
         end
         local sl=track.slot[k];local low=(now-sl.epoch)/track.window
-        -- Pass the encoded (possibly secret) expiry straight to the widget.
-        -- Gray covers the remaining portion on the right, revealing color on the left.
-        shade:SetMinMaxValues(low,low+track.cd/track.window);shade:SetValue(sl.code);shade:Show()
+        -- Pass the encoded (possibly secret) expiry straight to the widget. A range of almost
+        -- nothing makes the shade all or nothing: the whole bar is grey while the timer runs.
+        shade:SetMinMaxValues(low,low+0.0001);shade:SetValue(sl.code);shade:Show()
     end
+end
+-- Seconds as shown on bars: "45", or "5:00" from a minute up.
+function ns.PartyClock(left)
+    local n=math.ceil(left);if n>=60 then return string.format("%d:%02d",math.floor(n/60),n%60)end
+    return tostring(n)
 end
 local function UpdateBars(self,elapsed)
     self.wait=(self.wait or 0)-(elapsed or 0);if self.wait>0 then return end;self.wait=0.1
@@ -1322,14 +1344,14 @@ local function UpdateBars(self,elapsed)
                 bar:SetMinMaxValues(0,1);bar:SetValue(1);bar.time:SetText("")
             else
                 local left=bar.start and bar.start+bar.dur-now or 0
-                if left>0 then bar:SetMinMaxValues(0,bar.dur);bar:SetValue(bar.progressForward and math.max(0,bar.dur-left)or left);bar.time:SetText((bar.approx and"~"or"")..math.ceil(left))
+                if left>0 then bar:SetMinMaxValues(0,bar.dur);bar:SetValue(bar.progressForward and math.max(0,bar.dur-left)or left);bar.time:SetText((bar.approx and"~"or"")..ns.PartyClock(left))
                 else bar:SetMinMaxValues(0,1);bar:SetValue(bar.hidden and 0 or 1);bar.time:SetText("")end
             end
         end
     end
 end
 local function DrawAnchor(g,entries,a,unlocked)
-    local f=g.frame;Anchor(g)
+    local f=g.frame;Anchor(g,a.dir=="LEFT",a.grow=="UP")
     local bars=a.style=="bars";local size=tonumber(a.size)or 26;local width=bars and math.max(size+20,tonumber(a.width)or 180)or size
     local perRow=math.max(1,math.floor(tonumber(a.perRow)or 1));local rows=math.max(1,math.floor(tonumber(a.rows)or 5))
     local st=ns.PartyStyle(g.key);f:SetAlpha(st.alpha/100)
@@ -1358,7 +1380,13 @@ local function DrawAnchor(g,entries,a,unlocked)
                 if cell.cd.SetHideCountdownNumbers then cell.cd:SetHideCountdownNumbers(bars and not object)end
                 local recharge=Dress(cell,m,id,remain,a.mark)
                 local plain=object or(remain>0 and start)
-                cell:Show();ShowHidden(cell,not(plain or recharge)and hidden or nil)
+                local track=not(plain or recharge)and hidden or nil
+                cell:Show()
+                if bars then
+                    ShowHidden(cell,nil);local box=cell.bar.timeBox;box:ClearAllPoints()
+                    if left then box:SetPoint("LEFT",cell.bar,"LEFT",2,0)else box:SetPoint("RIGHT",cell.bar,"RIGHT",-2,0)end
+                    box:SetSize(math.max(26,size),size);ShowHidden(box,track)
+                else ShowHidden(cell,track);if cell.bar then ShowHidden(cell.bar.timeBox,nil)end end
                 local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
                 local r,gr,b=c and c.r or 0.6,c and c.g or 0.36,c and c.b or 1
                 local bar,label=cell.bar,cell.label
@@ -1371,7 +1399,10 @@ local function DrawAnchor(g,entries,a,unlocked)
                     local file=BarFile(a.texture);if bar.file~=file then bar.file=file;bar:SetStatusBarTexture(file)end
                     -- Dark bars: a grey fill, the name in the class colour.
                     if bar.progressForward then bar.bg:SetColorTexture(0.2,0.2,0.22,1)else bar.bg:SetColorTexture(0,0,0,0.55)end
-                    if a.dark and not bar.progressForward then bar:SetStatusBarColor(0.16,0.16,0.18,1);bar.name:SetTextColor(r,gr,b)else bar:SetStatusBarColor(r,gr,b,1);bar.name:SetTextColor(1,1,1)end
+                    -- A potion on cooldown: the whole bar and its icon go grey until it is ready.
+                    local waiting=bar.progressForward and((remain>0 and start)or(object and ObjectZero(object)==false))
+                    if waiting then bar:SetStatusBarColor(0.42,0.42,0.45,1);bar.name:SetTextColor(0.8,0.8,0.8);cell.tex:SetDesaturated(true)
+                    elseif a.dark and not bar.progressForward then bar:SetStatusBarColor(0.16,0.16,0.18,1);bar.name:SetTextColor(r,gr,b)else bar:SetStatusBarColor(r,gr,b,1);bar.name:SetTextColor(1,1,1)end
                     bar.start,bar.dur,bar.hidden,bar.approx=(not object and remain>0)and start or nil,dur,hidden~=nil or own~=nil,approx
                     bar.hiddenTrack=not plain and hidden or nil
                     -- A plain timer reaching zero is ready even if an old sensor track remains.
@@ -1410,9 +1441,9 @@ local function DrawAnchor(g,entries,a,unlocked)
             cell:ClearAllPoints();cell:SetPoint(v..h,f,v..h,(left and-1 or 1)*(3+col*(width+gap)+shift),(up and 1 or-1)*(3+row*(size+gap)))
         end
     end
-    for i=n+1,#(f.icons or{})do local cell=f.icons[i];cell:Hide();ShowHidden(cell,nil);if cell.bar then cell.bar:Hide();cell.bar.start=nil end end
+    for i=n+1,#(f.icons or{})do local cell=f.icons[i];cell:Hide();ShowHidden(cell,nil);if cell.bar then ShowHidden(cell.bar.timeBox,nil);cell.bar:Hide();cell.bar.start=nil end end
     local cols=math.max(1,math.min(perRow,n));local used=math.max(1,math.ceil(n/perRow))
-    f:SetSize(cols*(width+gap)+4,used*(size+gap)+4);f:EnableMouse(unlocked==true)
+    f:SetSize(cols*(width+gap)+4,used*(size+gap)+4);f:EnableMouse(unlocked==true);ns.PartyCooldownSettle(g)
     f.title:SetText(L(TITLES[g.key]))
     if unlocked then f.bg:Show();f.title:Show()else f.bg:Hide();f.title:Hide()end
     if n>0 or unlocked then f:Show()else f:Hide()end
@@ -1755,7 +1786,9 @@ function ShowHidden(icon,t)
     end
     parts=DressHidden(icon,t)
     local tex=icon.spellID and W.SpellTexture(icon.spellID)
-    parts.win:Show();for k=1,2 do parts[k].grey:SetTexture(tex);parts[k].fill:Show();parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
+    -- On a bar only the seconds show: no dark fill and no grey copy of an icon.
+    parts.win:Show();for k=1,2 do parts[k].grey:SetTexture(tex);if icon.textOnly then parts[k].grey:Hide();parts[k].fill:Hide()else parts[k].grey:Show();parts[k].fill:Show()end
+        parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
     shownHidden[icon]=t
 end
 ns.PartyCooldownShowHidden=ShowHidden
@@ -2267,7 +2300,7 @@ function DrawAnchors(parent,apply,d)
             W.Toggle(card,L("Target marker"),a.mark,12,356,207,function(v)a.mark=v;apply()end,id.."mark")
             W.Toggle(card,L("Dark bars"),a.dark,235,356,207,function(v)a.dark=v;apply()end,id.."dark")
         end
-        W.Button(card,L("Reset position"),12,388,430,function()local def=defaults.anchors[key];a.x,a.y=def.x,def.y;apply()end,false,id.."reset",{kind="outline",align="CENTER"})
+        W.Button(card,L("Reset position"),12,388,430,function()local def=defaults.anchors[key];a.x,a.y,a.edge=def.x,def.y,nil;apply()end,false,id.."reset",{kind="outline",align="CENTER"})
         W.Label(card,L(ANCHOR_HELP[key]),12,424,430,11,C.muted)
     end end
     W.Button(parent,cfg.unlocked and L("Lock")or L("Unlock and preview"),0,568,454,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
