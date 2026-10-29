@@ -13,7 +13,7 @@ for key,value in pairs(palette)do
     local c=C[key];c[1],c[2],c[3],c[4]=tonumber(value:sub(1,2),16)/255,tonumber(value:sub(3,4),16)/255,tonumber(value:sub(5,6),16)/255,1
 end
 W.icon="Interface\\AddOns\\PuzatikPartyDefensives\\Media\\Icon"
-local WIDTH,HEIGHT=952,724
+local WIDTH,HEIGHT=952,754
 local window,body,status,close,language
 local state={drafts={},scrolls={}}
 local Refresh
@@ -37,7 +37,7 @@ Refresh=function()
     -- Lists keep their place when the page is drawn again.
     for key,s in pairs(ns.UIScrolls or{})do local ok,at=pcall(s.GetVerticalScroll,s);if ok and type(at)=="number"then state.scrolls[key]=at end end
     W.Clear(body);W.Begin();ns.UIControls={["pcd-close"]=close,["pcd-language"]=language};ns.UIScrolls={};W.scrollPositions=state.scrolls
-    body=W.Frame("Frame",nil,window);body:SetPoint("TOPLEFT",16,-86);body:SetSize(920,600);body.surface=C.background
+    body=W.Frame("Frame",nil,window);body:SetPoint("TOPLEFT",16,-86);body:SetSize(920,630);body.surface=C.background
     ns.ExtraPages.partycds(body)
     W.Finish();notify(state.message or"",state.error)
 end

@@ -12,4 +12,5 @@ Comms.lua
 Widgets.lua
 Window.lua
 PartyCooldowns.lua
+PartyExtras.lua
 Slash.lua

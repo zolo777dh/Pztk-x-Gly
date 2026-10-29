@@ -4,7 +4,7 @@ import {zipCompatible} from '../core/archives.mjs';
 // Puzatik Party Defensives: the party cooldowns of Naowh Defensive Planner as their own addon. Its
 // folder holds only the glue; the tracking code, the widgets and the window media are taken from
 // Naowh Defensive Planner here, so both addons always ship the same code and version.
-export const SHARED=['Comms.lua','Widgets.lua','PartyCooldowns.lua','Media/UI/Disc.tga','Media/UI/IconMask.tga','Media/UI/Icons.tga',
+export const SHARED=['Comms.lua','Widgets.lua','PartyCooldowns.lua','PartyExtras.lua','Media/UI/Alert.ogg','Media/UI/Disc.tga','Media/UI/IconMask.tga','Media/UI/Icons.tga',
  'Media/Fonts/URWGothic-Book.ttf','Media/Fonts/URWGothic-Demi.ttf','Media/Fonts/URWGothic-LICENSE.txt'];
 export async function partyCooldownFiles(root){
  const own=path.join(root,'addon','PuzatikPartyDefensives'),full=path.join(root,'addon','NaowhDefensivePlanner'),files={};

@@ -44,6 +44,19 @@ local KIND={}
 for kind,lists in pairs({kick=KICKS,cc=STOPS})do
     for class,list in pairs(lists)do for _,s in ipairs(list)do table.insert(SPELLS[class],s);KIND[s[1]]=kind end end
 end
+-- Stuns have a list of their own; the other crowd control (fears, disorients, knockbacks, grips)
+-- stays in "cc". Movement cooldowns for the group have one too.
+for _,id in ipairs({119381,179057,30283,192058,46968,109248,853,19577})do KIND[id]="stun"end
+for _,id in ipairs({106898,192077,1044,116841,374968})do KIND[id]="move"end
+-- Combat potions: one shared cooldown for every member, whatever potion they drank. The first ID
+-- stands for all of them.
+local POTIONS={1236616,1236994,1236998,1239479,1295132}
+local POTION=POTIONS[1]
+KIND[POTION]="potion"
+-- The lists that have a movable anchor of their own, and the switch that shows each.
+local LISTS={"kick","stun","cc","move","potion"}
+local FIELD={["kick"]="kicks",["stun"]="stuns",["cc"]="cc",["move"]="moves",["potion"]="potions"}
+ns.PartyCooldownLists=LISTS
 ns.PartyCooldownKind=function(id)return KIND[id]end
 ns.PartyCooldownSpells=SPELLS
 local byID={}
@@ -51,6 +64,8 @@ for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={clas
 -- Racial cooldowns, by the race the game names (any class): {spell ID, cooldown}.
 local RACIAL={NightElf={{58984,120}},Dwarf={{20594,120}}}
 for race,list in pairs(RACIAL)do for i,s in ipairs(list)do byID[s[1]]={race=race,cd=s[2],order=900+i}end end
+byID[POTION]={cd=300,order=950,anyone=true}
+ns.PartyCooldownPotion=POTION
 
 -- Talents that change a cooldown (game facts): {talent spell, add = seconds, pct = percent,
 -- spec = only for that specialization}. A rank counts as many times as it is taken. Entries with
@@ -108,7 +123,7 @@ local WANTED={}
 for _,mods in pairs(TALENT_CD)do for _,x in ipairs(mods)do if x[1]then WANTED[x[1]]=true end end end
 for _,sp in pairs(SPEND)do WANTED[sp.talent]=true end
 -- Other spell IDs the game uses for a tracked spell (a talent or hero version of it).
-local ALIAS={[77761]=106898,[77764]=106898,[110959]=66,[204018]=1022,[231895]=31884,[216331]=31884,[389539]=31884,[442204]=403631,
+local ALIAS={[1236994]=POTION,[1236998]=POTION,[1239479]=POTION,[1295132]=POTION,[77761]=106898,[77764]=106898,[110959]=66,[204018]=1022,[231895]=31884,[216331]=31884,[389539]=31884,[442204]=403631,
     [102560]=194223,[102543]=106951,[414658]=45438,
     [389813]=207684,[389807]=202138,[474421]=19577,[119910]=19647,[132409]=19647,[1276467]=19647,[119914]=89766}
 -- Cooldowns cut by what a member does (resource spent, Bone Shield charges, crits, finishers,
@@ -128,9 +143,14 @@ local function Dynamic(id,spec)
 end
 ns.PartyCooldownDynamic=Dynamic
 ns.PartyCooldownTalentMods=TALENT_CD
-local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,share=true,cdm=true,detect=true,pos={x=-420,y=120},
-    anchors={kick={x=-420,y=-60,style="bars",size=22,width=200,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture=""},
-        cc={x=-420,y=-220,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false,texture=""}},learned={},disabled={},specOff={},custom={},talentSpells={}}
+local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,stuns=true,moves=true,potions=true,
+    share=true,cdm=true,detect=true,loadWhere="all",loadSolo=true,perRow=0,size2=20,highlight=true,tooltip=false,order={},pos={x=-420,y=120},
+    anchors={kick={x=-420,y=-60,style="bars",size=22,width=200,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture="",mark=true,dark=false,hideInRaid=false},
+        cc={x=-420,y=-220,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false,texture="",hideInRaid=false},
+        stun={x=-420,y=-300,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false,texture="",hideInRaid=false},
+        move={x=-420,y=-380,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=1,names=false,hideReady=false,texture="",hideInRaid=false},
+        potion={x=-640,y=-60,style="bars",size=20,width=170,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture="",hideInRaid=false}},
+    learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
     local store=ns.Store();store.partycds=store.partycds or{}
     local c=store.partycds
@@ -141,6 +161,8 @@ function ns.PartyCooldownConfig()
         if c.anchors[key].self==nil then c.anchors[key].self=c.self~=false end
         for k,v in pairs(a)do if c.anchors[key][k]==nil then c.anchors[key][k]=v end end
     end
+    -- 0.11.0: where the lists show is one choice; hidden in the open world was a switch before.
+    if c.loadWorld==false and c.loadWhere=="all"then c.loadWhere="instances"end;c.loadWorld=nil
     -- 0.10.2: icons beside the party frames, every cooldown of the spec shown, no names.
     if(c.layout or 0)<2 then c.layout=2;c.mode="frames";c.hideReady=false;c.names=false end
     return c
@@ -226,17 +248,34 @@ function ns.RoleSpecs(class,role)
     return #out>0 and out or nil
 end
 -- The spells of one spec of a class, in list order: its own, the class-wide ones and added ones.
+-- Your own order for a spec (moved on the Abilities page) comes first, then the list order.
+local function Sorter(spec)
+    local list=spec and ns.PartyCooldownConfig().order[spec];local pos={}
+    for i,id in ipairs(type(list)=="table"and list or{})do pos[id]=i end
+    return function(a,b)
+        local pa,pb=pos[a]or 1000+byID[a].order,pos[b]or 1000+byID[b].order
+        if pa~=pb then return pa<pb end;return a<b
+    end
+end
 function ns.PartyCooldownSpecSpells(class,spec)
     local out={}
     for _,id in ipairs(ns.PartyCooldownClassSpells(class))do if ForSpec(byID[id],spec)then out[#out+1]=id end end
+    table.sort(out,Sorter(spec))
     return out
+end
+-- Moves a spell one place up (-1) or down (1) in a spec's order.
+function ns.MovePartyCooldown(class,spec,id,step)
+    local ids=ns.PartyCooldownSpecSpells(class,spec);local at
+    for i,x in ipairs(ids)do if x==id then at=i end end
+    local to=at and at+step;if not to or to<1 or to>#ids then return false end
+    ids[at],ids[to]=ids[to],ids[at];ns.PartyCooldownConfig().order[spec]=ids;ns.DrawPartyCooldowns();return true
 end
 -- The spells shown for one member: exactly what they sent, otherwise their spec's list, plus
 -- anything they were seen casting. `kind`: only "kick", only "cc", or "defensive" for the rest.
 function ns.PartyCooldownList(member,kind)
     local out,seen={},{}
     local cfg=ns.PartyCooldownConfig()
-    local function add(id)if not seen[id]and(not kind or(KIND[id]or"defensive")==kind)and(KIND[id]~="kick"or cfg.kicks~=false)and(KIND[id]~="cc"or cfg.cc~=false)and ns.PartyCooldownTracked(id,member.spec)and(member.me or not Dynamic(id,member.spec))and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
+    local function add(id)if not seen[id]and(not kind or(KIND[id]or"defensive")==kind)and(not KIND[id]or cfg[FIELD[KIND[id]]]~=false)and ns.PartyCooldownTracked(id,member.spec)and(member.me or not Dynamic(id,member.spec))and not(member.talented and member.talented[id]==false)then seen[id]=true;out[#out+1]=id end end
     if member.known then for id in pairs(member.known)do add(id)end
     elseif member.class and SPELLS[member.class]then
         -- Strictly the member's spec: your own list is what your spellbook knows right now; for
@@ -250,8 +289,9 @@ function ns.PartyCooldownList(member,kind)
         end
     end
     for _,s in ipairs(member.race and RACIAL[member.race]or{})do if not member.me or Known(s[1])then add(s[1])end end
+    add(POTION)
     for id in pairs(member.used or{})do add(id)end
-    table.sort(out,function(a,b)return byID[a].order<byID[b].order end)
+    table.sort(out,Sorter(member.spec))
     return out
 end
 local function BaseCooldown(id)
@@ -298,7 +338,8 @@ end
 -- Your own cooldown straight from the game, so every reduction counts: start and length when it
 -- runs, 0 when the game says it is ready, nil when the game does not say (hidden in combat).
 local function OwnCooldown(id)
-    local get=C_Spell and C_Spell.GetSpellCooldown;if not get then return nil end
+    -- A potion's cooldown is the item's, not the spell's: timed from the cast like the others.
+    local get=C_Spell and C_Spell.GetSpellCooldown;if not get or id==POTION then return nil end
     local ok,info=pcall(get,id);if not ok or type(info)~="table"then return nil end
     local start,dur=info.startTime,info.duration
     if not(ns.Plain(start,"number")and ns.Plain(dur,"number"))then return nil end
@@ -323,7 +364,20 @@ function ns.PartyCooldownExact(member,id)
     local how=member.how and member.how[id]
     return(member.cds and member.cds[id]and SURE[how]and not(member.cut and member.cut[id]))and true or false
 end
-local function Started(m,id,at,how)m.used[id]=at;m.how=m.how or{};m.how[id]=how;if m.cut then m.cut[id]=nil end end
+-- Raid marker of an enemy unit, or nil.
+local function MarkOf(unit)
+    if not(GetRaidTargetIndex and ns.Plain(unit,"string"))then return nil end
+    local ok,i=pcall(GetRaidTargetIndex,unit);return ok and ns.Plain(i,"number")and i>0 and i or nil
+end
+ns.PartyCooldownMarkOf=MarkOf
+-- A timer starts. `mark`: the raid marker of the enemy a kick hit. A new timer is highlighted for
+-- a moment, so one more redraw takes the highlight off.
+local HIGHLIGHT=3
+local function Started(m,id,at,how,mark)
+    m.used[id]=at;m.how=m.how or{};m.how[id]=how;if m.cut then m.cut[id]=nil end
+    m.marks=m.marks or{};m.marks[id]=mark
+    if ns.PartyCooldownConfig().highlight and C_Timer and C_Timer.NewTimer then C_Timer.NewTimer(HIGHLIGHT+0.1,function()ns.DrawPartyCooldowns()end)end
+end
 -- Seconds left on a member's cooldown, 0 when ready.
 function ns.PartyCooldownLeft(member,id)
     if member and member.me then local start,dur=OwnCooldown(id);if start then return start>0 and math.max(0,start+dur-GetTime())or 0 end end
@@ -573,7 +627,7 @@ function ns.PartyCooldownCast(unit,id)
     if not info or not ns.PartyCooldownTracked(id,m.spec)or(info.class and m.class and info.class~=m.class)or(info.race and m.race~=info.race)then return false end
     -- One cast arrives once per unit that shows it.
     if m.used[id]and GetTime()-m.used[id]<1 then return true end
-    Started(m,id,GetTime(),"cast")
+    Started(m,id,GetTime(),"cast",KIND[id]=="kick"and MarkOf((m.me and"target")or(unit.."target"))or nil)
     if m.me and not Learn(id)then pendingLearn[id]=true end
     ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
     return true
@@ -586,7 +640,7 @@ function ns.PartyCooldownReset()for _,m in pairs(members)do m.used={};m.hiddenCd
 -- have movable lists of their own ("anchors"), each with its own size, direction and names.
 local attached
 local groups={}
-local TITLES={main="Party cooldowns",kick="Interrupts",cc="Crowd control"}
+local TITLES={main="Party cooldowns",kick="Interrupts",cc="Crowd control",stun="Stuns",move="Movement",potion="Potions"}
 -- Where a list sits: the main list keeps cfg.pos, the anchors keep x/y in their own settings.
 local function Place(key)
     local cfg=ns.PartyCooldownConfig()
@@ -628,9 +682,37 @@ local function Icon(row,i,size)
         icon=CreateFrame("Frame",nil,row);icon.tex=icon:CreateTexture(nil,"ARTWORK");icon.tex:SetAllPoints();icon.tex:SetTexCoord(0.07,0.93,0.07,0.93)
         icon.cd=CreateFrame("Cooldown",nil,icon,"CooldownFrameTemplate");icon.cd:SetAllPoints();row.icons[i]=icon
         icon.approx=icon.cd:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");icon.approx:SetPoint("TOPRIGHT",icon,"TOPRIGHT",-1,-1);icon.approx:SetText("~");icon.approx:Hide()
+        -- A gold edge behind the icon marks a timer that just started.
+        icon.hl=icon:CreateTexture(nil,"BACKGROUND");icon.hl:SetPoint("TOPLEFT",icon,"TOPLEFT",-2,2);icon.hl:SetPoint("BOTTOMRIGHT",icon,"BOTTOMRIGHT",2,-2)
+        icon.hl:SetColorTexture(1,0.82,0,1);icon.hl:Hide()
+        -- The raid marker of the enemy an interrupt hit.
+        icon.mark=icon.cd:CreateTexture(nil,"OVERLAY");icon.mark:SetPoint("TOPLEFT",icon,"TOPLEFT",-2,2);icon.mark:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons");icon.mark:Hide()
+        icon:SetScript("OnEnter",function(self)ns.PartyCooldownTooltip(self)end)
+        icon:SetScript("OnLeave",function()if GameTooltip then GameTooltip:Hide()end end)
     end
     icon:SetSize(size,size);return icon
 end
+-- Spell tooltips on the icons (switch "Tooltips"): the spell, whose it is and the time left.
+function ns.PartyCooldownTooltip(icon)
+    if not(GameTooltip and icon.spellID and ns.PartyCooldownConfig().tooltip)then return end
+    GameTooltip:SetOwner(icon,"ANCHOR_RIGHT");pcall(GameTooltip.SetSpellByID,GameTooltip,icon.spellID)
+    local m=icon.member and members[icon.member]
+    if m then
+        local left=ns.PartyCooldownLeft(m,icon.spellID)
+        GameTooltip:AddLine((ns.DisplayName and ns.DisplayName(m.name)or m.name)..": "..(left>0 and((ns.PartyCooldownExact(m,icon.spellID)and""or"~")..math.ceil(left).." s")or L("ready")),1,1,1)
+    end
+    GameTooltip:Show()
+end
+-- The look every icon shares: tooltips, the new-timer edge and the raid marker of a kick.
+local function Dress(icon,m,id,left,mark)
+    local cfg=ns.PartyCooldownConfig()
+    icon.member=m.name;pcall(icon.EnableMouse,icon,cfg.tooltip==true)
+    local start=m.used and m.used[id]
+    if cfg.highlight and left>0 and start and GetTime()-start<HIGHLIGHT then icon.hl:Show()else icon.hl:Hide()end
+    local i=mark and left>0 and m.marks and m.marks[id]
+    if i and SetRaidTargetIconTexture then icon.mark:SetSize(math.max(10,icon:GetWidth()*0.5),math.max(10,icon:GetWidth()*0.5));SetRaidTargetIconTexture(icon.mark,i);icon.mark:Show()else icon.mark:Hide()end
+end
+ns.PartyCooldownDress=Dress
 -- Blizzard compact party/raid frames and ElvUI party/raid frames, by the unit they show.
 local frameCache={}
 function ns.PartyCooldownForgetFrames()frameCache={}end
@@ -679,6 +761,18 @@ end
 ns.PartyCooldownFrame=UnitFrame
 local ShowHidden -- hidden timers on icons, defined with the buff sensors
 local SIDES={RIGHT={"LEFT","RIGHT",2,0,1,0},LEFT={"RIGHT","LEFT",-2,0,-1,0},TOP={"BOTTOMLEFT","TOPLEFT",0,2,1,0},BOTTOM={"TOPLEFT","BOTTOMLEFT",0,-2,1,0}}
+-- How many icons a member shows (only those in use with "Only in use").
+local function Visible(m,ids,cfg)
+    if not cfg.hideReady then return #ids end
+    local n=0;for _,id in ipairs(ids)do if ns.PartyCooldownLeft(m,id)>0 or Hidden(m,id)then n=n+1 end end;return n
+end
+-- With "Per row" set, more icons than that go on more rows, at the second size.
+local function Grid(n,size,cfg)
+    local per=math.floor(tonumber(cfg.perRow)or 0)
+    if per>0 and n>per then return per,tonumber(cfg.size2)or 20 end
+    return math.max(1,n),size
+end
+ns.PartyCooldownGrid=Grid
 local function FillIcons(row,m,ids,size,cfg)
     local n=0
     for _,id in ipairs(ids)do
@@ -692,6 +786,7 @@ local function FillIcons(row,m,ids,size,cfg)
             if left>0 and start then icon.cd:SetCooldown(start,dur);icon.tex:SetDesaturated(true)
             else icon.cd:Clear();icon.tex:SetDesaturated(false)end
             if(left>0 or hidden)and not ns.PartyCooldownExact(m,id)then icon.approx:Show()else icon.approx:Hide()end
+            Dress(icon,m,id,left,false)
             icon:Show();ShowHidden(icon,hidden)
         end
     end
@@ -719,9 +814,11 @@ local function DrawRows(g,entries,opts,unlocked)
         row.bar:SetColorTexture(c and c.r or 1,c and c.g or 1,c and c.b or 1,1);row.bar:ClearAllPoints();row.bar:SetPoint("LEFT",row,"LEFT",0,0);row.bar:SetSize(3,size)
         if opts.names then row.name:SetText(ns.DisplayName and ns.DisplayName(m.name)or m.name);row.name:Show();row.bar:Hide()else row.name:SetText("");row.name:Hide();row.bar:Show()end
         row.name:ClearAllPoints();row.name:SetPoint("LEFT",row,"LEFT",0,0);row.name:SetWidth(90)
-        local n=FillIcons(row,m,ids,size,opts)
-        for k=1,n do local icon=row.icons[k];icon:ClearAllPoints();icon:SetPoint("LEFT",row,"LEFT",start+(k-1)*(size+2),0)end
-        widest=math.max(widest,start+n*(size+2));row:Show();y=y+size+4
+        local per,s=Grid(Visible(m,ids,opts),size,opts)
+        local n=FillIcons(row,m,ids,s,opts);local lines=math.max(1,math.ceil(n/per))
+        row:SetSize(1,lines*(s+2)-2);row.bar:SetHeight(lines*(s+2)-2)
+        for k=1,n do local icon=row.icons[k];icon:ClearAllPoints();icon:SetPoint("TOPLEFT",row,"TOPLEFT",start+((k-1)%per)*(s+2),-math.floor((k-1)/per)*(s+2))end
+        widest=math.max(widest,start+math.min(n,per)*(s+2));row:Show();y=y+math.max(size,lines*(s+2)-2)+4
     end
     for i=#entries+1,#g.rows do g.rows[i]:Hide()end
     f:SetSize(math.max(60,widest+8),math.max(size+8,y+4));f:EnableMouse(unlocked==true)
@@ -805,6 +902,9 @@ local function DrawAnchor(g,entries,a,unlocked)
                 if remain>0 and start then cell.cd:SetCooldown(start,dur);cell.tex:SetDesaturated(true)else cell.cd:Clear();cell.tex:SetDesaturated(false)end
                 local approx=(remain>0 or hidden)and not ns.PartyCooldownExact(m,id)
                 if approx and not bars then cell.approx:Show()else cell.approx:Hide()end
+                -- Bars carry the time; the icon beside a bar shows no countdown of its own.
+                if cell.cd.SetHideCountdownNumbers then cell.cd:SetHideCountdownNumbers(bars)end
+                Dress(cell,m,id,remain,a.mark)
                 cell:Show();ShowHidden(cell,hidden)
                 local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
                 local r,gr,b=c and c.r or 0.6,c and c.g or 0.36,c and c.b or 1
@@ -815,7 +915,8 @@ local function DrawAnchor(g,entries,a,unlocked)
                     if left then bar:SetPoint("RIGHT",cell,"LEFT",-gap,0)else bar:SetPoint("LEFT",cell,"RIGHT",gap,0)end
                     if bar.SetReverseFill then bar:SetReverseFill(left)end
                     local file=BarFile(a.texture);if bar.file~=file then bar.file=file;bar:SetStatusBarTexture(file)end
-                    bar:SetStatusBarColor(r,gr,b,1)
+                    -- Dark bars: a grey fill, the name in the class colour.
+                    if a.dark then bar:SetStatusBarColor(0.16,0.16,0.18,1);bar.name:SetTextColor(r,gr,b)else bar:SetStatusBarColor(r,gr,b,1);bar.name:SetTextColor(1,1,1)end
                     bar.start,bar.dur,bar.hidden,bar.approx=remain>0 and start or nil,dur,hidden~=nil,approx
                     if type(font)=="string"then bar.name:SetFont(font,11,"OUTLINE");bar.time:SetFont(font,11,"OUTLINE")end
                     bar.name:ClearAllPoints();bar.time:ClearAllPoints()
@@ -844,28 +945,42 @@ local function DrawAnchor(g,entries,a,unlocked)
     return n
 end
 ns.PartyCooldownUpdateBars=UpdateBars
+-- Where the lists show: cfg.loadWhere "all", "instances" (dungeons, raids, scenarios, arenas) or
+-- "dungeons" (party instances only); cfg.loadSolo off hides them while you are not in a group.
+-- Tracking goes on either way.
+function ns.PartyCooldownsLoaded()
+    local cfg=ns.PartyCooldownConfig()
+    if cfg.loadSolo==false and not(IsInGroup and IsInGroup())then return false end
+    if cfg.loadWhere=="instances"or cfg.loadWhere=="dungeons"then
+        local ok,inside,kind=pcall(IsInInstance or function()end)
+        if not(ok and inside)then return false end
+        if cfg.loadWhere=="dungeons"and kind~="party"then return false end
+    end
+    return true
+end
 function ns.DrawPartyCooldowns()
     local cfg=ns.PartyCooldownConfig()
     attached=attached or{}
     for _,a in pairs(attached)do a:Hide()end
-    if not(cfg.enabled or cfg.unlocked)then for _,g in pairs(groups)do g.frame:Hide()end;return false end
+    if not((cfg.enabled and ns.PartyCooldownsLoaded())or cfg.unlocked)then for _,g in pairs(groups)do g.frame:Hide()end;return false end
     ns.PartyCooldownRoster()
     local size=tonumber(cfg.size)or 26
     -- You stay tracked (your casts, learned lengths, what you send); "self" only hides your icons,
-    -- for the main list (cfg.self) and for each of the kick and cc lists (anchors[key].self).
+    -- for the main list (cfg.self) and for each anchored list (anchors[key].self).
     -- Unlocked with nobody else in the group, your own spells are the preview of every list.
-    local kickSelf,ccSelf=cfg.anchors.kick.self~=false,cfg.anchors.cc.self~=false
+    local selfOn,anySelf={},cfg.self or cfg.unlocked
+    for _,key in ipairs(LISTS)do selfOn[key]=cfg.anchors[key].self~=false;anySelf=anySelf or selfOn[key]end
     local names,others={},0
     for _,name in ipairs(order)do local me=members[name]and members[name].me
         if not me then others=others+1 end
-        if not me or cfg.self or kickSelf or ccSelf or cfg.unlocked then names[#names+1]=name end
+        if not me or anySelf then names[#names+1]=name end
     end
     local preview=cfg.unlocked and others==0
     if #names==0 and cfg.unlocked then
         local _,class=UnitClass("player");local me=UnitName("player")or"Player"
         members[me]=members[me]or{name=me,used={},me=true,class=class,spec=ns.Spec()};names={me}
     end
-    local main,kicks,cc={},{},{}
+    local main,lists={},{};for _,key in ipairs(LISTS)do lists[key]={}end
     for _,name in ipairs(names)do
         local m=members[name];m.name=m.name or name
         local ids=ns.PartyCooldownList(m,"defensive")
@@ -875,20 +990,26 @@ function ns.DrawPartyCooldowns()
             local holder=attached[name]
             if not holder then holder=CreateFrame("Frame",nil,UIParent);holder.icons={};attached[name]=holder end
             local side=SIDES[cfg.side]or SIDES.RIGHT
-            local n=FillIcons(holder,m,ids,size,cfg)
-            holder:ClearAllPoints();holder:SetPoint(side[1],frame,side[2],side[3],side[4]);holder:SetSize(math.max(1,n*(size+2)),size)
-            for i=1,n do local icon=holder.icons[i];icon:ClearAllPoints()
-                if side[5]>0 then icon:SetPoint("LEFT",holder,"LEFT",(i-1)*(size+2),0)else icon:SetPoint("RIGHT",holder,"RIGHT",-(i-1)*(size+2),0)end
+            local per,s=Grid(Visible(m,ids,cfg),size,cfg)
+            local n=FillIcons(holder,m,ids,s,cfg);local lines=math.max(1,math.ceil(n/per))
+            holder:ClearAllPoints();holder:SetPoint(side[1],frame,side[2],side[3],side[4]);holder:SetSize(math.max(1,math.min(n,per)*(s+2)),lines*(s+2)-2)
+            for i=1,n do local icon=holder.icons[i];icon:ClearAllPoints();local col,line=(i-1)%per,math.floor((i-1)/per)
+                if side[5]>0 then icon:SetPoint("TOPLEFT",holder,"TOPLEFT",col*(s+2),-line*(s+2))else icon:SetPoint("TOPRIGHT",holder,"TOPRIGHT",-col*(s+2),-line*(s+2))end
             end
             holder:Show()
         else main[#main+1]={m,ids}end
         local own=m.me and not preview
-        local k=(kickSelf or not own)and ns.PartyCooldownList(m,"kick")or{};if #k>0 then kicks[#kicks+1]={m,k}end
-        local x=(ccSelf or not own)and ns.PartyCooldownList(m,"cc")or{};if #x>0 then cc[#cc+1]={m,x}end
+        for _,key in ipairs(LISTS)do
+            local ids2=(selfOn[key]or not own)and ns.PartyCooldownList(m,key)or{}
+            if #ids2>0 then local l=lists[key];l[#l+1]={m,ids2}end
+        end
     end
     DrawRows(Group("main"),main,cfg,cfg.unlocked)
-    DrawAnchor(Group("kick"),cfg.kicks~=false and kicks or{},cfg.anchors.kick,cfg.unlocked and cfg.kicks~=false)
-    DrawAnchor(Group("cc"),cfg.cc~=false and cc or{},cfg.anchors.cc,cfg.unlocked and cfg.cc~=false)
+    local raid=IsInRaid and IsInRaid()
+    for _,key in ipairs(LISTS)do local a=cfg.anchors[key]
+        local on=cfg[FIELD[key]]~=false and not(a.hideInRaid and raid)
+        DrawAnchor(Group(key),on and lists[key]or{},a,cfg.unlocked and on)
+    end
     return true
 end
 
@@ -929,6 +1050,7 @@ local BUFFS={
 for id,debuffs in pairs({[119381]={119381},[179057]={179057},[30283]={30283},[192058]={118905},[46968]={132168},[109248]={117405,117526},
     [853]={853},[19577]={24394,474421},[207167]={207167},[115750]={105421},[8122]={8122},[99]={99},[5246]={5246},[207684]={207685},
     [202138]={204843},[108199]={374776},[102793]={127797},[132469]={61391},[2094]={2094}})do BUFFS[id]={ENEMY,unpack(debuffs)}end
+BUFFS[POTION]={SELF,unpack(POTIONS)}
 local LAG={[192058]=2,[207684]=2,[202138]=2}
 local PLATES=40
 ns.PartyCooldownBuffs=BUFFS
@@ -1351,14 +1473,14 @@ local meterOrder,lastKickAt,ownKickAt,lastKick=nil,0,0,{}
 local function KickOf(m)
     for _,id in ipairs(ns.PartyCooldownList(m))do if KIND[id]=="kick"then return id end end
 end
-local function Kicked(m,at,how)
+local function Kicked(m,at,how,unit)
     lastKickAt=GetTime()
     if not m or m.me then return false end
     local id=KickOf(m);if not id then return false end
     -- The meter and the enemy's event can both report the same interrupt.
     if lastKick[m.name]and math.abs(at-lastKick[m.name])<1 then return true end
     lastKick[m.name]=at;kickState[how]=kickState[how]+1
-    Started(m,id,at,how);ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
+    Started(m,id,at,how,MarkOf(unit));ns.DrawPartyCooldowns();RedrawLater(ns.PartyCooldownLength(m,id))
     return true
 end
 local specIcons={}
@@ -1412,11 +1534,12 @@ function ns.PartyCooldownInterrupted(unit,by)
     local enemy=false;for _,p in ipairs(ENEMY_UNIT)do if unit:match(p)then enemy=true end end
     if not enemy then return end
     local ok,hostile=pcall(UnitCanAttack or error,"player",unit);if ok and ns.Plain(hostile,"boolean")and not hostile then return end
+    if ns.KickRotationInterrupt then ns.KickRotationInterrupt(unit)end
     local now=GetTime();kickState.seen=kickState.seen+1
     if ns.Plain(by,"string")and by~=""then
         for _,m in pairs(members)do
             local pet=m.me and"pet"or(m.unit or""):gsub("^(%a+)(%d+)$","%1pet%2")
-            for _,u in ipairs({m.unit,pet})do local okG,guid=pcall(UnitGUID or error,u);if okG and guid==by then Kicked(m,now,"named");return end end
+            for _,u in ipairs({m.unit,pet})do local okG,guid=pcall(UnitGUID or error,u);if okG and guid==by then Kicked(m,now,"named",unit);return end end
         end
         return
     end
@@ -1429,7 +1552,7 @@ function ns.PartyCooldownInterrupted(unit,by)
             local id=not m.me and KickOf(m)
             if id and ns.PartyCooldownLeft(m,id)<=0 then if only then kickState.unsure=kickState.unsure+1;return end;only=m end
         end
-        if only then Kicked(only,now,"ready")else kickState.unsure=kickState.unsure+1 end
+        if only then Kicked(only,now,"ready",unit)else kickState.unsure=kickState.unsure+1 end
     end
     -- The meter usually reports the same interrupt a moment later.
     if C_Timer and C_Timer.After then C_Timer.After(0.4,decide)else decide()end
@@ -1451,6 +1574,7 @@ function ns.RefreshPartyCooldowns()
     -- Your own record first, then your talents into it.
     if cfg.enabled then ns.PartyCooldownRoster();ReadOwnTalents();QueueInspect();ns.SharePartyCooldowns()end
     ns.RebuildPartyCooldownSensors()
+    if ns.RefreshPartyExtras then ns.RefreshPartyExtras()end
     return ns.DrawPartyCooldowns()
 end
 events:SetScript("OnEvent",function(_,event,a,_,c,d)
@@ -1527,8 +1651,10 @@ local function DrawAbilities(parent,d)
         local row=W.Panel(list,0,y,656,36,C.raised,C.clear,6)
         W.Icon(row,id,6,4,28)
         W.Toggle(row,SpellName(id),on,42,4,300,function(v)ns.SetPartyCooldownTracked(id,v,spec);kit.refresh()end,"pcd-spell:"..id)
-        W.Label(row,info.added and L("Added by you")or info.detected and L("Seen in game")or(info.specs and L("This spec")or L("Every spec of the class")),350,12,180,11,C.muted):SetWordWrap(false)
-        W.Label(row,math.floor(BaseCooldown(id)+0.5).." s",536,12,60,11,C.soft)
+        W.Label(row,info.added and L("Added by you")or info.detected and L("Seen in game")or(info.specs and L("This spec")or L("Every spec of the class")),350,12,146,11,C.muted):SetWordWrap(false)
+        W.Label(row,math.floor(BaseCooldown(id)+0.5).." s",500,12,50,11,C.soft)
+        W.Button(row,"",556,5,26,function()ns.MovePartyCooldown(d.class,spec,id,-1);kit.refresh()end,false,"pcd-up:"..id,{h=26,kind="ghost",glyph="up",tooltip=L("Move up")})
+        W.Button(row,"",586,5,26,function()ns.MovePartyCooldown(d.class,spec,id,1);kit.refresh()end,false,"pcd-down:"..id,{h=26,kind="ghost",glyph="chevron",tooltip=L("Move down")})
         if info.added then W.Button(row,"",620,5,26,function()kit.done(ns.RemovePartyCooldownSpell(d.class,id),nil,L("Spell removed"))end,false,"pcd-del:"..id,{h=26,kind="danger",glyph="trash",tooltip=L("Remove")})end
         y=y+40
     end;list:SetHeight(math.max(1,y))
@@ -1543,16 +1669,25 @@ end
 -- Interrupts and crowd control: two movable lists of their own, each set up here.
 local ANCHOR_HELP={
     kick="An interrupt is credited by the game's interrupt meter, by the interrupter's name when the game gives it, or to the only member whose interrupt is ready. A kick that misses the cast cannot be seen.",
-    cc="Stuns and other crowd control are seen as their debuff on enemy nameplates, so enemy nameplates must be shown. Hammer of Justice is shown only for yourself, because Fist of Justice shortens it.",
+    cc="Fears, disorients, knockbacks and grips are seen as their debuff on enemy nameplates, so enemy nameplates must be shown.",
+    stun="Stuns are seen as their debuff on enemy nameplates, so enemy nameplates must be shown. Hammer of Justice is shown only for yourself, because Fist of Justice shortens it.",
+    move="Group movement cooldowns: Stampeding Roar, Wind Rush Totem, Blessing of Freedom, Tiger's Lust and Time Spiral.",
+    potion="Combat potions share one cooldown of 5 minutes, whatever potion was drunk. Seen from the cast, or from the potion's buff when the game hides the cast.",
 }
-function DrawAnchors(parent,apply)
+-- Which lists are set up side by side on the page.
+local PAIRS={{"kick","cc"},{"stun","move"},{"potion","main"}}
+local DrawMainCard
+function DrawAnchors(parent,apply,d)
     local cfg=ns.PartyCooldownConfig()
     local function list(values,suffix)local out={};for _,v in ipairs(values)do out[#out+1]={value=v,label=v..(suffix or"")}end;return out end
     local sizes,widths,counts=list({16,18,20,22,24,26,30,36,42,48}," px"),list({120,150,180,200,240,280,320}," px"),list({1,2,3,4,5,6,7,8,9,10})
-    for i,key in ipairs({"kick","cc"})do
-        local a=cfg.anchors[key];local field=key=="kick"and"kicks"or"cc";local id="pcd-"..key..":"
+    d.pair=d.pair or 1
+    local tabs={};for i,p in ipairs(PAIRS)do tabs[#tabs+1]={value=i,label=L(TITLES[p[1]]).." · "..L(p[2]=="main"and"Main list"or TITLES[p[2]])}end
+    W.Segmented(parent,tabs,d.pair,0,56,920,function(v)d.pair=v;kit.refresh()end,"pcd-pair")
+    for i,key in ipairs(PAIRS[d.pair]or PAIRS[1])do if key=="main"then DrawMainCard(parent,(i-1)*466,apply)else
+        local a=cfg.anchors[key];local field=FIELD[key];local id="pcd-"..key..":"
         local bars=a.style=="bars"
-        local card=W.Card(parent,(i-1)*466,56,454,484,L(TITLES[key]))
+        local card=W.Card(parent,(i-1)*466,96,454,462,L(TITLES[key]))
         W.Toggle(card,L("Show"),cfg[field]~=false,12,34,430,function(v)cfg[field]=v;apply()end,"pcd:"..field)
         W.Select(card,L("STYLE"),{{value="icons",label=L("Icons")},{value="bars",label=L("Bars")}},bars and"bars"or"icons",12,70,207,function(v)a.style=v;apply()end,id.."style")
         W.Select(card,bars and L("BAR HEIGHT")or L("ICON SIZE"),sizes,tonumber(a.size)or 30,235,70,207,function(v)a.size=v;apply()end,id.."size")
@@ -1566,22 +1701,40 @@ function DrawAnchors(parent,apply)
         end
         W.Toggle(card,L("Names"),a.names,12,300,207,function(v)a.names=v;apply()end,id.."names")
         W.Toggle(card,L("Only in use"),a.hideReady,235,300,207,function(v)a.hideReady=v;apply()end,id.."hideReady")
-        W.Toggle(card,L("Include my own cooldowns"),a.self~=false,12,328,430,function(v)a.self=v;apply()end,id.."self")
-        W.Button(card,L("Reset position"),12,364,430,function()local d=defaults.anchors[key];a.x,a.y=d.x,d.y;apply()end,false,id.."reset",{kind="outline",align="CENTER"})
-        W.Label(card,L(ANCHOR_HELP[key]),12,406,430,11,C.muted)
-    end
-    W.Button(parent,cfg.unlocked and L("Lock")or L("Unlock and preview"),0,552,454,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
-    W.Label(parent,L("Unlock shows every list with its name; drag them where you want them."),466,560,454,11,C.muted)
+        W.Toggle(card,L("Include my own cooldowns"),a.self~=false,12,328,207,function(v)a.self=v;apply()end,id.."self")
+        W.Toggle(card,L("Hide in raids"),a.hideInRaid,235,328,207,function(v)a.hideInRaid=v;apply()end,id.."hideInRaid")
+        if key=="kick"then
+            W.Toggle(card,L("Target marker"),a.mark,12,356,207,function(v)a.mark=v;apply()end,id.."mark")
+            W.Toggle(card,L("Dark bars"),a.dark,235,356,207,function(v)a.dark=v;apply()end,id.."dark")
+        end
+        W.Button(card,L("Reset position"),12,388,430,function()local def=defaults.anchors[key];a.x,a.y=def.x,def.y;apply()end,false,id.."reset",{kind="outline",align="CENTER"})
+        W.Label(card,L(ANCHOR_HELP[key]),12,424,430,11,C.muted)
+    end end
+    W.Button(parent,cfg.unlocked and L("Lock")or L("Unlock and preview"),0,568,454,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
+    W.Label(parent,L("Unlock shows every list with its name; drag them where you want them."),466,576,454,11,C.muted)
+end
+-- The main list: icons beside the party frames or in the movable list.
+function DrawMainCard(parent,x,apply)
+    local cfg=ns.PartyCooldownConfig()
+    local card=W.Card(parent,x,96,454,462,L("Main list"))
+    local per={{value=0,label=L("One row")}};for _,n in ipairs({3,4,5,6,8})do per[#per+1]={value=n,label=tostring(n)}end
+    local small={};for _,n in ipairs({16,18,20,22,24,26})do small[#small+1]={value=n,label=n.." px"}end
+    W.Select(card,L("PER ROW"),per,math.floor(tonumber(cfg.perRow)or 0),12,34,207,function(v)cfg.perRow=v;apply()end,"pcd:perRow")
+    W.Select(card,L("SIZE ON MORE ROWS"),small,tonumber(cfg.size2)or 20,235,34,207,function(v)cfg.size2=v;apply()end,"pcd:size2")
+    W.Toggle(card,L("Highlight new timers"),cfg.highlight,12,96,430,function(v)cfg.highlight=v;apply()end,"pcd:highlight")
+    W.Toggle(card,L("Tooltips"),cfg.tooltip,12,124,430,function(v)cfg.tooltip=v;apply()end,"pcd:tooltip")
+    W.Label(card,L("With more icons than Per row, a member's icons go on more rows at the smaller size. A new timer gets a gold edge for 3 seconds. Tooltips show the spell and the time left when you point at an icon; with them on the icons take the mouse. The order of the icons is set per specialization on the Abilities page."),12,164,430,11,C.muted)
 end
 local function DrawPage(parent)
     local cfg=ns.PartyCooldownConfig()
     local function apply()ns.RefreshPartyCooldowns();kit.refresh()end
     local d=kit.state.drafts;d.pcd=d.pcd or{view="display"}
     kit.header(parent,L("Party cooldowns"),L("Important defensive, external, raid and burst cooldowns of every specialization, for each party member."))
-    W.Segmented(parent,{{value="display",label=L("Display")},{value="anchors",label=L("Kicks & CC")},{value="abilities",label=L("Abilities")}},d.pcd.view,560,0,360,function(v)d.pcd.view=v;kit.refresh()end,"pcd-view")
+    W.Segmented(parent,{{value="display",label=L("Display")},{value="anchors",label=L("Lists")},{value="extras",label=L("Extras")},{value="abilities",label=L("Abilities")}},d.pcd.view,560,0,360,function(v)d.pcd.view=v;kit.refresh()end,"pcd-view")
     if d.pcd.view=="abilities"then return DrawAbilities(parent,d.pcd)end
-    if d.pcd.view=="anchors"then return DrawAnchors(parent,apply)end
-    local c1=W.Card(parent,0,56,298,536,L("Display"))
+    if d.pcd.view=="extras"and ns.DrawPartyExtras then return ns.DrawPartyExtras(parent,apply,d.pcd)end
+    if d.pcd.view=="anchors"then return DrawAnchors(parent,apply,d.pcd)end
+    local c1=W.Card(parent,0,56,298,566,L("Display"))
     W.Toggle(c1,L("Track party cooldowns"),cfg.enabled,12,34,274,function(v)cfg.enabled=v;apply()end,"pcd:enabled")
     W.Select(c1,L("SHOW"),{{value="list",label=L("As a list")},{value="frames",label=L("Beside party frames")}},cfg.mode,12,70,274,function(v)cfg.mode=v;apply()end,"pcd:mode")
     W.Select(c1,L("SIDE OF THE FRAME"),{{value="RIGHT",label=L("Right")},{value="LEFT",label=L("Left")},{value="TOP",label=L("Above")},{value="BOTTOM",label=L("Below")}},cfg.side,12,126,130,function(v)cfg.side=v;apply()end,"pcd:side")
@@ -1595,11 +1748,13 @@ local function DrawPage(parent)
     W.Toggle(c1,L("Also share my Cooldown Manager ones"),cfg.cdm,12,316,274,function(v)cfg.cdm=v;apply()end,"pcd:cdm")
     W.Toggle(c1,L("Auto 1 min+"),cfg.detect,12,342,274,function(v)cfg.detect=v;apply()end,"pcd:detect")
     W.Toggle(c1,L("Buff sensors"),cfg.sensors,12,368,274,function(v)cfg.sensors=v;apply()end,"pcd:sensors")
-    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,400,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Reset timers"),12,438,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
-    W.Button(c1,L("Send mine now"),156,438,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
-    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,478,274,11,C.muted)
-    local c2=W.Card(parent,310,56,610,536,L("Group"))
+    W.Select(c1,nil,{{value="all",label=L("Everywhere")},{value="instances",label=L("Instances")},{value="dungeons",label=L("Dungeons")}},cfg.loadWhere or"all",12,392,130,function(v)cfg.loadWhere=v;apply()end,"pcd:loadWhere")
+    W.Toggle(c1,L("Solo"),cfg.loadSolo~=false,156,394,130,function(v)cfg.loadSolo=v;apply()end,"pcd:loadSolo")
+    W.Button(c1,cfg.unlocked and L("Lock")or L("Unlock and preview"),12,428,274,function()cfg.unlocked=not cfg.unlocked;apply()end,false,"pcd-unlock",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Reset timers"),12,466,130,function()ns.PartyCooldownReset();kit.notify(L("All cooldowns are ready again"))end,false,"pcd-reset",{kind="outline",align="CENTER"})
+    W.Button(c1,L("Send mine now"),156,466,130,function()kit.done(ns.SharePartyCooldowns(true),L("Turn tracking on, join a group and leave combat first"),L("Your cooldowns were sent to the group"))end,false,"pcd-share",{align="CENTER"})
+    W.Label(c1,L("Timers start when a member casts. The game can hide other players' casts in combat; then nothing is guessed. Mythic+ keys and raid encounters start everyone ready."),12,506,274,11,C.muted)
+    local c2=W.Card(parent,310,56,610,566,L("Group"))
     if cfg.enabled then ns.PartyCooldownRoster()end
     local names=order;local y=34
     if #names==0 then W.Label(c2,cfg.enabled and L("Nobody to track yet. Join a party.")or L("Turn tracking on to see your group here."),12,y,580,12,C.muted)end
