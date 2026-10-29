@@ -77,7 +77,7 @@ local ru={
     ["Unlocked: drag the list"]="Откреплено: перетащите списки",["Locked"]="Закреплено",
     -- 0.11.0: more lists and the extras
     ["ready"]="готово",["Move up"]="Выше",["Move down"]="Ниже",["Hide in raids"]="Скрыть в рейде",
-    ["Look"]="Вид",["FONT OF THE WHOLE ADDON"]="ШРИФТ ВСЕГО АДДОНА",["Gothic Book"]="Gothic Book",["Profile"]="Профиль",["Share my settings"]="Поделиться настройками",["Use someone's settings"]="Взять чужие настройки",
+    ["Look"]="Вид",["Racials"]="Расовые",["Track racial abilities"]="Отслеживать расовые способности",["Racial abilities of each member's race, seen from their casts. Off: not shown and not timed for anyone."]="Расовые способности расы каждого игрока, видны по их применению. Выключено: не показываются и не отсчитываются ни у кого.",["FONT OF THE WHOLE ADDON"]="ШРИФТ ВСЕГО АДДОНА",["Gothic Book"]="Gothic Book",["Profile"]="Профиль",["Share my settings"]="Поделиться настройками",["Use someone's settings"]="Взять чужие настройки",
     ["Every setting of the party cooldowns, lists, look and extras in one string. Press the box, then Ctrl+A and Ctrl+C, and share it."]="Все настройки кд группы, списков, вида и дополнений в одной строке. Нажми на поле, затем Ctrl+A и Ctrl+C, и поделись ею.",
     ["Make the string"]="Создать строку",["Import"]="Импорт",["Profile imported"]="Профиль импортирован",
     ["Paste a profile string and press Import. Your settings are replaced; your learned cooldown lengths stay."]="Вставь строку профиля и нажми «Импорт». Твои настройки заменятся, выученные длины кулдаунов останутся.",
@@ -111,6 +111,7 @@ local ru={
     ["Only cooldowns in use: "]="Только кд в откате: ",["Names: "]="Имена: ",["Your own cooldowns: "]="Свои кд: ",["on"]="вкл.",
 }
 local fr={
+    ["Racials"]="Raciaux",["Track racial abilities"]="Suivre les techniques raciales",["Racial abilities of each member's race, seen from their casts. Off: not shown and not timed for anyone."]="Techniques raciales de la race de chaque membre, vues à leur lancement. Désactivé : ni affiché ni chronométré pour personne.",
     ["Close"]="Fermer",
     ["LANGUAGE"]="LANGUE",
     ["Auto (game client)"]="Auto (client du jeu)",
@@ -328,6 +329,7 @@ local fr={
     ["on"]="activé",
 }
 local de={
+    ["Racials"]="Volksfähigkeiten",["Track racial abilities"]="Volksfähigkeiten verfolgen",["Racial abilities of each member's race, seen from their casts. Off: not shown and not timed for anyone."]="Volksfähigkeiten des Volkes jedes Mitglieds, erkannt an ihrem Einsatz. Aus: für niemanden angezeigt oder gemessen.",
     ["Close"]="Schließen",
     ["LANGUAGE"]="SPRACHE",
     ["Auto (game client)"]="Auto (Spielclient)",

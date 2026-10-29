@@ -779,7 +779,8 @@ env.click('tab:partycds');cfg.mode='frames';assert(ns.DrawPartyCooldowns());asse
 env.click('tab:partycds');assert(ns.UIControls['pcd-unlock']and ns.UIControls['pcd:hideReady']);assert(ns.PartyCooldownLeft(m.Tester,22812)==45,'your own timer is the game cooldown');assert(ns.PartyCooldownCast('party1',33206));env.click('pcd-reset');assert(ns.PartyCooldownLeft(m.Friend,33206)==0)
 C_Spell.GetSpellCooldown=function()return{startTime=0,duration=0}end
 -- Abilities: switch a spell off for its class, add and remove your own.
-env.click('pcd-view:abilities');env.click('pcd-class:PRIEST');env.click('pcd-spell:33206');assert(not ns.PartyCooldownTracked(33206,256)and ns.PartyCooldownTracked(33206,257),'off for Discipline only')
+env.click('pcd-view:abilities');env.click('pcd-class:RACIAL');env.click('pcd-spell:58984');assert(not ns.PartyCooldownTracked(58984),'a racial off on its tab');env.click('pcd-spell:58984');env.click('pcd:racials');assert(cfg.racials==false);env.click('pcd:racials');assert(cfg.racials==true)
+env.click('pcd-class:PRIEST');env.click('pcd-spell:33206');assert(not ns.PartyCooldownTracked(33206,256)and ns.PartyCooldownTracked(33206,257),'off for Discipline only')
 for _,id in ipairs(ns.PartyCooldownList(m.Friend))do assert(id~=33206)end;assert(not ns.PartyCooldownCast('party1',33206))
 env.click('pcd-spell:33206');assert(ns.PartyCooldownTracked(33206,256))
 -- Each spec tab lists exactly that spec's cooldowns.
@@ -903,6 +904,9 @@ local pal={class='PALADIN',spec=66,used={},talented={}};assert(not has(pal,31884
 assert(has({class='PALADIN',spec=65,used={},talented={}},31884),'Holy Avenging Wrath stays')
 local wm={class='WARRIOR',spec=73,used={},talented={},race='NightElf'};assert(has(wm,23920)and has(wm,58984)and not has(wm,871))
 wm.race='Human';assert(not has(wm,58984),'Shadowmeld only for night elves')
+-- Every race has its racials; one switch turns them all off, and each can be turned off alone.
+assert(has(wm,59752),'Will to Survive for humans');cfg.racials=false;ns.PartyCooldownListDirty();assert(not has(wm,59752),'racials off');cfg.racials=true;ns.PartyCooldownListDirty()
+ns.SetPartyCooldownTracked(59752,false);assert(not has(wm,59752),'one racial off');ns.SetPartyCooldownTracked(59752,true);assert(has(wm,59752))
 assert(has({class='PALADIN',spec=65,used={},talented={},race='Dwarf'},20594),'Stoneform for dwarves')
 assert(ns.PartyCooldownDynamic(31884,66)and not ns.PartyCooldownDynamic(31884,70))end
 -- Spending rage in combat cuts Recklessness (Anger Management) when the bar is readable.

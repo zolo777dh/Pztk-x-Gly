@@ -62,7 +62,14 @@ ns.PartyCooldownSpells=SPELLS
 local byID={}
 for class,list in pairs(SPELLS)do for order,s in ipairs(list)do byID[s[1]]={class=class,cd=s[2],order=order,specs=#s>2 and{select(3,unpack(s))}or nil}end end
 -- Racial cooldowns, by the race the game names (any class): {spell ID, cooldown}.
-local RACIAL={NightElf={{58984,120}},Dwarf={{20594,120}}}
+-- Racial abilities with a cooldown, by the race token UnitRace gives (game facts). They have a
+-- switch of their own (cfg.racials) and each can be turned off on the Abilities page.
+local RACIAL={NightElf={{58984,120}},Dwarf={{20594,120}},Human={{59752,180}},Gnome={{20589,60}},Draenei={{28880,180}},
+    Worgen={{68992,120}},Pandaren={{107079,120}},VoidElf={{256948,180}},LightforgedDraenei={{255647,150}},DarkIronDwarf={{265221,120}},
+    KulTiran={{287712,150}},Mechagnome={{312924,180}},Orc={{20572,120}},Scourge={{7744,120}},Tauren={{20549,90}},Troll={{26297,180}},
+    BloodElf={{28730,120}},Goblin={{69070,90},{69041,90}},Nightborne={{260364,180}},HighmountainTauren={{255654,120}},
+    MagharOrc={{274738,120}},ZandalariTroll={{291944,150}},Vulpera={{312411,90}},Dracthyr={{368970,90},{357214,90}},EarthenDwarf={{436344,120}}}
+ns.PartyCooldownRacials=RACIAL
 for race,list in pairs(RACIAL)do for i,s in ipairs(list)do byID[s[1]]={race=race,cd=s[2],order=900+i}end end
 byID[POTION]={cd=300,order=950,anyone=true}
 ns.PartyCooldownPotion=POTION
@@ -125,7 +132,9 @@ for _,sp in pairs(SPEND)do WANTED[sp.talent]=true end
 -- Other spell IDs the game uses for a tracked spell (a talent or hero version of it).
 local ALIAS={[1236994]=POTION,[1236998]=POTION,[1239479]=POTION,[1295132]=POTION,[77761]=106898,[77764]=106898,[110959]=66,[204018]=1022,[231895]=31884,[216331]=31884,[389539]=31884,[442204]=403631,
     [102560]=194223,[102543]=106951,[414658]=45438,
-    [389813]=207684,[389807]=202138,[474421]=19577,[119910]=19647,[132409]=19647,[1276467]=19647,[119914]=89766}
+    [389813]=207684,[389807]=202138,[474421]=19577,[119910]=19647,[132409]=19647,[1276467]=19647,[119914]=89766,
+    -- Racials that are a different spell for each class.
+    [33702]=20572,[33697]=20572,[25046]=28730,[50613]=28730,[69179]=28730,[80483]=28730,[129597]=28730,[155145]=28730,[202719]=28730,[232633]=28730}
 -- Cooldowns cut by what a member does (resource spent, Bone Shield charges, crits, finishers,
 -- Barbed Shot...). The game hides all of that for others in combat, so their timers could not be
 -- exact: these are shown only for yourself, whose cooldowns the game gives. true = every spec.
@@ -144,7 +153,7 @@ end
 ns.PartyCooldownDynamic=Dynamic
 ns.PartyCooldownTalentMods=TALENT_CD
 local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,stuns=true,moves=true,potions=true,
-    share=true,cdm=true,detect=true,loadWhere="all",loadSolo=true,perRow=0,size2=20,highlight=true,tooltip=false,order={},pos={x=-420,y=120},
+    share=true,cdm=true,detect=true,racials=true,loadWhere="all",loadSolo=true,perRow=0,size2=20,highlight=true,tooltip=false,order={},pos={x=-420,y=120},
     anchors={kick={x=-420,y=-60,style="bars",size=22,width=200,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture="",mark=true,dark=false,hideInRaid=false},
         cc={x=-420,y=-220,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false,texture="",hideInRaid=false},
         stun={x=-420,y=-300,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false,texture="",hideInRaid=false},
@@ -365,7 +374,7 @@ function ns.PartyCooldownListBuild(member,kind)
             if ForSpec(info,member.spec,member.roleSpecs)and not unread and not(FACTION[id]and faction and FACTION[id]~=faction)and(not member.me or info.added or info.detected or Known(id))then add(id)end
         end
     end
-    for _,s in ipairs(member.race and RACIAL[member.race]or{})do if not member.me or Known(s[1])then add(s[1])end end
+    if cfg.racials~=false then for _,s in ipairs(member.race and RACIAL[member.race]or{})do if not member.me or Known(s[1])then add(s[1])end end end
     add(POTION)
     -- Spells seen cast count while they fit the current spec (shared ones always).
     for id in pairs(member.used or{})do local info=byID[id]
@@ -2299,6 +2308,8 @@ local function DrawAbilities(parent,d)
     for i,class in ipairs(CLASSES)do
         W.Button(left,L(CLASS_NAMES[class]),10,30+(i-1)*36,180,function()d.class=class;kit.refresh()end,d.class==class,"pcd-class:"..class,{h=32})
     end
+    W.Button(left,L("Racials"),10,30+#CLASSES*36,180,function()d.class="RACIAL";kit.refresh()end,d.class=="RACIAL","pcd-class:RACIAL",{h=32})
+    if d.class=="RACIAL"then return ns.PartyCooldownDrawRacials(parent)end
     local right=W.Card(parent,212,56,708,536,L(CLASS_NAMES[d.class]))
     local specs=ns.ClassSpecs[d.class]or{}
     d.specs=d.specs or{};local spec=d.specs[d.class]or specs[1];d.specs[d.class]=spec
@@ -2325,6 +2336,25 @@ local function DrawAbilities(parent,d)
     W.Button(right,L("All on"),336,466,100,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,true,spec)end;kit.refresh()end,false,"pcd-allon",{kind="outline",align="CENTER"})
     W.Button(right,L("All off"),444,466,100,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,false,spec)end;kit.refresh()end,false,"pcd-alloff",{kind="outline",align="CENTER"})
     W.Label(right,L("The cooldowns tracked for this spec. Off: not shown and not timed for players of this spec. Lengths are the game's base cooldowns."),12,506,684,11,C.muted)
+end
+-- Racials: one switch for all of them, and each one on its own.
+function ns.PartyCooldownDrawRacials(parent)
+    local cfg=ns.PartyCooldownConfig()
+    local right=W.Card(parent,212,56,708,536,L("Racials"))
+    W.Toggle(right,L("Track racial abilities"),cfg.racials~=false,12,30,684,function(v)cfg.racials=v;ns.RefreshPartyCooldowns();kit.refresh()end,"pcd:racials")
+    local ids={};for _,list in pairs(RACIAL)do for _,x in ipairs(list)do ids[#ids+1]=x[1]end end
+    table.sort(ids,function(a,b)return SpellName(a)<SpellName(b)end)
+    local list=W.Scroll(right,12,66,684,372,"pcd:racialSpells",C.background);local y=4
+    for _,id in ipairs(ids)do
+        local row=W.Panel(list,0,y,656,36,C.raised,C.clear,6)
+        W.Icon(row,id,6,4,28)
+        W.Toggle(row,SpellName(id),ns.PartyCooldownTracked(id),42,4,400,function(v)ns.SetPartyCooldownTracked(id,v);ns.RefreshPartyCooldowns();kit.refresh()end,"pcd-spell:"..id)
+        W.Label(row,math.floor(BaseCooldown(id)+0.5).." s",500,12,50,11,C.soft)
+        y=y+40
+    end;list:SetHeight(math.max(1,y))
+    W.Button(right,L("All on"),12,466,100,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,true)end;ns.RefreshPartyCooldowns();kit.refresh()end,false,"pcd-allon",{kind="outline",align="CENTER"})
+    W.Button(right,L("All off"),120,466,100,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,false)end;ns.RefreshPartyCooldowns();kit.refresh()end,false,"pcd-alloff",{kind="outline",align="CENTER"})
+    W.Label(right,L("Racial abilities of each member's race, seen from their casts. Off: not shown and not timed for anyone."),12,506,684,11,C.muted)
 end
 -- Interrupts and crowd control: two movable lists of their own, each set up here.
 local ANCHOR_HELP={
