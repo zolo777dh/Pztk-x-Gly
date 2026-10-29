@@ -563,6 +563,8 @@ local order={}
 -- Brings the member list up to date with the group. Sent data and timers of players who stay are kept.
 local pendingPCD,ReadPendingPCD={},nil -- group messages from players not in the roster yet
 local askAgain=true -- a new member: the others are asked for their cooldowns with the next share
+local needSend=true -- your cooldowns go out once per group (again for a new member, a request or a change)
+local inspected={} -- talents read by inspecting, by GUID, kept for the session
 function ns.PartyCooldownRoster()
     local keep={};order={}
     for _,unit in ipairs(Units())do
@@ -573,7 +575,10 @@ function ns.PartyCooldownRoster()
             local guid=UnitGUID and select(2,pcall(UnitGUID,unit));guid=ns.Plain(guid,"string")and guid or nil
             local m=members[name]
             if m and guid and m.guid and m.guid~=guid then m=nil end
-            if not m then m={name=name,used={}};if unit~="player"then askAgain=true end end
+            if not m then m={name=name,used={}};if unit~="player"then askAgain=true;needSend=true end
+                -- Inspected before in this session: the talents read then are kept.
+                local seen=guid and inspected[guid];if seen then m.spec,m.talented,m.ranks=seen.spec,seen.talented,seen.ranks end
+            end
             members[name]=m;m.guid=guid or m.guid
             m.unit=unit;m.me=unit=="player";m.class=ns.Plain(class,"string")and class or m.class
             m.spec=(m.me and ns.Spec())or m.sentSpec or InspectSpec(unit)or m.spec
@@ -599,14 +604,8 @@ local function InspectNext()
     if not(NotifyInspect and CanInspect)then return end
     local soonest
     for _,name in ipairs(order)do local m=members[name]
-        -- No answer (out of range...): asked again after 15 s, up to 6 times.
-        -- Out of reach (CanInspect false): tried again every 15 s for 5 minutes, then after a
-        -- 2 minute pause the same again, for as long as they are in the group.
-        -- The same for asks that got no answer (6 in a row).
-        if m and not m.me and not m.addon and(not m.spec or not m.talented)and((m.tries or 0)>=6 or(m.far or 0)>=20)then
-            local rest=120-(GetTime()-(m.asked or 0))
-            if rest<=0 then m.far=0;m.tries=0 elseif not soonest or rest<soonest then soonest=rest end
-        end
+        -- Each member is inspected once while in the group. No answer: asked again after 15 s, up
+        -- to 6 times; out of reach (CanInspect false): looked at again every 15 s, up to 20 times.
         if m and not m.me and not m.addon and(not m.spec or not m.talented)and(m.tries or 0)<6 and(m.far or 0)<20 then
             local wait=m.asked and 15-(GetTime()-m.asked)or 0
             if wait<=0 then
@@ -650,6 +649,7 @@ local function ReadTalents(m,config)
     end
     if any and m then m.talented=talented end
     if(any or read)and m then m.ranks=ranks end
+    if any and m and not m.me and m.guid then inspected[m.guid]={spec=m.spec,talented=m.talented,ranks=m.ranks}end
     return any
 end
 -- Your own talent tree, read when the addon loads and whenever your spec or talents change.
@@ -699,16 +699,20 @@ function ns.CooldownManagerSpells()
     end
     return out
 end
-local lastShare,shareTimer,shareState=-100,nil,"never"
+local lastShare,shareTimer,shareState,lastPayload=-100,nil,"never",nil
 function ns.SharePartyCooldowns(force)
     local cfg=ns.PartyCooldownConfig();if not cfg.enabled or not cfg.share then return false end
     if InCombatLockdown and InCombatLockdown()then return false end
+    local payload=ns.PartyCooldownPayload()
+    -- Nothing new to say: no message at all.
+    if not force and not needSend and payload==lastPayload then return false end
     local wait=10-(GetTime()-lastShare)
     if not force and wait>0 then
         if not shareTimer and C_Timer and C_Timer.NewTimer then shareTimer=C_Timer.NewTimer(wait,function()shareTimer=nil;ns.SharePartyCooldowns(true)end)end
         return false
     end
-    lastShare=GetTime();local sent=ns.Send("PCD",ns.PartyCooldownPayload());shareState=sent and"queued"or"not sent"
+    lastShare=GetTime();local sent=ns.Send("PCD",payload);shareState=sent and"queued"or"not sent"
+    if sent then lastPayload=payload;needSend=false end
     -- After a load or with a new member, the others are asked to send theirs.
     if sent and askAgain then askAgain=false;ns.Send("PCDQ","1")end
     return sent
@@ -777,7 +781,7 @@ end
 -- out its 10 s throttle).
 ns.CommHandlers.PCDQ=function(_,sender,channel,full)
     sender=Sender(sender,channel,full)
-    if sender and members[sender]and not members[sender].me then ns.SharePartyCooldowns()end
+    if sender and members[sender]and not members[sender].me then needSend=true;ns.SharePartyCooldowns()end
 end
 function ReadPendingPCD()
     local read=false
@@ -944,8 +948,8 @@ local function Dress(icon,m,id,left,mark)
 end
 ns.PartyCooldownDress=Dress
 -- Blizzard compact party/raid frames and ElvUI party/raid frames, by the unit they show.
-local frameCache,lastScan={},-100
-function ns.PartyCooldownForgetFrames()frameCache={};lastScan=-100 end
+local frameCache,lastScan={},nil -- frames found, and the group they were looked up for
+function ns.PartyCooldownForgetFrames()frameCache={};lastScan=nil end
 local FRAME_NAMES={"CompactPartyFrameMember%d","CompactRaidFrame%d","ElvUF_PartyGroup1UnitButton%d"}
 local function UnitFrame(unit)
     if not UnitIsUnit then return nil end
@@ -970,9 +974,10 @@ local function UnitFrame(unit)
     local cached=frameCache[unit]
     if type(cached)=="table"and match(cached)then return cached end
     -- Walking every frame of the interface is costly: one walk finds the frames of all units,
-    -- at most once every 30 s and never in combat.
-    if InCombatLockdown and InCombatLockdown()or not EnumerateFrames or GetTime()-lastScan<30 then return nil end
-    lastScan=GetTime()
+    -- once for each make-up of the group and never in combat.
+    local group=table.concat(order,",")
+    if InCombatLockdown and InCombatLockdown()or not EnumerateFrames or lastScan==group then return nil end
+    lastScan=group
     Timed("frame scan",function()
         local found={}
         local f=EnumerateFrames()
@@ -1926,9 +1931,11 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
         QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()
     else
         if event~="READY_CHECK"then ns.PartyCooldownRoster()end
-        -- A roster change is a fresh chance to reach members that were out of range.
-        if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then for _,m in pairs(members)do m.far=nil;m.tries=nil end;QueueInspect();frameCache={}end
-        if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then m.asked=nil;m.tries=nil;m.far=nil;m.talented=nil;m.ranks=nil;m.spec=nil;m.sentSpec=nil;m.known=nil;m.cds=nil;Prune(m,nil)
+        -- New members are inspected (the others keep what was read); a loading screen can make
+        -- new party frames, so they are looked up once more.
+        if event=="GROUP_ROSTER_UPDATE"or event=="PLAYER_ENTERING_WORLD"then QueueInspect()end
+        if event=="PLAYER_ENTERING_WORLD"then ns.PartyCooldownForgetFrames()end
+        if event=="PLAYER_SPECIALIZATION_CHANGED"and ns.Plain(a,"string")then for _,m in pairs(members)do if m.unit==a and not m.me then if m.guid then inspected[m.guid]=nil end;m.asked=nil;m.tries=nil;m.far=nil;m.talented=nil;m.ranks=nil;m.spec=nil;m.sentSpec=nil;m.known=nil;m.cds=nil;Prune(m,nil)
             -- Spec-only timers go now; the class-wide ones stay.
             for id in pairs(m.used)do local info=byID[id];if info and info.specs then m.used[id]=nil end end end end;QueueInspect()end
         if event=="PLAYER_SPECIALIZATION_CHANGED"and a=="player"then for _,m in pairs(members)do if m.me then Prune(m,ns.Spec())end end end

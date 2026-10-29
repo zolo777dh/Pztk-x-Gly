@@ -1251,17 +1251,18 @@ assert(not pr.used[15286]);for _,id in ipairs(ns.PartyCooldownList(pr))do assert
 assert(ns.AddPartyCooldownSpell('PALADIN','999002'));ns.CommHandlers.PCD('258;10060=120;999002=90','Other','PARTY','Other-RealmB');assert(pr.known[999002]and pr.cds[999002]==90)
 -- Learned lengths move with the migration.
 cfg.learned.x={[414658]=170};cfg.aliasMigrated=nil;ns.PartyCooldownConfig();assert(cfg.learned.x[45438]==170 and not cfg.learned.x[414658]);cfg.learned.x=nil
--- Out of reach past the limit: a roster change, or a 2 minute pause, tries again.
+-- Inspected once per group: past the limit, roster updates do not start it over.
 local asks2=0;NotifyInspect=function()asks2=asks2+1 end;CanInspect=function()return true end
-rg.tries=nil;rg.far=20;rg.asked=GetTime();rg.spec=nil;rg.talented=nil;fire2('GROUP_ROSTER_UPDATE');env.advance(16);assert(asks2>=1,'asked again after the roster change')
+rg.tries=nil;rg.far=20;rg.asked=GetTime();rg.spec=nil;rg.talented=nil;fire2('GROUP_ROSTER_UPDATE');env.advance(16);assert(asks2==0,'not asked again')
 NotifyInspect=nil;CanInspect=nil
 -- Seventh review. A pet's spell is known from the pet's own spellbook.
 Enum=Enum or{};Enum.SpellBookSpellBank={Player=0,Pet=1};local book=C_SpellBook
 C_SpellBook={IsSpellKnown=function(id,bank)return bank==1 and id==19647 end}
 assert(ns.PartyCooldownOwnPetKick(),'Spell Lock in the pet book');C_SpellBook=book
--- Asks without an answer: a pause, then again; a roster change starts over.
+-- Asks without an answer stop at six; a member read once keeps it through roster updates.
 local asks3=0;NotifyInspect=function()asks3=asks3+1 end;CanInspect=function()return true end
-rg.tries=6;rg.far=nil;rg.asked=GetTime();rg.spec=nil;rg.talented=nil;fire2('GROUP_ROSTER_UPDATE');env.advance(16);assert(asks3>=1,'tries again')
+rg.tries=6;rg.far=nil;rg.asked=GetTime();rg.spec=nil;rg.talented=nil;fire2('GROUP_ROSTER_UPDATE');env.advance(200);assert(asks3==0,'six is the end')
+rg.tries=nil;rg.talented={};rg.spec=261;fire2('GROUP_ROSTER_UPDATE');env.advance(20);assert(asks3==0,'read once is enough')
 NotifyInspect=nil;CanInspect=nil
 -- Lengths learned by older versions that look like a global cooldown are learned again.
 cfg.learned.y={[1022]=2,[642]=300};cfg.learnedVersion=nil;ns.PartyCooldownConfig();assert(cfg.learned.y[1022]==nil and cfg.learned.y[642]==300);cfg.learned.y=nil
@@ -1285,7 +1286,10 @@ local before=ns.PartyCooldownSensorCount();local made=0;local cf=CreateFrame;Cre
 ns.RebuildPartyCooldownSensors();ns.RebuildPartyCooldownSensors();assert(made==0 and ns.PartyCooldownSensorCount()==before,'nothing rebuilt');CreateFrame=cf
 local walks=0;local ef=EnumerateFrames;EnumerateFrames=function(f)if not f then walks=walks+1 end;return nil end
 ns.PartyCooldownForgetFrames();cfg.mode='frames';ns.DrawPartyCooldowns();ns.DrawPartyCooldowns();env.advance(5);ns.DrawPartyCooldowns();assert(walks==1,walks)
-env.advance(31);ns.DrawPartyCooldowns();assert(walks==2);EnumerateFrames=ef
+env.advance(31);ns.DrawPartyCooldowns();assert(walks==1,'once per group');EnumerateFrames=ef
+-- Your cooldowns go out once: an unchanged list is not sent again.
+local sends=0;local send=ns.Send;ns.Send=function(k,...)if k=='PCD'then sends=sends+1 end;return true end
+env.advance(11);ns.SharePartyCooldowns();env.advance(11);ns.SharePartyCooldowns();assert(sends<=1,sends);ns.Send=send
 local perf=ns.PartyCooldownPerf();assert(perf.draw and perf.draw.n>0 and perf['sensor rebuild'])
 units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
 ns.PartyCooldownRoster();assert(ns.RebuildPartyCooldownSensors()==0,'no sensors alone')
