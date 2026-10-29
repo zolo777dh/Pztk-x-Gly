@@ -1295,9 +1295,10 @@ local function Cell(g,i)
     if not cell.bar then
         local bar=CreateFrame("StatusBar",nil,f);bar:SetStatusBarTexture(GAME_BARS[1].file);bar:SetMinMaxValues(0,1);bar:SetValue(1)
         bar.bg=bar:CreateTexture(nil,"BACKGROUND");bar.bg:SetAllPoints();bar.bg:SetColorTexture(0,0,0,0.55)
-        bar.textLayer=CreateFrame("Frame",nil,bar);bar.textLayer:SetAllPoints(bar);bar.textLayer:SetFrameLevel(bar:GetFrameLevel()+3)
+        bar.textLayer=CreateFrame("Frame",nil,bar);bar.textLayer:SetAllPoints(bar);bar.textLayer:SetFrameLevel(bar:GetFrameLevel()+6)
         -- A hidden timer's seconds run on the bar, where the time of the others is written.
-        bar.timeBox=CreateFrame("Frame",nil,bar.textLayer);bar.timeBox.textOnly=true
+        -- Its grey cover lies over the bar but under the name (the text layer is higher).
+        bar.timeBox=CreateFrame("Frame",nil,bar);bar.timeBox.textOnly=true
         bar.name=bar.textLayer:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         bar.time=bar.textLayer:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
         cell.bar=bar
@@ -1338,7 +1339,7 @@ local function UpdateBars(self,elapsed)
     local now=GetTime()
     for _,cell in ipairs(self.icons or{})do local bar=cell.bar
         if bar and bar:IsShown()then
-            PotionShade(bar,bar.progressForward and bar.hiddenTrack or nil,now)
+            PotionShade(bar,nil,now)
             if bar.object then bar.time:SetText("")
             elseif bar.progressForward and bar.hiddenTrack then
                 bar:SetMinMaxValues(0,1);bar:SetValue(1);bar.time:SetText("")
@@ -1383,9 +1384,8 @@ local function DrawAnchor(g,entries,a,unlocked)
                 local track=not(plain or recharge)and hidden or nil
                 cell:Show()
                 if bars then
-                    ShowHidden(cell,nil);local box=cell.bar.timeBox;box:ClearAllPoints()
-                    if left then box:SetPoint("LEFT",cell.bar,"LEFT",2,0)else box:SetPoint("RIGHT",cell.bar,"RIGHT",-2,0)end
-                    box:SetSize(math.max(26,size),size);ShowHidden(box,track)
+                    ShowHidden(cell,nil);local box=cell.bar.timeBox;box:ClearAllPoints();box:SetAllPoints(cell.bar)
+                    box.textAt=left and"LEFT"or"RIGHT";ShowHidden(box,track)
                 else ShowHidden(cell,track);if cell.bar then ShowHidden(cell.bar.timeBox,nil)end end
                 local c=m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
                 local r,gr,b=c and c.r or 0.6,c and c.g or 0.36,c and c.b or 1
@@ -1730,20 +1730,24 @@ end
 -- Lays the parts out for this icon size and cooldown; once per change.
 local function DressHidden(icon,t)
     local parts=HiddenParts(icon)
-    local size=icon:GetWidth();if not ns.Plain(size,"number")or size<=0 then size=26 end
+    local size=icon.textOnly and icon:GetHeight()or icon:GetWidth();if not ns.Plain(size,"number")or size<=0 then size=26 end
+    -- On a bar the cover spans the whole bar and the seconds sit at its end.
+    local width=icon.textOnly and icon:GetWidth()or size;if not ns.Plain(width,"number")or width<=0 then width=size end
     local font=(W.Font and W.Font(true))or"Fonts\\FRIZQT__.TTF";local ts=math.max(9,math.floor(size*0.42))
-    local sig=t.cd.."|"..size.."|"..ts
+    local sig=t.cd.."|"..size.."|"..width.."|"..ts..(icon.textOnly and(icon.textAt or"")or"")
     if parts.sig==sig then return parts end
     local step=LineStep(font,ts);local jump=size+4
     parts.step,parts.jump,parts.sig=step,jump,sig
-    parts.win:ClearAllPoints();parts.win:SetPoint("CENTER",icon,"CENTER",0,0);parts.win:SetSize(size+6,math.min(step,ts+1))
+    parts.win:ClearAllPoints()
+    if icon.textOnly then parts.win:SetPoint(icon.textAt or"RIGHT",icon,icon.textAt or"RIGHT",icon.textAt=="LEFT"and 4 or-4,0)else parts.win:SetPoint("CENTER",icon,"CENTER",0,0)end
+    parts.win:SetSize(size+6,math.min(step,ts+1))
     pcall(parts.win.SetFrameLevel,parts.win,(icon:GetFrameLevel()or 0)+6)
     for k=1,2 do local p=parts[k]
         p.fill:SetFrameLevel((icon:GetFrameLevel()or 0)+3);p.veil:SetFrameLevel((icon:GetFrameLevel()or 0)+2)
         p.pos:SetSize(1,t.window*step);pcall(p.pos.SetMinMaxValues,p.pos,0,1)
         p.gate:SetSize(1,t.window*jump);pcall(p.gate.SetMinMaxValues,p.gate,0,1)
         local edge=p.gate.GetStatusBarTexture and p.gate:GetStatusBarTexture()or p.gate
-        p.veil:ClearAllPoints();p.veil:SetPoint("TOP",edge,"TOP",0,0);p.veil:SetPoint("BOTTOM",edge,"TOP",0,-(t.cd+1)*jump);p.veil:SetWidth(size)
+        p.veil:ClearAllPoints();p.veil:SetPoint("TOP",edge,"TOP",0,0);p.veil:SetPoint("BOTTOM",edge,"TOP",0,-(t.cd+1)*jump);p.veil:SetWidth(width)
         local top=p.pos.GetStatusBarTexture and p.pos:GetStatusBarTexture()or p.pos
         pcall(p.column.SetFont,p.column,font,ts,"OUTLINE");pcall(p.column.SetSpacing,p.column,0);p.column:SetTextColor(1,1,1)
         p.column:SetText(Column(t.cd));p.column:ClearAllPoints();p.column:SetPoint("TOP",top,"TOP",0,0)
@@ -1787,7 +1791,9 @@ function ShowHidden(icon,t)
     parts=DressHidden(icon,t)
     local tex=icon.spellID and W.SpellTexture(icon.spellID)
     -- On a bar only the seconds show: no dark fill and no grey copy of an icon.
-    parts.win:Show();for k=1,2 do parts[k].grey:SetTexture(tex);if icon.textOnly then parts[k].grey:Hide();parts[k].fill:Hide()else parts[k].grey:Show();parts[k].fill:Show()end
+    parts.win:Show();for k=1,2 do
+        if icon.textOnly then parts[k].grey:SetColorTexture(0.3,0.3,0.33,0.92);parts[k].fill:Hide()else parts[k].grey:SetTexture(tex);parts[k].fill:Show()end
+        parts[k].grey:Show()
         parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
     shownHidden[icon]=t
 end
