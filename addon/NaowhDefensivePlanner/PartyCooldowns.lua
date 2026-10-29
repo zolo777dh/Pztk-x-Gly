@@ -449,7 +449,15 @@ local SURE={cast=true,sensor=true,named=true}
 -- A hidden timer, unless it is surely over: one full length after the combat it started in ended.
 local function Hidden(m,id)
     local t=m.hiddenCd and m.hiddenCd[id]
-    if t and t.over and GetTime()>=t.over then m.hiddenCd[id]=nil;return nil end
+    if not t then return nil end
+    local now=GetTime()
+    if t.slot and not(InCombatLockdown and InCombatLockdown())then
+        -- Out of combat a track that nothing started is not a timer at all.
+        if not t.over then t.over=now+t.cd end
+        local plain=true;for k=1,2 do local sl=t.slot[k];if not sl or not ns.Plain(sl.code,"number")then plain=false end end
+        if plain and ns.PartyCooldownHiddenLeft(t,now)<=0 then m.hiddenCd[id]=nil;return nil end
+    end
+    if t.over and now>=t.over then m.hiddenCd[id]=nil;return nil end
     return t
 end
 function ns.PartyCooldownExact(member,id)
@@ -1549,8 +1557,9 @@ function ShowHidden(icon,t)
         shownHidden[icon]=nil;return
     end
     parts=DressHidden(icon,t)
-    -- A hidden timer may run: the icon is grey, never lit as if ready.
-    if icon.tex then icon.tex:SetDesaturated(true)end
+    -- In combat a hidden timer may run: the icon is grey, never lit as if ready. Out of combat
+    -- the grey cover alone shows it, and ready icons keep their colour.
+    if icon.tex and InCombatLockdown and InCombatLockdown()then icon.tex:SetDesaturated(true)end
     local tex=icon.spellID and W.SpellTexture(icon.spellID)
     parts.win:Show();for k=1,2 do parts[k].grey:SetTexture(tex);parts[k].fill:Show();parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
     shownHidden[icon]=t
@@ -1928,6 +1937,8 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
     elseif event=="DAMAGE_METER_COMBAT_SESSION_UPDATED"then
         if ns.Plain(a,"number")and Enum and Enum.DamageMeterType and a==Enum.DamageMeterType.Interrupts then ns.PartyCooldownMeter()end
     elseif event=="DAMAGE_METER_CURRENT_SESSION_UPDATED"or event=="DAMAGE_METER_RESET"or event=="PLAYER_REGEN_DISABLED"then ns.PartyCooldownMeter(true)
+        -- Lockdown starts just after this event: grey the hidden timers a moment later.
+        if event=="PLAYER_REGEN_DISABLED"and next(shownHidden)and C_Timer and C_Timer.NewTimer then C_Timer.NewTimer(0.1,function()ns.DrawPartyCooldowns()end)end
     elseif event=="NAME_PLATE_UNIT_ADDED"or event=="NAME_PLATE_UNIT_REMOVED"then ns.PartyCooldownPlate(a)
     elseif event=="UNIT_AURA"then ns.PartyCooldownAura(a)
     elseif event=="UNIT_POWER_UPDATE"then

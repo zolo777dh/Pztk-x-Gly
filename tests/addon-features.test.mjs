@@ -848,6 +848,7 @@ assert(ns.PartyCooldownReadTalents(m.Rogue));local cloak=false;for _,id in ipair
 local hidden={};local real=issecretvalue;issecretvalue=function(v)return v==hidden end
 C_CurveUtil={EvaluateColorValueFromBoolean=function(b,y,n)if b==hidden then return y end;return b and y or n end}
 for _,x in pairs(m)do x.used={};x.hiddenCd=nil end;assert(ns.RebuildPartyCooldownSensors()>0);env.advance(1);ns.PartyCooldownPollSensors()
+local lockH=InCombatLockdown;InCombatLockdown=function()return true end
 list=ns.PartyCooldownSensors()
 for _,x in ipairs(list)do if x.spell==31224 and x.unit=='party2'then x.frame.IsMouseOver=function()return hidden end end end
 local drawn=0;local draw=ns.DrawPartyCooldowns;ns.DrawPartyCooldowns=function(...)drawn=drawn+1;return draw(...)end
@@ -871,6 +872,7 @@ ns.PartyCooldownShowHidden(icon,nil);assert(not parts.win:IsShown())
 -- After the cooldown the bar is empty; a slot rolls over before its window runs out.
 env.advance(t.cd);ns.PartyCooldownPollSensors();assert(ns.PartyCooldownHiddenLeft(t,GetTime())==0)
 for i=1,6 do env.advance(t.cd);ns.PartyCooldownPollSensors()end;assert(GetTime()-t.slot[t.cur].epoch<=t.open,'slot rolled')
+InCombatLockdown=lockH
 -- The start is the moment the unit's auras changed, kept to the fraction of a second.
 assert(ns.PartyCooldownFine(),'the curve helper carries fine numbers')
 for _,x in pairs(m)do x.used={};x.hiddenCd=nil end
@@ -1295,7 +1297,18 @@ units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
 ns.PartyCooldownRoster();assert(ns.RebuildPartyCooldownSensors()==0,'no sensors alone')
 assert(ns.PartyName('Other-RealmB')=='Other','names without the realm')
 local ic=CreateFrame('Frame');ic.tex=ic:CreateTexture();ic.spellID=2094;ic:SetSize(26,26);local grey;ic.tex.SetDesaturated=function(_,v)grey=v end
-ns.PartyCooldownShowHidden(ic,{cd=120,window=240,unit=1,slot={{epoch=0,wepoch=0,code=0,whole=0},{epoch=0,wepoch=0,code=0,whole=0}},cur=1});assert(grey==true,'a hidden timer greys the icon')
+local function track()return{cd=120,window=240,unit=1,slot={{epoch=0,wepoch=0,code=0,whole=0},{epoch=0,wepoch=0,code=0,whole=0}},cur=1}end
+local lock=InCombatLockdown
+ns.PartyCooldownShowHidden(ic,track());assert(grey==nil,'out of combat a hidden timer keeps the colour')
+InCombatLockdown=function()return true end
+ns.PartyCooldownShowHidden(ic,track());assert(grey==true,'in combat a hidden timer greys the icon')
+local hm={hiddenCd={[2094]=track()}};assert(ns.PartyCooldownHiddenTrack(hm,2094),'in combat the track stays')
+InCombatLockdown=lock
+assert(ns.PartyCooldownHiddenTrack(hm,2094)==nil and hm.hiddenCd[2094]==nil,'out of combat an empty track is dropped')
+local sm={hiddenCd={[2094]=track()}};sm.hiddenCd[2094].slot[1].code=setmetatable({},{__secret=true})
+local keep=ns.Plain;ns.Plain=function(v,k)if type(v)=='table'then return false end;return keep(v,k)end
+assert(ns.PartyCooldownHiddenTrack(sm,2094)and sm.hiddenCd[2094].over,'a secret track ends one length later')
+ns.Plain=keep
 `));
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
