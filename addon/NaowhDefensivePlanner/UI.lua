@@ -710,10 +710,13 @@ local function DrawSettings(parent)
     W.Caption(bars,L("BAR W x H"),24+half,84,half)
     W.Input(bars,state.settingFields.barWidth or s.barWidth or 240,24+half,100,math.floor(half/2)-3,"setting:barWidth")
     W.Input(bars,state.settingFields.barHeight or s.barHeight or"",24+half+math.floor(half/2)+3,100,math.floor(half/2)-3,"setting:barHeight")
-    local covered=W.Card(parent,col,top+280,cw,232,L("Already covered"))
+    local covered=W.Card(parent,col,top+280,cw,232,L("Already covered · boss calls"))
     W.Toggle(covered,L("Skip when a defensive is already up"),s.coveredSkip==true and s.coveredSkipDefaultOn~=false,12,34,cw-24,function(v)s.coveredSkip=v;s.coveredSkipDefaultOn=v end,"setting:coveredSkip")
     W.Label(covered,L("Counts as cast for (sec)"),12,82,170,13);W.Input(covered,state.settingFields.coveredCastWindow or s.coveredCastWindow or 3,cw-102,74,90,"setting:coveredCastWindow")
     W.Label(covered,L("No call-out while an ability of the set is active on you or was cast within these seconds. Data the game hides in combat counts as not covered."),12,118,cw-24,11,C.muted)
+    -- Built-in boss calls (BossCalls.lua): text, bar and voice for every mechanic of the supported raid bosses.
+    W.Toggle(covered,L("Built-in boss calls (/ndp bosscalls)"),s.bossCalls~=false,12,166,cw-24,function(v)s.bossCalls=v end,"setting:bossCalls")
+    W.Toggle(covered,L("Speak boss calls"),s.bossCallsVoice~=false,12,196,cw-24,function(v)s.bossCallsVoice=v end,"setting:bossCallsVoice")
     -- Local window preferences.
     local prefs=UIPrefs()
     local window_=W.Card(parent,0,top+280,cw,232,L("Window"))
@@ -1139,7 +1142,7 @@ end
 local commands={{"/ndp · help · status","window, commands, state"},{"/ndp test · diag · mem","test call, report, memory"},{"/ndp sets · mythic · raid · tl","open a section"},
     {"/ndp notes · tools · players","raid sections"},{"/ndp qol · combat","quality of life, combat"},{"/ndp note · clear · pclear","note frame, clear notes"},{"/ndp anchors","move reminder anchors"},
     {"/ndp pull 10 · rc · break 10","pull, ready check, break"},{"/ndp inv · arrange · promote","invites, groups, assist"},{"/ndp invite · arrange note","invite, sort from note"},
-    {"/ndp nick Name · versions","nickname, version check"},{"/ndp trace · observed · keys","what the last pulls did"},{"/ndp trace on · off · clear","pull trace switch"},{"/ndp cds · calls · bosses","cooldowns, calls, bosses"},
+    {"/ndp nick Name · versions","nickname, version check"},{"/ndp trace · observed · keys","what the last pulls did"},{"/ndp trace on · off · clear","pull trace switch"},{"/ndp cds · calls · bosses","cooldowns, calls, bosses"},{"/ndp bosscalls · bc on|off","built-in boss calls"},
     {"/ndp party · pcd","party cooldowns, their report"},{"/ndp starter","starter defensive sets"},{"/ndp roster · export","roster, export profile"},{"/ndp wipe · credits","reset all data, thanks"}}
 ns.CommandHelp=commands
 local function DrawDiagnostics(parent)

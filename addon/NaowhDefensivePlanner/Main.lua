@@ -112,6 +112,13 @@ function ns.Command(message)
     elseif command=="trace"and rest=="clear"then ns.ClearTrace();ns.Print("Pull trace cleared.")
     elseif reports[command]then ns.ShowText(ns[reports[command]]())
     elseif command=="calls"then ns.ShowText(ns.CallsText(rest))
+    elseif command=="bosscalls"or command=="bc"then
+        local verb,arg=rest:match("^(%S+)%s*(.-)$")
+        if verb=="on"or verb=="off"then
+            local enc,spell=tostring(arg or""):match("^(%d+)[:%s]+(%d+)$")
+            if enc then local ok,err=ns.SetBossCallEnabled(tonumber(enc),tonumber(spell),verb=="on");ns.Print(ok and("Boss call "..enc..":"..spell.." "..verb..".")or err)
+            else local ok,err=ns.EditProfile(function(data)data.settings=data.settings or{};data.settings.bossCalls=verb=="on";return true end);ns.Print(ok and("Built-in boss calls "..verb..".")or err)end
+        else ns.ShowText(ns.BossCallsText(rest))end
     elseif command=="invite"then local n,err=ns.InviteFromNote();ns.Print(n and(n.." invites sent from the note.")or err)
     elseif command=="pcd"then for _,line in ipairs(ns.PartyCooldownReport())do print("  "..line)end
     elseif command=="starter"then local n,err=ns.CreateStarterSets();ns.Print(n and("Starter set created for "..(n==2 and"Mythic+ and raids"or"one content")..". Review it on the Defensive sets page.")or err)
