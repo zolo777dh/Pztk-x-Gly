@@ -27,10 +27,16 @@ function ns.PartyExtrasConfig()
 end
 local function Play(id)if PlaySound then pcall(PlaySound,id,"Master")end end
 local function ClassColor(name)
-    local m=ns.PartyCooldownMembers[name];local c=m and m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
+    local m=ns.Plain(name,"string")and ns.PartyCooldownFind(name);local c=m and m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
     return c and c.r or 1,c and c.g or 1,c and c.b or 1
 end
 local function Me()for _,m in pairs(ns.PartyCooldownMembers)do if m.me then return m end end end
+-- Everything here follows the main switch and the load options: /pcd off turns it all off.
+local StopAll -- defined with the refresh
+local function Active()
+    local cfg=ns.PartyCooldownConfig();return cfg.enabled==true and ns.PartyCooldownsLoaded()
+end
+ns.PartyExtrasActive=Active
 
 -- A movable box of its own, placed by extras[key].x/y and dragged while the lists are unlocked.
 local holders={}
@@ -117,10 +123,11 @@ local function AddSound(unit,spell,file)
 end
 function ns.PartyExtrasSounds()return sounds,soundState end
 
--- Spells by the kind of aura the party cooldowns sense them with (1 own buff, 2 external, 3 enemy debuff).
-local function AuraIDs(kind)
+-- Spells by the kind of aura the party cooldowns sense them with (1 own buff, 2 external, 3 enemy
+-- debuff). `defensive`: only the defensive ones (no Blessing of Freedom and other movement).
+local function AuraIDs(kind,defensive)
     local out,seen={},{}
-    for _,b in pairs(ns.PartyCooldownBuffs or{})do if b[1]==kind then for i=2,#b do if not seen[b[i]]then seen[b[i]]=true;out[#out+1]=b[i]end end end end
+    for id,b in pairs(ns.PartyCooldownBuffs or{})do if b[1]==kind and not(defensive and ns.PartyCooldownKind(id))then for i=2,#b do if not seen[b[i]]then seen[b[i]]=true;out[#out+1]=b[i]end end end end
     table.sort(out);return out
 end
 ns.PartyExtrasAuraIDs=AuraIDs
@@ -130,7 +137,7 @@ local function Set(list)local s={};for _,id in ipairs(list)do s[id]=true end;ret
 -- Crowd control on enemies: a bar over each enemy nameplate for every stun, fear or other
 -- crowd control on it, running down with the debuff. The sound plays when one lands on your
 -- target or focus.
-local PLATES=20
+local PLATES=40 -- as many as the party cooldown sensors watch
 local plateBars={}
 local function BuildPlateBars()
     local e=ns.PartyExtrasConfig().ccbars;local ids=Set(AuraIDs(3))
@@ -142,13 +149,16 @@ local function BuildPlateBars()
                 layout={elementWidth=e.width,elementHeight=e.height+1,elementSpacing=0,lineSpacing=0}})
             p={frame=c,sig=e.width.."x"..e.height};plateBars[i]=p
         end
-        pcall(p.frame.SetEnabled,p.frame,e.on==true);if e.on then pcall(p.frame.UpdateAllAuras,p.frame)end
+        local on=e.on==true and Active()
+        pcall(p.frame.SetEnabled,p.frame,on);if on then pcall(p.frame.UpdateAllAuras,p.frame)else p.frame:Hide()end
     end
+    -- Nameplates already up get their bars now, not only the ones added later.
+    if e.on and Active()then for i=1,PLATES do local unit="nameplate"..i;if UnitExists and UnitExists(unit)then ns.PartyPlateAdded(unit)end end end
     return true
 end
 function ns.PartyPlateAdded(unit)
     local i=ns.Plain(unit,"string")and tonumber(unit:match("^nameplate(%d+)$"));local p=i and plateBars[i]
-    if not p or not ns.PartyExtrasConfig().ccbars.on then return end
+    if not p or not(ns.PartyExtrasConfig().ccbars.on and Active())then return end
     local plate=C_NamePlate and C_NamePlate.GetNamePlateForUnit and select(2,pcall(C_NamePlate.GetNamePlateForUnit,unit))
     if type(plate)=="table"then p.frame:ClearAllPoints();pcall(p.frame.SetPoint,p.frame,"BOTTOM",plate,"TOP",0,4);p.frame:Show()end
 end
@@ -169,8 +179,9 @@ local function BuildOwn(key,filter,ids,soundIDs)
         o={frame=c,size=e.size};own[key]=o
     end
     h:SetSize(e.size*6+24,e.size)
-    pcall(o.frame.SetEnabled,o.frame,e.on==true);if e.on then pcall(o.frame.UpdateAllAuras,o.frame);h:Show()else h:Hide()end
-    if e.on and e.sound then for _,id in ipairs(soundIDs or{})do AddSound("player",id)end end
+    local on=e.on==true and Active()
+    pcall(o.frame.SetEnabled,o.frame,on);if on then pcall(o.frame.UpdateAllAuras,o.frame);h:Show()else h:Hide()end
+    if on and e.sound then for _,id in ipairs(soundIDs or{})do AddSound("player",id)end end
     return true
 end
 ns.PartyOwnAuras=own
@@ -186,11 +197,16 @@ function ns.KickRotationList()
     return out
 end
 local function Next()local list=ns.KickRotationList();if #list==0 then return nil end;return list[(rot.index-1)%#list+1],(rot.index-1)%#list+1,#list end
-local function IsMe(name)return name and UnitName and ns.ShortName(name)==UnitName("player")end
+-- A typed name with a realm must be yours exactly; without one, your name on any realm.
+local function IsMe(name)
+    if not(ns.Plain(name,"string")and UnitName)then return false end
+    if name:find("-",1,true)then return ns.FullName(name)==ns.UnitFullName("player")end
+    return name==UnitName("player")
+end
 function ns.DrawKickRotation()
     local e=ns.PartyExtrasConfig().rotation;local h,unlocked=Place("rotation")
     local name,pos,total=Next()
-    if not(e.on and name and(rot.fight or unlocked))then h:Hide();return false end
+    if not(e.on and name and(rot.fight and Active()or unlocked))then h:Hide();return false end
     if not h.box then
         h.box=h:CreateTexture(nil,"ARTWORK");h.box:SetPoint("LEFT",h,"LEFT",0,0)
         h.num=h:CreateFontString(nil,"OVERLAY","GameFontHighlightLarge");h.num:SetPoint("CENTER",h.box,"CENTER",0,0)
@@ -202,13 +218,13 @@ function ns.DrawKickRotation()
     if mine then h.box:SetColorTexture(1,0.82,0,0.9)else h.box:SetColorTexture(0.1,0.08,0.16,0.9)end
     if type(font)=="string"then pcall(h.num.SetFont,h.num,font,math.floor(size*0.6),"OUTLINE");pcall(h.name.SetFont,h.name,font,14,"OUTLINE")end
     h.num:SetText(tostring(pos));h.num:SetTextColor(mine and 0.1 or 1,mine and 0.1 or 0.2,mine and 0.1 or 0.2)
-    local r,g,b=ClassColor(ns.ShortName(name)or name)
+    local r,g,b=ClassColor(name)
     h.name:SetText(mine and L("You kick next")or((ns.DisplayName and ns.DisplayName(name)or name).." · "..pos.."/"..total));h.name:SetTextColor(r,g,b)
     h:Show();return true
 end
 -- An interrupt landed on a boss: the turn passes on (once per interrupt, whatever unit shows it).
 function ns.KickRotationInterrupt(unit)
-    if not(ns.Plain(unit,"string")and rot.fight)then return false end
+    if not(ns.Plain(unit,"string")and rot.fight and Active())then return false end
     local boss=unit:match("^boss%d")~=nil
     if not boss and UnitIsUnit then for i=1,5 do local ok,same=pcall(UnitIsUnit,unit,"boss"..i);if ok and same==true then boss=true end end end
     if not boss or GetTime()-rot.last<1.5 then return false end
@@ -221,18 +237,18 @@ function ns.KickRotationStart(on)rot.fight=on;rot.index=1;rot.last=0;ns.DrawKick
 function ns.KickRotationState()return rot end
 -- The leader or an assistant shares the list with the group.
 function ns.SendKickRotation()return ns.Send("PKR",ns.PartyExtrasConfig().rotation.names or"")end
-ns.CommHandlers.PKR=function(text,sender)
-    local e=ns.PartyExtrasConfig().rotation
-    if not e.accept or type(text)~="string"or #text>300 or not ns.GroupAuthority(sender)then return end
+ns.CommHandlers.PKR=function(text,sender,channel,full)
+    local e=ns.PartyExtrasConfig().rotation;sender=ns.PartyCooldownSender(sender,channel,full)
+    if not e.accept or not sender or type(text)~="string"or #text>300 or not ns.GroupAuthority(sender)then return end
     e.names=text;ns.DrawKickRotation()
 end
 
 ---------------------------------------------------------------------------
 -- External request: you ask, the healers of the group see who needs one and which of their
 -- externals are ready. Players without this addon get the word in a whisper (switch).
-local lastAsk=0
+local lastAsk,hideAt=0,nil
 function ns.RequestExternal()
-    if not(IsInGroup and IsInGroup())or GetTime()-lastAsk<3 then return false end
+    if not(IsInGroup and IsInGroup())or not ns.PartyCooldownConfig().enabled or GetTime()-lastAsk<3 then return false end
     lastAsk=GetTime();local e=ns.PartyExtrasConfig().request
     ns.Send("PXR","1")
     if e.whisper and SendChatMessage then
@@ -247,14 +263,13 @@ local function ReadyExternals()
     local me=Me();if not me then return{}end
     local out={}
     for _,id in ipairs(ns.PartyCooldownList(me))do local b=ns.PartyCooldownBuffs[id]
-        if b and b[1]==2 and ns.PartyCooldownLeft(me,id)<=0 then out[#out+1]=id end
+        if b and b[1]==2 and not ns.PartyCooldownKind(id)and ns.PartyCooldownReady(me,id)then out[#out+1]=id end
     end
     return out
 end
 ns.PartyReadyExternals=ReadyExternals
-local hideAt
 function ns.ShowExternalRequest(name)
-    local e=ns.PartyExtrasConfig().request;if not e.on or not name then return false end
+    local e=ns.PartyExtrasConfig().request;if not e.on or not name or not Active()then return false end
     local h=Place("request");local size=tonumber(e.size)or 40
     if not h.text then
         h.text=h:CreateFontString(nil,"OVERLAY","GameFontHighlightLarge");h.text:SetPoint("TOP",h,"TOP",0,0);h.icons={}
@@ -272,25 +287,42 @@ function ns.ShowExternalRequest(name)
     if C_Timer and C_Timer.NewTimer then C_Timer.NewTimer(6.1,function()if hideAt and GetTime()>=hideAt and not ns.PartyCooldownConfig().unlocked then h:Hide()end end)end
     return true
 end
-ns.CommHandlers.PXR=function(_,sender)if sender and ns.PartyCooldownMembers[sender]then ns.ShowExternalRequest(sender)end end
+ns.CommHandlers.PXR=function(_,sender,channel,full)
+    sender=ns.PartyCooldownSender(sender,channel,full)
+    if sender and ns.PartyCooldownMembers[sender]then ns.ShowExternalRequest(sender)end
+end
 function ns.PartyExternalWhisper(text,sender)
     local e=ns.PartyExtrasConfig().request
     if not(ns.Plain(text,"string")and ns.Plain(sender,"string"))then return false end
-    local name=ns.ShortName(sender);if not ns.PartyCooldownMembers[name]then return false end
+    local name=ns.FullName(sender);if not(name and ns.PartyCooldownMembers[name])then return false end
     if text:match("^%s*(.-)%s*$"):lower()==tostring(e.word or"hx"):lower()then return ns.ShowExternalRequest(name)end
     return false
 end
 
 ---------------------------------------------------------------------------
+-- Switched off (or not loaded here): sounds removed, containers stopped and every box hidden at
+-- once; what the game refuses in combat is set up again by the refresh after combat.
+function StopAll()
+    ClearSounds()
+    for _,p in pairs(plateBars)do pcall(p.frame.SetEnabled,p.frame,false);p.frame:Hide()end
+    for _,o in pairs(own)do pcall(o.frame.SetEnabled,o.frame,false)end
+    for key,h in pairs(holders)do if not(key=="request"and ns.PartyCooldownConfig().unlocked)then h:Hide()end end
+    hideAt=nil
+end
+ns.PartyExtrasStop=StopAll
 function ns.RefreshPartyExtras()
     local cfg=ns.PartyCooldownConfig();local e=ns.PartyExtrasConfig()
-    if InCombatLockdown and InCombatLockdown()then ns.DrawKickRotation();return false end
+    if InCombatLockdown and InCombatLockdown()then
+        -- Containers are rebuilt after combat; switched off now, they are hidden at once.
+        if not Active()then StopAll()end
+        ns.DrawKickRotation();return false
+    end
     ClearSounds()
-    local on=cfg.enabled==true
+    local on=Active()
     -- Containers are made only once something needs them.
     if e.ccbars.on or next(plateBars)then BuildPlateBars()end
     if e.ccbars.on and on and e.ccbars.sound then for _,unit in ipairs({"target","focus"})do for _,id in ipairs(AuraIDs(3))do AddSound(unit,id)end end end
-    if e.externals.on or own.externals then BuildOwn("externals","HELPFUL|EXTERNAL_DEFENSIVE",nil,AuraIDs(2))end
+    if e.externals.on or own.externals then BuildOwn("externals","HELPFUL|EXTERNAL_DEFENSIVE",nil,AuraIDs(2,true))end
     if e.lust.on or own.lust then
         local ids={};for _,id in ipairs(LUST)do ids[#ids+1]=id end
         local potion=ns.PartyCooldownBuffs[ns.PartyCooldownPotion]or{};for i=2,#potion do ids[#ids+1]=potion[i]end
@@ -298,12 +330,13 @@ function ns.RefreshPartyExtras()
     end
     if ns.PartyCooldownConfig().unlocked then
         if e.request.on then local h=Place("request");h:SetSize(220,(tonumber(e.request.size)or 40)+24);h:Show()end
-    elseif holders.request and not(hideAt and GetTime()<hideAt)then holders.request:Hide()end
+    elseif holders.request and not(on and hideAt and GetTime()<hideAt)then holders.request:Hide()end
+    if not on then StopAll()end
     ns.DrawKickRotation()
     return true
 end
-local events=CreateFrame("Frame")
-for _,ev in ipairs({"PLAYER_LOGIN","PLAYER_REGEN_ENABLED","ENCOUNTER_START","ENCOUNTER_END","NAME_PLATE_UNIT_ADDED","CHAT_MSG_WHISPER","UNIT_SPELLCAST_START","UNIT_SPELLCAST_CHANNEL_START"})do pcall(events.RegisterEvent,events,ev)end
+local events,refreshTimer=CreateFrame("Frame"),nil
+for _,ev in ipairs({"PLAYER_LOGIN","PLAYER_REGEN_ENABLED","PLAYER_ENTERING_WORLD","GROUP_ROSTER_UPDATE","ENCOUNTER_START","ENCOUNTER_END","NAME_PLATE_UNIT_ADDED","CHAT_MSG_WHISPER","UNIT_SPELLCAST_START","UNIT_SPELLCAST_CHANNEL_START"})do pcall(events.RegisterEvent,events,ev)end
 events:SetScript("OnEvent",function(_,event,a,b)
     if event=="NAME_PLATE_UNIT_ADDED"then ns.PartyPlateAdded(a)
     elseif event=="ENCOUNTER_START"then ns.KickRotationStart(true)
@@ -312,7 +345,10 @@ events:SetScript("OnEvent",function(_,event,a,b)
     elseif event=="UNIT_SPELLCAST_START"or event=="UNIT_SPELLCAST_CHANNEL_START"then
         -- The boss starts a cast while it is your turn: kick now.
         local e=ns.PartyExtrasConfig().rotation
-        if rot.fight and e.on and e.sound and ns.Plain(a,"string")and a:match("^boss%d$")and IsMe(Next())then Play(SOUND_NOW)end
+        if rot.fight and e.on and e.sound and Active()and ns.Plain(a,"string")and a:match("^boss%d$")and IsMe(Next())then Play(SOUND_NOW)end
+    elseif event=="GROUP_ROSTER_UPDATE"then
+        -- Joining or leaving a group can change what loads; one refresh for a burst of updates.
+        if not refreshTimer and C_Timer and C_Timer.NewTimer then refreshTimer=C_Timer.NewTimer(0.5,function()refreshTimer=nil;ns.RefreshPartyExtras()end)end
     else ns.RefreshPartyExtras()end
 end)
 
@@ -327,7 +363,7 @@ function ns.DrawPartyExtras(parent,apply)
     W.Label(left,L("Stuns, fears and other crowd control get a bar over the enemy's nameplate that runs down with the debuff. The game draws the bars, so they work in combat. Enemy nameplates must be shown."),12,92,430,11,C.muted)
     W.Toggle(left,L("Kick rotation on bosses"),e.rotation.on,12,150,430,function(v)e.rotation.on=v;again()end,"pcdx:rotation")
     local field=W.Field(left,L("ORDER (NAMES, SEPARATED BY COMMAS)"),e.rotation.names or"",12,180,430,"pcdx:names")
-    if field and field.HookScript then field:HookScript("OnTextChanged",function(self)e.rotation.names=self:GetText()end)end
+    W.OnText(field,function(self)e.rotation.names=self:GetText()end)
     W.Toggle(left,L("Sounds when you are next and when the boss casts"),e.rotation.sound,12,240,430,function(v)e.rotation.sound=v;again()end,"pcdx:rotsound")
     W.Toggle(left,L("Accept lists from the leader"),e.rotation.accept,12,268,430,function(v)e.rotation.accept=v;again()end,"pcdx:accept")
     -- What is typed is saved as it is typed; the buttons read the field too.
@@ -339,7 +375,7 @@ function ns.DrawPartyExtras(parent,apply)
     W.Toggle(right,L("Show external requests from the group"),e.request.on,12,34,430,function(v)e.request.on=v;again()end,"pcdx:request")
     W.Toggle(right,L("Also whisper the word to healers"),e.request.whisper,12,62,430,function(v)e.request.whisper=v;again()end,"pcdx:whisper")
     local word=W.Field(right,L("WORD"),e.request.word or"hx",12,92,120,"pcdx:word")
-    if word and word.HookScript then word:HookScript("OnTextChanged",function(self)local t=self:GetText();if t and t:match("%S")then e.request.word=t end end)end
+    W.OnText(word,function(self)local t=self:GetText();if t and t:match("%S")then e.request.word=t end end)
     W.Button(right,L("Ask for an external"),146,108,296,function()kit.done(ns.RequestExternal(),L("Join a group first"),L("Your healers were asked"))end,false,"pcdx:ask",{align="CENTER"})
     W.Label(right,L("Type /pcd ext or put it in a macro. Healers with this addon see who asked and their ready externals; a whisper of the word from a group member shows the same."),12,150,430,11,C.muted)
     W.Toggle(right,L("Externals on you"),e.externals.on,12,206,430,function(v)e.externals.on=v;again()end,"pcdx:externals")
