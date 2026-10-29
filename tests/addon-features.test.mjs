@@ -1204,6 +1204,38 @@ InCombatLockdown=function()return true end;cfg.enabled=false;ns.RefreshPartyExtr
 assert(#ns.PartyExtrasSounds()==0 and removed>0,'sounds removed in combat');assert(not ns.PartyExtraHolders.request:IsShown()and not ns.PartyPlateBars[1].frame:IsShown()and not ns.PartyExtraHolders.externals:IsShown())
 InCombatLockdown=function()return false end;cfg.enabled=true;e.ccbars.on=false;e.externals.on=false;ns.RefreshPartyExtras()
 CreateFrame=create;C_UnitAuras=nil;C_NamePlate=nil;UnitExists=ue
+-- Fifth review. A hidden cast of yours just before an interrupt: nobody else is credited.
+local rg=m['Other-Home'];rg.used={};local sec3=setmetatable({},{__index=function()error('secret')end});local was3=ns.Plain;ns.Plain=function(v,t)if v==sec3 then return false end;return was3(v,t)end
+local fire2=function(ev,...)for _,f in ipairs(env.frames)do if f.events[ev]and f.scripts.OnEvent then f.scripts.OnEvent(f,ev,...)end end end
+function UnitCanAttack()return true end
+fire2('UNIT_SPELLCAST_SUCCEEDED','player','x',sec3);ns.PartyCooldownInterrupted('boss1',nil);assert(not rg.used[1766],'maybe your own kick');ns.Plain=was3
+env.advance(2);ns.PartyCooldownInterrupted('boss1',nil);assert(rg.used[1766],'the only ready kick otherwise')
+-- A spec change drops the old spec's spells seen cast; class-wide ones stay.
+pr.used={[33206]=GetTime(),[10060]=GetTime()};pr.face={[33206]=1}
+ns.CommHandlers.PCD('258;10060=120;15286=120','Other','PARTY','Other-RealmB')
+assert(not pr.used[33206]and pr.used[10060]and not(pr.face and pr.face[33206]),'Pain Suppression gone with Discipline')
+for _,id in ipairs(ns.PartyCooldownList(pr))do assert(id~=33206)end
+-- Switched off one by one in combat: that part stops at once.
+local create2=CreateFrame;CreateFrame=function(kind,...)local f=create2(kind,...);if kind=='AuraContainer'then f.AddAuraGroup=function()end end;return f end
+local snd={};C_UnitAuras={AddAuraSound=function(_,i)snd[#snd+1]=i.spellID;return #snd end,RemoveAuraSound=function()end}
+e.externals.on=true;e.externals.sound=true;e.lust.on=true;ns.RefreshPartyExtras();assert(ns.PartyExtraHolders.externals:IsShown())
+InCombatLockdown=function()return true end;e.externals.on=false;ns.RefreshPartyExtras()
+assert(not ns.PartyExtraHolders.externals:IsShown()and ns.PartyExtraHolders.lust:IsShown(),'only that box stops')
+local list2=ns.PartyExtrasSounds();assert(#list2>0,'lust sounds set again')
+InCombatLockdown=function()return false end;e.lust.on=false;ns.RefreshPartyExtras();CreateFrame=create2;C_UnitAuras=nil
+-- Sensors stop in combat when the place no longer loads.
+local inst2=IsInInstance;IsInInstance=function()return false end;InCombatLockdown=function()return true end;cfg.loadWhere='dungeons'
+assert(ns.RebuildPartyCooldownSensors()==0);cfg.loadWhere='all';IsInInstance=inst2;InCombatLockdown=function()return false end
+-- Old added versions of tracked spells become the tracked one.
+cfg.custom.MAGE={[414658]=true};cfg.disabled[414658]=true;cfg.aliasMigrated=nil;ns.PartyCooldownConfig()
+assert(not cfg.custom.MAGE[414658]and cfg.disabled[45438]and not cfg.disabled[414658]);cfg.disabled[45438]=nil
+-- A spell heard of in messages stays open to other classes after you add it for one.
+assert(ns.AddPartyCooldownSpell('PALADIN','999001'));ns.CommHandlers.PCD('258;999001=120','Other','PARTY','Other-RealmB');assert(pr.known[999001],'still open to the priest')
+-- Out of reach: asked again later, not forgotten.
+local asks=0;NotifyInspect=function()asks=asks+1 end;local reach=false;CanInspect=function()return reach end
+rg.tries=nil;rg.far=nil;rg.asked=nil;rg.spec=nil;rg.talented=nil;fire2('GROUP_ROSTER_UPDATE');env.advance(2)
+assert(asks==0 and(rg.far or 0)>=1,'out of reach');reach=true;env.advance(16);assert(asks>=1,'inspected once in reach')
+NotifyInspect=nil;CanInspect=nil
 units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
 `));
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{

@@ -167,7 +167,7 @@ ns.PartyPlateBars=plateBars
 ---------------------------------------------------------------------------
 -- Auras on you: the externals others put on you, and Bloodlust (and its kind) with combat potions.
 local own={}
-local function BuildOwn(key,filter,ids,soundIDs)
+local function BuildOwn(key,filter,ids)
     local e=ns.PartyExtrasConfig()[key];local h=Place(key)
     local o=own[key]
     if not o or o.size~=e.size then
@@ -181,7 +181,6 @@ local function BuildOwn(key,filter,ids,soundIDs)
     h:SetSize(e.size*6+24,e.size)
     local on=e.on==true and Active()
     pcall(o.frame.SetEnabled,o.frame,on);if on then pcall(o.frame.UpdateAllAuras,o.frame);h:Show()else h:Hide()end
-    if on and e.sound then for _,id in ipairs(soundIDs or{})do AddSound("player",id)end end
     return true
 end
 ns.PartyOwnAuras=own
@@ -310,28 +309,39 @@ function StopAll()
     hideAt=nil
 end
 ns.PartyExtrasStop=StopAll
+-- The sounds of the parts that are on, set again after any change.
+local function Sounds(e)
+    ClearSounds();if not Active()then return end
+    if e.ccbars.on and e.ccbars.sound and next(plateBars)then for _,unit in ipairs({"target","focus"})do for _,id in ipairs(AuraIDs(3))do AddSound(unit,id)end end end
+    if e.externals.on and e.externals.sound and own.externals then for _,id in ipairs(AuraIDs(2,true))do AddSound("player",id)end end
+    if e.lust.on and e.lust.sound and own.lust then for _,id in ipairs(LUST)do AddSound("player",id)end end
+end
 function ns.RefreshPartyExtras()
-    local cfg=ns.PartyCooldownConfig();local e=ns.PartyExtrasConfig()
+    local e=ns.PartyExtrasConfig()
     if InCombatLockdown and InCombatLockdown()then
-        -- Containers are rebuilt after combat; switched off now, they are hidden at once.
-        if not Active()then StopAll()end
+        -- New containers wait for the end of combat; what is switched off stops at once.
+        if not Active()then StopAll()
+        else
+            if not e.ccbars.on then for _,p in pairs(plateBars)do pcall(p.frame.SetEnabled,p.frame,false);p.frame:Hide()end end
+            for key,o in pairs(own)do if not e[key].on then pcall(o.frame.SetEnabled,o.frame,false);if holders[key]then holders[key]:Hide()end end end
+            if not e.request.on and holders.request then holders.request:Hide();hideAt=nil end
+            Sounds(e)
+        end
         ns.DrawKickRotation();return false
     end
-    ClearSounds()
     local on=Active()
     -- Containers are made only once something needs them.
     if e.ccbars.on or next(plateBars)then BuildPlateBars()end
-    if e.ccbars.on and on and e.ccbars.sound then for _,unit in ipairs({"target","focus"})do for _,id in ipairs(AuraIDs(3))do AddSound(unit,id)end end end
-    if e.externals.on or own.externals then BuildOwn("externals","HELPFUL|EXTERNAL_DEFENSIVE",nil,AuraIDs(2,true))end
+    if e.externals.on or own.externals then BuildOwn("externals","HELPFUL|EXTERNAL_DEFENSIVE",nil)end
     if e.lust.on or own.lust then
         local ids={};for _,id in ipairs(LUST)do ids[#ids+1]=id end
         local potion=ns.PartyCooldownBuffs[ns.PartyCooldownPotion]or{};for i=2,#potion do ids[#ids+1]=potion[i]end
-        BuildOwn("lust","HELPFUL",ids,LUST)
+        BuildOwn("lust","HELPFUL",ids)
     end
     if ns.PartyCooldownConfig().unlocked then
         if e.request.on then local h=Place("request");h:SetSize(220,(tonumber(e.request.size)or 40)+24);h:Show()end
-    elseif holders.request and not(on and hideAt and GetTime()<hideAt)then holders.request:Hide()end
-    if not on then StopAll()end
+    elseif holders.request and not(on and e.request.on and hideAt and GetTime()<hideAt)then holders.request:Hide()end
+    if on then Sounds(e)else StopAll()end
     ns.DrawKickRotation()
     return true
 end

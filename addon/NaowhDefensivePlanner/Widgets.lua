@@ -95,6 +95,8 @@ function W.Frame(kind,unused,parent,template)
         f:SetParent(parent);f:ClearAllPoints()
         for _,event in ipairs(resetScripts)do if f:HasScript(event)then f:SetScript(event,nil)end end
         if f.dropTarget then f.dropTarget=nil;f:EnableMouse(false)end
+        -- A field handed out again follows nothing until its new drawing says what.
+        f.onTextHandler=nil
     end
     f.surface=nil;f.rest=nil
     if kind=="Button"or kind=="EditBox"then forwardWheel(f,parent)end
