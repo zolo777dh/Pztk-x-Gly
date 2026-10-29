@@ -15,6 +15,7 @@ local HELP={
     "/pcd reset: every cooldown ready again",
     "/pcd ext: ask your healers for an external",
     "/pcd report: what is being tracked, for bug reports",
+    "/pcd perf: time the addon spends, for lag reports (perf reset starts over)",
 }
 local SIDE={left="LEFT",right="RIGHT",top="TOP",bottom="BOTTOM"}
 SLASH_PUZATIKPARTYDEFENSIVES1="/pcd";SLASH_PUZATIKPARTYDEFENSIVES2="/ppd"
@@ -32,6 +33,13 @@ SlashCmdList.PUZATIKPARTYDEFENSIVES=function(input)
     elseif cmd=="reset"then ns.PartyCooldownReset();say(L("Group timers were reset; yours follow the game"));return
     elseif cmd=="ext"then if not ns.RequestExternal()then say(L("Join a group first"))end;return
     elseif cmd=="report"then for _,line in ipairs(ns.PartyCooldownReport())do print("  "..line)end;return
+    elseif cmd=="perf"then
+        if arg=="reset"then ns.PartyCooldownPerf(true);say(L("Timing starts over"));return end
+        local rows={};for key,p in pairs(ns.PartyCooldownPerf())do rows[#rows+1]={key,p}end
+        table.sort(rows,function(a,b)return a[2].ms>b[2].ms end)
+        say(L("Time spent since the last reset (ms)")..": "..L("sensors")..": "..ns.PartyCooldownSensorCount())
+        for _,r in ipairs(rows)do local p=r[2];print(("  %s: %.1f ms, %d x, %.2f avg, %.1f max"):format(r[1],p.ms,p.n,p.ms/math.max(1,p.n),p.max))end
+        return
     elseif cmd==""then ns.OpenPartyCooldownWindow();return
     else for _,line in ipairs(HELP)do say(L(line))end;return end
     ns.RefreshPartyCooldowns()

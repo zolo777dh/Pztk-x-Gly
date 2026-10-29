@@ -194,6 +194,17 @@ function ns.PartyCooldownConfig()
 end
 local members={}
 ns.PartyCooldownMembers=members
+-- Time spent per part (/pcd perf): milliseconds and calls since the last reset.
+local perf={}
+local function Clock()return debugprofilestop and debugprofilestop()or(GetTime()*1000)end
+local function Timed(key,fn,...)
+    local t=Clock();local a,b,c=fn(...)
+    local p=perf[key]or{ms=0,n=0,max=0};perf[key]=p;local d=Clock()-t
+    p.ms=p.ms+d;p.n=p.n+1;if d>p.max then p.max=d end
+    return a,b,c
+end
+ns.PartyCooldownTimed=Timed
+function ns.PartyCooldownPerf(reset)if reset then perf={}end;return perf end
 -- Spells you added for a class (any spec). Lengths come from the game.
 local function Register(id,class,order)
     if byID[id]then return byID[id]end
@@ -933,8 +944,8 @@ local function Dress(icon,m,id,left,mark)
 end
 ns.PartyCooldownDress=Dress
 -- Blizzard compact party/raid frames and ElvUI party/raid frames, by the unit they show.
-local frameCache={}
-function ns.PartyCooldownForgetFrames()frameCache={}end
+local frameCache,lastScan={},-100
+function ns.PartyCooldownForgetFrames()frameCache={};lastScan=-100 end
 local FRAME_NAMES={"CompactPartyFrameMember%d","CompactRaidFrame%d","ElvUF_PartyGroup1UnitButton%d"}
 local function UnitFrame(unit)
     if not UnitIsUnit then return nil end
@@ -957,25 +968,29 @@ local function UnitFrame(unit)
     -- A remembered frame is used only while it still shows this unit; "not found" is looked up
     -- again after 10 s.
     local cached=frameCache[unit]
-    if type(cached)=="number"and GetTime()-cached<10 then return nil end
     if type(cached)=="table"and match(cached)then return cached end
-    if InCombatLockdown and InCombatLockdown()or not EnumerateFrames then return nil end
-    local best
-    local f=EnumerateFrames()
-    while f do
-        local ok,hit=pcall(function()
-            if f.IsForbidden and f:IsForbidden()or not f:IsVisible()then return false end
-            local u=rawget(f,"unit")or(f.GetAttribute and f:GetAttribute("unit"))
-            return u==unit and(f:GetHeight()or 0)>=16
-        end)
-        if ok and hit and f~=TargetFrame and f~=FocusFrame then
-            -- Party frames before the player frame for yourself.
-            if not best or(best==PlayerFrame and f~=PlayerFrame)then best=f end
+    -- Walking every frame of the interface is costly: one walk finds the frames of all units,
+    -- at most once every 30 s and never in combat.
+    if InCombatLockdown and InCombatLockdown()or not EnumerateFrames or GetTime()-lastScan<30 then return nil end
+    lastScan=GetTime()
+    Timed("frame scan",function()
+        local found={}
+        local f=EnumerateFrames()
+        while f do
+            local ok,u=pcall(function()
+                if f.IsForbidden and f:IsForbidden()or not f:IsVisible()then return nil end
+                local u=rawget(f,"unit")or(f.GetAttribute and f:GetAttribute("unit"))
+                return ns.Plain(u,"string")and(f:GetHeight()or 0)>=16 and u or nil
+            end)
+            if ok and u and f~=TargetFrame and f~=FocusFrame then
+                -- Party frames before the player frame for yourself.
+                local best=found[u];if not best or(best==PlayerFrame and f~=PlayerFrame)then found[u]=f end
+            end
+            f=EnumerateFrames(f)
         end
-        f=EnumerateFrames(f)
-    end
-    -- Not found is remembered too, until the group changes, so the scan runs once.
-    frameCache[unit]=best or GetTime();return best
+        for u,fr in pairs(found)do frameCache[u]=fr end
+    end)
+    local hit=frameCache[unit];return type(hit)=="table"and hit or nil
 end
 ns.PartyCooldownFrame=UnitFrame
 local ShowHidden -- hidden timers on icons, defined with the buff sensors
@@ -1196,7 +1211,9 @@ function ns.PartyCooldownsLoaded()
     end
     return true
 end
-function ns.DrawPartyCooldowns()
+local DrawNow
+function ns.DrawPartyCooldowns()return Timed("draw",DrawNow)end
+DrawNow=function()
     local cfg=ns.PartyCooldownConfig()
     attached=attached or{}
     for _,a in pairs(attached)do a:Hide()end
@@ -1291,6 +1308,9 @@ for id,debuffs in pairs({[119381]={119381},[179057]={179057},[30283]={30283},[19
 BUFFS[POTION]={SELF,unpack(POTIONS)}
 local LAG={[192058]=2,[207684]=2,[202138]=2}
 local PLATES=40
+-- Crowd control of the others is sensed on the first 12 nameplates only: one container per spell
+-- and plate, and a pack rarely shows more (every container follows its plate's auras).
+local SENSE_PLATES=12
 ns.PartyCooldownBuffs=BUFFS
 local function BuffsOf(id)
     local b=BUFFS[id];if not b then return SELF,{[id]=true}end
@@ -1608,8 +1628,8 @@ local driver=CreateFrame("Frame");local quick,lastRead,dirty=0,0,{}
 local sensorUnits={}
 driver:SetScript("OnUpdate",function()
     local now=GetTime()
-    if #sensors>0 and now-lastRead>=POLL then quick=0;dirty={};lastRead=now;PollSensors()
-    elseif quick>0 then quick=quick-1;PollSensors(dirty);if quick==0 then dirty={}end end
+    if #sensors>0 and now-lastRead>=POLL then quick=0;dirty={};lastRead=now;Timed("sensor poll",PollSensors)
+    elseif quick>0 then quick=quick-1;Timed("sensor quick reads",PollSensors,dirty);if quick==0 then dirty={}end end
     if next(shownHidden)then SlideHidden()end
 end)
 function ns.PartyCooldownAura(unit)
@@ -1625,34 +1645,59 @@ end
 -- Builds the sensors for the group: each member's own buffs on them, and every external of the
 -- group on everyone. Out of combat only; containers are reused.
 local pools={HELPFUL={},HARMFUL={}}
+local Rebuild,sensorSig -- the rebuild itself and the sensors it last made, defined below
+function ns.PartyCooldownSensorCount()return #sensors end
 function ns.RebuildPartyCooldownSensors()
     local cfg=ns.PartyCooldownConfig()
     -- Containers cannot be set up in combat: the current ones keep working until combat ends,
     -- when this runs again.
     if cfg.enabled and cfg.sensors and ns.PartyCooldownsLoaded()and InCombatLockdown and InCombatLockdown()then return #sensors end
-    for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();local p=pools[s.filter];p[#p+1]=s.frame end
-    sensors={};sensorUnits={}
-    if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
-    if not(cfg.enabled and cfg.sensors and ns.PartyCooldownsLoaded())or sensorState.available==false then return 0 end
-    local externals,externalOwners,stops,stopOwners={},{},{},{}
-    for _,name in ipairs(order)do local m=members[name]
-        for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
-            -- With two possible casters the owner stays open (false) and is decided when it lands.
-            if kind==EXTERNAL then externals[id]=buffs;if externalOwners[id]==nil then externalOwners[id]=m else externalOwners[id]=false end
-            elseif kind==ENEMY then if not m.me then stops[id]=buffs;if stopOwners[id]==nil then stopOwners[id]=m else stopOwners[id]=false end end
-            elseif KIND[id]=="kick"then
-            elseif not m.me then sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF}end
+    return Timed("sensor rebuild",Rebuild,cfg)
+end
+-- What the sensors would be now, as one line: equal lines mean nothing to rebuild.
+local function Signature(list)
+    local parts={}
+    for _,s in ipairs(list)do parts[#parts+1]=s.unit..":"..s.spell..":"..s.kind..":"..tostring(s.member)..":"..tostring(s.owner and s.owner.name)end
+    return table.concat(parts,",")
+end
+Rebuild=function(cfg)
+    local want={}
+    -- Alone there is nobody else to sense.
+    local others=false;for _,name in ipairs(order)do if members[name]and not members[name].me then others=true end end
+    local on=cfg.enabled and cfg.sensors and ns.PartyCooldownsLoaded()and sensorState.available~=false and others
+    if on then
+        local externals,externalOwners,stops,stopOwners={},{},{},{}
+        for _,name in ipairs(order)do local m=members[name]
+            for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
+                -- With two possible casters the owner stays open (false) and is decided when it lands.
+                if kind==EXTERNAL then externals[id]=buffs;if externalOwners[id]==nil then externalOwners[id]=m else externalOwners[id]=false end
+                elseif kind==ENEMY then if not m.me then stops[id]=buffs;if stopOwners[id]==nil then stopOwners[id]=m else stopOwners[id]=false end end
+                elseif KIND[id]=="kick"then
+                elseif not m.me then want[#want+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF}end
+            end
+        end
+        local ext={};for id in pairs(externals)do ext[#ext+1]=id end;table.sort(ext)
+        for _,name in ipairs(order)do local m=members[name]
+            for _,id in ipairs(ext)do want[#want+1]={unit=m.unit,member=name,spell=id,buff=externals[id],kind=EXTERNAL,owner=externalOwners[id]or nil}end
+        end
+        -- Crowd control of the others: its debuff on the first enemy nameplates.
+        local st={};for id in pairs(stops)do st[#st+1]=id end;table.sort(st)
+        for _,id in ipairs(st)do
+            for i=1,SENSE_PLATES do want[#want+1]={unit="nameplate"..i,spell=id,buff=stops[id],kind=ENEMY,owner=stopOwners[id]or nil,filter="HARMFUL"}end
         end
     end
-    for _,name in ipairs(order)do local m=members[name]
-        for id,buff in pairs(externals)do sensors[#sensors+1]={unit=m.unit,member=name,spell=id,buff=buff,kind=EXTERNAL,owner=externalOwners[id]or nil}end
+    -- The same sensors as now: nothing is torn down (a rebuild makes every container read again).
+    local sig=Signature(want)
+    if sig==sensorSig and #sensors==#want then
+        for k,s in ipairs(sensors)do s.owner=want[k].owner end
+        return #sensors
     end
-    -- Crowd control of the others: its debuff on every enemy nameplate.
-    for id,debuffs in pairs(stops)do
-        for i=1,PLATES do sensors[#sensors+1]={unit="nameplate"..i,spell=id,buff=debuffs,kind=ENEMY,owner=stopOwners[id]or nil,filter="HARMFUL"}end
-    end
+    for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();local p=pools[s.filter];p[#p+1]=s.frame end
+    sensors={};sensorUnits={};sensorSig=nil
+    if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
+    if not on then return 0 end
     local made={}
-    for _,s in ipairs(sensors)do
+    for _,s in ipairs(want)do
         s.filter=s.filter or"HELPFUL"
         local c=table.remove(pools[s.filter])
         if c then pcall(c.SetAuraGroupCandidateFilters,c,"pcd",{includeSpellIDs=s.buff});c:Show()
@@ -1663,8 +1708,7 @@ function ns.RebuildPartyCooldownSensors()
         pcall(c.SetUnit,c,s.unit);pcall(c.SetEnabled,c,true);pcall(c.UpdateAllAuras,c)
         s.frame=c;s.prev=SensorRead(c);s.lit=Plain(s.prev)and s.prev;s.hold=GetTime()+0.6;made[#made+1]=s
     end
-    sensors=made
-
+    sensors=made;if #made==#want then sensorSig=sig end
     return #sensors
 end
 

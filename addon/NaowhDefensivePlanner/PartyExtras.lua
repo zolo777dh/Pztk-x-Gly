@@ -149,8 +149,10 @@ local function BuildPlateBars()
                 layout={elementWidth=e.width,elementHeight=e.height+1,elementSpacing=0,lineSpacing=0}})
             p={frame=c,sig=e.width.."x"..e.height};plateBars[i]=p
         end
+        -- Only a change of state needs the container to read its plate again.
         local on=e.on==true and Active()
-        pcall(p.frame.SetEnabled,p.frame,on);if on then pcall(p.frame.UpdateAllAuras,p.frame)else p.frame:Hide()end
+        if p.on~=on then p.on=on;pcall(p.frame.SetEnabled,p.frame,on);if on then pcall(p.frame.UpdateAllAuras,p.frame)end end
+        if not on then p.frame:Hide()end
     end
     -- Nameplates already up get their bars now, not only the ones added later.
     if e.on and Active()then for i=1,PLATES do local unit="nameplate"..i;if UnitExists and UnitExists(unit)then ns.PartyPlateAdded(unit)end end end
@@ -303,7 +305,7 @@ end
 -- once; what the game refuses in combat is set up again by the refresh after combat.
 function StopAll()
     ClearSounds()
-    for _,p in pairs(plateBars)do pcall(p.frame.SetEnabled,p.frame,false);p.frame:Hide()end
+    for _,p in pairs(plateBars)do pcall(p.frame.SetEnabled,p.frame,false);p.on=false;p.frame:Hide()end
     for _,o in pairs(own)do pcall(o.frame.SetEnabled,o.frame,false)end
     for key,h in pairs(holders)do if not(key=="request"and ns.PartyCooldownConfig().unlocked)then h:Hide()end end
     hideAt=nil
@@ -316,13 +318,15 @@ local function Sounds(e)
     if e.externals.on and e.externals.sound and own.externals then for _,id in ipairs(AuraIDs(2,true))do AddSound("player",id)end end
     if e.lust.on and e.lust.sound and own.lust then for _,id in ipairs(LUST)do AddSound("player",id)end end
 end
-function ns.RefreshPartyExtras()
+local Refresh
+function ns.RefreshPartyExtras()return ns.PartyCooldownTimed("extras refresh",Refresh)end
+Refresh=function()
     local e=ns.PartyExtrasConfig()
     if InCombatLockdown and InCombatLockdown()then
         -- New containers wait for the end of combat; what is switched off stops at once.
         if not Active()then StopAll()
         else
-            if not e.ccbars.on then for _,p in pairs(plateBars)do pcall(p.frame.SetEnabled,p.frame,false);p.frame:Hide()end end
+            if not e.ccbars.on then for _,p in pairs(plateBars)do pcall(p.frame.SetEnabled,p.frame,false);p.on=false;p.frame:Hide()end end
             for key,o in pairs(own)do if not e[key].on then pcall(o.frame.SetEnabled,o.frame,false);if holders[key]then holders[key]:Hide()end end end
             if not e.request.on and holders.request then holders.request:Hide();hideAt=nil end
             Sounds(e)

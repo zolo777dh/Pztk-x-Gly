@@ -1065,7 +1065,7 @@ assert(ns.PartyCooldownKickStats().unsure>=1)
 -- Crowd control: Blind's debuff on any enemy nameplate starts the rogue's Blind.
 ns.RebuildPartyCooldownSensors();env.advance(1);ns.PartyCooldownPollSensors()
 local list=ns.PartyCooldownSensors();local plates=0
-for _,x in ipairs(list)do if x.spell==2094 and x.unit:match('^nameplate')then plates=plates+1 end end;assert(plates==40,plates)
+for _,x in ipairs(list)do if x.spell==2094 and x.unit:match('^nameplate')then plates=plates+1 end end;assert(plates==12,plates)
 for _,x in ipairs(list)do if x.spell==2094 and x.unit=='nameplate7'then x.frame.IsMouseOver=function()return true end end end
 ns.PartyCooldownAura('nameplate7');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,2094)>100,'Blind by its debuff')
 -- A nameplate that now shows another enemy is not an edge.
@@ -1279,7 +1279,16 @@ env.advance(121);av=ns.PartyCooldownCharges(pr,10060);assert(av==2)
 C_Spell.GetSpellCharges=function(id)if id==22812 then return{currentCharges=1,maxCharges=2,cooldownStartTime=GetTime(),cooldownDuration=60}end end
 local cur,max2,rs=ns.PartyCooldownCharges(m['Tester-Home'],22812);assert(cur==1 and max2==2 and rs)
 assert(ns.PartyCooldownPayload():find('c22812=2',1,true),'charges sent');C_Spell.GetSpellCharges=nil
+-- Lag: an unchanged group does not rebuild its sensors, alone there are none, the frame walk
+-- runs at most once every 30 s, and /pcd perf counts the time.
+local before=ns.PartyCooldownSensorCount();local made=0;local cf=CreateFrame;CreateFrame=function(kind,...)if kind=='AuraContainer'then made=made+1 end;return cf(kind,...)end
+ns.RebuildPartyCooldownSensors();ns.RebuildPartyCooldownSensors();assert(made==0 and ns.PartyCooldownSensorCount()==before,'nothing rebuilt');CreateFrame=cf
+local walks=0;local ef=EnumerateFrames;EnumerateFrames=function(f)if not f then walks=walks+1 end;return nil end
+ns.PartyCooldownForgetFrames();cfg.mode='frames';ns.DrawPartyCooldowns();ns.DrawPartyCooldowns();env.advance(5);ns.DrawPartyCooldowns();assert(walks==1,walks)
+env.advance(31);ns.DrawPartyCooldowns();assert(walks==2);EnumerateFrames=ef
+local perf=ns.PartyCooldownPerf();assert(perf.draw and perf.draw.n>0 and perf['sensor rebuild'])
 units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
+ns.PartyCooldownRoster();assert(ns.RebuildPartyCooldownSensors()==0,'no sensors alone')
 `));
 test('Puzatik Party Defensives runs the same tracking on its own, with /pcd settings, and names no other addon',async()=>{
  const {partyCooldownFiles}=await import('../tools/package-partycds.mjs');const {files,version}=await partyCooldownFiles(process.cwd());
