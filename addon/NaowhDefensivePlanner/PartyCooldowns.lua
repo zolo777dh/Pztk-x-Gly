@@ -436,6 +436,31 @@ function ns.PartyCooldownReady(m,id)
     if own then return ObjectZero(own)==true end
     return ns.PartyCooldownLeft(m,id)<=0
 end
+-- Grey while your own hidden cooldown runs, like the game's cooldown manager. The game says
+-- whether its timer is over only as a hidden yes/no; a grey copy of the icon lies on top and
+-- that yes/no sets how clear it is, without the addon ever reading it.
+local function OwnGrey(icon,object)
+    local zero=ObjectZero(object)
+    if zero~=nil or type(object)~="table"and type(object)~="userdata"then
+        if icon.ownGrey then icon.ownGrey:Hide()end
+        icon.tex:SetDesaturated(zero==false);return zero~=nil
+    end
+    icon.tex:SetDesaturated(false)
+    local g=icon.ownGrey
+    if not g then
+        g=icon:CreateTexture(nil,"ARTWORK",nil,7);g:SetAllPoints(icon.tex);g:SetTexCoord(0.07,0.93,0.07,0.93)
+        pcall(g.SetDesaturated,g,true);icon.ownGrey=g
+    end
+    g:SetTexture(icon.tex:GetTexture())
+    local ok,hidden=pcall(object.IsZero,object)
+    if not ok then g:Hide();return false end
+    g:Show()
+    if g.SetAlphaFromBoolean and pcall(g.SetAlphaFromBoolean,g,hidden,0,1)then return true end
+    local eval=C_CurveUtil and C_CurveUtil.EvaluateColorValueFromBoolean
+    if eval then local ok2,v=pcall(eval,hidden,0,1);if ok2 and pcall(g.SetAlpha,g,v)then return true end end
+    g:Hide();return false
+end
+ns.PartyCooldownOwnGrey=OwnGrey
 -- Hides or shows an icon's timer from the game's own timer object.
 local function DrawOwnHidden(cd,object)
     if type(object)~="table"and type(object)~="userdata"then cd:Clear();return false end
@@ -963,12 +988,21 @@ ns.PartyCooldownDress=Dress
 -- Blizzard compact party/raid frames and ElvUI party/raid frames, by the unit they show.
 local frameCache,lastScan={},nil -- frames found, and the group they were looked up for
 local StartWalk -- the walk over every frame, a few hundred at a time
+local lastGroup,retries=nil,0 -- walks again for frames that were not there yet
 function ns.PartyCooldownForgetFrames()frameCache={};lastScan=nil end
 local FRAME_NAMES={"CompactPartyFrameMember%d","CompactRaidFrame%d","ElvUF_PartyGroup1UnitButton%d"}
+-- Seen on screen: shown and not faded out. Frame addons often hide the game's party frames by
+-- making them clear, and icons must not follow those.
+local function Seen(f)
+    if not f:IsVisible()then return false end
+    local a=f.GetEffectiveAlpha and f:GetEffectiveAlpha()
+    return not ns.Plain(a,"number")or a>0.05
+end
+ns.PartyCooldownFrameSeen=Seen
 local function UnitFrame(unit)
     if not UnitIsUnit then return nil end
     local function match(f)
-        if type(f)~="table"or not f.IsVisible or not f:IsVisible()then return false end
+        if type(f)~="table"or not f.IsVisible or not Seen(f)then return false end
         local u=f.unit or(f.GetAttribute and f:GetAttribute("unit"))
         if not ns.Plain(u,"string")then return false end
         local ok,same=pcall(UnitIsUnit,u,unit);return ok and same==true
@@ -992,14 +1026,20 @@ local function UnitFrame(unit)
     -- frame, so it never stalls the game. The icons follow when it is done.
     local group=table.concat(order,",")
     if InCombatLockdown and InCombatLockdown()or not EnumerateFrames or lastScan==group then return nil end
+    if lastGroup~=group then lastGroup=group;retries=0 end
     lastScan=group;StartWalk()
     return nil
 end
 local walker,walk=nil,nil
 local function Look(f)
-    if f.IsForbidden and f:IsForbidden()or not f:IsVisible()then return nil end
+    if f.IsForbidden and f:IsForbidden()or not Seen(f)then return nil end
     local u=rawget(f,"unit")or(f.GetAttribute and f:GetAttribute("unit"))
     return ns.Plain(u,"string")and(f:GetHeight()or 0)>=16 and u or nil
+end
+local function Area(f)
+    local ok,w,h=pcall(function()return f:GetWidth(),f:GetHeight()end)
+    if not ok or not ns.Plain(w,"number")or not ns.Plain(h,"number")or w>400 or h>200 then return -1 end
+    return w*h
 end
 local function Step()
     if InCombatLockdown and InCombatLockdown()then return end -- goes on after combat
@@ -1010,7 +1050,10 @@ local function Step()
             local ok,u=pcall(Look,f)
             if ok and u and f~=TargetFrame and f~=FocusFrame then
                 -- Party frames before the player frame for yourself.
-                local best=walk.found[u];if not best or(best==PlayerFrame and f~=PlayerFrame)then walk.found[u]=f end
+                -- Of a unit's frames the biggest is the frame itself; its parts (a health bar, a
+                -- name) are smaller, and a whole group header is too wide to be one.
+                local best=walk.found[u];local area=Area(f)
+                if area>=0 and(not best or(best==PlayerFrame and f~=PlayerFrame)or(f~=PlayerFrame and area>walk.area[u]))then walk.found[u]=f;walk.area[u]=area end
             end
             f=EnumerateFrames(f)
         end
@@ -1019,13 +1062,23 @@ local function Step()
     if walk.at then return end
     for u,fr in pairs(walk.found)do frameCache[u]=fr end
     walk=nil;walker:SetScript("OnUpdate",nil);ns.DrawPartyCooldowns()
+    -- Frame addons build their frames a little after the group forms: a unit with no frame yet
+    -- is looked for again 10 s later, three times for each group at most.
+    local missing=false
+    for _,name in ipairs(order)do local m=members[name]
+        if m and m.unit and not m.me and not frameCache[m.unit]then missing=true end
+    end
+    retries=retries+1
+    if missing and retries<=3 and C_Timer and C_Timer.NewTimer then
+        C_Timer.NewTimer(10,function()lastScan=nil;ns.DrawPartyCooldowns()end)
+    end
 end
 -- Runs a started walk to its end at once (tests, the report).
 function ns.PartyCooldownFinishWalk()while walk and not(InCombatLockdown and InCombatLockdown())do Step()end end
 StartWalk=function()
     if walk then return end
     walker=walker or CreateFrame("Frame")
-    walk={at=EnumerateFrames(),found={}}
+    walk={at=EnumerateFrames(),found={},area={}}
     walker:SetScript("OnUpdate",Step)
 end
 ns.PartyCooldownFrame=UnitFrame
@@ -1060,7 +1113,8 @@ local function FillIcons(row,m,ids,size,cfg)
             icon.tex:SetTexture(W.SpellTexture(m.face and m.face[id]or id));icon.spellID=id
             local start,dur;if m.me then start,dur=OwnCooldown(id)end
             if start==0 then start=nil elseif not start and m.used[id]then start,dur=m.used[id],ns.PartyCooldownLength(m,id)end
-            if own and own~=true then DrawOwnHidden(icon.cd,own);icon.tex:SetDesaturated(ObjectZero(own)==false)
+            if icon.ownGrey then icon.ownGrey:Hide()end
+            if own and own~=true then DrawOwnHidden(icon.cd,own);OwnGrey(icon,own)
             elseif left>0 and start then icon.cd:SetCooldown(start,dur);icon.tex:SetDesaturated(true)
             else icon.cd:Clear();icon.tex:SetDesaturated(false)end
             if(left>0 or hidden)and not ns.PartyCooldownExact(m,id)then icon.approx:Show()else icon.approx:Hide()end
@@ -1179,7 +1233,8 @@ local function DrawAnchor(g,entries,a,unlocked)
                 cell:SetPoint(v..h,f,v..h,(left and-1 or 1)*(3+col*(width+gap)),(up and 1 or-1)*(3+row*(size+gap)))
                 cell.tex:SetTexture(W.SpellTexture(m.face and m.face[id]or id));cell.spellID=id;cell.member=m.name
                 local object=own and own~=true and own
-                if object then DrawOwnHidden(cell.cd,object);cell.tex:SetDesaturated(ObjectZero(object)==false)
+                if cell.ownGrey then cell.ownGrey:Hide()end
+                if object then DrawOwnHidden(cell.cd,object);OwnGrey(cell,object)
                 elseif remain>0 and start then cell.cd:SetCooldown(start,dur);cell.tex:SetDesaturated(true)
                 else cell.cd:Clear();cell.tex:SetDesaturated(false)end
                 local approx=(remain>0 or hidden)and not ns.PartyCooldownExact(m,id)

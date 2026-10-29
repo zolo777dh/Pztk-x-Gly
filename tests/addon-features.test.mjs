@@ -823,6 +823,12 @@ UnitGroupRolesAssigned=roleOf
 local custom=CreateFrame('Button');custom.unit='party3';custom.h=40
 local all={custom};function EnumerateFrames(f)if not f then return all[1]end;for i,x in ipairs(all)do if x==f then return all[i+1]end end end
 ns.PartyCooldownForgetFrames();assert(ns.PartyCooldownFrame('party3')==nil,'looked up a bit at a time');ns.PartyCooldownFinishWalk();assert(ns.PartyCooldownFrame('party3')==custom)
+-- A clear (faded out) frame is not followed; of a unit's frames the biggest wins.
+local part=CreateFrame('Frame');part.unit='party3';part.GetWidth=function()return 20 end;part.GetHeight=function()return 18 end
+local big=CreateFrame('Button');big.unit='party3';big.GetWidth=function()return 150 end;big.GetHeight=function()return 40 end
+local clear=CreateFrame('Button');clear.unit='party3';clear.GetWidth=function()return 200 end;clear.GetHeight=function()return 60 end;clear.GetEffectiveAlpha=function()return 0 end
+all={part,clear,big};ns.PartyCooldownForgetFrames();ns.PartyCooldownFrame('party3');ns.PartyCooldownFinishWalk();assert(ns.PartyCooldownFrame('party3')==big,'the biggest seen frame')
+all={custom};ns.PartyCooldownForgetFrames();ns.PartyCooldownFrame('party3');ns.PartyCooldownFinishWalk()
 cfg.mode='list';cfg.names=true;assert(ns.DrawPartyCooldowns());cfg.names=false;assert(ns.DrawPartyCooldowns())
 -- Buff sensors: a member's own defensive buff and an external on anyone start the caster's timer.
 cfg.mode='frames';for _,x in pairs(m)do x.used={}end
@@ -1297,6 +1303,13 @@ units.party1=nil;units.party2=nil;units.party3=nil;GetNormalizedRealmName=nil
 ns.PartyCooldownRoster();assert(ns.RebuildPartyCooldownSensors()==0,'no sensors alone')
 assert(ns.PartyName('Other-RealmB')=='Other','names without the realm')
 local ic=CreateFrame('Frame');ic.tex=ic:CreateTexture();ic.spellID=2094;ic:SetSize(26,26);local grey;ic.tex.SetDesaturated=function(_,v)grey=v end
+-- Your own hidden cooldown: a grey copy on top, made clear by the game's hidden "over" answer.
+local oi=CreateFrame('Frame');oi.tex=oi:CreateTexture();oi:SetSize(26,26);local sec={};local got
+local obj={IsZero=function()return sec end}
+local cr=CreateFrame;local tex0=oi.tex
+assert(ns.PartyCooldownOwnGrey(oi,obj)==true or oi.ownGrey,'grey copy made')
+if oi.ownGrey then oi.ownGrey.SetAlphaFromBoolean=function(_,b,y,n)got={b,y,n}end;ns.PartyCooldownOwnGrey(oi,obj);assert(got and got[1]==sec and got[2]==0 and got[3]==1,'alpha from the hidden answer')end
+local plainObj={IsZero=function()return false end};ns.PartyCooldownOwnGrey(oi,plainObj);assert(not oi.ownGrey:IsShown(),'a plain answer greys the icon itself')
 local function track()return{cd=120,window=240,unit=1,slot={{epoch=0,wepoch=0,code=0,whole=0},{epoch=0,wepoch=0,code=0,whole=0}},cur=1}end
 local lock=InCombatLockdown
 ns.PartyCooldownShowHidden(ic,track());assert(grey==nil,'out of combat a hidden timer keeps the colour')
