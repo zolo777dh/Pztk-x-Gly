@@ -2117,17 +2117,26 @@ end
 -- just cast it yourself (`mine` says you could have). Two others: nobody is credited.
 function ns.PartySharedOwner(id)
     local info=byID[id];if not info then return nil end
-    local other,me
+    local me;local others={}
     for _,m in pairs(members)do
         -- Count every possible caster, including members already on cooldown: otherwise the same
         -- group aura can use up everyone's timer in turn.
         if not info.class or info.sent or info.detected or m.class==info.class then
             for _,x in ipairs(ns.PartyCooldownList(m))do if x==id then
-                if m.me then me=m elseif other and other~=m then return nil else other=m end
+                if m.me then me=m else others[#others+1]=m end;break
             end end
         end
     end
-    return other or me,other~=nil and me~=nil
+    -- The third answer: every other member who could have cast it (for "credit them all").
+    if #others>1 then return nil,me~=nil,others end
+    return others[1]or me,others[1]~=nil and me~=nil,others
+end
+-- Two or more others could have cast it: whether they all get the timer, like the game's own
+-- party frames would show nothing at all. cfg.sharedCredit: "cc" (crowd control only, the
+-- default), "all" (group buffs too) or "none".
+function ns.PartySharedAll(kind)
+    local how=ns.PartyCooldownConfig().sharedCredit or"cc"
+    return how=="all"or(how=="cc"and kind==ENEMY)
 end
 -- You cast it a moment ago: the buff or debuff that just appeared is yours.
 function ns.PartyOwnJustCast(id)
@@ -2157,8 +2166,8 @@ local function PollSensors(only)
     if ns.ownersVersion~=ns.partyListVersion then ns.ownersVersion=ns.partyListVersion
         local owners,mine={},{}
         for _,x in ipairs(sensors)do if x.kind==EXTERNAL or x.kind==ENEMY then
-            if owners[x.spell]==nil then local o,my=ns.PartySharedOwner(x.spell);owners[x.spell]=o or false;mine[x.spell]=my end
-            x.owner=owners[x.spell]or nil;x.mine=mine[x.spell]
+            if owners[x.spell]==nil then local o,my,list=ns.PartySharedOwner(x.spell);owners[x.spell]=o or false;mine[x.spell]=my;mine[-x.spell]=list end
+            x.owner=owners[x.spell]or nil;x.mine=mine[x.spell];x.others=mine[-x.spell]
         end end
     end
     -- Plate slots whose plate is not on screen are not read: more slots cost nothing while idle.
@@ -2174,11 +2183,21 @@ local function PollSensors(only)
             -- A shared sensor credits its one possible caster only, never the member it watches.
             local m;if shared then m=s.owner else m=members[s.member]end
             -- Your own cast of it a moment ago: what appeared is yours, the other caster is not credited.
-            if shared and s.mine and ns.PartyOwnJustCast(s.spell)then m=nil end
+            local own=shared and s.mine and ns.PartyOwnJustCast(s.spell)
+            if own then m=nil end
+            -- Several possible casters: all of them, when the settings say so.
+            local all=shared and not m and not own and s.others and#s.others>1 and ns.PartySharedAll(s.kind)and s.others or nil
             if s.kind==ENEMY and Plain(v)and Plain(s.prev)and v~=s.prev then sensorState.ccSeen=(sensorState.ccSeen or 0)+1 end
             -- A spell whose timer still runs cannot have been cast again.
             local running=m and ns.PartyCooldownLeft(m,s.spell)>0
-            if running then
+            if all then
+                for _,x in ipairs(all)do
+                    if Plain(v)and Plain(s.prev)then if v and not s.prev and ns.PartyCooldownLeft(x,s.spell)<=0 then Sensed(x,s.spell,at)end
+                    elseif ns.PartyCooldownLeft(x,s.spell)<=0 and ns.PartyCooldownTracked(s.spell,x.spec)then
+                        local _,created=HiddenEdge(x,s.spell,v,s.prev,now,at);if created then redraw=true;ns.PartyTrace("hidden timer",x.name,s.spell,s.unit,"shared")end
+                    end
+                end
+            elseif running then
             elseif Plain(v)and Plain(s.prev)then
                 -- Out of combat the answer is plain: an ordinary timer, with seconds and a swipe.
                 if v and not s.prev then
@@ -2287,7 +2306,7 @@ Rebuild=function(cfg)
         end
         local ext={};for id in pairs(externals)do ext[#ext+1]=id end;table.sort(ext)
         for _,name in ipairs(order)do local m=members[name]
-            for _,id in ipairs(ext)do local o,my=ns.PartySharedOwner(id);want[#want+1]={unit=m.unit,member=name,spell=id,buff=externals[id],kind=EXTERNAL,owner=o,mine=my}end
+            for _,id in ipairs(ext)do local o,my,list=ns.PartySharedOwner(id);want[#want+1]={unit=m.unit,member=name,spell=id,buff=externals[id],kind=EXTERNAL,owner=o,mine=my,others=list}end
         end
         -- Crowd control of the others: its debuff on the first enemy nameplates.
         local st={};for id in pairs(stops)do st[#st+1]=id end;table.sort(st)
@@ -2308,13 +2327,13 @@ Rebuild=function(cfg)
             for k=1,ns.plateCount do if not slots[k]then while used["nameplate"..n]do n=n+1 end;slots[k]="nameplate"..n;used[slots[k]]=true end end
         end
         for _,id in ipairs(st)do
-            for i=1,ns.plateCount do local o,my=ns.PartySharedOwner(id);want[#want+1]={unit=ns.plateSlots[i],slot=i,spell=id,buff=stops[id],kind=ENEMY,owner=o,mine=my,filter="HARMFUL"}end
+            for i=1,ns.plateCount do local o,my,list=ns.PartySharedOwner(id);want[#want+1]={unit=ns.plateSlots[i],slot=i,spell=id,buff=stops[id],kind=ENEMY,owner=o,mine=my,others=list,filter="HARMFUL"}end
         end
     end
     -- The same sensors as now: nothing is torn down (a rebuild makes every container read again).
     local sig=Signature(want)
     if sig==sensorSig and #sensors==#want then
-        for k,s in ipairs(sensors)do s.owner=want[k].owner;s.mine=want[k].mine;if s.slot and s.unit~=want[k].unit then s.unit=want[k].unit;sensorUnits[s.unit]=true;pcall(s.frame.SetUnit,s.frame,s.unit);pcall(s.frame.UpdateAllAuras,s.frame);s.hold=GetTime()+0.6 end end
+        for k,s in ipairs(sensors)do s.owner=want[k].owner;s.mine=want[k].mine;s.others=want[k].others;if s.slot and s.unit~=want[k].unit then s.unit=want[k].unit;sensorUnits[s.unit]=true;pcall(s.frame.SetUnit,s.frame,s.unit);pcall(s.frame.UpdateAllAuras,s.frame);s.hold=GetTime()+0.6 end end
         return #sensors
     end
     for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();local p=pools[s.filter];p[#p+1]=s.frame end

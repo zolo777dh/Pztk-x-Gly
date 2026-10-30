@@ -1371,7 +1371,7 @@ do local mm=ns.PartyCooldownMembers;ns.PartyCooldownListDirty()
 mm['Da-Home']={name='Da-Home',used={},talented={},class='DRUID',spec=103,unit='party3'};ns.PartyCooldownListDirty()
 assert(ns.PartySharedOwner(106898)==mm['Da-Home'],'one druid')
 mm['Db-Home']={name='Db-Home',used={},talented={},class='DRUID',spec=104,unit='party4'};ns.PartyCooldownListDirty()
-assert(ns.PartySharedOwner(106898)==nil,'two druids: nobody');mm['Da-Home']=nil;mm['Db-Home']=nil;ns.PartyCooldownListDirty()end
+assert(ns.PartySharedOwner(106898)==nil,'two druids: nobody');assert(#select(3,ns.PartySharedOwner(106898))==2 and ns.PartySharedAll(3)and not ns.PartySharedAll(2),'crowd control credits both by default, buffs do not');mm['Da-Home']=nil;mm['Db-Home']=nil;ns.PartyCooldownListDirty()end
 -- /pcd inspect and a key start read the talents of members without the addon again.
 do local mm=ns.PartyCooldownMembers;mm['Plain-Home']={name='Plain-Home',used={},talented={},spec=65,tries=6,far=3}
 assert(ns.PartyCooldownReinspect()>=1 and mm['Plain-Home'].recheck and not mm['Plain-Home'].tries,'asked again');mm['Plain-Home']=nil end

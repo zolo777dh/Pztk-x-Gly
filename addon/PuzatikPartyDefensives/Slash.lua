@@ -19,6 +19,7 @@ local HELP={
     "/pcd trace on | off | clear: write what the addon sees to the saved variables (for a whole key)",
     "/pcd minimap: show or hide the minimap button",
     "/pcd inspect: read the talents of the group again",
+    "/pcd shared cc | all | none: crowd control (or group buffs too) two players could have cast goes on cooldown for both",
 }
 local SIDE={left="LEFT",right="RIGHT",top="TOP",bottom="BOTTOM"}
 SLASH_PUZATIKPARTYDEFENSIVES1="/pcd";SLASH_PUZATIKPARTYDEFENSIVES2="/ppd"
@@ -43,6 +44,7 @@ SlashCmdList.PUZATIKPARTYDEFENSIVES=function(input)
         say(L("Time spent since the last reset (ms)")..": "..L("sensors")..": "..ns.PartyCooldownSensorCount())
         for _,r in ipairs(rows)do local p=r[2];print(("  %s: %.1f ms, %d x, %.2f avg, %.1f max, %d KB"):format(r[1],p.ms,p.n,p.ms/math.max(1,p.n),p.max,math.floor(p.kb or 0)))end
         return
+    elseif cmd=="shared"then if arg=="cc"or arg=="all"or arg=="none"then cfg.sharedCredit=arg end;say(L("Shared casts")..": "..(cfg.sharedCredit or"cc"));ns.RebuildPartyCooldownSensors();return
     elseif cmd=="inspect"then say(L("Reading talents again")..": "..ns.PartyCooldownReinspect());return
     elseif cmd=="minimap"then say(L("Minimap button")..": "..L(ns.SetPartyMinimapButton(not ns.PartyMinimapButtonShown())and"on"or"off"));return
     elseif cmd=="trace"then
