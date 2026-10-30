@@ -1063,6 +1063,7 @@ assert(not shows(G.main,1044)and ns.PartyCooldownBuffs[P][1]==1,'movement off th
 env.click('pcd-pair:2');assert(ns.UIControls['pcd-stun:size']and ns.UIControls['pcd-move:size']and not ns.UIControls['pcd-kick:size'])
 env.click('pcd-pair:3');assert(ns.UIControls['pcd-potion:size']and ns.UIControls['pcd-raid:size'])
 assert(ns.PartyCooldownKind(62618)=='raid'and ns.PartyCooldownKind(97462)=='raid','raid defensives have a list of their own')
+assert(ns.PartyCooldownBuffs[191427][2]==162264 and ns.PartyCooldownShort[191427][1]==10 and ns.PartyCooldownShort[49028][2]==377668,'Metamorphosis sensed by its buff, procs filtered by a short sensor')
 env.click('pcd:potions');assert(cfg.potions==false and not G.potion.frame:IsShown());env.click('pcd:potions');env.click('pcd-pair:1')
 env.click('pcd-pair:4');assert(ns.UIControls['pcd:perRow']and ns.UIControls['pcd:tooltip']);env.click('pcd-pair:1')
 -- Lists can hide in raids.

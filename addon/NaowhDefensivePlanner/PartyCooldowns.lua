@@ -157,6 +157,11 @@ for _,sp in pairs(SPEND)do WANTED[sp.talent]=true end
 -- Regeneration, Feint.
 ns.PartyCooldownChargeTalents={[235450]=321745,[235313]=321708,[11426]=1244069,[198589]=1266307,[194223]=468743,[22842]=377811,[1966]=423647}
 for _,t in pairs(ns.PartyCooldownChargeTalents)do WANTED[t]=true end
+-- Talents and procs that give the same buff as the button, only shorter: a second sensor sees
+-- buffs no longer than this many seconds, and a buff it sees is a proc, not a cast. With a
+-- talent named, only members who have it (or whose talents are unread) get the second sensor.
+ns.PartyCooldownShort={[49028]={10,377668},[191427]={10},[190319]={8},[114050]={10},[114051]={10}}
+for _,x in pairs(ns.PartyCooldownShort)do if x[2]then WANTED[x[2]]=true end end
 -- Charges most players of a spec have (the common build): used until talents are read, and for
 -- Guardian Survival Instincts always. A read talent tree decides for the spells above.
 ns.PartyCooldownLikelyCharges={[577]={[198589]=2},[1480]={[198589]=2},[102]={[194223]=2},[104]={[22842]=2,[61336]=2},
@@ -1751,7 +1756,7 @@ local SELF,EXTERNAL,ENEMY=1,2,3
 -- Spells whose buff is not the spell itself, or that buff more than the caster. Every other
 -- tracked spell is sensed by its own ID on the caster. {kind, buff IDs...}
 local BUFFS={
-    [49028]={SELF,81256},[48707]={SELF,48707,444741},[51052]={EXTERNAL,51052,145629},
+    [49028]={SELF,81256},[191427]={SELF,162264},[48707]={SELF,48707,444741},[51052]={EXTERNAL,51052,145629},
     [198589]={SELF,212800},[196718]={EXTERNAL,209426},
     -- No sensor for Havoc Metamorphosis: Eye Beam (Demonic) gives the same buff without the cast.
     [194223]={SELF,194223,102560,390414},[102560]={SELF,102560,390414},[106951]={SELF,106951,102543},[102543]={SELF,102543},
@@ -1871,7 +1876,7 @@ end
 ns.PartyCooldownHiddenTrack=Hidden
 -- A rising edge between two answers, plain or hidden, written into the open slot.
 -- `at` is when the buff appeared (the game's aura event), `now` the time of this read.
-local function HiddenEdge(m,id,cur,prev,now,at)
+local function HiddenEdge(m,id,cur,prev,now,at,veto,hasVeto)
     local eval=EVAL();if not eval then return false end
     local t=HiddenTrack(m,id,now);if not t then return false end
     local sl=t.slot[t.cur];at=at or now
@@ -1882,6 +1887,12 @@ local function HiddenEdge(m,id,cur,prev,now,at)
     local ok,a=pcall(eval,prev,sl.code,code);local ok2,b=pcall(eval,prev,sl.whole,whole);local ok3,c=pcall(eval,prev,p0,sl.code)
     local v,w,before
     if ok and ok2 and ok3 then ok,v=pcall(eval,cur,a,sl.code);ok2,w=pcall(eval,cur,b,sl.whole);ok3,before=pcall(eval,cur,c,p0)end
+    -- A proc lit the short sensor: the slot keeps what it had (only for the few spells with one).
+    -- `veto` is never tested itself unless plain: a hidden one only goes into the game's helper.
+    if hasVeto and ok and ok2 and ok3 then
+        if Plain(veto)then if veto then return false end
+        else ok,v=pcall(eval,veto,sl.code,v);ok2,w=pcall(eval,veto,sl.whole,w);ok3,before=pcall(eval,veto,p0,before)end
+    end
     if not(ok and ok2 and ok3)then sensorState.refused=(sensorState.refused or 0)+1;return false end
     sl.code,sl.whole,sl.prev=v,w,before;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
     local created=t.created;t.created=nil
@@ -2103,12 +2114,12 @@ function ns.PartyCooldownReport()
     end
     return lines
 end
-local function NewSensor(unit,buffs,filter)
+local function NewSensor(unit,buffs,filter,short)
     if not sensorHost then sensorHost=CreateFrame("Frame",nil,UIParent);sensorHost:SetSize(1,1);sensorHost:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-20,0)end
     local ok,c=pcall(CreateFrame,"AuraContainer",nil,sensorHost,"CustomAuraContainerTemplate")
     if not ok or not c or not c.AddAuraGroup then sensorState.available=false;sensorState.reason="the game has no aura container widget";return nil end
     c:SetSize(1,1);c:ClearAllPoints();c:SetPoint("TOPLEFT",UIParent,"TOPLEFT",-11,0);pcall(c.EnableMouse,c,false)
-    local added=pcall(c.AddAuraGroup,c,"pcd",filter or"HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs=buffs},
+    local added=pcall(c.AddAuraGroup,c,"pcd",filter or"HELPFUL",{maxFrameCount=1,candidateFilters={includeSpellIDs=buffs,maxDuration=short},
         initializeFrame=function(b)pcall(b.SetSize,b,1,1);pcall(b.SetMouseClickEnabled,b,false);pcall(b.SetMouseMotionEnabled,b,false)end,
         layout={elementWidth=50000,elementHeight=1,elementSpacing=0,lineSpacing=0}})
     if not added then sensorState.available=false;sensorState.reason="the aura container refused a buff group";return nil end
@@ -2177,6 +2188,8 @@ local function PollSensors(only)
     local shown=ns.plateShown
     for _,s in ipairs(sensors)do if(not only or only[s.unit])and not(s.slot and not shown[s.unit])then
         local v=SensorRead(s.frame)
+        -- A short buff of the same spell (a proc) is no cast: hidden, it vetoes the edge unseen.
+        local veto=s.shortFrame and SensorRead(s.shortFrame)
         local at=auraAt[s.unit];if not at or now-at>0.5 or at>now then at=now end
         at=at-(LAG[s.spell]or 0)
         -- A container just pointed at its unit shows the old answer for a moment: no edges then.
@@ -2209,10 +2222,10 @@ local function PollSensors(only)
                     if shared then
                         local owner=ExternalOwner(s.spell)
                         if owner and ns.PartyCooldownLeft(owner,s.spell)<=0 then Sensed(owner,s.spell,at)end
-                    else Sensed(m,s.spell,at)end
+                    elseif not(s.shortFrame and Plain(veto)and veto)then Sensed(m,s.spell,at)end
                 end
             elseif m and ns.PartyCooldownTracked(s.spell,m.spec)then
-                local _,created=HiddenEdge(m,s.spell,v,s.prev,now,at);if created then redraw=true;ns.PartyTrace("hidden timer",m.name,s.spell,s.unit)end
+                local _,created=HiddenEdge(m,s.spell,v,s.prev,now,at,veto,s.shortFrame~=nil);if created then redraw=true;ns.PartyTrace("hidden timer",m.name,s.spell,s.unit)end
             end
             s.prev=v;s.lit=Plain(v)and v
         end
@@ -2273,7 +2286,7 @@ function ns.PartyCooldownPlate(unit,added)
 end
 -- Builds the sensors for the group: each member's own buffs on them, and every external of the
 -- group on everyone. Out of combat only; containers are reused.
-local pools={HELPFUL={},HARMFUL={}}
+local pools={HELPFUL={},HARMFUL={},SHORT={}}
 local Rebuild,sensorSig -- the rebuild itself and the sensors it last made, defined below
 function ns.PartyCooldownSensorCount()return #sensors end
 function ns.RebuildPartyCooldownSensors()
@@ -2286,7 +2299,7 @@ end
 -- What the sensors would be now, as one line: equal lines mean nothing to rebuild.
 local function Signature(list)
     local parts={}
-    for _,s in ipairs(list)do parts[#parts+1]=(s.slot and"plate"..s.slot or s.unit)..":"..s.spell..":"..s.kind..":"..tostring(s.member)..":"..tostring(s.owner and s.owner.name)end
+    for _,s in ipairs(list)do parts[#parts+1]=(s.slot and"plate"..s.slot or s.unit)..":"..s.spell..":"..s.kind..":"..tostring(s.member)..":"..tostring(s.owner and s.owner.name)..":"..tostring(s.short)end
     return table.concat(parts,",")
 end
 Rebuild=function(cfg)
@@ -2304,7 +2317,8 @@ Rebuild=function(cfg)
                 if kind==EXTERNAL then if not m.me then externals[id]=buffs end
                 elseif kind==ENEMY then if not m.me then stops[id]=buffs end
                 elseif KIND[id]=="kick"then
-                elseif not m.me then want[#want+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF}end
+                elseif not m.me then local sh=ns.PartyCooldownShort[id];if sh and sh[2]and m.ranks and(m.ranks[sh[2]]or 0)==0 then sh=nil end
+                    want[#want+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF,short=sh and sh[1]or nil}end
             end
         end
         local ext={};for id in pairs(externals)do ext[#ext+1]=id end;table.sort(ext)
@@ -2339,7 +2353,8 @@ Rebuild=function(cfg)
         for k,s in ipairs(sensors)do s.owner=want[k].owner;s.mine=want[k].mine;s.others=want[k].others;if s.slot and s.unit~=want[k].unit then s.unit=want[k].unit;sensorUnits[s.unit]=true;pcall(s.frame.SetUnit,s.frame,s.unit);pcall(s.frame.UpdateAllAuras,s.frame);s.hold=GetTime()+0.6 end end
         return #sensors
     end
-    for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();local p=pools[s.filter];p[#p+1]=s.frame end
+    for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();local p=pools[s.filter];p[#p+1]=s.frame
+        if s.shortFrame then pcall(s.shortFrame.SetEnabled,s.shortFrame,false);s.shortFrame:Hide();pools.SHORT[#pools.SHORT+1]=s.shortFrame;s.shortFrame=nil end end
     sensors={};sensorUnits={};sensorSig=nil
     if sensorTicker then sensorTicker:Cancel();sensorTicker=nil end
     if not on then return 0 end
@@ -2354,6 +2369,12 @@ Rebuild=function(cfg)
         -- A container only follows its unit's auras while enabled; a full update reads what is up now.
         pcall(c.SetUnit,c,s.unit);pcall(c.SetEnabled,c,true);pcall(c.UpdateAllAuras,c)
         s.frame=c;s.prev=SensorRead(c);s.lit=Plain(s.prev)and s.prev;s.hold=GetTime()+0.6;made[#made+1]=s
+        -- The proc filter: the same buffs, only the short ones.
+        if s.short then
+            local sc=table.remove(pools.SHORT)
+            if sc then pcall(sc.SetAuraGroupCandidateFilters,sc,"pcd",{includeSpellIDs=s.buff,maxDuration=s.short});sc:Show()else sc=NewSensor(s.unit,s.buff,"HELPFUL",s.short)end
+            if sc then pcall(sc.SetUnit,sc,s.unit);pcall(sc.SetEnabled,sc,true);pcall(sc.UpdateAllAuras,sc);s.shortFrame=sc end
+        end
     end
     sensors=made;if #made==#want then sensorSig=sig end
     if ns.PartyTraceOn()then local open=0;for _,x in ipairs(made)do if(x.kind==EXTERNAL or x.kind==ENEMY)and not x.owner then open=open+1 end end
