@@ -1111,6 +1111,11 @@ ns.PartyCooldownAura('nameplate7');ns.PartyCooldownPollSensors();assert(ns.Party
 -- A nameplate that now shows another enemy is not an edge.
 m.Rogue.used={};for _,x in ipairs(list)do if x.spell==2094 and x.unit=='nameplate8'then x.frame.IsMouseOver=function()return true end end end
 ns.PartyCooldownPlate('nameplate8');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,2094)==0)
+-- Plate tokens count up: a plate shown as nameplate17 takes a free slot, so Blind on it is seen.
+m.Rogue.used={};ns.PartyCooldownPlate('nameplate17',true);local on17
+for _,x in ipairs(list)do if x.spell==2094 and x.unit=='nameplate17'then on17=x end end;assert(on17,'a slot follows the new plate')
+env.advance(1);ns.PartyCooldownPollSensors();on17.frame.IsMouseOver=function()return true end
+ns.PartyCooldownAura('nameplate17');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,2094)>100,'Blind on nameplate17')
 local printed={};local p=print;print=function(t)printed[#printed+1]=t end;ns.Command('pcd');print=p
 local found=false;for _,t in ipairs(printed)do if t:find('Interrupts seen',1,true)then found=true end end;assert(found)
 `));

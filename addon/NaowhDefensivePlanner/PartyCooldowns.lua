@@ -1983,11 +1983,30 @@ function ns.PartyCooldownAura(unit)
     if not ns.Plain(unit,"string")then return end
     if sensorUnits[unit]then auraAt[unit]=GetTime();dirty[unit]=true;quick=3 end
 end
--- A nameplate token that now shows another enemy reads that enemy's debuffs: no edges for a moment.
-function ns.PartyCooldownPlate(unit)
-    if not(ns.Plain(unit,"string")and sensorUnits[unit])then return end
+-- Enemy debuff sensors sit in a few plate slots that follow the plates on screen: nameplate tokens
+-- count up (nameplate17 with three enemies shown), so fixed tokens would miss the enemies in front
+-- of you. A new plate takes a free slot (one whose plate is gone); every sensor of that slot is
+-- pointed at it. A token that now shows another enemy reads that enemy's debuffs: no edges for a
+-- moment.
+ns.plateSlots={}
+function ns.PartyCooldownPlate(unit,added)
+    if not ns.Plain(unit,"string")then return end
+    local slots=ns.plateSlots
+    if added and unit:find("^nameplate")then
+        local have;for k=1,SENSE_PLATES do if slots[k]==unit then have=k end end
+        if not have then
+            for k=1,SENSE_PLATES do local t=slots[k]
+                local ok,live=true,false;if t and UnitExists then ok,live=pcall(UnitExists,t)end
+                if not t or not(ok and live==true)then have=k;break end
+            end
+            if not have then return end
+            slots[have]=unit;sensorUnits[unit]=true
+            for _,x in ipairs(sensors)do if x.slot==have then x.unit=unit;pcall(x.frame.SetUnit,x.frame,unit);pcall(x.frame.UpdateAllAuras,x.frame)end end
+        end
+    end
+    if not sensorUnits[unit]then return end
     local hold=GetTime()+0.4
-    for _,s in ipairs(sensors)do if s.unit==unit then s.hold=hold end end
+    for _,x in ipairs(sensors)do if x.unit==unit then x.hold=hold end end
 end
 -- Builds the sensors for the group: each member's own buffs on them, and every external of the
 -- group on everyone. Out of combat only; containers are reused.
@@ -2004,7 +2023,7 @@ end
 -- What the sensors would be now, as one line: equal lines mean nothing to rebuild.
 local function Signature(list)
     local parts={}
-    for _,s in ipairs(list)do parts[#parts+1]=s.unit..":"..s.spell..":"..s.kind..":"..tostring(s.member)..":"..tostring(s.owner and s.owner.name)end
+    for _,s in ipairs(list)do parts[#parts+1]=(s.slot and"plate"..s.slot or s.unit)..":"..s.spell..":"..s.kind..":"..tostring(s.member)..":"..tostring(s.owner and s.owner.name)end
     return table.concat(parts,",")
 end
 Rebuild=function(cfg)
@@ -2029,14 +2048,25 @@ Rebuild=function(cfg)
         end
         -- Crowd control of the others: its debuff on the first enemy nameplates.
         local st={};for id in pairs(stops)do st[#st+1]=id end;table.sort(st)
+        -- Slots start on the plates shown now, then on the first free tokens.
+        if #st>0 then
+            local slots=ns.plateSlots;local used={}
+            for k=1,SENSE_PLATES do local t=slots[k];local ok,live=false,false;if t and UnitExists then ok,live=pcall(UnitExists,t)end
+                if ok and live==true then used[t]=true else slots[k]=nil end end
+            local plates=C_NamePlate and C_NamePlate.GetNamePlates and select(2,pcall(C_NamePlate.GetNamePlates))
+            for _,pl in ipairs(type(plates)=="table"and plates or{})do local t=pl.namePlateUnitToken
+                if ns.Plain(t,"string")and not used[t]then for k=1,SENSE_PLATES do if not slots[k]then slots[k]=t;used[t]=true;break end end end end
+            local n=1
+            for k=1,SENSE_PLATES do if not slots[k]then while used["nameplate"..n]do n=n+1 end;slots[k]="nameplate"..n;used[slots[k]]=true end end
+        end
         for _,id in ipairs(st)do
-            for i=1,SENSE_PLATES do want[#want+1]={unit="nameplate"..i,spell=id,buff=stops[id],kind=ENEMY,owner=stopOwners[id]or nil,filter="HARMFUL"}end
+            for i=1,SENSE_PLATES do want[#want+1]={unit=ns.plateSlots[i],slot=i,spell=id,buff=stops[id],kind=ENEMY,owner=stopOwners[id]or nil,filter="HARMFUL"}end
         end
     end
     -- The same sensors as now: nothing is torn down (a rebuild makes every container read again).
     local sig=Signature(want)
     if sig==sensorSig and #sensors==#want then
-        for k,s in ipairs(sensors)do s.owner=want[k].owner end
+        for k,s in ipairs(sensors)do s.owner=want[k].owner;if s.slot and s.unit~=want[k].unit then s.unit=want[k].unit;sensorUnits[s.unit]=true;pcall(s.frame.SetUnit,s.frame,s.unit);pcall(s.frame.UpdateAllAuras,s.frame);s.hold=GetTime()+0.6 end end
         return #sensors
     end
     for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();local p=pools[s.filter];p[#p+1]=s.frame end
@@ -2247,7 +2277,7 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
     elseif event=="DAMAGE_METER_COMBAT_SESSION_UPDATED"then
         if ns.Plain(a,"number")and Enum and Enum.DamageMeterType and a==Enum.DamageMeterType.Interrupts then ns.PartyCooldownMeter()end
     elseif event=="DAMAGE_METER_CURRENT_SESSION_UPDATED"or event=="DAMAGE_METER_RESET"or event=="PLAYER_REGEN_DISABLED"then ns.PartyCooldownMeter(true)
-    elseif event=="NAME_PLATE_UNIT_ADDED"or event=="NAME_PLATE_UNIT_REMOVED"then ns.PartyCooldownPlate(a)
+    elseif event=="NAME_PLATE_UNIT_ADDED"or event=="NAME_PLATE_UNIT_REMOVED"then ns.PartyCooldownPlate(a,event=="NAME_PLATE_UNIT_ADDED")
     elseif event=="UNIT_AURA"then ns.PartyCooldownAura(a)
     elseif event=="UNIT_POWER_UPDATE"then
         if ns.Plain(a,"string")then ns.PartyCooldownPower(a)end
