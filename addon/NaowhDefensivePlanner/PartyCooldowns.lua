@@ -1322,7 +1322,11 @@ local function UnitFrame(unit)
     -- frame, so it never stalls the game. The icons follow when it is done.
     local group=table.concat(order,",")
     if InCombatLockdown and InCombatLockdown()or not EnumerateFrames or lastScan==group then return nil end
-    if lastGroup~=group then lastGroup=group;retries=0 end
+    -- A new make-up (someone left or came back): frame addons move their buttons around a moment
+    -- after the change, so the frames are looked up once more 2 s later, from scratch.
+    if lastGroup~=group then lastGroup=group;retries=0
+        if C_Timer and C_Timer.NewTimer then C_Timer.NewTimer(2,function()if lastGroup==group then frameCache={};lastScan=nil;ns.DrawPartyCooldowns()end end)end
+    end
     lastScan=group;StartWalk()
     return nil
 end
@@ -1543,7 +1547,9 @@ local function UpdateBars(self,elapsed)
     local now=GetTime()
     for _,cell in ipairs(self.icons or{})do local bar=cell.bar
         if bar and bar:IsShown()then
-            PotionShade(bar,nil,now)
+            -- A potion with a hidden timer: the whole bar is grey while it may run (all or nothing),
+            -- like a seen one, instead of a grey part that shrinks.
+            PotionShade(bar,bar.progressForward and bar.hiddenTrack or nil,now)
             if bar.object then bar.time:SetText("")
             elseif bar.progressForward and bar.hiddenTrack then
                 bar:SetMinMaxValues(0,1);bar:SetValue(1);bar.time:SetText("")
@@ -1977,7 +1983,8 @@ local function DressHidden(icon,t)
     if icon.textOnly then parts.win:SetPoint(icon.textAt or"RIGHT",icon,icon.textAt or"RIGHT",icon.textAt=="LEFT"and 4 or-4,0)else parts.win:SetPoint("CENTER",icon,"CENTER",0,0)end
     -- The window is one line high; the column is moved down so that line fills it, and the next
     -- lines are a gap away, outside it.
-    local h=math.min(step,line+2);parts.win:SetSize(size+6,h);parts.crop=step-h
+    -- Wide enough for "4:50" in this font, so the numbers are never cut at the sides.
+    local h=math.min(step,line+2);parts.win:SetSize(math.max(size+6,math.ceil(ts*2.8)+8),h);parts.crop=step-h
     pcall(parts.win.SetFrameLevel,parts.win,(icon:GetFrameLevel()or 0)+6)
     for k=1,2 do local p=parts[k]
         p.fill:SetFrameLevel((icon:GetFrameLevel()or 0)+3);p.veil:SetFrameLevel((icon:GetFrameLevel()or 0)+2)
