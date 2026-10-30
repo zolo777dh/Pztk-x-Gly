@@ -774,6 +774,9 @@ env.advance(151);assert(ns.PartyCooldownLeft(m.Friend,33206)==0)
 ns.PartyTraceSet(true);ns.PartyCooldownCast('party1',33206);local tr=ns.Store().partyTrace.lines;local found=false
 for _,l in ipairs(tr)do if l:find('start',1,true)and l:find('33206',1,true)and l:find('cast',1,true)then found=true end end;assert(found,'start traced')
 ns.PartyTraceSet('clear');ns.PartyTraceSet(false);assert(#ns.Store().partyTrace.lines==0);m.Friend.used={}
+-- A worn trinket's spell is never tracked as a class cooldown.
+GetInventoryItemID=function(u,slot)if slot==13 then return 555 end end;GetItemSpell=function(item)if item==555 then return 'Trinket',999777 end end
+assert(ns.PartyItemSpell('party1',999777)and not ns.PartyItemSpell('party1',33206),'trinket spell known');GetInventoryItemID=nil;GetItemSpell=nil
 -- Own cooldown learned from the cast and sent out of combat.
 C_Spell.GetSpellCooldown=function(id)return{startTime=env.time,duration=id==22812 and 45 or 0}end
 assert(ns.PartyCooldownCast('player',22812));assert(cfg.learned['104'][22812]==45)

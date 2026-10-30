@@ -75,6 +75,16 @@ ns.PartyCooldownRacials=RACIAL
 -- Racials that stop enemies are shown in the stun and crowd control lists, not the main one.
 for _,id in ipairs({20549,287712,255654,368970})do KIND[id]="stun"end
 for _,id in ipairs({107079,357214})do KIND[id]="cc"end
+-- A spell of a worn item (an on-use trinket): never tracked as a class cooldown.
+function ns.PartyItemSpell(unit,id)
+    local getItem=GetInventoryItemID;local getSpell=(C_Item and C_Item.GetItemSpell)or GetItemSpell
+    if not(getItem and getSpell)then return false end
+    for slot=1,17 do
+        local ok,item=pcall(getItem,unit,slot)
+        if ok and ns.Plain(item,"number")then local ok2,_,spell=pcall(getSpell,item);if ok2 and ns.Plain(spell,"number")and spell==id then return true end end
+    end
+    return false
+end
 function ns.PartyRacialAlias(id,race)
     local get=C_Spell and C_Spell.GetSpellInfo;if not get or not RACIAL[race]then return nil end
     local function name(x)local ok,i=pcall(get,x);return ok and type(i)=="table"and ns.Plain(i.name,"string")and i.name or nil end
@@ -202,6 +212,10 @@ function ns.PartyCooldownConfig()
     if(c.layout or 0)<2 then c.layout=2;c.mode="frames";c.hideReady=false;c.names=false end
     -- 0.11.3 (learned lengths too since 0.11.4; again in 0.11.33 when Ice Cold became the main Ice Block entry): an added spell that is another version of a tracked one becomes that one, with its
     -- switches and place in the order.
+    -- 0.11.39: presets of 0.11.30-0.11.34 also turned off potions and movement; they come back once.
+    if(c.presetFix or 0)<1 then c.presetFix=1
+        for id,k in pairs(KIND)do if k=="potion"or k=="move"then c.disabled[id]=nil;for _,off in pairs(c.specOff)do if type(off)=="table"then off[id]=nil end end end end
+    end
     if(c.aliasMigrated or 0)<3 then c.aliasMigrated=3
         for _,ids in pairs(c.custom)do for id in pairs(ids)do local base=ALIAS[tonumber(id)]if base then ids[id]=nil end end end
         -- Keys are collected first: a table cannot get new keys while it is walked.
@@ -908,7 +922,9 @@ local function ReadPCD(m,text)
             -- Another version of a tracked spell counts as that spell, its own icon kept.
             if ALIAS[id]then face[ALIAS[id]]=id;id=ALIAS[id]end
             local info=byID[id]
-            if not info then new[#new+1]={id,i}
+            -- A worn item's spell (older versions sent on-use trinkets) is not a cooldown here.
+            if not info and m.unit and ns.PartyItemSpell(m.unit,id)then id=nil
+            elseif not info then new[#new+1]={id,i}
             elseif info.class and m.class and info.class~=m.class and not(info.sent or info.added)then id=nil
             elseif info.added and info.class~=m.class then info.sent=true end
             if id then known[id]=true;cds[id]=cd end
@@ -1022,7 +1038,7 @@ function ns.PartyCooldownCast(unit,id)
     local info=byID[id]
     -- Not in the list (a follower's spell, a new talent...): any spell the game gives a cooldown of
     -- a minute or more is tracked from now on for that class.
-    if not info and ns.PartyCooldownConfig().detect and BaseCooldown(id)>=60 then info=Register(id,m.class,700+id%100);info.detected=true end
+    if not info and ns.PartyCooldownConfig().detect and BaseCooldown(id)>=60 and not ns.PartyItemSpell(unit,id)then info=Register(id,m.class,700+id%100);info.detected=true end
     if not info or not ns.PartyCooldownTracked(id,m.spec)or(info.class and m.class and info.class~=m.class and not(info.sent or info.detected))or(info.race and m.race~=info.race)then
         if info then ns.PartyTrace("cast skipped",m.name,unit,id,not ns.PartyCooldownTracked(id,m.spec)and"off"or"other class or race")end
         return false end
@@ -1722,7 +1738,7 @@ local LAG={[192058]=2,[207684]=2,[202138]=2}
 local PLATES=40
 -- Crowd control of the others is sensed on the first 12 nameplates only: one container per spell
 -- and plate, and a pack rarely shows more (every container follows its plate's auras).
-local SENSE_PLATES=25
+local SENSE_PLATES=12
 ns.PartyCooldownBuffs=BUFFS
 local function BuffsOf(id)
     local b=BUFFS[id];if not b then return SELF,{[id]=true}end
@@ -1835,16 +1851,19 @@ local function Column(cd)
 end
 -- Height of one line of the column, measured on the font itself.
 local lineSteps={}
-local function LineStep(font,size)
-    local key=tostring(font)..size
-    if lineSteps[key]then return lineSteps[key]end
+-- The lines are spaced apart (`gap`), so the window shows one whole line and never a piece of
+-- the next. Returns the step and the height of one line.
+local function LineStep(font,size,gap)
+    local key=tostring(font)..size.."|"..(gap or 0)
+    if lineSteps[key]then return lineSteps[key][1],lineSteps[key][2]end
     local probe=sensorHost or UIParent
-    local fs=probe:CreateFontString(nil,"OVERLAY");pcall(fs.SetFont,fs,font,size,"OUTLINE");pcall(fs.SetSpacing,fs,0)
+    local fs=probe:CreateFontString(nil,"OVERLAY");pcall(fs.SetFont,fs,font,size,"OUTLINE");pcall(fs.SetSpacing,fs,gap or 0)
     fs:SetText("0");local one=fs.GetStringHeight and fs:GetStringHeight()
     fs:SetText("0\n0");local two=fs.GetStringHeight and fs:GetStringHeight();fs:Hide()
     local step=ns.Plain(one,"number")and ns.Plain(two,"number")and two-one or 0
-    if step<=0 then step=size*1.15 end
-    lineSteps[key]=step;return step
+    if step<=0 then step=size*1.15+(gap or 0)end
+    if not(ns.Plain(one,"number")and one>0)then one=size*1.15 end
+    lineSteps[key]={step,one};return step,one
 end
 local function Bar(parent,r,g,b,a)
     local bar=CreateFrame("StatusBar",nil,parent)
@@ -1897,13 +1916,13 @@ local function DressHidden(icon,t)
     local font=icon.styleFont or(W.Font and W.Font(true))or"Fonts\\FRIZQT__.TTF";local ts=math.max(9,math.floor(size*0.42))
     local sig=t.cd.."|"..size.."|"..width.."|"..ts..(icon.textOnly and(icon.textAt or"")or"").."|"..tostring(font)
     if parts.sig==sig then return parts end
-    local step=LineStep(font,ts);local jump=size+4
+    local gap=math.max(2,math.floor(ts*0.6));local step,line=LineStep(font,ts,gap);local jump=size+4
     parts.step,parts.jump,parts.sig=step,jump,sig
     parts.win:ClearAllPoints()
     if icon.textOnly then parts.win:SetPoint(icon.textAt or"RIGHT",icon,icon.textAt or"RIGHT",icon.textAt=="LEFT"and 4 or-4,0)else parts.win:SetPoint("CENTER",icon,"CENTER",0,0)end
-    -- The window shows only the middle of one line: the lines above and below are a whole step
-    -- away, so no edge of theirs shows behind the running second, whatever the font.
-    parts.win:SetSize(size+6,math.min(step,ts+1)*0.72);parts.crop=math.min(step,ts+1)*0.14
+    -- The window is one line high; the column is moved down so that line fills it, and the next
+    -- lines are a gap away, outside it.
+    local h=math.min(step,line+2);parts.win:SetSize(size+6,h);parts.crop=step-h
     pcall(parts.win.SetFrameLevel,parts.win,(icon:GetFrameLevel()or 0)+6)
     for k=1,2 do local p=parts[k]
         p.fill:SetFrameLevel((icon:GetFrameLevel()or 0)+3);p.veil:SetFrameLevel((icon:GetFrameLevel()or 0)+2)
@@ -1918,7 +1937,7 @@ local function DressHidden(icon,t)
             p.hveil:SetFrameLevel((icon:GetFrameLevel()or 0)+1)
         end
         local top=p.pos.GetStatusBarTexture and p.pos:GetStatusBarTexture()or p.pos
-        pcall(p.column.SetFont,p.column,font,ts,"OUTLINE");pcall(p.column.SetSpacing,p.column,0);p.column:SetTextColor(1,1,1)
+        pcall(p.column.SetFont,p.column,font,ts,"OUTLINE");pcall(p.column.SetSpacing,p.column,gap);p.column:SetTextColor(1,1,1)
         p.column:SetText(Column(t.cd));p.column:ClearAllPoints();p.column:SetPoint("TOP",top,"TOP",0,0)
         p.viewport:ClearAllPoints();p.viewport:SetAllPoints(parts.win);pcall(p.viewport.SetFrameLevel,p.viewport,(icon:GetFrameLevel()or 0)+5)
         p.text:ClearAllPoints();p.text:SetAllPoints(p.viewport);pcall(p.text.SetFrameLevel,p.text,(icon:GetFrameLevel()or 0)+6)
@@ -2179,8 +2198,8 @@ Rebuild=function(cfg)
         -- Slots start on the plates shown now, then on the first free tokens.
         if #st>0 then
             -- Every crowd control spell costs one container per plate: with many spells in the group,
-            -- fewer plates are watched so the total stays near 200 (25 plates for 8 spells).
-            ns.plateCount=math.max(6,math.min(SENSE_PLATES,math.floor(200/#st)))
+            -- fewer plates are watched so the total stays near 96 (12 plates for 8 spells): more cost FPS in big pulls.
+            ns.plateCount=math.max(6,math.min(SENSE_PLATES,math.floor(96/#st)))
             local slots=ns.plateSlots;local used={}
             for k=ns.plateCount+1,SENSE_PLATES do slots[k]=nil end
             for k=1,ns.plateCount do local t=slots[k];local ok,live=false,false;if t and UnitExists then ok,live=pcall(UnitExists,t)end

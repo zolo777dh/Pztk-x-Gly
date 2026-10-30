@@ -10,7 +10,7 @@ local kit=ns.UIKit
 local PREFIX="!PPD1:"
 -- Kept per player, never sent: learned lengths, talents seen, migrations and the unlock state.
 -- The settings kept for each of your specs stay home too.
-local SKIP={learned=true,talentSpells=true,unlocked=true,aliasMigrated=true,learnedVersion=true,perSpec=true,bySpec=true,profileSpec=true}
+local SKIP={learned=true,talentSpells=true,unlocked=true,aliasMigrated=true,learnedVersion=true,presetFix=true,perSpec=true,bySpec=true,profileSpec=true}
 local MAX_TEXT,MAX_DEPTH,MAX_ITEMS=400000,12,50000
 
 -- Values: t (table) ... e, s<len>:<bytes>, n<number>;, T and F for true and false.
