@@ -1254,11 +1254,11 @@ zero=true;assert(ns.PartyCooldownReady(me,22812)==true);object.IsZero=function()
 C_Spell.GetSpellCooldown=nil;C_Spell.GetSpellCooldownDuration=nil;ns.Plain=was2;me.used={}
 -- Another version of a spell counts as the tracked one, with its own icon.
 units.party3={'Magey','MAGE'};ns.PartyCooldownRoster();local mg=m['Magey-Home']
-ns.CommHandlers.PCD('64;414658=180','Magey','PARTY','Magey-Home');assert(mg.known[45438]and not mg.known[414658]and mg.cds[45438]==180 and mg.face[45438]==414658)
-ns.PartyCooldownCast('party3',414658);assert(mg.used[45438]and not mg.used[414658])
-local count=0;for _,id in ipairs(ns.PartyCooldownList(mg))do if id==45438 or id==414658 then count=count+1 end end;assert(count==1,'one icon')
+ns.CommHandlers.PCD('64;45438=180','Magey','PARTY','Magey-Home');assert(mg.known[414658]and not mg.known[45438]and mg.cds[414658]==180 and mg.face[414658]==45438)
+ns.PartyCooldownCast('party3',45438);assert(mg.used[414658]and not mg.used[45438])
+local count=0;for _,id in ipairs(ns.PartyCooldownList(mg))do if id==414658 or id==45438 then count=count+1 end end;assert(count==1,'one icon')
 -- A spell only heard of in messages may come from any class.
-ns.CommHandlers.PCD('64;45438=180;999001=120','Magey','PARTY','Magey-Home');ns.CommHandlers.PCD('256;33206=150;999001=120','Other','PARTY','Other-RealmB')
+ns.CommHandlers.PCD('64;414658=180;999001=120','Magey','PARTY','Magey-Home');ns.CommHandlers.PCD('256;33206=150;999001=120','Other','PARTY','Other-RealmB')
 assert(mg.known[999001]and m['Other-RealmB'].known[999001],'shared by two classes')
 -- Load options stop the sensors too.
 local inst=IsInInstance;IsInInstance=function()return false end;cfg.loadWhere='dungeons';assert(ns.RebuildPartyCooldownSensors()==0,'no sensors outside');cfg.loadWhere='all';IsInInstance=inst
@@ -1301,8 +1301,8 @@ InCombatLockdown=function()return false end;e.lust.on=false;ns.RefreshPartyExtra
 local inst2=IsInInstance;IsInInstance=function()return false end;InCombatLockdown=function()return true end;cfg.loadWhere='dungeons'
 assert(ns.RebuildPartyCooldownSensors()==0);cfg.loadWhere='all';IsInInstance=inst2;InCombatLockdown=function()return false end
 -- Old added versions of tracked spells become the tracked one.
-cfg.custom.MAGE={[414658]=true};cfg.disabled[414658]=true;cfg.aliasMigrated=nil;ns.PartyCooldownConfig()
-assert(not cfg.custom.MAGE[414658]and cfg.disabled[45438]and not cfg.disabled[414658]);cfg.disabled[45438]=nil
+cfg.custom.MAGE={[45438]=true};cfg.disabled[45438]=true;cfg.aliasMigrated=nil;ns.PartyCooldownConfig()
+assert(not cfg.custom.MAGE[45438]and cfg.disabled[414658]and not cfg.disabled[45438]);cfg.disabled[414658]=nil
 -- A spell heard of in messages stays open to other classes after you add it for one.
 assert(ns.AddPartyCooldownSpell('PALADIN','999001'));ns.CommHandlers.PCD('258;999001=120','Other','PARTY','Other-RealmB');assert(pr.known[999001],'still open to the priest')
 -- Out of reach: asked again later, not forgotten.
@@ -1324,7 +1324,7 @@ assert(not pr.used[15286]);for _,id in ipairs(ns.PartyCooldownList(pr))do assert
 -- Added for one class first, then heard from another: still taken.
 assert(ns.AddPartyCooldownSpell('PALADIN','999002'));ns.CommHandlers.PCD('258;10060=120;999002=90','Other','PARTY','Other-RealmB');assert(pr.known[999002]and pr.cds[999002]==90)
 -- Learned lengths move with the migration.
-cfg.learned.x={[414658]=170};cfg.aliasMigrated=nil;ns.PartyCooldownConfig();assert(cfg.learned.x[45438]==170 and not cfg.learned.x[414658]);cfg.learned.x=nil
+cfg.learned.x={[45438]=170};cfg.aliasMigrated=nil;ns.PartyCooldownConfig();assert(cfg.learned.x[414658]==170 and not cfg.learned.x[45438]);cfg.learned.x=nil
 -- Inspected once per group: past the limit, roster updates do not start it over.
 local asks2=0;NotifyInspect=function()asks2=asks2+1 end;CanInspect=function()return true end
 rg.tries=nil;rg.far=20;rg.asked=GetTime();rg.spec=nil;rg.talented=nil;fire2('GROUP_ROSTER_UPDATE');env.advance(16);assert(asks2==0,'not asked again')
