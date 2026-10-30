@@ -72,6 +72,15 @@ local RACIAL={NightElf={{58984,120}},Dwarf={{20594,120}},Human={{59752,180}},Gno
     BloodElf={{28730,120}},Goblin={{69070,90},{69041,90}},Nightborne={{260364,180}},HighmountainTauren={{255654,120}},
     MagharOrc={{274738,120}},ZandalariTroll={{291944,150}},Vulpera={{312411,90}},Dracthyr={{368970,90},{357214,90}},EarthenDwarf={{436344,120}}}
 ns.PartyCooldownRacials=RACIAL
+-- Racials that stop enemies are shown in the stun and crowd control lists, not the main one.
+for _,id in ipairs({20549,287712,255654,368970})do KIND[id]="stun"end
+for _,id in ipairs({107079,357214})do KIND[id]="cc"end
+function ns.PartyRacialAlias(id,race)
+    local get=C_Spell and C_Spell.GetSpellInfo;if not get or not RACIAL[race]then return nil end
+    local function name(x)local ok,i=pcall(get,x);return ok and type(i)=="table"and ns.Plain(i.name,"string")and i.name or nil end
+    local n=name(id);if not n then return nil end
+    for _,s in ipairs(RACIAL[race])do if name(s[1])==n then return s[1]end end
+end
 for race,list in pairs(RACIAL)do for i,s in ipairs(list)do byID[s[1]]={race=race,cd=s[2],order=900+i}end end
 byID[POTION]={cd=300,order=950,anyone=true}
 ns.PartyCooldownPotion=POTION
@@ -136,6 +145,7 @@ local ALIAS={[1236994]=POTION,[1236998]=POTION,[1239479]=POTION,[1295132]=POTION
     [102560]=194223,[102543]=106951,[414658]=45438,
     [389813]=207684,[108194]=221562,[389807]=202138,[474421]=19577,[119910]=19647,[132409]=19647,[1276467]=19647,[119914]=89766,
     -- Racials that are a different spell for each class.
+    [59542]=28880,[59543]=28880,[59544]=28880,[59545]=28880,[59547]=28880,[59548]=28880,[121093]=28880,[370626]=28880,[416250]=28880,
     [33702]=20572,[33697]=20572,[25046]=28730,[50613]=28730,[69179]=28730,[80483]=28730,[129597]=28730,[155145]=28730,[202719]=28730,[232633]=28730}
 -- Cooldowns cut by what a member does (resource spent, Bone Shield charges, crits, finishers,
 -- Barbed Shot...). The game hides all of that for others in combat, so their timers could not be
@@ -959,6 +969,9 @@ function ns.PartyCooldownCast(unit,id)
     if not m then return false end
     if not ns.Plain(id,"number")then m.hidden=(m.hidden or 0)+1;if m.me then m.hiddenCast=true end;return false end
     if ALIAS[id]then m.face=m.face or{};m.face[ALIAS[id]]=id;id=ALIAS[id]elseif m.face then m.face[id]=nil end
+    -- Another class's version of a racial (same name as the race's racial) counts as that racial,
+    -- so its switch on the Racials tab covers it.
+    if not byID[id]and m.race then local r=ns.PartyRacialAlias(id,m.race);if r then ALIAS[id]=r;m.face=m.face or{};m.face[r]=id;id=r end end
     m.seen=(m.seen or 0)+1
     local info=byID[id]
     -- Not in the list (a follower's spell, a new talent...): any spell the game gives a cooldown of
@@ -1654,7 +1667,8 @@ for id,debuffs in pairs({[119381]={119381},[179057]={179057},[30283]={30283},[19
     [221562]={221562,108194},[49576]={51399},[211881]={211881},[5211]={5211},[102359]={102359},[360806]={360806},[358385]={355689},
     [187650]={3355},[157980]={157980},[157981]={157981},[31661]={31661},[113724]={82691},[115078]={115078},[204263]={204263},
     [408]={408},[1776]={1776},[51490]={51490},[51514]={51514,210873,211004,211010,211015,269352,277778,277784,309328},
-    [6789]={6789},[5484]={5484},[107570]={132169}})do BUFFS[id]={ENEMY,unpack(debuffs)}end
+    [6789]={6789},[5484]={5484},[107570]={132169},
+    [20549]={20549},[287712]={287712},[255654]={255723},[368970]={368970},[107079]={107079}})do BUFFS[id]={ENEMY,unpack(debuffs)}end
 BUFFS[POTION]={SELF,unpack(POTIONS)}
 local LAG={[192058]=2,[207684]=2,[202138]=2}
 local PLATES=40
@@ -2429,7 +2443,8 @@ function ns.PartyCooldownDrawRacials(parent)
     for _,id in ipairs(ids)do
         local row=W.Panel(list,0,y,656,36,C.raised,C.clear,6)
         W.Icon(row,id,6,4,28)
-        W.Toggle(row,SpellName(id),ns.PartyCooldownTracked(id),42,4,400,function(v)ns.SetPartyCooldownTracked(id,v);ns.RefreshPartyCooldowns();kit.refresh()end,"pcd-spell:"..id)
+        W.Toggle(row,SpellName(id),ns.PartyCooldownTracked(id),42,4,360,function(v)ns.SetPartyCooldownTracked(id,v);ns.RefreshPartyCooldowns();kit.refresh()end,"pcd-spell:"..id)
+        local k=KIND[id];if k=="stun"or k=="cc"then W.Label(row,k=="stun"and L("Stuns")or L("Crowd control"),412,12,84,11,C.muted):SetWordWrap(false)end
         W.Label(row,math.floor(BaseCooldown(id)+0.5).." s",500,12,50,11,C.soft)
         y=y+40
     end;list:SetHeight(math.max(1,y))

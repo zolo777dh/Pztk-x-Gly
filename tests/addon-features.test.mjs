@@ -754,6 +754,9 @@ local priest=ns.PartyCooldownList(m.Friend);for _,id in ipairs(priest)do assert(
 local rogue=ns.PartyCooldownList(m.Rogue);local blades=false;for _,id in ipairs(rogue)do if id==121471 then blades=true end;assert(id~=13750)end;assert(blades)
 -- The game's base cooldown, then the table.
 assert(ns.PartyCooldownCast('party2',31224));assert(math.abs(ns.PartyCooldownLeft(m.Rogue,31224)-120)<0.01)
+-- Another class's Gift of the Naaru is the racial: its switch covers it.
+do local race,seen=m.Rogue.race,m.Rogue.seen;m.Rogue.race='Draenei';local r1=ns.PartyCooldownCast('party2',59544);if not r1 then error('cast refused')end;if not m.Rogue.used[28880] then error('not used')end
+ns.SetPartyCooldownTracked(28880,false);if ns.PartyCooldownCast('party2',59544)then error('still on')end;ns.SetPartyCooldownTracked(28880,true);m.Rogue.used[28880]=nil;m.Rogue.race=race;m.Rogue.seen=seen end
 env.advance(30);assert(math.abs(ns.PartyCooldownLeft(m.Rogue,31224)-90)<0.01)
 -- Another class's spell from that unit does not count; a hidden spell is counted, not guessed.
 assert(not ns.PartyCooldownCast('party2',33206))
@@ -908,6 +911,8 @@ wm.race='Human';assert(not has(wm,58984),'Shadowmeld only for night elves')
 assert(has(wm,59752),'Will to Survive for humans');cfg.racials=false;ns.PartyCooldownListDirty();assert(not has(wm,59752),'racials off');cfg.racials=true;ns.PartyCooldownListDirty()
 ns.SetPartyCooldownTracked(59752,false);assert(not has(wm,59752),'one racial off');ns.SetPartyCooldownTracked(59752,true);assert(has(wm,59752))
 assert(has({class='PALADIN',spec=65,used={},talented={},race='Dwarf'},20594),'Stoneform for dwarves')
+do local tm={class='WARRIOR',spec=73,used={},talented={},race='Tauren'};local function in_(k,id)for _,x in ipairs(ns.PartyCooldownList(tm,k))do if x==id then return true end end end
+assert(in_('stun',20549)and not in_('defensive',20549)and ns.PartyCooldownKind(107079)=='cc','War Stomp in the stun list, not the main one')end
 -- Missing crowd control is listed by kind; Everything off/on covers every class, spec and race.
 assert(ns.PartyCooldownKind(408)=='stun'and ns.PartyCooldownKind(115078)=='cc'and ns.PartyCooldownKind(157980)=='cc'and ns.PartyCooldownKind(360806)=='cc','new crowd control kinds')
 assert(ns.PartyCooldownBuffs[408]and ns.PartyCooldownBuffs[408][1]==3,'Kidney Shot sensed on enemies')
