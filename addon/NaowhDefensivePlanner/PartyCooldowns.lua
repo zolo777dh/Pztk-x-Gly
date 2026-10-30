@@ -310,17 +310,19 @@ function ns.ApplyPartyCooldownPreset(kind,add,class,spec)
     ns.PartyCooldownListDirty()
     local cfg=ns.PartyCooldownConfig()
     local function match(id,info)return(kind=="racial"and info.race~=nil)or(kind~="racial"and ns.PartyCooldownType(id)==kind)end
+    -- Movement and potions have no preset of their own and keep their switches.
+    local function kept(id,info)local t=ns.PartyCooldownType(id);return(t=="move"or t=="potion")and not info.race end
     if class and spec and kind~="racial"then
         for _,id in ipairs(ns.PartyCooldownSpecSpells(class,spec))do
-            local on=match(id,byID[id]or{});if on or not add then ns.SetPartyCooldownTracked(id,on,spec)end
+            local on=match(id,byID[id]or{});if on or not(add or kept(id,byID[id]or{}))then ns.SetPartyCooldownTracked(id,on,spec)end
         end
     elseif add then
         for id,info in pairs(byID)do if match(id,info)then
             cfg.disabled[id]=nil;for _,off in pairs(cfg.specOff)do if type(off)=="table"then off[id]=nil end end
         end end
     else
-        for k in pairs(cfg.disabled)do cfg.disabled[k]=nil end;for k in pairs(cfg.specOff)do cfg.specOff[k]=nil end
-        for id,info in pairs(byID)do if not match(id,info)then cfg.disabled[id]=true end end
+        for id,info in pairs(byID)do if not kept(id,info)then cfg.disabled[id]=nil;for _,off in pairs(cfg.specOff)do if type(off)=="table"then off[id]=nil end end end end
+        for id,info in pairs(byID)do if not match(id,info)and not kept(id,info)then cfg.disabled[id]=true end end
     end
     if kind=="racial"then cfg.racials=true end
     -- The list of that type is switched on too.
@@ -1871,7 +1873,9 @@ local function DressHidden(icon,t)
     parts.step,parts.jump,parts.sig=step,jump,sig
     parts.win:ClearAllPoints()
     if icon.textOnly then parts.win:SetPoint(icon.textAt or"RIGHT",icon,icon.textAt or"RIGHT",icon.textAt=="LEFT"and 4 or-4,0)else parts.win:SetPoint("CENTER",icon,"CENTER",0,0)end
-    parts.win:SetSize(size+6,math.min(step,ts+1))
+    -- The window shows only the middle of one line: the lines above and below are a whole step
+    -- away, so no edge of theirs shows behind the running second, whatever the font.
+    parts.win:SetSize(size+6,math.min(step,ts+1)*0.72);parts.crop=math.min(step,ts+1)*0.14
     pcall(parts.win.SetFrameLevel,parts.win,(icon:GetFrameLevel()or 0)+6)
     for k=1,2 do local p=parts[k]
         p.fill:SetFrameLevel((icon:GetFrameLevel()or 0)+3);p.veil:SetFrameLevel((icon:GetFrameLevel()or 0)+2)
@@ -1915,7 +1919,7 @@ local function SlideHidden()
                 -- Whole seconds: the column moves once per second.
                 if p.second~=second or p.epoch~=sl.wepoch then
                     p.second,p.epoch=second,sl.wepoch
-                    p.pos:ClearAllPoints();p.pos:SetPoint("BOTTOM",parts.win,"BOTTOM",0,-(second-sl.wepoch)*parts.step)
+                    p.pos:ClearAllPoints();p.pos:SetPoint("BOTTOM",parts.win,"BOTTOM",0,-(second-sl.wepoch)*parts.step-(parts.crop or 0))
                 end
             end
         end
@@ -2068,9 +2072,10 @@ function ns.PartyCooldownPlate(unit,added)
     if unit:find("^nameplate")then ns.plateShown[unit]=added or nil end
     local slots=ns.plateSlots
     if added and unit:find("^nameplate")then
-        local have;for k=1,SENSE_PLATES do if slots[k]==unit then have=k end end
+        local count=ns.plateCount or SENSE_PLATES
+        local have;for k=1,count do if slots[k]==unit then have=k end end
         if not have then
-            for k=1,SENSE_PLATES do local t=slots[k]
+            for k=1,count do local t=slots[k]
                 local ok,live=true,false;if t and UnitExists then ok,live=pcall(UnitExists,t)end
                 if not t or not(ok and live==true)then have=k;break end
             end
@@ -2125,18 +2130,22 @@ Rebuild=function(cfg)
         local st={};for id in pairs(stops)do st[#st+1]=id end;table.sort(st)
         -- Slots start on the plates shown now, then on the first free tokens.
         if #st>0 then
+            -- Every crowd control spell costs one container per plate: with many spells in the group,
+            -- fewer plates are watched so the total stays near 200 (25 plates for 8 spells).
+            ns.plateCount=math.max(6,math.min(SENSE_PLATES,math.floor(200/#st)))
             local slots=ns.plateSlots;local used={}
-            for k=1,SENSE_PLATES do local t=slots[k];local ok,live=false,false;if t and UnitExists then ok,live=pcall(UnitExists,t)end
+            for k=ns.plateCount+1,SENSE_PLATES do slots[k]=nil end
+            for k=1,ns.plateCount do local t=slots[k];local ok,live=false,false;if t and UnitExists then ok,live=pcall(UnitExists,t)end
                 if ok and live==true then used[t]=true else slots[k]=nil end end
             local plates=C_NamePlate and C_NamePlate.GetNamePlates and select(2,pcall(C_NamePlate.GetNamePlates))
             for _,pl in ipairs(type(plates)=="table"and plates or{})do local t=pl.namePlateUnitToken
                 if ns.Plain(t,"string")then ns.plateShown[t]=true end
-                if ns.Plain(t,"string")and not used[t]then for k=1,SENSE_PLATES do if not slots[k]then slots[k]=t;used[t]=true;break end end end end
+                if ns.Plain(t,"string")and not used[t]then for k=1,ns.plateCount do if not slots[k]then slots[k]=t;used[t]=true;break end end end end
             local n=1
-            for k=1,SENSE_PLATES do if not slots[k]then while used["nameplate"..n]do n=n+1 end;slots[k]="nameplate"..n;used[slots[k]]=true end end
+            for k=1,ns.plateCount do if not slots[k]then while used["nameplate"..n]do n=n+1 end;slots[k]="nameplate"..n;used[slots[k]]=true end end
         end
         for _,id in ipairs(st)do
-            for i=1,SENSE_PLATES do want[#want+1]={unit=ns.plateSlots[i],slot=i,spell=id,buff=stops[id],kind=ENEMY,owner=stopOwners[id]or nil,filter="HARMFUL"}end
+            for i=1,ns.plateCount do want[#want+1]={unit=ns.plateSlots[i],slot=i,spell=id,buff=stops[id],kind=ENEMY,owner=stopOwners[id]or nil,filter="HARMFUL"}end
         end
     end
     -- The same sensors as now: nothing is torn down (a rebuild makes every container read again).

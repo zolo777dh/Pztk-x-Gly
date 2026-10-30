@@ -875,7 +875,7 @@ local got={};p.fill.SetMinMaxValues=function(_,a,b)got.lo,got.hi=a,b end;p.fill.
 p.pos.SetPoint=function(_,_,_,_,_,y)got.y=y end;p.pos.SetValue=function(_,v)got.posv=v end
 ns.PartyCooldownSlideHidden()
 local fill=(got.v-got.lo)/(got.hi-got.lo);assert(fill>0.7 and fill<0.9,'dark part shows the time left '..fill)
-local sl=t.slot[t.cur];local left=sl.wepoch+t.window*sl.whole-math.floor(GetTime());local top=got.y+got.posv*t.window*parts.step
+local sl=t.slot[t.cur];local left=sl.wepoch+t.window*sl.whole-math.floor(GetTime());local top=got.y+(parts.crop or 0)+got.posv*t.window*parts.step
 assert(math.abs(top/parts.step-left)<0.01,'column shows '..top/parts.step..' for '..left)
 assert(p.column:GetText():match('^1\\n2\\n'),'column 1, 2, 3 ... from the top')
 ns.PartyCooldownShowHidden(icon,nil);assert(not parts.win:IsShown())
@@ -922,6 +922,7 @@ ns.SetAllPartyCooldowns(true);assert(has(wm,23920)and has(wm,59752),'everything 
 -- Presets: only one type on everywhere.
 ns.ApplyPartyCooldownPreset('burst');assert(has({class='WARRIOR',spec=72,used={},talented={},me=false},184364)==false and ns.PartyCooldownTracked(1719)and not ns.PartyCooldownTracked(23920)and ns.PartyCooldownTracked(26297)and not ns.PartyCooldownTracked(408),'only bursts')
 ns.ApplyPartyCooldownPreset('defensive');assert(ns.PartyCooldownTracked(23920)and not ns.PartyCooldownTracked(1719),'only defensives')
+assert(ns.PartyCooldownTracked(ns.PartyCooldownPotion)and ns.PartyCooldownTracked(106898),'presets keep potions and movement')
 ns.ApplyPartyCooldownPreset('cc');assert(ns.PartyCooldownTracked(408)and ns.PartyCooldownTracked(115078)and not ns.PartyCooldownTracked(6552)and not ns.PartyCooldownTracked(23920),'only crowd control')
 ns.ApplyPartyCooldownPreset('racial');assert(ns.PartyCooldownTracked(59752)and not ns.PartyCooldownTracked(23920)and cfg.racials,'only racials')
 ns.SetAllPartyCooldowns(false);ns.ApplyPartyCooldownPreset('burst',false,'WARRIOR',72);assert(ns.PartyCooldownTracked(1719,72)and not ns.PartyCooldownTracked(184364,72)and not ns.PartyCooldownTracked(31884,70),'bursts of one spec')
@@ -1133,7 +1134,7 @@ assert(ns.PartyCooldownKickStats().unsure>=1)
 -- Crowd control: Blind's debuff on any enemy nameplate starts the rogue's Blind.
 ns.RebuildPartyCooldownSensors();env.advance(1);ns.PartyCooldownPollSensors()
 local list=ns.PartyCooldownSensors();local plates=0
-for _,x in ipairs(list)do if x.spell==2094 and x.unit:match('^nameplate')then plates=plates+1 end end;assert(plates==25,plates)
+for _,x in ipairs(list)do if x.spell==2094 and x.unit:match('^nameplate')then plates=plates+1 end end;assert(plates==ns.plateCount and plates>=6 and plates<=25,plates);local enemy=0;for _,x in ipairs(list)do if x.slot then enemy=enemy+1 end end;assert(enemy<=200,'about 200 crowd control containers at most '..enemy)
 ns.PartyCooldownPlate('nameplate7',true);ns.PartyCooldownPlate('nameplate8',true);env.advance(1)
 for _,x in ipairs(list)do if x.spell==2094 and x.unit=='nameplate7'then x.frame.IsMouseOver=function()return true end end end
 ns.PartyCooldownAura('nameplate7');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,2094)>100,'Blind by its debuff')
