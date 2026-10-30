@@ -2011,6 +2011,18 @@ end
 local auraAt={}
 local function PollSensors(only)
     local now,redraw=GetTime(),false
+    -- Sensors are built out of combat, but lists change in it (talents read, a member joins): who
+    -- can cast a group buff or crowd control is counted again when they do. Two possible casters
+    -- leave it open, so one member's cast never also starts the other's timer.
+    if ns.ownersVersion~=ns.partyListVersion then ns.ownersVersion=ns.partyListVersion
+        local owners={}
+        for _,name in ipairs(order)do local m=members[name]
+            for _,id in ipairs(m and ns.PartyCooldownList(m)or{})do local b=BUFFS[id]
+                if b and(b[1]==EXTERNAL or b[1]==ENEMY)then if owners[id]==nil then owners[id]=m else owners[id]=false end end
+            end
+        end
+        for _,x in ipairs(sensors)do if x.kind==EXTERNAL or x.kind==ENEMY then x.owner=owners[x.spell]or nil end end
+    end
     -- Plate slots whose plate is not on screen are not read: more slots cost nothing while idle.
     local shown=ns.plateShown
     for _,s in ipairs(sensors)do if(not only or only[s.unit])and not(s.slot and not shown[s.unit])then
