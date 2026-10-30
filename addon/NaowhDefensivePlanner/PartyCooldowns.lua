@@ -155,8 +155,14 @@ for _,sp in pairs(SPEND)do WANTED[sp.talent]=true end
 -- Regeneration, Feint.
 ns.PartyCooldownChargeTalents={[235450]=321745,[235313]=321708,[11426]=1244069,[198589]=1266307,[194223]=468743,[22842]=377811,[1966]=423647}
 for _,t in pairs(ns.PartyCooldownChargeTalents)do WANTED[t]=true end
+-- Charges most players of a spec have (the common build): used until talents are read, and for
+-- Guardian Survival Instincts always. A read talent tree decides for the spells above.
+ns.PartyCooldownLikelyCharges={[577]={[198589]=2},[1480]={[198589]=2},[102]={[194223]=2},[104]={[22842]=2,[61336]=2},
+    [62]={[235450]=2},[63]={[235313]=2},[64]={[11426]=2},[259]={[1966]=2},[260]={[1966]=2},[261]={[1966]=2}}
 function ns.PartyChargeTalent(m,id)
-    local t=ns.PartyCooldownChargeTalents[id];if t and m.ranks and(m.ranks[t]or 0)>0 then return 2 end
+    local t=ns.PartyCooldownChargeTalents[id]
+    if t and m.ranks then return(m.ranks[t]or 0)>0 and 2 or nil end
+    local likely=m.spec and ns.PartyCooldownLikelyCharges[m.spec];return likely and likely[id]or nil
 end
 -- Other spell IDs the game uses for a tracked spell (a talent or hero version of it).
 local ALIAS={[1236994]=POTION,[1236998]=POTION,[1239479]=POTION,[1295132]=POTION,[77761]=106898,[77764]=106898,[110959]=66,[204018]=1022,[231895]=31884,[216331]=31884,[389539]=31884,[442204]=403631,
@@ -1381,7 +1387,7 @@ local function FillIcons(row,m,ids,size,cfg)
             -- A timer with its own numbers (yours, a seen start, a recharging charge) never also shows
             -- the hidden one: its moving bar and column would run across those numbers.
             local plain=(own and own~=true)or(left>0 and start)or recharge
-            icon:Show();ShowHidden(icon,not plain and hidden or nil)
+            icon:Show();ShowHidden(icon,not plain and hidden or nil,not m.me and MaxCharges(m,id)>1)
         end
     end
     for i=n+1,#row.icons do row.icons[i]:Hide();ShowHidden(row.icons[i],nil)end
@@ -1793,7 +1799,9 @@ local function Fine()
     return fine
 end
 ns.PartyCooldownFine=function()fine=nil;return Fine()end
-local function NewSlot(now)return{epoch=Fine()and now or math.floor(now),code=0,wepoch=math.floor(now),whole=0}end
+-- `prev` is the use before the last one in this slot: a spell with two charges is out of charges
+-- while that one is still running.
+local function NewSlot(now)return{epoch=Fine()and now or math.floor(now),code=0,prev=0,wepoch=math.floor(now),whole=0}end
 local function MoveSlot(sl,sec)sl.epoch=sl.epoch+sec;sl.wepoch=sl.wepoch+sec end
 ns.PartyCooldownMoveSlot=MoveSlot
 local HiddenTrack
@@ -1826,9 +1834,10 @@ local function HiddenEdge(m,id,cur,prev,now,at)
     local sl=t.slot[t.cur];at=at or now
     local whole=math.min(255,math.floor((at-sl.wepoch+t.cd)/t.unit+0.5))/255
     local code=Fine()and math.min(1,(at-sl.epoch+t.cd)/t.window)or whole
-    local ok,v,w=pcall(function()return eval(cur,eval(prev,sl.code,code),sl.code),eval(cur,eval(prev,sl.whole,whole),sl.whole)end)
+    local ok,v,w,before=pcall(function()return eval(cur,eval(prev,sl.code,code),sl.code),eval(cur,eval(prev,sl.whole,whole),sl.whole),
+        eval(cur,eval(prev,sl.prev or 0,sl.code),sl.prev or 0)end)
     if not ok then sensorState.refused=(sensorState.refused or 0)+1;return false end
-    sl.code,sl.whole=v,w;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
+    sl.code,sl.whole,sl.prev=v,w,before;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
     local created=t.created;t.created=nil
     return true,created
 end
@@ -1903,8 +1912,18 @@ local function HiddenParts(icon)
         p.viewport=CreateFrame("Frame",nil,p.veil);pcall(p.viewport.SetClipsChildren,p.viewport,true)
         p.text=CreateFrame("Frame",nil,p.viewport)
         p.column=p.text:CreateFontString(nil,"OVERLAY");p.column:SetJustifyH("CENTER")
+        -- Two charges: grey while the use before the last one still runs (both charges spent).
+        p.gate2=Bar(hiddenLayer,0,0,0,0)
+        p.veil2=CreateFrame("Frame",nil,icon);pcall(p.veil2.SetClipsChildren,p.veil2,true)
+        p.grey2=p.veil2:CreateTexture(nil,"ARTWORK");p.grey2:SetAllPoints(icon);p.grey2:SetTexCoord(0.07,0.93,0.07,0.93)
+        pcall(p.grey2.SetDesaturated,p.grey2,true);p.grey2:SetVertexColor(0.55,0.55,0.55)
         parts[k]=p
     end
+    -- One use in each slot, both running: the cover of one slot clipped by the other's.
+    parts.nestA=CreateFrame("Frame",nil,icon);pcall(parts.nestA.SetClipsChildren,parts.nestA,true)
+    parts.nestB=CreateFrame("Frame",nil,parts.nestA);pcall(parts.nestB.SetClipsChildren,parts.nestB,true)
+    parts.nestGrey=parts.nestB:CreateTexture(nil,"ARTWORK");parts.nestGrey:SetAllPoints(icon);parts.nestGrey:SetTexCoord(0.07,0.93,0.07,0.93)
+    pcall(parts.nestGrey.SetDesaturated,parts.nestGrey,true);parts.nestGrey:SetVertexColor(0.55,0.55,0.55)
     icon.hidden=parts;return parts
 end
 -- Lays the parts out for this icon size and cooldown; once per change.
@@ -1930,6 +1949,13 @@ local function DressHidden(icon,t)
         p.gate:SetSize(1,t.window*jump);pcall(p.gate.SetMinMaxValues,p.gate,0,1)
         local edge=p.gate.GetStatusBarTexture and p.gate:GetStatusBarTexture()or p.gate
         p.veil:ClearAllPoints();p.veil:SetPoint("TOP",edge,"TOP",0,0);p.veil:SetPoint("BOTTOM",edge,"TOP",0,-(t.cd+1)*jump);p.veil:SetWidth(width)
+        p.gate2:SetSize(1,t.window*jump);pcall(p.gate2.SetMinMaxValues,p.gate2,0,1)
+        local edge2=p.gate2.GetStatusBarTexture and p.gate2:GetStatusBarTexture()or p.gate2
+        p.veil2:ClearAllPoints();p.veil2:SetPoint("TOP",edge2,"TOP",0,0);p.veil2:SetPoint("BOTTOM",edge2,"TOP",0,-(t.cd+1)*jump);p.veil2:SetWidth(width)
+        p.veil2:SetFrameLevel((icon:GetFrameLevel()or 0)+2)
+        local nest=k==1 and parts.nestA or parts.nestB
+        nest:ClearAllPoints();nest:SetPoint("TOP",edge,"TOP",0,0);nest:SetPoint("BOTTOM",edge,"TOP",0,-(t.cd+1)*jump);nest:SetWidth(width)
+        nest:SetFrameLevel((icon:GetFrameLevel()or 0)+2)
         if p.hgate then
             parts.k=width/t.cd;p.hgate:SetSize(t.window*parts.k,1);pcall(p.hgate.SetMinMaxValues,p.hgate,0,1)
             local hedge=p.hgate.GetStatusBarTexture and p.hgate:GetStatusBarTexture()or p.hgate
@@ -1959,6 +1985,7 @@ local function SlideHidden()
                 pcall(p.pos.SetValue,p.pos,sl.whole);pcall(p.gate.SetValue,p.gate,sl.code)
                 -- The grey cover follows the clock every frame, so it leaves the icon on time.
                 p.gate:ClearAllPoints();p.gate:SetPoint("BOTTOM",icon,"BOTTOM",0,-(now-sl.epoch)*parts.jump)
+                if parts.charged then pcall(p.gate2.SetValue,p.gate2,sl.prev or 0);p.gate2:ClearAllPoints();p.gate2:SetPoint("BOTTOM",icon,"BOTTOM",0,-(now-sl.epoch)*parts.jump)end
                 if p.hgate then
                     pcall(p.hgate.SetValue,p.hgate,sl.code)
                     p.hgate:ClearAllPoints();p.hgate:SetPoint("RIGHT",icon,"RIGHT",(now-sl.epoch)*parts.k,0)
@@ -1973,19 +2000,30 @@ local function SlideHidden()
     end
 end
 ns.PartyCooldownSlideHidden=SlideHidden
-function ShowHidden(icon,t)
+local function Charged(parts,on,tex)
+    parts.charged=on or nil
+    for k=1,2 do local p=parts[k];p.veil2:SetShown(on);p.gate2:SetShown(on);if on then p.grey2:SetTexture(tex)end end
+    parts.nestA:SetShown(on);if on then parts.nestGrey:SetTexture(tex)end
+end
+function ShowHidden(icon,t,charged)
     icon.track=t
     local parts=icon.hidden
     if not t then
-        if parts then parts.win:Hide();for k=1,2 do parts[k].fill:Hide();parts[k].veil:Hide();parts[k].pos:Hide();parts[k].gate:Hide();if parts[k].hveil then parts[k].hveil:Hide()end end end
+        if parts then parts.win:Hide();for k=1,2 do parts[k].fill:Hide();parts[k].veil:Hide();parts[k].pos:Hide();parts[k].gate:Hide();if parts[k].hveil then parts[k].hveil:Hide()end end;Charged(parts,false)end
         shownHidden[icon]=nil;return
     end
     parts=DressHidden(icon,t)
     local tex=icon.spellID and W.SpellTexture(icon.spellID)
-    -- On a bar only the seconds show: no dark fill and no grey copy of an icon.
-    parts.win:Show();for k=1,2 do
-        if icon.textOnly then parts[k].grey:Hide();parts[k].fill:Hide();parts[k].hveil:Show()else parts[k].grey:SetTexture(tex);parts[k].grey:Show();parts[k].fill:Show()end
+    charged=charged and not icon.textOnly or false
+    -- On a bar only the seconds show: no dark fill and no grey copy of an icon. With two charges
+    -- the icon greys only when both are spent; which use comes back first is not known, so no
+    -- seconds and no dark fill are drawn then.
+    parts.win:SetShown(not charged);for k=1,2 do
+        if icon.textOnly then parts[k].grey:Hide();parts[k].fill:Hide();parts[k].hveil:Show()
+        elseif charged then parts[k].grey:Hide();parts[k].fill:Hide()
+        else parts[k].grey:SetTexture(tex);parts[k].grey:Show();parts[k].fill:Show()end
         parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
+    Charged(parts,charged,tex)
     shownHidden[icon]=t
 end
 ns.PartyCooldownShowHidden=ShowHidden

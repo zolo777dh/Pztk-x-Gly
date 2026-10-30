@@ -1362,6 +1362,10 @@ env.advance(121);av=ns.PartyCooldownCharges(pr,10060);assert(av==2)
 -- Without the addon, a read talent gives the second charge (Fire mage Blazing Barrier).
 do local fm={class='MAGE',spec=63,ranks={[321708]=1}};assert(select(2,ns.PartyCooldownCharges(fm,235313))==2,'two barrier charges from the talent')
 fm.ranks={};assert(select(2,ns.PartyCooldownCharges(fm,235313))~=2,'one without it')end
+-- Not read yet: the common build of the spec gives two (Guardian Frenzied Regeneration, Blur).
+do local gd={class='DRUID',spec=104};assert(select(2,ns.PartyCooldownCharges(gd,22842))==2,'guardian default')
+local dh={class='DEMONHUNTER',spec=577};assert(select(2,ns.PartyCooldownCharges(dh,198589))==2,'blur default')
+dh.ranks={};assert(select(2,ns.PartyCooldownCharges(dh,198589))~=2,'read without the talent')end
 -- Your own charges come from the game and go out with your list.
 C_Spell.GetSpellCharges=function(id)if id==22812 then return{currentCharges=1,maxCharges=2,cooldownStartTime=GetTime(),cooldownDuration=60}end end
 local cur,max2,rs=ns.PartyCooldownCharges(m['Tester-Home'],22812);assert(cur==1 and max2==2 and rs)
