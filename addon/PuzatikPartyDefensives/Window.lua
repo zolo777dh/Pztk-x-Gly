@@ -42,6 +42,7 @@ Refresh=function()
     W.Finish();notify(state.message or"",state.error)
 end
 ns.UIKit={state=state,notify=notify,done=done,header=header,classColor=classColor,refresh=function()Refresh()end}
+function ns.PartyCooldownWindowFrame()return window end
 function ns.OpenPartyCooldownWindow()
     if not window then
         window=W.Panel(UIParent,0,0,WIDTH,HEIGHT,C.background,C.line,10);window:ClearAllPoints();window:SetPoint("CENTER");window:SetFrameStrata("DIALOG")

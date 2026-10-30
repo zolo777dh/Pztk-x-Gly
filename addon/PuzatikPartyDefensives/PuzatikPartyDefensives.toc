@@ -8,6 +8,7 @@
 ## IconTexture: Interface\AddOns\PuzatikPartyDefensives\Media\Icon
 ## Version: 0.10.15
 ## SavedVariables: PuzatikPartyDefensivesDB
+## AddonCompartmentFunc: PuzatikPartyDefensives_Compartment
 Core.lua
 Locale.lua
 Comms.lua
@@ -17,3 +18,4 @@ PartyCooldowns.lua
 PartyExtras.lua
 PartyProfile.lua
 Slash.lua
+Minimap.lua
