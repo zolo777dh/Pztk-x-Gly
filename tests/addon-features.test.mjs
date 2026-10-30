@@ -770,6 +770,10 @@ ns.CommHandlers.PCD('256;33206=150','Stranger');assert(not m.Stranger,'only grou
 local list=ns.PartyCooldownList(m.Friend);assert(#list==5 and list[1]==10060 and list[4]==1234567 and list[5]==ns.PartyCooldownPotion,#list)
 assert(ns.PartyCooldownCast('party1',33206));assert(math.abs(ns.PartyCooldownLeft(m.Friend,33206)-150)<0.01)
 env.advance(151);assert(ns.PartyCooldownLeft(m.Friend,33206)==0)
+-- Trace: every start is written with its source, hidden casts as hidden.
+ns.PartyTraceSet(true);ns.PartyCooldownCast('party1',33206);local tr=ns.Store().partyTrace.lines;local found=false
+for _,l in ipairs(tr)do if l:find('start',1,true)and l:find('33206',1,true)and l:find('cast',1,true)then found=true end end;assert(found,'start traced')
+ns.PartyTraceSet('clear');ns.PartyTraceSet(false);assert(#ns.Store().partyTrace.lines==0);m.Friend.used={}
 -- Own cooldown learned from the cast and sent out of combat.
 C_Spell.GetSpellCooldown=function(id)return{startTime=env.time,duration=id==22812 and 45 or 0}end
 assert(ns.PartyCooldownCast('player',22812));assert(cfg.learned['104'][22812]==45)

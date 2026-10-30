@@ -407,6 +407,31 @@ local Dropped -- a class spell the member's own list no longer has; defined with
 -- for 2 seconds at most, so redraws make no new tables.
 ns.partyListCache=setmetatable({},{__mode="k"});ns.partyListVersion=0
 function ns.PartyCooldownListDirty()ns.partyListVersion=ns.partyListVersion+1 end
+-- Trace (/pcd trace on): what the addon sees and decides, line by line, kept in the saved
+-- variables so a whole key can be read afterwards. Only plain values are written; what the game
+-- hides is written as "hidden". At most 20000 lines (the oldest go first).
+function ns.PartyTraceOn()local t=ns.Store().partyTrace;return t and t.on==true end
+function ns.PartyTrace(...)
+    local t=ns.Store().partyTrace;if not(t and t.on)then return end
+    local parts={}
+    for i=1,select("#",...)do local v=select(i,...);parts[#parts+1]=(type(v)=="string"or type(v)=="number"or type(v)=="boolean"or v==nil)and ns.Plain(v)~=false and tostring(v)or"hidden"end
+    t.lines=t.lines or{}
+    local clock=date and date("%H:%M:%S")or"";t.lines[#t.lines+1]=clock.." "..string.format("%.1f",GetTime()).." "..table.concat(parts," ")
+    if #t.lines>20000 then table.remove(t.lines,1)end
+end
+function ns.PartyTraceSet(on)
+    local store=ns.Store();store.partyTrace=store.partyTrace or{lines={}}
+    if on=="clear"then store.partyTrace.lines={};return true end
+    store.partyTrace.on=on==true
+    if on then ns.PartyTraceGroup("trace on")end
+    return true
+end
+-- The group as the addon knows it: one line per member.
+function ns.PartyTraceGroup(why)
+    if not ns.PartyTraceOn()then return end
+    ns.PartyTrace("==",why,"version",ns.version,"zone",GetInstanceInfo and select(1,GetInstanceInfo())or"?","key",C_ChallengeMode and C_ChallengeMode.GetActiveKeystoneInfo and select(1,C_ChallengeMode.GetActiveKeystoneInfo())or"-")
+    for _,line in ipairs(ns.PartyCooldownReport and ns.PartyCooldownReport()or{})do ns.PartyTrace("  ",line)end
+end
 function ns.PartyCooldownList(member,kind)
     local now=GetTime();local byKind=ns.partyListCache[member]
     if not byKind then byKind={};ns.partyListCache[member]=byKind end
@@ -659,6 +684,7 @@ function ns.PartyCooldownCharges(m,id)
 end
 local function Started(m,id,at,how,mark)
     ns.PartyCooldownListDirty()
+    if ns.PartyTraceOn()then ns.PartyTrace("start",m.name,id,how,"len",ns.PartyCooldownLength(m,id),"exact",ns.PartyCooldownExact and ns.PartyCooldownExact(m,id))end
     -- A spell with charges spends one; its timer runs only when none is left.
     local max=not m.me and MaxCharges(m,id)or 1
     if max>1 then
@@ -987,7 +1013,7 @@ function ns.PartyCooldownCast(unit,id)
         local ok,same=pcall(UnitIsUnit,unit,x.unit);if ok and same==true then m=x end
     end end
     if not m then return false end
-    if not ns.Plain(id,"number")then m.hidden=(m.hidden or 0)+1;if m.me then m.hiddenCast=true end;return false end
+    if not ns.Plain(id,"number")then m.hidden=(m.hidden or 0)+1;if m.me then m.hiddenCast=true end;ns.PartyTrace("cast",m.name,unit,"hidden spell");return false end
     if ALIAS[id]then m.face=m.face or{};m.face[ALIAS[id]]=id;id=ALIAS[id]elseif m.face then m.face[id]=nil end
     -- Another class's version of a racial (same name as the race's racial) counts as that racial,
     -- so its switch on the Racials tab covers it.
@@ -997,7 +1023,9 @@ function ns.PartyCooldownCast(unit,id)
     -- Not in the list (a follower's spell, a new talent...): any spell the game gives a cooldown of
     -- a minute or more is tracked from now on for that class.
     if not info and ns.PartyCooldownConfig().detect and BaseCooldown(id)>=60 then info=Register(id,m.class,700+id%100);info.detected=true end
-    if not info or not ns.PartyCooldownTracked(id,m.spec)or(info.class and m.class and info.class~=m.class and not(info.sent or info.detected))or(info.race and m.race~=info.race)then return false end
+    if not info or not ns.PartyCooldownTracked(id,m.spec)or(info.class and m.class and info.class~=m.class and not(info.sent or info.detected))or(info.race and m.race~=info.race)then
+        if info then ns.PartyTrace("cast skipped",m.name,unit,id,not ns.PartyCooldownTracked(id,m.spec)and"off"or"other class or race")end
+        return false end
     -- One cast arrives once per unit that shows it.
     if m.used[id]and GetTime()-m.used[id]<1 then return true end
     Started(m,id,GetTime(),"cast",KIND[id]=="kick"and MarkOf((m.me and"target")or(unit.."target"))or nil)
@@ -2049,7 +2077,7 @@ local function PollSensors(only)
                     else Sensed(m,s.spell,at)end
                 end
             elseif m and ns.PartyCooldownTracked(s.spell,m.spec)then
-                local _,created=HiddenEdge(m,s.spell,v,s.prev,now,at);if created then redraw=true end
+                local _,created=HiddenEdge(m,s.spell,v,s.prev,now,at);if created then redraw=true;ns.PartyTrace("hidden timer",m.name,s.spell,s.unit)end
             end
             s.prev=v;s.lit=Plain(v)and v
         end
@@ -2093,8 +2121,8 @@ function ns.PartyCooldownPlate(unit,added)
                 local ok,live=true,false;if t and UnitExists then ok,live=pcall(UnitExists,t)end
                 if not t or not(ok and live==true)then have=k;break end
             end
-            if not have then return end
-            slots[have]=unit;sensorUnits[unit]=true
+            if not have then ns.PartyTrace("plate not watched",unit,"all",count,"slots busy");return end
+            slots[have]=unit;sensorUnits[unit]=true;ns.PartyTrace("plate",unit,"slot",have)
             -- Counted for the report: whether the game lets a container change its unit in combat.
             local fighting=InCombatLockdown and InCombatLockdown()==true
             for _,x in ipairs(sensors)do if x.slot==have then x.unit=unit
@@ -2191,6 +2219,8 @@ Rebuild=function(cfg)
         s.frame=c;s.prev=SensorRead(c);s.lit=Plain(s.prev)and s.prev;s.hold=GetTime()+0.6;made[#made+1]=s
     end
     sensors=made;if #made==#want then sensorSig=sig end
+    if ns.PartyTraceOn()then local open=0;for _,x in ipairs(made)do if(x.kind==EXTERNAL or x.kind==ENEMY)and not x.owner then open=open+1 end end
+        ns.PartyTrace("sensors",#made,"plates",ns.plateCount,"shared without one caster",open)end
     return #sensors
 end
 
@@ -2247,7 +2277,7 @@ local function KickOf(m)
     for _,id in ipairs(ns.PartyCooldownList(m))do if KIND[id]=="kick"then return id end end
 end
 local function Kicked(m,at,how,unit)
-    lastKickAt=GetTime()
+    lastKickAt=GetTime();ns.PartyTrace("kick",m and m.name,how,unit)
     if not m or m.me then return false end
     local id=KickOf(m);if not id then return false end
     -- The meter and the enemy's event can both report the same interrupt.
@@ -2338,7 +2368,7 @@ function ns.PartyCooldownInterrupted(unit,by)
             local id=not m.me and KickOf(m)
             if id and ns.PartyCooldownLeft(m,id)<=0 then if only then kickState.unsure=kickState.unsure+1;return end;only=m end
         end
-        if only then Kicked(only,now,"ready",unit)else kickState.unsure=kickState.unsure+1 end
+        if only then Kicked(only,now,"ready",unit)else kickState.unsure=kickState.unsure+1;ns.PartyTrace("kick unknown",unit)end
     end
     -- The meter usually reports the same interrupt a moment later.
     if C_Timer and C_Timer.After then C_Timer.After(0.4,decide)else decide()end
@@ -2391,6 +2421,7 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
         -- Your own icons follow the game's cooldowns; one redraw for a burst of updates.
         if not ownDraw and C_Timer and C_Timer.NewTimer then ownDraw=C_Timer.NewTimer(0.5,function()ownDraw=nil;ns.DrawPartyCooldowns()end)end
     elseif event=="PLAYER_REGEN_ENABLED"then
+        ns.PartyTraceGroup("combat end")
         for _,m in pairs(members)do m.hiddenCast=nil end
         LearnPending()
         -- A hidden timer started in combat at the latest now: it is surely over one length later.
@@ -2398,7 +2429,7 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
         for _,m in pairs(members)do for _,t in pairs(m.hiddenCd or{})do t.over=t.over or GetTime()+t.cd;longest=math.max(longest,t.cd)end end
         if longest>0 then RedrawLater(longest)end
         ns.SharePartyCooldowns();QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()
-    elseif event=="CHALLENGE_MODE_START"then ns.PartyCooldownReset()
+    elseif event=="CHALLENGE_MODE_START"then ns.PartyCooldownReset();ns.PartyTraceGroup("key start")
     elseif event=="ENCOUNTER_END"then
         -- Raid boss cooldowns come back after each encounter.
         if IsInRaid and IsInRaid()then ns.PartyCooldownReset()end

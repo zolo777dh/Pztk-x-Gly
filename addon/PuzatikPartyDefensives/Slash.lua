@@ -16,6 +16,7 @@ local HELP={
     "/pcd ext: ask your healers for an external",
     "/pcd report: what is being tracked, for bug reports",
     "/pcd perf: time the addon spends, for lag reports (perf reset starts over)",
+    "/pcd trace on | off | clear: write what the addon sees to the saved variables (for a whole key)",
 }
 local SIDE={left="LEFT",right="RIGHT",top="TOP",bottom="BOTTOM"}
 SLASH_PUZATIKPARTYDEFENSIVES1="/pcd";SLASH_PUZATIKPARTYDEFENSIVES2="/ppd"
@@ -39,6 +40,11 @@ SlashCmdList.PUZATIKPARTYDEFENSIVES=function(input)
         table.sort(rows,function(a,b)return a[2].ms>b[2].ms end)
         say(L("Time spent since the last reset (ms)")..": "..L("sensors")..": "..ns.PartyCooldownSensorCount())
         for _,r in ipairs(rows)do local p=r[2];print(("  %s: %.1f ms, %d x, %.2f avg, %.1f max, %d KB"):format(r[1],p.ms,p.n,p.ms/math.max(1,p.n),p.max,math.floor(p.kb or 0)))end
+        return
+    elseif cmd=="trace"then
+        if arg=="on"or arg=="off"or arg=="clear"then ns.PartyTraceSet(arg=="clear"and"clear"or arg=="on")end
+        local t=ns.Store().partyTrace
+        say(L("Trace")..": "..L(t and t.on and"on"or"off")..", "..(t and t.lines and #t.lines or 0).." "..L("lines. Saved on /reload or logout in WTF\\Account\\<account>\\SavedVariables\\PuzatikPartyDefensives.lua"))
         return
     elseif cmd==""then ns.OpenPartyCooldownWindow();return
     else for _,line in ipairs(HELP)do say(L(line))end;return end
