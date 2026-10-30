@@ -908,6 +908,12 @@ wm.race='Human';assert(not has(wm,58984),'Shadowmeld only for night elves')
 assert(has(wm,59752),'Will to Survive for humans');cfg.racials=false;ns.PartyCooldownListDirty();assert(not has(wm,59752),'racials off');cfg.racials=true;ns.PartyCooldownListDirty()
 ns.SetPartyCooldownTracked(59752,false);assert(not has(wm,59752),'one racial off');ns.SetPartyCooldownTracked(59752,true);assert(has(wm,59752))
 assert(has({class='PALADIN',spec=65,used={},talented={},race='Dwarf'},20594),'Stoneform for dwarves')
+-- Missing crowd control is listed by kind; Everything off/on covers every class, spec and race.
+assert(ns.PartyCooldownKind(408)=='stun'and ns.PartyCooldownKind(115078)=='cc'and ns.PartyCooldownKind(157980)=='cc'and ns.PartyCooldownKind(360806)=='cc','new crowd control kinds')
+assert(ns.PartyCooldownBuffs[408]and ns.PartyCooldownBuffs[408][1]==3,'Kidney Shot sensed on enemies')
+assert(has({class='MONK',spec=270,used={},talented={}},116844),'Ring of Peace for monks')
+ns.SetPartyCooldownTracked(23920,false,73);ns.SetAllPartyCooldowns(false);assert(not has(wm,23920)and not has(wm,59752)and not has({class='MONK',spec=270,used={},talented={}},115078),'everything off')
+ns.SetAllPartyCooldowns(true);assert(has(wm,23920)and has(wm,59752),'everything on clears spec choices too')
 assert(ns.PartyCooldownDynamic(31884,66)and not ns.PartyCooldownDynamic(31884,70))end
 -- Spending rage in combat cuts Recklessness (Anger Management) when the bar is readable.
 GetSpellBaseCooldown=function(id)return id==1719 and 90000 or 0,0 end
@@ -992,6 +998,15 @@ assert(not ns.PartyProfileImport('hello')and not ns.PartyProfileImport('!PPD1:@@
 cfg.styles.cc={};cfg.size=26
 env.click('pcd-view:profile');env.click('pcd-profile:make');assert(ns.UIControls['pcd-profile:export']:GetText():match('^!PPD1:'),'string on the page')
 ns.UIControls['pcd-profile:import']:SetText(str);env.click('pcd-profile:importButton');assert(cfg.size==36,'imported from the page');cfg.size=26;cfg.styles.cc={}
+-- Own settings per spec: each spec keeps its own, and they change with the spec.
+env.click('pcd-profile:perSpec');assert(cfg.perSpec==true)
+local s1=cfg.profileSpec;cfg.size=40;ns.SetPartyCooldownTracked(23920,false)
+assert(ns.PartyProfileSwitch(s1+100000));assert(cfg.size==40,'a new spec starts from the settings you had')
+cfg.size=22;ns.SetPartyCooldownTracked(23920,true)
+assert(ns.PartyProfileSwitch(s1)and cfg.size==40 and not ns.PartyCooldownTracked(23920),'back to the first spec settings')
+assert(ns.PartyProfileSwitch(s1+100000)and cfg.size==22 and ns.PartyCooldownTracked(23920)and cfg.perSpec,'second spec kept')
+assert(not ns.PartyProfileBase64.decode(ns.PartyProfileExport():sub(7)):find('bySpec',1,true),'per-spec copies stay home')
+env.click('pcd-profile:copySpecs');env.click('pcd-profile:perSpec');assert(not cfg.perSpec);cfg.size=26;ns.SetPartyCooldownTracked(23920,true)
 env.click('pcd-view:anchors')
 env.select('pcd-kick:style','Bars')
 -- Bars take a texture of their own; each list has its own switch for your own spells.

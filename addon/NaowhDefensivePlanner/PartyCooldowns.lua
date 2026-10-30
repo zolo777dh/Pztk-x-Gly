@@ -36,9 +36,11 @@ local KICKS={
     ROGUE={{1766,15}},SHAMAN={{57994,12}},WARLOCK={{19647,24,265,267},{89766,30,266}},WARRIOR={{6552,15},{386071,90,73}},
 }
 local STOPS={
-    DEATHKNIGHT={{207167,60},{108199,90,250}},DEMONHUNTER={{179057,45},{207684,120},{202138,60,581}},
-    DRUID={{99,30},{102793,60},{132469,30}},HUNTER={{109248,45},{19577,60}},MONK={{119381,60}},PALADIN={{853,45},{115750,90}},
-    PRIEST={{8122,40}},ROGUE={{2094,120}},SHAMAN={{192058,60}},WARLOCK={{30283,60}},WARRIOR={{46968,40},{5246,90}},
+    DEATHKNIGHT={{207167,60},{108199,90,250},{221562,45},{49576,25}},DEMONHUNTER={{179057,45},{207684,120},{202138,60,581},{211881,30,577}},
+    DRUID={{99,30},{102793,60},{132469,30},{5211,60},{102359,30}},EVOKER={{360806,15},{358385,90}},HUNTER={{109248,45},{19577,60},{187650,30}},
+    MAGE={{157980,45},{157981,30},{31661,45},{113724,45}},MONK={{119381,60},{115078,45},{116844,45}},PALADIN={{853,45},{115750,90}},
+    PRIEST={{8122,40},{204263,45}},ROGUE={{2094,120},{408,20},{1776,20,260}},SHAMAN={{192058,60},{51490,30},{51514,30}},
+    WARLOCK={{30283,60},{6789,45},{5484,40}},WARRIOR={{46968,40},{5246,90},{107570,30}},
 }
 local KIND={}
 for kind,lists in pairs({kick=KICKS,cc=STOPS})do
@@ -46,7 +48,7 @@ for kind,lists in pairs({kick=KICKS,cc=STOPS})do
 end
 -- Stuns have a list of their own; the other crowd control (fears, disorients, knockbacks, grips)
 -- stays in "cc". Movement cooldowns for the group have one too.
-for _,id in ipairs({119381,179057,30283,192058,46968,109248,853,19577})do KIND[id]="stun"end
+for _,id in ipairs({119381,179057,30283,192058,46968,109248,853,19577,221562,211881,5211,408,107570})do KIND[id]="stun"end
 for _,id in ipairs({106898,192077,1044,116841,374968})do KIND[id]="move"end
 -- Combat potions: one shared cooldown for every member, whatever potion they drank. The first ID
 -- stands for all of them.
@@ -132,7 +134,7 @@ for _,sp in pairs(SPEND)do WANTED[sp.talent]=true end
 -- Other spell IDs the game uses for a tracked spell (a talent or hero version of it).
 local ALIAS={[1236994]=POTION,[1236998]=POTION,[1239479]=POTION,[1295132]=POTION,[77761]=106898,[77764]=106898,[110959]=66,[204018]=1022,[231895]=31884,[216331]=31884,[389539]=31884,[442204]=403631,
     [102560]=194223,[102543]=106951,[414658]=45438,
-    [389813]=207684,[389807]=202138,[474421]=19577,[119910]=19647,[132409]=19647,[1276467]=19647,[119914]=89766,
+    [389813]=207684,[108194]=221562,[389807]=202138,[474421]=19577,[119910]=19647,[132409]=19647,[1276467]=19647,[119914]=89766,
     -- Racials that are a different spell for each class.
     [33702]=20572,[33697]=20572,[25046]=28730,[50613]=28730,[69179]=28730,[80483]=28730,[129597]=28730,[155145]=28730,[202719]=28730,[232633]=28730}
 -- Cooldowns cut by what a member does (resource spent, Bone Shield charges, crits, finishers,
@@ -270,6 +272,13 @@ function ns.SetPartyCooldownTracked(id,on,spec)
         cfg.specOff[spec]=cfg.specOff[spec]or{};cfg.specOff[spec][id]=(not on)or nil
     else cfg.disabled[id]=(not on)or nil end
     ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns();return true
+end
+-- Every spell at once, for every class, spec and race. On also clears the per-spec choices.
+function ns.SetAllPartyCooldowns(on)
+    ns.PartyCooldownListDirty()
+    local cfg=ns.PartyCooldownConfig()
+    if on then for k in pairs(cfg.disabled)do cfg.disabled[k]=nil end;for k in pairs(cfg.specOff)do cfg.specOff[k]=nil end else for id in pairs(byID)do cfg.disabled[id]=true end end
+    ns.RebuildPartyCooldownSensors();ns.RefreshPartyCooldowns();return true
 end
 function ns.PartyCooldownTracked(id,spec)
     local cfg=ns.PartyCooldownConfig()
@@ -1614,7 +1623,11 @@ local BUFFS={
 -- debuff (sigils and totems go off later).
 for id,debuffs in pairs({[119381]={119381},[179057]={179057},[30283]={30283},[192058]={118905},[46968]={132168},[109248]={117405,117526},
     [853]={853},[19577]={24394,474421},[207167]={207167},[115750]={105421},[8122]={8122},[99]={99},[5246]={5246},[207684]={207685},
-    [202138]={204843},[108199]={374776},[102793]={127797},[132469]={61391},[2094]={2094}})do BUFFS[id]={ENEMY,unpack(debuffs)}end
+    [202138]={204843},[108199]={374776},[102793]={127797},[132469]={61391},[2094]={2094},
+    [221562]={221562,108194},[49576]={51399},[211881]={211881},[5211]={5211},[102359]={102359},[360806]={360806},[358385]={355689},
+    [187650]={3355},[157980]={157980},[157981]={157981},[31661]={31661},[113724]={82691},[115078]={115078},[204263]={204263},
+    [408]={408},[1776]={1776},[51490]={51490},[51514]={51514,210873,211004,211010,211015,269352,277778,277784,309328},
+    [6789]={6789},[5484]={5484},[107570]={132169}})do BUFFS[id]={ENEMY,unpack(debuffs)}end
 BUFFS[POTION]={SELF,unpack(POTIONS)}
 local LAG={[192058]=2,[207684]=2,[202138]=2}
 local PLATES=40
@@ -2366,9 +2379,11 @@ local function DrawAbilities(parent,d)
     -- What is typed is kept when the page is drawn again (a toggle, a tab).
     local field=W.Field(right,L("ADD A SPELL BY ID"),d.newSpell or"",12,450,200,"pcd:newSpell")
     W.OnText(field,function(self)d.newSpell=self:GetText()end)
-    W.Button(right,L("Add"),220,466,100,function()local text=ns.UIControls["pcd:newSpell"]:GetText();local ok,err=ns.AddPartyCooldownSpell(d.class,text);if ok then d.newSpell=""else d.newSpell=text end;kit.done(ok,err,L("Spell added"))end,false,"pcd-add",{kind="primary",align="CENTER"})
-    W.Button(right,L("All on"),336,466,100,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,true,spec)end;kit.refresh()end,false,"pcd-allon",{kind="outline",align="CENTER"})
-    W.Button(right,L("All off"),444,466,100,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,false,spec)end;kit.refresh()end,false,"pcd-alloff",{kind="outline",align="CENTER"})
+    W.Button(right,L("Add"),220,466,80,function()local text=ns.UIControls["pcd:newSpell"]:GetText();local ok,err=ns.AddPartyCooldownSpell(d.class,text);if ok then d.newSpell=""else d.newSpell=text end;kit.done(ok,err,L("Spell added"))end,false,"pcd-add",{kind="primary",align="CENTER"})
+    W.Button(right,L("All on"),308,466,80,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,true,spec)end;kit.refresh()end,false,"pcd-allon",{kind="outline",align="CENTER"})
+    W.Button(right,L("All off"),396,466,80,function()for _,id in ipairs(ids)do ns.SetPartyCooldownTracked(id,false,spec)end;kit.refresh()end,false,"pcd-alloff",{kind="outline",align="CENTER"})
+    W.Button(right,L("Everything on"),484,466,104,function()ns.SetAllPartyCooldowns(true);kit.refresh()end,false,"pcd-everythingon",{kind="outline",align="CENTER",tooltip=L("Every spell of every class, spec and race on")})
+    W.Button(right,L("Everything off"),592,466,104,function()ns.SetAllPartyCooldowns(false);kit.refresh()end,false,"pcd-everythingoff",{kind="outline",align="CENTER",tooltip=L("Every spell of every class, spec and race off")})
     W.Label(right,L("The cooldowns tracked for this spec. Off: not shown and not timed for players of this spec. Lengths are the game's base cooldowns."),12,506,684,11,C.muted)
 end
 -- Racials: one switch for all of them, and each one on its own.

@@ -9,7 +9,8 @@ local kit=ns.UIKit
 
 local PREFIX="!PPD1:"
 -- Kept per player, never sent: learned lengths, talents seen, migrations and the unlock state.
-local SKIP={learned=true,talentSpells=true,unlocked=true,aliasMigrated=true,learnedVersion=true}
+-- The settings kept for each of your specs stay home too.
+local SKIP={learned=true,talentSpells=true,unlocked=true,aliasMigrated=true,learnedVersion=true,perSpec=true,bySpec=true,profileSpec=true}
 local MAX_TEXT,MAX_DEPTH,MAX_ITEMS=400000,12,50000
 
 -- Values: t (table) ... e, s<len>:<bytes>, n<number>;, T and F for true and false.
@@ -117,15 +118,69 @@ function ns.PartyProfileImport(text)
     return true
 end
 
+-- Settings for each of your specs: switched on, every spec keeps its own settings (what is
+-- tracked, the lists, the look) and they change when your spec does. A healer can watch every
+-- defensive of the group while a damage spec shows only a few.
+local function Snapshot(cfg)local copy={};for k,v in pairs(cfg)do if not SKIP[k]then copy[k]=ns.Clone(v)end end;return copy end
+local function Refresh()
+    if ns.PartyCooldownListDirty then ns.PartyCooldownListDirty()end
+    if ns.RebuildPartyCooldownSensors then ns.RebuildPartyCooldownSensors()end
+    if ns.RefreshPartyCooldowns then ns.RefreshPartyCooldowns()end
+    if ns.RefreshPartyExtras then ns.RefreshPartyExtras()end
+end
+local function Restore(cfg,copy)
+    local old={};for k in pairs(cfg)do if not SKIP[k]then old[#old+1]=k end end
+    for _,k in ipairs(old)do cfg[k]=nil end
+    for k,v in pairs(copy)do if not SKIP[k]then cfg[k]=ns.Clone(v)end end
+    -- Settings the saved copy did not have get their defaults again.
+    ns.PartyCooldownConfig();if ns.PartyExtrasConfig then ns.PartyExtrasConfig()end
+end
+local function MySpecs()
+    local _,class=UnitClass("player");return ns.ClassSpecs and ns.ClassSpecs[class]or{}
+end
+-- Your spec now: the settings of the spec you left are kept, those of the new one are loaded.
+-- A spec with nothing kept yet starts from the settings you had.
+function ns.PartyProfileSwitch(spec)
+    local cfg=ns.PartyCooldownConfig()
+    spec=spec or ns.Spec()
+    if not cfg.perSpec or not spec then return false end
+    cfg.bySpec=type(cfg.bySpec)=="table"and cfg.bySpec or{}
+    local was=cfg.profileSpec
+    if was==spec then return false end
+    if was then cfg.bySpec[was]=Snapshot(cfg)end
+    cfg.profileSpec=spec
+    if type(cfg.bySpec[spec])=="table"then Restore(cfg,cfg.bySpec[spec])end
+    Refresh();return true
+end
+function ns.SetPartyProfilePerSpec(on)
+    local cfg=ns.PartyCooldownConfig()
+    cfg.bySpec=type(cfg.bySpec)=="table"and cfg.bySpec or{}
+    if on then cfg.perSpec=true;cfg.profileSpec=ns.Spec();if cfg.profileSpec then cfg.bySpec[cfg.profileSpec]=Snapshot(cfg)end
+    else cfg.perSpec=nil;cfg.profileSpec=nil end
+end
+-- The settings you have now become those of every spec of your class.
+function ns.PartyProfileCopyToSpecs()
+    local cfg=ns.PartyCooldownConfig()
+    cfg.bySpec=type(cfg.bySpec)=="table"and cfg.bySpec or{}
+    for _,spec in ipairs(MySpecs())do cfg.bySpec[spec]=Snapshot(cfg)end
+    return true
+end
+local watch=CreateFrame("Frame")
+for _,e in ipairs({"PLAYER_ENTERING_WORLD","PLAYER_SPECIALIZATION_CHANGED","ACTIVE_TALENT_GROUP_CHANGED"})do pcall(watch.RegisterEvent,watch,e)end
+watch:SetScript("OnEvent",function(_,event,unit)
+    if event=="PLAYER_SPECIALIZATION_CHANGED"and unit and unit~="player"then return end
+    ns.PartyProfileSwitch()
+end)
+
 -- The profile page: your string to copy, and a box to paste someone's.
 function ns.DrawPartyProfile(parent,apply,d)
-    local left=W.Card(parent,0,56,454,566,L("Share my settings"))
+    local left=W.Card(parent,0,56,454,320,L("Share my settings"))
     W.Label(left,L("Every setting of the party cooldowns, lists, look and extras in one string. Press the box, then Ctrl+A and Ctrl+C, and share it."),12,34,430,11,C.muted)
     local out=W.Input(left,d.exported or"",12,80,430,"pcd-profile:export",true)
     W.Button(left,L("Make the string"),12,276,430,function()d.exported=ns.PartyProfileExport();kit.refresh()
         local box=ns.UIControls["pcd-profile:export"];if box then box:SetFocus();box:HighlightText()end end,false,"pcd-profile:make",{kind="primary",align="CENTER"})
     if out and out.SetScript then out:SetScript("OnEditFocusGained",function(self)self:HighlightText()end)end
-    local right=W.Card(parent,466,56,454,566,L("Use someone's settings"))
+    local right=W.Card(parent,466,56,454,320,L("Use someone's settings"))
     W.Label(right,L("Paste a profile string and press Import. Your settings are replaced; your learned cooldown lengths stay."),12,34,430,11,C.muted)
     local input=W.Input(right,d.importText or"",12,80,430,"pcd-profile:import",true)
     W.OnText(input,function(self)d.importText=self:GetText()end)
@@ -134,4 +189,11 @@ function ns.DrawPartyProfile(parent,apply,d)
         local ok,err=ns.PartyProfileImport(text);if ok then d.importText=""end
         kit.done(ok,err,L("Profile imported"))
     end,false,"pcd-profile:importButton",{kind="primary",align="CENTER"})
+    local cfg=ns.PartyCooldownConfig()
+    local specs=W.Card(parent,0,388,920,234,L("Settings for each of my specs"))
+    W.Toggle(specs,L("Own settings for each of my specs"),cfg.perSpec==true,12,30,600,function(v)ns.SetPartyProfilePerSpec(v);kit.refresh()end,"pcd-profile:perSpec")
+    W.Label(specs,L("Each spec keeps its own settings: what is tracked, the lists and the look. They change when your spec does. A healer can watch every defensive of the group, a damage dealer or a tank only a few."),12,68,896,11,C.muted)
+    local now=ns.Spec();local name=now and ns.Catalog and ns.Catalog.specs and ns.Catalog.specs[now]
+    if cfg.perSpec then W.Label(specs,L("Now")..": "..(name and L(name)or"?"),12,118,600,12,C.text)end
+    W.Button(specs,L("Copy these settings to all my specs"),12,150,300,function()ns.PartyProfileCopyToSpecs();kit.done(true,nil,L("Copied to all your specs"))end,false,"pcd-profile:copySpecs",{kind="outline",align="CENTER"})
 end
