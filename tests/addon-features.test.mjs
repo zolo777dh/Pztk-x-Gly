@@ -1366,6 +1366,9 @@ fm.ranks={};assert(select(2,ns.PartyCooldownCharges(fm,235313))~=2,'one without 
 do local gd={class='DRUID',spec=104};assert(select(2,ns.PartyCooldownCharges(gd,22842))==2,'guardian default')
 local dh={class='DEMONHUNTER',spec=577};assert(select(2,ns.PartyCooldownCharges(dh,198589))==2,'blur default')
 dh.ranks={};assert(select(2,ns.PartyCooldownCharges(dh,198589))~=2,'read without the talent')end
+-- /pcd inspect and a key start read the talents of members without the addon again.
+do local mm=ns.PartyCooldownMembers;mm['Plain-Home']={name='Plain-Home',used={},talented={},spec=65,tries=6,far=3}
+assert(ns.PartyCooldownReinspect()>=1 and mm['Plain-Home'].recheck and not mm['Plain-Home'].tries,'asked again');mm['Plain-Home']=nil end
 -- Your own charges come from the game and go out with your list.
 C_Spell.GetSpellCharges=function(id)if id==22812 then return{currentCharges=1,maxCharges=2,cooldownStartTime=GetTime(),cooldownDuration=60}end end
 local cur,max2,rs=ns.PartyCooldownCharges(m['Tester-Home'],22812);assert(cur==1 and max2==2 and rs)

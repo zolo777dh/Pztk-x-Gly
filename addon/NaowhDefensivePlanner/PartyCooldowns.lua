@@ -796,7 +796,7 @@ local function InspectNext()
     for _,name in ipairs(order)do local m=members[name]
         -- Each member is inspected once while in the group. No answer: asked again after 15 s, up
         -- to 6 times; out of reach (CanInspect false): looked at again every 15 s, up to 20 times.
-        if m and not m.me and not m.addon and(not m.spec or not m.talented)and(m.tries or 0)<6 and(m.far or 0)<20 then
+        if m and not m.me and not m.addon and(not m.spec or not m.talented or m.recheck)and(m.tries or 0)<6 and(m.far or 0)<20 then
             local wait=m.asked and 15-(GetTime()-m.asked)or 0
             if wait<=0 then
                 local ok,can=pcall(CanInspect,m.unit);if ok and can then m.asked=GetTime();m.tries=(m.tries or 0)+1;pcall(NotifyInspect,m.unit)
@@ -837,7 +837,7 @@ local function ReadTalents(m,config)
             end
         end
     end
-    if any and m then m.talented=talented;ns.PartyCooldownListDirty()end
+    if any and m then m.talented=talented;m.recheck=nil;ns.PartyCooldownListDirty()end
     if(any or read)and m then m.ranks=ranks end
     if any and m and not m.me and m.guid then inspected[m.guid]={spec=m.spec,talented=m.talented,ranks=m.ranks}end
     return any
@@ -853,6 +853,14 @@ end
 ns.PartyCooldownReadOwnTalents=ReadOwnTalents
 ns.PartyCooldownReadTalents=ReadTalents
 local function QueueInspect()if not inspectTimer and C_Timer and C_Timer.NewTimer then inspectTimer=C_Timer.NewTimer(0.3,InspectNext)end end
+-- Talents read before are looked at again (/pcd inspect and the start of a key): a member may have
+-- changed talents in the same spec. The old talents stay in use until the new ones are read.
+function ns.PartyCooldownReinspect()
+    local n=0
+    for _,m in pairs(members)do if not m.me and not m.addon then
+        if m.guid then inspected[m.guid]=nil end;m.recheck=true;m.asked=nil;m.tries=nil;m.far=nil;n=n+1 end end
+    QueueInspect();return n
+end
 
 ---------------------------------------------------------------------------
 -- Sharing: "spec;id=seconds;id=seconds..." for the tracked spells this character knows.
@@ -2486,7 +2494,7 @@ events:SetScript("OnEvent",function(_,event,a,_,c,d)
         for _,m in pairs(members)do for _,t in pairs(m.hiddenCd or{})do t.over=t.over or GetTime()+t.cd;longest=math.max(longest,t.cd)end end
         if longest>0 then RedrawLater(longest)end
         ns.SharePartyCooldowns();QueueInspect();ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns()
-    elseif event=="CHALLENGE_MODE_START"then ns.PartyCooldownReset();ns.PartyTraceGroup("key start")
+    elseif event=="CHALLENGE_MODE_START"then ns.PartyCooldownReset();ns.PartyCooldownReinspect();ns.PartyTraceGroup("key start")
     elseif event=="ENCOUNTER_END"then
         -- Raid boss cooldowns come back after each encounter.
         if IsInRaid and IsInRaid()then ns.PartyCooldownReset()end
