@@ -222,6 +222,11 @@ function ns.PartyCooldownConfig()
     if(c.presetFix or 0)<1 then c.presetFix=1
         for id,k in pairs(KIND)do if k=="potion"or k=="move"then c.disabled[id]=nil;for _,off in pairs(c.specOff)do if type(off)=="table"then off[id]=nil end end end end
     end
+    -- 0.11.44: presets of the main list also turned off interrupts and crowd control in their own
+    -- lists; those come back once (racials keep their switches).
+    if(c.presetFix or 0)<2 then c.presetFix=2
+        for id,k in pairs(KIND)do if(k=="kick"or k=="stun"or k=="cc")and not(byID[id]and byID[id].race)then c.disabled[id]=nil;for _,off in pairs(c.specOff)do if type(off)=="table"then off[id]=nil end end end end
+    end
     if(c.aliasMigrated or 0)<3 then c.aliasMigrated=3
         for _,ids in pairs(c.custom)do for id in pairs(ids)do local base=ALIAS[tonumber(id)]if base then ids[id]=nil end end end
         -- Keys are collected first: a table cannot get new keys while it is walked.
@@ -330,8 +335,16 @@ function ns.ApplyPartyCooldownPreset(kind,add,class,spec)
     ns.PartyCooldownListDirty()
     local cfg=ns.PartyCooldownConfig()
     local function match(id,info)return(kind=="racial"and info.race~=nil)or(kind~="racial"and ns.PartyCooldownType(id)==kind)end
-    -- Movement and potions have no preset of their own and keep their switches.
-    local function kept(id,info)local t=ns.PartyCooldownType(id);return(t=="move"or t=="potion")and not info.race end
+    -- "Only" acts inside one window: bursts, defensives and racials share the main list; interrupts
+    -- and crowd control have lists of their own and turn only themselves on. Movement and potions
+    -- have no preset and keep their switches.
+    local mainKind=kind=="burst"or kind=="defensive"or kind=="racial"
+    local function kept(id,info)local t=ns.PartyCooldownType(id)
+        if kind=="racial"and info.race then return false end
+        if t=="move"or t=="potion"then return not info.race end
+        local main=t=="burst"or t=="defensive"
+        return main~=mainKind or(not mainKind and t~=kind)
+    end
     if class and spec and kind~="racial"then
         for _,id in ipairs(ns.PartyCooldownSpecSpells(class,spec))do
             local on=match(id,byID[id]or{});if on or not(add or kept(id,byID[id]or{}))then ns.SetPartyCooldownTracked(id,on,spec)end
@@ -668,10 +681,19 @@ ns.PartyCooldownPrune=Prune
 -- Charges. Yours come from the game; others' count is what their addon sent (c<id>=n). Their
 -- charges come back one at a time, each after a full length: m.chg[id] keeps how many are
 -- there and when the next one is back.
+ns.ownMaxCharges={} -- most charges of your spells, as last read plainly
+-- Charges left on a spell of yours while the game hides the number: the hidden number itself,
+-- for a font string to show, when the spell was seen with two or more charges.
+function ns.PartyCooldownOwnChargeText(id)
+    if(ns.ownMaxCharges[id]or 1)<2 then return nil end
+    local ok,c=pcall(C_Spell.GetSpellCharges,id);if not ok or c==nil then return nil end
+    local read,cur=pcall(function()return c.currentCharges end);if read then return cur end
+end
 local function OwnCharges(id)
     local get=C_Spell and C_Spell.GetSpellCharges;if not get or id==POTION then return nil end
     local ok,c=pcall(get,id);if not ok or not ns.Plain(c,"table")then return nil end
     local read,cur,max,start,dur=pcall(function()return c.currentCharges,c.maxCharges,c.cooldownStartTime,c.cooldownDuration end)
+    if read and ns.Plain(max,"number")then ns.ownMaxCharges[id]=max end
     if not read or not(ns.Plain(cur,"number")and ns.Plain(max,"number"))or max<2 then return nil end
     return cur,max,ns.Plain(start,"number")and start or nil,ns.Plain(dur,"number")and dur or nil
 end
@@ -1245,7 +1267,10 @@ local function Dress(icon,m,id,left,mark)
     -- Charges: how many are left in the corner; while one comes back, its swipe on a lit icon.
     if not icon.count then icon.count=icon.cd:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");icon.count:SetPoint("BOTTOMRIGHT",icon,"BOTTOMRIGHT",-1,1)end
     local avail,max,rs,rd=ns.PartyCooldownCharges(m,id)
-    if max then icon.count:SetText(tostring(avail));icon.count:Show()else icon.count:SetText("");icon.count:Hide()end
+    local hiddenCount=not max and m.me and ns.PartyCooldownOwnChargeText(id)
+    if max then icon.count:SetText(tostring(avail));icon.count:Show()
+    elseif type(hiddenCount)=="number"and pcall(icon.count.SetText,icon.count,hiddenCount)then icon.count:Show()
+    else icon.count:SetText("");icon.count:Hide()end
     local recharge=max and left<=0 and rs and rd and not(m.me and OwnHidden(m,id))
     if recharge then icon.cd:SetCooldown(rs,rd)end
     icon.member=m.name;pcall(icon.EnableMouse,icon,cfg.tooltip==true)
@@ -1842,9 +1867,12 @@ local function HiddenEdge(m,id,cur,prev,now,at)
     local sl=t.slot[t.cur];at=at or now
     local whole=math.min(255,math.floor((at-sl.wepoch+t.cd)/t.unit+0.5))/255
     local code=Fine()and math.min(1,(at-sl.epoch+t.cd)/t.window)or whole
-    local ok,v,w,before=pcall(function()return eval(cur,eval(prev,sl.code,code),sl.code),eval(cur,eval(prev,sl.whole,whole),sl.whole),
-        eval(cur,eval(prev,sl.prev or 0,sl.code),sl.prev or 0)end)
-    if not ok then sensorState.refused=(sensorState.refused or 0)+1;return false end
+    -- Called for every hidden answer (hundreds a second in a pull): plain pcalls, no closure.
+    local p0=sl.prev or 0
+    local ok,a=pcall(eval,prev,sl.code,code);local ok2,b=pcall(eval,prev,sl.whole,whole);local ok3,c=pcall(eval,prev,p0,sl.code)
+    local v,w,before
+    if ok and ok2 and ok3 then ok,v=pcall(eval,cur,a,sl.code);ok2,w=pcall(eval,cur,b,sl.whole);ok3,before=pcall(eval,cur,c,p0)end
+    if not(ok and ok2 and ok3)then sensorState.refused=(sensorState.refused or 0)+1;return false end
     sl.code,sl.whole,sl.prev=v,w,before;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
     local created=t.created;t.created=nil
     return true,created
@@ -2229,8 +2257,10 @@ Rebuild=function(cfg)
         for _,name in ipairs(order)do local m=members[name]
             for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
                 -- With two possible casters the owner stays open (false) and is decided when it lands.
-                if kind==EXTERNAL then externals[id]=buffs;if externalOwners[id]==nil then externalOwners[id]=m else externalOwners[id]=false end
-                elseif kind==ENEMY then stops[id]=buffs;if stopOwners[id]==nil then stopOwners[id]=m else stopOwners[id]=false end
+                -- Your own spells count as casters but need no sensor (the game times them): crowd
+                -- control only you have leaves its plates to the others' spells.
+                if kind==EXTERNAL then if not m.me then externals[id]=buffs end;if externalOwners[id]==nil then externalOwners[id]=m else externalOwners[id]=false end
+                elseif kind==ENEMY then if not m.me then stops[id]=buffs end;if stopOwners[id]==nil then stopOwners[id]=m else stopOwners[id]=false end
                 elseif KIND[id]=="kick"then
                 elseif not m.me then want[#want+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF}end
             end

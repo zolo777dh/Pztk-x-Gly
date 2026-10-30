@@ -928,10 +928,10 @@ assert(has({class='MONK',spec=270,used={},talented={}},116844),'Ring of Peace fo
 ns.SetPartyCooldownTracked(23920,false,73);ns.SetAllPartyCooldowns(false);assert(not has(wm,23920)and not has(wm,59752)and not has({class='MONK',spec=270,used={},talented={}},115078),'everything off')
 ns.SetAllPartyCooldowns(true);assert(has(wm,23920)and has(wm,59752),'everything on clears spec choices too')
 -- Presets: only one type on everywhere.
-ns.ApplyPartyCooldownPreset('burst');assert(has({class='WARRIOR',spec=72,used={},talented={},me=false},184364)==false and ns.PartyCooldownTracked(1719)and not ns.PartyCooldownTracked(23920)and ns.PartyCooldownTracked(26297)and not ns.PartyCooldownTracked(408),'only bursts')
+ns.ApplyPartyCooldownPreset('burst');assert(has({class='WARRIOR',spec=72,used={},talented={},me=false},184364)==false and ns.PartyCooldownTracked(1719)and not ns.PartyCooldownTracked(23920)and ns.PartyCooldownTracked(26297)and ns.PartyCooldownTracked(408)and ns.PartyCooldownTracked(6552),'only bursts, the kick and crowd control lists stay')
 ns.ApplyPartyCooldownPreset('defensive');assert(ns.PartyCooldownTracked(23920)and not ns.PartyCooldownTracked(1719),'only defensives')
 assert(ns.PartyCooldownTracked(ns.PartyCooldownPotion)and ns.PartyCooldownTracked(106898),'presets keep potions and movement')
-ns.ApplyPartyCooldownPreset('cc');assert(ns.PartyCooldownTracked(408)and ns.PartyCooldownTracked(115078)and not ns.PartyCooldownTracked(6552)and not ns.PartyCooldownTracked(23920),'only crowd control')
+ns.ApplyPartyCooldownPreset('cc');assert(ns.PartyCooldownTracked(408)and ns.PartyCooldownTracked(115078)and ns.PartyCooldownTracked(6552)and ns.PartyCooldownTracked(23920)and not ns.PartyCooldownTracked(1719),'crowd control on, other windows stay')
 ns.ApplyPartyCooldownPreset('racial');assert(ns.PartyCooldownTracked(59752)and not ns.PartyCooldownTracked(23920)and cfg.racials,'only racials')
 ns.SetAllPartyCooldowns(false);ns.ApplyPartyCooldownPreset('burst',false,'WARRIOR',72);assert(ns.PartyCooldownTracked(1719,72)and not ns.PartyCooldownTracked(184364,72)and not ns.PartyCooldownTracked(31884,70),'bursts of one spec')
 ns.ApplyPartyCooldownPreset('cc',true);assert(ns.PartyCooldownTracked(1719,72)and ns.PartyCooldownTracked(408,259)and ns.PartyCooldownTracked(46968,72),'shift adds crowd control everywhere, bursts stay')
@@ -1373,6 +1373,11 @@ assert(ns.PartyCooldownReinspect()>=1 and mm['Plain-Home'].recheck and not mm['P
 C_Spell.GetSpellCharges=function(id)if id==22812 then return{currentCharges=1,maxCharges=2,cooldownStartTime=GetTime(),cooldownDuration=60}end end
 local cur,max2,rs=ns.PartyCooldownCharges(m['Tester-Home'],22812);assert(cur==1 and max2==2 and rs)
 assert(ns.PartyCooldownPayload():find('c22812=2',1,true),'charges sent');C_Spell.GetSpellCharges=nil
+-- In combat the game hides your charges: the hidden number is still shown on the icon.
+C_Spell.GetSpellCharges=function(id)return{currentCharges=1,maxCharges=2}end;ns.PartyCooldownOwnCharges(22842)
+C_Spell.GetSpellCharges=function(id)return{currentCharges=1}end;assert(ns.PartyCooldownOwnChargeText(22842)==1 and ns.PartyCooldownOwnChargeText(99)==nil,'hidden charges shown');C_Spell.GetSpellCharges=nil
+-- Interrupts turned off by the old presets come back once.
+cfg.disabled[6552]=true;cfg.presetFix=1;ns.PartyCooldownConfig();assert(not cfg.disabled[6552]and cfg.presetFix==2,'kicks back')
 -- Lag: an unchanged group does not rebuild its sensors, alone there are none, the frame walk
 -- runs at most once every 30 s, and /pcd perf counts the time.
 local before=ns.PartyCooldownSensorCount();local made=0;local cf=CreateFrame;CreateFrame=function(kind,...)if kind=='AuraContainer'then made=made+1 end;return cf(kind,...)end
