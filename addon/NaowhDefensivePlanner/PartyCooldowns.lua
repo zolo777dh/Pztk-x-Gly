@@ -140,6 +140,14 @@ local SPEND={WARRIOR={talent=152278,power=1,sec=1,per={[72]=20},spells={[72]={17
 local WANTED={}
 for _,mods in pairs(TALENT_CD)do for _,x in ipairs(mods)do if x[1]then WANTED[x[1]]=true end end end
 for _,sp in pairs(SPEND)do WANTED[sp.talent]=true end
+-- Talents that give a spell a second charge (game facts). Members whose talents are read get the
+-- two charges even without the addon: mage barriers, Blur, Celestial Alignment, Frenzied
+-- Regeneration, Feint.
+ns.PartyCooldownChargeTalents={[235450]=321745,[235313]=321708,[11426]=1244069,[198589]=1266307,[194223]=468743,[22842]=377811,[1966]=423647}
+for _,t in pairs(ns.PartyCooldownChargeTalents)do WANTED[t]=true end
+function ns.PartyChargeTalent(m,id)
+    local t=ns.PartyCooldownChargeTalents[id];if t and m.ranks and(m.ranks[t]or 0)>0 then return 2 end
+end
 -- Other spell IDs the game uses for a tracked spell (a talent or hero version of it).
 local ALIAS={[1236994]=POTION,[1236998]=POTION,[1239479]=POTION,[1295132]=POTION,[77761]=106898,[77764]=106898,[110959]=66,[204018]=1022,[231895]=31884,[216331]=31884,[389539]=31884,[442204]=403631,
     [102560]=194223,[102543]=106951,[45438]=414658,
@@ -623,7 +631,7 @@ end
 ns.PartyCooldownOwnCharges=OwnCharges
 local function MaxCharges(m,id)
     if m.me then local _,max=OwnCharges(id);return max or 1 end
-    return m.charges and m.charges[id]or 1
+    return m.charges and m.charges[id]or ns.PartyChargeTalent(m,id)or 1
 end
 local function Recharge(m,id,now)
     local st=m.chg and m.chg[id];if not st then return nil end
