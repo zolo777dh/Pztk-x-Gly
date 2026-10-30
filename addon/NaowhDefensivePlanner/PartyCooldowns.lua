@@ -1948,11 +1948,12 @@ function ns.PartyCooldownReport()
     lines[#lines+1]="Party cooldowns "..tostring(ns.version)..", in combat: "..tostring(InCombatLockdown and InCombatLockdown()or false)..". Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
         ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
         ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", power bars read "..spendState.plain.." hidden "..spendState.hidden..", exact times "..tostring(ns.PartyCooldownFine and ns.PartyCooldownFine()or false)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")..", my cooldowns "..shareState
+        ..", enemy plates watched "..tostring(ns.plateCount or 0)..", plates re-pointed "..(sensorState.repoint or 0).." (in combat "..(sensorState.repointCombat or 0)..", refused "..(sensorState.repointFail or 0).."), crowd control seen out of combat "..(sensorState.ccSeen or 0)
     local k=ns.PartyCooldownKickStats and ns.PartyCooldownKickStats()
     if k then lines[#lines+1]="Interrupts seen "..k.seen..": by the meter "..k.meter..", by name "..k.named..", only one ready "..k.ready..", unknown "..k.unsure end
     for _,name in ipairs(order)do local m=members[name]
         local sens=0;for _,s in ipairs(sensors)do if s.member==name then sens=sens+1 end end
-        lines[#lines+1]=name..": "..tostring(m.class).." "..tostring(m.spec and ns.Catalog.specs[m.spec]or"spec unknown")..(m.talented and", talents read"or", talents not read")
+        lines[#lines+1]=name..": "..tostring(m.race).." "..tostring(m.class).." "..tostring(m.spec and ns.Catalog.specs[m.spec]or"spec unknown")..(m.talented and", talents read"or", talents not read")
             ..", icons "..#ns.PartyCooldownList(m)..", sensors "..sens..", casts seen "..(m.seen or 0).." hidden "..(m.hidden or 0).." by buff "..(m.sensed or 0)
             ..", hidden timers "..(function()local n=0;for _ in pairs(m.hiddenCd or{})do n=n+1 end;return n end)()
             ..(m.ranks and", cooldown talents read"or"")
@@ -2021,6 +2022,7 @@ local function PollSensors(only)
         else
             local shared=s.kind==EXTERNAL or s.kind==ENEMY
             local m=shared and s.owner or members[s.member]
+            if s.kind==ENEMY and Plain(v)and Plain(s.prev)and v~=s.prev then sensorState.ccSeen=(sensorState.ccSeen or 0)+1 end
             -- A spell whose timer still runs cannot have been cast again.
             local running=m and ns.PartyCooldownLeft(m,s.spell)>0
             if running then
@@ -2081,7 +2083,13 @@ function ns.PartyCooldownPlate(unit,added)
             end
             if not have then return end
             slots[have]=unit;sensorUnits[unit]=true
-            for _,x in ipairs(sensors)do if x.slot==have then x.unit=unit;pcall(x.frame.SetUnit,x.frame,unit);pcall(x.frame.UpdateAllAuras,x.frame)end end
+            -- Counted for the report: whether the game lets a container change its unit in combat.
+            local fighting=InCombatLockdown and InCombatLockdown()==true
+            for _,x in ipairs(sensors)do if x.slot==have then x.unit=unit
+                local ok=pcall(x.frame.SetUnit,x.frame,unit);pcall(x.frame.UpdateAllAuras,x.frame)
+                sensorState.repoint=(sensorState.repoint or 0)+1;if fighting then sensorState.repointCombat=(sensorState.repointCombat or 0)+1 end
+                if not ok then sensorState.repointFail=(sensorState.repointFail or 0)+1 end
+            end end
         end
     end
     if not sensorUnits[unit]then return end
