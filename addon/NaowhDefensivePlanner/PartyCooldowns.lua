@@ -1609,8 +1609,9 @@ local function DrawAnchor(g,entries,a,unlocked)
                     local file=BarFile(a.texture);if bar.file~=file then bar.file=file;bar:SetStatusBarTexture(file)end
                     -- Dark bars: a grey fill, the name in the class colour.
                     if bar.progressForward then bar.bg:SetColorTexture(0.2,0.2,0.22,1)else bar.bg:SetColorTexture(0,0,0,0.55)end
-                    -- A potion on cooldown: the whole bar and its icon go grey until it is ready.
-                    local waiting=bar.progressForward and((remain>0 and start)or(object and ObjectZero(object)==false))
+                    -- On cooldown the bar and its icon go grey until it is ready (potions fill, the
+                    -- others drain); ready bars keep the class colour.
+                    local waiting=(remain>0 and start)or(object and ObjectZero(object)==false)
                     if waiting then bar:SetStatusBarColor(0.42,0.42,0.45,1);bar.name:SetTextColor(0.8,0.8,0.8);cell.tex:SetDesaturated(true)
                     elseif a.dark and not bar.progressForward then bar:SetStatusBarColor(0.16,0.16,0.18,1);bar.name:SetTextColor(r,gr,b)else bar:SetStatusBarColor(r,gr,b,1);bar.name:SetTextColor(1,1,1)end
                     bar.start,bar.dur,bar.hidden,bar.approx=(not object and remain>0)and start or nil,dur,hidden~=nil or own~=nil,approx
@@ -2111,21 +2112,32 @@ local function NewSensor(unit,buffs,filter)
     sensorState.available=true
     return c
 end
--- The member who cast an external: the one whose list has the spell and whose cooldown is ready.
-local function ExternalOwner(id)
-    local best
+-- Who cast a group buff or crowd control: the only member whose list has the spell. Your own
+-- casts are always seen, so with you and one other member it is the other one, unless you have
+-- just cast it yourself (`mine` says you could have). Two others: nobody is credited.
+function ns.PartySharedOwner(id)
     local info=byID[id];if not info then return nil end
+    local other,me
     for _,m in pairs(members)do
-        -- Count every possible caster, including yourself and members already on cooldown:
-        -- otherwise the same group aura can use up everyone's timer in turn.
+        -- Count every possible caster, including members already on cooldown: otherwise the same
+        -- group aura can use up everyone's timer in turn.
         if not info.class or info.sent or info.detected or m.class==info.class then
             for _,x in ipairs(ns.PartyCooldownList(m))do if x==id then
-                -- Two members could have cast it: nobody is credited.
-                if best and best~=m then return nil end;best=m
+                if m.me then me=m elseif other and other~=m then return nil else other=m end
             end end
         end
     end
-    return best
+    return other or me,other~=nil and me~=nil
+end
+-- You cast it a moment ago: the buff or debuff that just appeared is yours.
+function ns.PartyOwnJustCast(id)
+    for _,m in pairs(members)do if m.me then local at=m.used and m.used[id];return at~=nil and GetTime()-at<2 end end
+    return false
+end
+local function ExternalOwner(id)
+    local owner,mine=ns.PartySharedOwner(id)
+    if mine and ns.PartyOwnJustCast(id)then return nil end
+    return owner
 end
 local function Sensed(m,id,at)
     if not m or not ns.PartyCooldownTracked(id,m.spec)then return end
@@ -2143,13 +2155,11 @@ local function PollSensors(only)
     -- can cast a group buff or crowd control is counted again when they do. Two possible casters
     -- leave it open, so one member's cast never also starts the other's timer.
     if ns.ownersVersion~=ns.partyListVersion then ns.ownersVersion=ns.partyListVersion
-        local owners={}
-        for _,name in ipairs(order)do local m=members[name]
-            for _,id in ipairs(m and ns.PartyCooldownList(m)or{})do local b=BUFFS[id]
-                if b and(b[1]==EXTERNAL or b[1]==ENEMY)then if owners[id]==nil then owners[id]=m else owners[id]=false end end
-            end
-        end
-        for _,x in ipairs(sensors)do if x.kind==EXTERNAL or x.kind==ENEMY then x.owner=owners[x.spell]or nil end end
+        local owners,mine={},{}
+        for _,x in ipairs(sensors)do if x.kind==EXTERNAL or x.kind==ENEMY then
+            if owners[x.spell]==nil then local o,my=ns.PartySharedOwner(x.spell);owners[x.spell]=o or false;mine[x.spell]=my end
+            x.owner=owners[x.spell]or nil;x.mine=mine[x.spell]
+        end end
     end
     -- Plate slots whose plate is not on screen are not read: more slots cost nothing while idle.
     local shown=ns.plateShown
@@ -2161,7 +2171,10 @@ local function PollSensors(only)
         if s.hold and now<s.hold then s.prev=v;s.lit=Plain(v)and v
         else
             local shared=s.kind==EXTERNAL or s.kind==ENEMY
-            local m=shared and s.owner or members[s.member]
+            -- A shared sensor credits its one possible caster only, never the member it watches.
+            local m;if shared then m=s.owner else m=members[s.member]end
+            -- Your own cast of it a moment ago: what appeared is yours, the other caster is not credited.
+            if shared and s.mine and ns.PartyOwnJustCast(s.spell)then m=nil end
             if s.kind==ENEMY and Plain(v)and Plain(s.prev)and v~=s.prev then sensorState.ccSeen=(sensorState.ccSeen or 0)+1 end
             -- A spell whose timer still runs cannot have been cast again.
             local running=m and ns.PartyCooldownLeft(m,s.spell)>0
@@ -2260,21 +2273,21 @@ Rebuild=function(cfg)
     local others=false;for _,name in ipairs(order)do if members[name]and not members[name].me then others=true end end
     local on=cfg.enabled and cfg.sensors and ns.PartyCooldownsLoaded()and sensorState.available~=false and others
     if on then
-        local externals,externalOwners,stops,stopOwners={},{},{},{}
+        local externals,stops={},{}
         for _,name in ipairs(order)do local m=members[name]
             for _,id in ipairs(ns.PartyCooldownList(m))do local kind,buffs=BuffsOf(id)
-                -- With two possible casters the owner stays open (false) and is decided when it lands.
+                -- Who cast it is ns.PartySharedOwner's answer.
                 -- Your own spells count as casters but need no sensor (the game times them): crowd
                 -- control only you have leaves its plates to the others' spells.
-                if kind==EXTERNAL then if not m.me then externals[id]=buffs end;if externalOwners[id]==nil then externalOwners[id]=m else externalOwners[id]=false end
-                elseif kind==ENEMY then if not m.me then stops[id]=buffs end;if stopOwners[id]==nil then stopOwners[id]=m else stopOwners[id]=false end
+                if kind==EXTERNAL then if not m.me then externals[id]=buffs end
+                elseif kind==ENEMY then if not m.me then stops[id]=buffs end
                 elseif KIND[id]=="kick"then
                 elseif not m.me then want[#want+1]={unit=m.unit,member=name,spell=id,buff=buffs,kind=SELF}end
             end
         end
         local ext={};for id in pairs(externals)do ext[#ext+1]=id end;table.sort(ext)
         for _,name in ipairs(order)do local m=members[name]
-            for _,id in ipairs(ext)do want[#want+1]={unit=m.unit,member=name,spell=id,buff=externals[id],kind=EXTERNAL,owner=externalOwners[id]or nil}end
+            for _,id in ipairs(ext)do local o,my=ns.PartySharedOwner(id);want[#want+1]={unit=m.unit,member=name,spell=id,buff=externals[id],kind=EXTERNAL,owner=o,mine=my}end
         end
         -- Crowd control of the others: its debuff on the first enemy nameplates.
         local st={};for id in pairs(stops)do st[#st+1]=id end;table.sort(st)
@@ -2295,13 +2308,13 @@ Rebuild=function(cfg)
             for k=1,ns.plateCount do if not slots[k]then while used["nameplate"..n]do n=n+1 end;slots[k]="nameplate"..n;used[slots[k]]=true end end
         end
         for _,id in ipairs(st)do
-            for i=1,ns.plateCount do want[#want+1]={unit=ns.plateSlots[i],slot=i,spell=id,buff=stops[id],kind=ENEMY,owner=stopOwners[id]or nil,filter="HARMFUL"}end
+            for i=1,ns.plateCount do local o,my=ns.PartySharedOwner(id);want[#want+1]={unit=ns.plateSlots[i],slot=i,spell=id,buff=stops[id],kind=ENEMY,owner=o,mine=my,filter="HARMFUL"}end
         end
     end
     -- The same sensors as now: nothing is torn down (a rebuild makes every container read again).
     local sig=Signature(want)
     if sig==sensorSig and #sensors==#want then
-        for k,s in ipairs(sensors)do s.owner=want[k].owner;if s.slot and s.unit~=want[k].unit then s.unit=want[k].unit;sensorUnits[s.unit]=true;pcall(s.frame.SetUnit,s.frame,s.unit);pcall(s.frame.UpdateAllAuras,s.frame);s.hold=GetTime()+0.6 end end
+        for k,s in ipairs(sensors)do s.owner=want[k].owner;s.mine=want[k].mine;if s.slot and s.unit~=want[k].unit then s.unit=want[k].unit;sensorUnits[s.unit]=true;pcall(s.frame.SetUnit,s.frame,s.unit);pcall(s.frame.UpdateAllAuras,s.frame);s.hold=GetTime()+0.6 end end
         return #sensors
     end
     for _,s in ipairs(sensors)do pcall(s.frame.SetEnabled,s.frame,false);s.frame:Hide();local p=pools[s.filter];p[#p+1]=s.frame end

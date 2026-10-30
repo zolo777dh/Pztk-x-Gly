@@ -1366,6 +1366,12 @@ fm.ranks={};assert(select(2,ns.PartyCooldownCharges(fm,235313))~=2,'one without 
 do local gd={class='DRUID',spec=104};assert(select(2,ns.PartyCooldownCharges(gd,22842))==2,'guardian default')
 local dh={class='DEMONHUNTER',spec=577};assert(select(2,ns.PartyCooldownCharges(dh,198589))==2,'blur default')
 dh.ranks={};assert(select(2,ns.PartyCooldownCharges(dh,198589))~=2,'read without the talent')end
+-- A group buff two other members could have cast credits nobody; with one other, that one.
+do local mm=ns.PartyCooldownMembers;ns.PartyCooldownListDirty()
+mm['Da-Home']={name='Da-Home',used={},talented={},class='DRUID',spec=103,unit='party3'};ns.PartyCooldownListDirty()
+assert(ns.PartySharedOwner(106898)==mm['Da-Home'],'one druid')
+mm['Db-Home']={name='Db-Home',used={},talented={},class='DRUID',spec=104,unit='party4'};ns.PartyCooldownListDirty()
+assert(ns.PartySharedOwner(106898)==nil,'two druids: nobody');mm['Da-Home']=nil;mm['Db-Home']=nil;ns.PartyCooldownListDirty()end
 -- /pcd inspect and a key start read the talents of members without the addon again.
 do local mm=ns.PartyCooldownMembers;mm['Plain-Home']={name='Plain-Home',used={},talented={},spec=65,tries=6,far=3}
 assert(ns.PartyCooldownReinspect()>=1 and mm['Plain-Home'].recheck and not mm['Plain-Home'].tries,'asked again');mm['Plain-Home']=nil end
