@@ -1620,7 +1620,7 @@ local LAG={[192058]=2,[207684]=2,[202138]=2}
 local PLATES=40
 -- Crowd control of the others is sensed on the first 12 nameplates only: one container per spell
 -- and plate, and a pack rarely shows more (every container follows its plate's auras).
-local SENSE_PLATES=12
+local SENSE_PLATES=25
 ns.PartyCooldownBuffs=BUFFS
 local function BuffsOf(id)
     local b=BUFFS[id];if not b then return SELF,{[id]=true}end
@@ -1934,7 +1934,9 @@ end
 local auraAt={}
 local function PollSensors(only)
     local now,redraw=GetTime(),false
-    for _,s in ipairs(sensors)do if not only or only[s.unit]then
+    -- Plate slots whose plate is not on screen are not read: more slots cost nothing while idle.
+    local shown=ns.plateShown
+    for _,s in ipairs(sensors)do if(not only or only[s.unit])and not(s.slot and not shown[s.unit])then
         local v=SensorRead(s.frame)
         local at=auraAt[s.unit];if not at or now-at>0.5 or at>now then at=now end
         at=at-(LAG[s.spell]or 0)
@@ -1988,9 +1990,10 @@ end
 -- of you. A new plate takes a free slot (one whose plate is gone); every sensor of that slot is
 -- pointed at it. A token that now shows another enemy reads that enemy's debuffs: no edges for a
 -- moment.
-ns.plateSlots={}
+ns.plateSlots={};ns.plateShown={}
 function ns.PartyCooldownPlate(unit,added)
     if not ns.Plain(unit,"string")then return end
+    if unit:find("^nameplate")then ns.plateShown[unit]=added or nil end
     local slots=ns.plateSlots
     if added and unit:find("^nameplate")then
         local have;for k=1,SENSE_PLATES do if slots[k]==unit then have=k end end
@@ -2055,6 +2058,7 @@ Rebuild=function(cfg)
                 if ok and live==true then used[t]=true else slots[k]=nil end end
             local plates=C_NamePlate and C_NamePlate.GetNamePlates and select(2,pcall(C_NamePlate.GetNamePlates))
             for _,pl in ipairs(type(plates)=="table"and plates or{})do local t=pl.namePlateUnitToken
+                if ns.Plain(t,"string")then ns.plateShown[t]=true end
                 if ns.Plain(t,"string")and not used[t]then for k=1,SENSE_PLATES do if not slots[k]then slots[k]=t;used[t]=true;break end end end end
             local n=1
             for k=1,SENSE_PLATES do if not slots[k]then while used["nameplate"..n]do n=n+1 end;slots[k]="nameplate"..n;used[slots[k]]=true end end

@@ -1105,7 +1105,8 @@ assert(ns.PartyCooldownKickStats().unsure>=1)
 -- Crowd control: Blind's debuff on any enemy nameplate starts the rogue's Blind.
 ns.RebuildPartyCooldownSensors();env.advance(1);ns.PartyCooldownPollSensors()
 local list=ns.PartyCooldownSensors();local plates=0
-for _,x in ipairs(list)do if x.spell==2094 and x.unit:match('^nameplate')then plates=plates+1 end end;assert(plates==12,plates)
+for _,x in ipairs(list)do if x.spell==2094 and x.unit:match('^nameplate')then plates=plates+1 end end;assert(plates==25,plates)
+ns.PartyCooldownPlate('nameplate7',true);ns.PartyCooldownPlate('nameplate8',true);env.advance(1)
 for _,x in ipairs(list)do if x.spell==2094 and x.unit=='nameplate7'then x.frame.IsMouseOver=function()return true end end end
 ns.PartyCooldownAura('nameplate7');ns.PartyCooldownPollSensors();assert(ns.PartyCooldownLeft(m.Rogue,2094)>100,'Blind by its debuff')
 -- A nameplate that now shows another enemy is not an edge.
