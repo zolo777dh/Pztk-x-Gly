@@ -51,8 +51,10 @@ function ns.OpenPartyCooldownWindow()
         window:SetScript("OnDragStop",function(self)self:StopMovingOrSizing()end)
         local sw=GetScreenWidth and GetScreenWidth()or 1920;local sh=GetScreenHeight and GetScreenHeight()or 1080
         window:SetScale(math.min(1,math.max(0.55,(sw-30)/WIDTH),math.max(0.55,(sh-50)/HEIGHT)))
-        window:EnableKeyboard(true);window:SetPropagateKeyboardInput(true)
-        window:SetScript("OnKeyDown",function(self,key)if key=="ESCAPE"then self:Hide()end end)
+        -- Escape closes it through the game's list of special frames: keyboard handling of its own is
+        -- protected in combat (the window can be opened from the minimap button in a fight).
+        _G.PuzatikPartyDefensivesWindow=window
+        if UISpecialFrames and not tContains(UISpecialFrames,"PuzatikPartyDefensivesWindow")then table.insert(UISpecialFrames,"PuzatikPartyDefensivesWindow")end
         window:SetScript("OnHide",function()if W.popup then W.popup:Hide()end end)
         W.Texture(window,W.icon,12,8,72,72)
         W.Label(window,"Puzatik Party Defensives",92,22,500,20,C.brand,true)
