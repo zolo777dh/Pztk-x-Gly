@@ -295,18 +295,28 @@ function ns.PartyCooldownType(id)
     local k=KIND[id];if k=="stun"then return"cc"end
     return k or(ns.PartyCooldownBurst[id]and"burst"or"defensive")
 end
--- A preset turns on only the spells of one type, for every class, spec and race; the rest go off.
-function ns.ApplyPartyCooldownPreset(kind)
+-- A preset turns on only the spells of one type, the rest go off. With a class and spec it acts
+-- on that spec only (racials are the same for every spec, so they follow everyone); without, on
+-- every class, spec and race. `add` turns the type on and leaves everything else as it is.
+function ns.ApplyPartyCooldownPreset(kind,add,class,spec)
     ns.PartyCooldownListDirty()
     local cfg=ns.PartyCooldownConfig()
-    for k in pairs(cfg.disabled)do cfg.disabled[k]=nil end;for k in pairs(cfg.specOff)do cfg.specOff[k]=nil end
-    for id,info in pairs(byID)do
-        local on=(kind=="racial"and info.race~=nil)or(kind~="racial"and ns.PartyCooldownType(id)==kind)
-        if not on then cfg.disabled[id]=true end
+    local function match(id,info)return(kind=="racial"and info.race~=nil)or(kind~="racial"and ns.PartyCooldownType(id)==kind)end
+    if class and spec and kind~="racial"then
+        for _,id in ipairs(ns.PartyCooldownSpecSpells(class,spec))do
+            local on=match(id,byID[id]or{});if on or not add then ns.SetPartyCooldownTracked(id,on,spec)end
+        end
+    elseif add then
+        for id,info in pairs(byID)do if match(id,info)then
+            cfg.disabled[id]=nil;for _,off in pairs(cfg.specOff)do if type(off)=="table"then off[id]=nil end end
+        end end
+    else
+        for k in pairs(cfg.disabled)do cfg.disabled[k]=nil end;for k in pairs(cfg.specOff)do cfg.specOff[k]=nil end
+        for id,info in pairs(byID)do if not match(id,info)then cfg.disabled[id]=true end end
     end
     if kind=="racial"then cfg.racials=true end
     -- The list of that type is switched on too.
-    local field=FIELD[kind=="cc"and"cc"or kind];if field then cfg[field]=true end
+    local field=FIELD[kind];if field then cfg[field]=true end
     if kind=="cc"then cfg.stuns=true end
     ns.RebuildPartyCooldownSensors();ns.RefreshPartyCooldowns();return true
 end
@@ -2421,7 +2431,10 @@ local function DrawAbilities(parent,d)
     -- Presets: only one type on, for every class, spec and race.
     W.Label(right,L("Only"),12,414,60,12,C.soft)
     for i,p in ipairs({{"burst","Bursts"},{"defensive","Defensives"},{"cc","Crowd control"},{"kick","Interrupts"},{"racial","Racials"}})do
-        W.Button(right,L(p[2]),70+(i-1)*126,408,122,function()ns.ApplyPartyCooldownPreset(p[1]);kit.refresh()end,false,"pcd-preset:"..p[1],{h=26,kind="outline",align="CENTER",tooltip=L("Only this type on, for every class, spec and race")})
+        W.Button(right,L(p[2]),70+(i-1)*126,408,122,function()
+            local add=IsShiftKeyDown and IsShiftKeyDown()==true;local all=add or(IsControlKeyDown and IsControlKeyDown()==true)
+            ns.ApplyPartyCooldownPreset(p[1],add,not all and d.class or nil,not all and spec or nil);kit.refresh()
+        end,false,"pcd-preset:"..p[1],{h=26,kind="outline",align="CENTER",tooltip=L("Click: only this type on for this spec. Ctrl+click: for every class, spec and race. Shift+click: add this type for every class, spec and race, keeping the rest on.")})
     end
     local field=W.Field(right,L("ADD A SPELL BY ID"),d.newSpell or"",12,450,200,"pcd:newSpell")
     W.OnText(field,function(self)d.newSpell=self:GetText()end)

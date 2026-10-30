@@ -782,7 +782,7 @@ env.click('tab:partycds');cfg.mode='frames';assert(ns.DrawPartyCooldowns());asse
 env.click('tab:partycds');assert(ns.UIControls['pcd-unlock']and ns.UIControls['pcd:hideReady']);assert(ns.PartyCooldownLeft(m.Tester,22812)==45,'your own timer is the game cooldown');assert(ns.PartyCooldownCast('party1',33206));env.click('pcd-reset');assert(ns.PartyCooldownLeft(m.Friend,33206)==0)
 C_Spell.GetSpellCooldown=function()return{startTime=0,duration=0}end
 -- Abilities: switch a spell off for its class, add and remove your own.
-env.click('pcd-view:abilities');env.click('pcd-class:RACIAL');env.click('pcd-spell:58984');assert(not ns.PartyCooldownTracked(58984),'a racial off on its tab');env.click('pcd-spell:58984');env.click('pcd:racials');assert(cfg.racials==false);env.click('pcd:racials');assert(cfg.racials==true);env.click('pcd-class:WARRIOR');env.click('pcd-preset:burst');assert(not ns.PartyCooldownTracked(23920),'preset from the page');env.click('pcd-everythingon');assert(ns.PartyCooldownTracked(23920))
+env.click('pcd-view:abilities');env.click('pcd-class:RACIAL');env.click('pcd-spell:58984');assert(not ns.PartyCooldownTracked(58984),'a racial off on its tab');env.click('pcd-spell:58984');env.click('pcd:racials');assert(cfg.racials==false);env.click('pcd:racials');assert(cfg.racials==true);env.click('pcd-class:WARRIOR');env.click('pcd-preset:burst');assert(not ns.PartyCooldownTracked(23920,71)and ns.PartyCooldownTracked(23920,73),'preset on the shown spec from the page');IsControlKeyDown=function()return true end;env.click('pcd-preset:burst');IsControlKeyDown=nil;assert(not ns.PartyCooldownTracked(23920,73),'ctrl: every spec');env.click('pcd-everythingon');assert(ns.PartyCooldownTracked(23920,73))
 env.click('pcd-class:PRIEST');env.click('pcd-spell:33206');assert(not ns.PartyCooldownTracked(33206,256)and ns.PartyCooldownTracked(33206,257),'off for Discipline only')
 for _,id in ipairs(ns.PartyCooldownList(m.Friend))do assert(id~=33206)end;assert(not ns.PartyCooldownCast('party1',33206))
 env.click('pcd-spell:33206');assert(ns.PartyCooldownTracked(33206,256))
@@ -924,6 +924,8 @@ ns.ApplyPartyCooldownPreset('burst');assert(has({class='WARRIOR',spec=72,used={}
 ns.ApplyPartyCooldownPreset('defensive');assert(ns.PartyCooldownTracked(23920)and not ns.PartyCooldownTracked(1719),'only defensives')
 ns.ApplyPartyCooldownPreset('cc');assert(ns.PartyCooldownTracked(408)and ns.PartyCooldownTracked(115078)and not ns.PartyCooldownTracked(6552)and not ns.PartyCooldownTracked(23920),'only crowd control')
 ns.ApplyPartyCooldownPreset('racial');assert(ns.PartyCooldownTracked(59752)and not ns.PartyCooldownTracked(23920)and cfg.racials,'only racials')
+ns.SetAllPartyCooldowns(false);ns.ApplyPartyCooldownPreset('burst',false,'WARRIOR',72);assert(ns.PartyCooldownTracked(1719,72)and not ns.PartyCooldownTracked(184364,72)and not ns.PartyCooldownTracked(31884,70),'bursts of one spec')
+ns.ApplyPartyCooldownPreset('cc',true);assert(ns.PartyCooldownTracked(1719,72)and ns.PartyCooldownTracked(408,259)and ns.PartyCooldownTracked(46968,72),'shift adds crowd control everywhere, bursts stay')
 ns.SetAllPartyCooldowns(true)
 assert(ns.PartyCooldownDynamic(31884,66)and not ns.PartyCooldownDynamic(31884,70))end
 -- Spending rage in combat cuts Recklessness (Anger Management) when the bar is readable.
