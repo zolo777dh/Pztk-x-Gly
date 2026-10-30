@@ -154,6 +154,12 @@ local function Dynamic(id,spec)
 end
 ns.PartyCooldownDynamic=Dynamic
 ns.PartyCooldownTalentMods=TALENT_CD
+-- Damage cooldowns (bursts); every other spell of the main list counts as a defensive. Used by
+-- the presets on the Abilities page. Racials with damage (Berserking, Blood Fury...) count too.
+ns.PartyCooldownBurst={[51271]=true,[42650]=true,[191427]=true,[106951]=true,[194223]=true,[375087]=true,[403631]=true,
+    [19574]=true,[288613]=true,[1250646]=true,[365350]=true,[190319]=true,[123904]=true,[31884]=true,[10060]=true,[228260]=true,
+    [360194]=true,[121471]=true,[114050]=true,[114051]=true,[191634]=true,[205180]=true,[265187]=true,[1122]=true,[1719]=true,
+    [26297]=true,[20572]=true,[265221]=true,[274738]=true}
 local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,stuns=true,moves=true,potions=true,
     share=true,cdm=true,detect=true,racials=true,loadWhere="all",loadSolo=true,perRow=0,size2=20,highlight=true,tooltip=false,order={},pos={x=-420,y=120},
     anchors={kick={x=-420,y=-60,style="bars",size=22,width=200,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture="",mark=true,dark=false,hideInRaid=false},
@@ -272,6 +278,27 @@ function ns.SetPartyCooldownTracked(id,on,spec)
         cfg.specOff[spec]=cfg.specOff[spec]or{};cfg.specOff[spec][id]=(not on)or nil
     else cfg.disabled[id]=(not on)or nil end
     ns.RebuildPartyCooldownSensors();ns.DrawPartyCooldowns();return true
+end
+-- What a spell is for the presets: burst, defensive, kick, cc (stuns too), move, potion; racials
+-- are racial as well.
+function ns.PartyCooldownType(id)
+    local k=KIND[id];if k=="stun"then return"cc"end
+    return k or(ns.PartyCooldownBurst[id]and"burst"or"defensive")
+end
+-- A preset turns on only the spells of one type, for every class, spec and race; the rest go off.
+function ns.ApplyPartyCooldownPreset(kind)
+    ns.PartyCooldownListDirty()
+    local cfg=ns.PartyCooldownConfig()
+    for k in pairs(cfg.disabled)do cfg.disabled[k]=nil end;for k in pairs(cfg.specOff)do cfg.specOff[k]=nil end
+    for id,info in pairs(byID)do
+        local on=(kind=="racial"and info.race~=nil)or(kind~="racial"and ns.PartyCooldownType(id)==kind)
+        if not on then cfg.disabled[id]=true end
+    end
+    if kind=="racial"then cfg.racials=true end
+    -- The list of that type is switched on too.
+    local field=FIELD[kind=="cc"and"cc"or kind];if field then cfg[field]=true end
+    if kind=="cc"then cfg.stuns=true end
+    ns.RebuildPartyCooldownSensors();ns.RefreshPartyCooldowns();return true
 end
 -- Every spell at once, for every class, spec and race. On also clears the per-spec choices.
 function ns.SetAllPartyCooldowns(on)
@@ -2363,7 +2390,7 @@ local function DrawAbilities(parent,d)
     local tabs={};for _,sp in ipairs(specs)do tabs[#tabs+1]={value=sp,label=L((ns.Catalog.specs[sp]or tostring(sp)):gsub(" "..CLASS_NAMES[d.class].."$",""))}end
     W.Segmented(right,tabs,spec,12,30,684,function(v)d.specs[d.class]=v;kit.refresh()end,"pcd-spec")
     local ids=ns.PartyCooldownSpecSpells(d.class,spec)
-    local list=W.Scroll(right,12,70,684,368,"pcd:spells",C.background);local y=4
+    local list=W.Scroll(right,12,70,684,330,"pcd:spells",C.background);local y=4
     for _,id in ipairs(ids)do
         local info=byID[id]or{};local on=ns.PartyCooldownTracked(id,spec)
         local row=W.Panel(list,0,y,656,36,C.raised,C.clear,6)
@@ -2377,6 +2404,11 @@ local function DrawAbilities(parent,d)
         y=y+40
     end;list:SetHeight(math.max(1,y))
     -- What is typed is kept when the page is drawn again (a toggle, a tab).
+    -- Presets: only one type on, for every class, spec and race.
+    W.Label(right,L("Only"),12,414,60,12,C.soft)
+    for i,p in ipairs({{"burst","Bursts"},{"defensive","Defensives"},{"cc","Crowd control"},{"kick","Interrupts"},{"racial","Racials"}})do
+        W.Button(right,L(p[2]),70+(i-1)*126,408,122,function()ns.ApplyPartyCooldownPreset(p[1]);kit.refresh()end,false,"pcd-preset:"..p[1],{h=26,kind="outline",align="CENTER",tooltip=L("Only this type on, for every class, spec and race")})
+    end
     local field=W.Field(right,L("ADD A SPELL BY ID"),d.newSpell or"",12,450,200,"pcd:newSpell")
     W.OnText(field,function(self)d.newSpell=self:GetText()end)
     W.Button(right,L("Add"),220,466,80,function()local text=ns.UIControls["pcd:newSpell"]:GetText();local ok,err=ns.AddPartyCooldownSpell(d.class,text);if ok then d.newSpell=""else d.newSpell=text end;kit.done(ok,err,L("Spell added"))end,false,"pcd-add",{kind="primary",align="CENTER"})
