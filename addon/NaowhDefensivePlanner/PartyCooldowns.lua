@@ -50,14 +50,16 @@ end
 -- stays in "cc". Movement cooldowns for the group have one too.
 for _,id in ipairs({119381,179057,30283,192058,46968,109248,853,19577,221562,211881,5211,408,107570})do KIND[id]="stun"end
 for _,id in ipairs({106898,192077,1044,116841,374968})do KIND[id]="move"end
+-- Raid-wide defensives (zones and group damage cuts) have one too, like a raid cooldown bar.
+for _,id in ipairs({51052,97462,196718,374227,31821,62618,98008,15286})do KIND[id]="raid"end
 -- Combat potions: one shared cooldown for every member, whatever potion they drank. The first ID
 -- stands for all of them.
 local POTIONS={1236616,1236994,1236998,1239479,1295132}
 local POTION=POTIONS[1]
 KIND[POTION]="potion"
 -- The lists that have a movable anchor of their own, and the switch that shows each.
-local LISTS={"kick","stun","cc","move","potion"}
-local FIELD={["kick"]="kicks",["stun"]="stuns",["cc"]="cc",["move"]="moves",["potion"]="potions"}
+local LISTS={"kick","stun","cc","move","potion","raid"}
+local FIELD={["kick"]="kicks",["stun"]="stuns",["cc"]="cc",["move"]="moves",["potion"]="potions",["raid"]="raids"}
 ns.PartyCooldownLists=LISTS
 ns.PartyCooldownKind=function(id)return KIND[id]end
 ns.PartyCooldownSpells=SPELLS
@@ -194,13 +196,14 @@ ns.PartyCooldownBurst={[51271]=true,[42650]=true,[191427]=true,[106951]=true,[19
     [19574]=true,[288613]=true,[1250646]=true,[365350]=true,[190319]=true,[123904]=true,[31884]=true,[10060]=true,[228260]=true,
     [360194]=true,[121471]=true,[114050]=true,[114051]=true,[191634]=true,[205180]=true,[265187]=true,[1122]=true,[1719]=true,
     [26297]=true,[20572]=true,[265221]=true,[274738]=true}
-local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,stuns=true,moves=true,potions=true,
+local defaults={enabled=false,mode="frames",side="RIGHT",size=26,self=true,raidGroup=true,hideReady=false,names=false,sensors=true,kicks=true,cc=true,stuns=true,moves=true,potions=true,raids=true,
     share=true,cdm=true,detect=true,racials=true,loadWhere="all",loadSolo=true,perRow=0,size2=20,highlight=true,tooltip=false,order={},pos={x=-420,y=120},
     anchors={kick={x=-420,y=-60,style="bars",size=22,width=200,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture="",mark=true,dark=false,hideInRaid=false},
         cc={x=-420,y=-220,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false,texture="",hideInRaid=false},
         stun={x=-420,y=-300,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=2,names=false,hideReady=false,texture="",hideInRaid=false},
         move={x=-420,y=-380,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=1,names=false,hideReady=false,texture="",hideInRaid=false},
-        potion={x=-640,y=-60,style="bars",size=20,width=170,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture="",hideInRaid=false}},
+        potion={x=-640,y=-60,style="bars",size=20,width=170,dir="RIGHT",grow="DOWN",perRow=1,rows=5,names=true,hideReady=false,texture="",hideInRaid=false},
+        raid={x=-420,y=-440,style="icons",size=30,width=180,dir="RIGHT",grow="DOWN",perRow=8,rows=1,names=false,hideReady=false,texture="",hideInRaid=false}},
     learned={},disabled={},specOff={},custom={},talentSpells={}}
 function ns.PartyCooldownConfig()
     local store=ns.Store();store.partycds=store.partycds or{}
@@ -1094,7 +1097,7 @@ function ns.PartyCooldownReset()for _,m in pairs(members)do m.used={};m.hiddenCd
 -- have movable lists of their own ("anchors"), each with its own size, direction and names.
 local attached
 local groups={}
-local TITLES={main="Party cooldowns",kick="Interrupts",cc="Crowd control",stun="Stuns",move="Movement",potion="Potions"}
+local TITLES={main="Party cooldowns",kick="Interrupts",cc="Crowd control",stun="Stuns",move="Movement",potion="Potions",raid="Raid defensives"}
 -- The look of each window, the same settings for every one (cfg.styles[key]): where a short last
 -- row sits, the space between icons, opacity, the size of the timer numbers and of names, a border,
 -- how far the icon is zoomed, and for the main list the offset from the party frame.
@@ -1139,7 +1142,7 @@ function ns.ApplyPartyFont()
     W.customFont=type(v)=="string"and v~=""and Style.Font()or nil
 end
 ns.PartyStyleFont=Style.Font
-Style.keys={"main","kick","stun","cc","move","potion"}
+Style.keys={"main","kick","stun","cc","move","potion","raid"}
 ns.PartyStyleKeys=Style.keys
 function ns.PartyStyle(key)
     local cfg=ns.PartyCooldownConfig()
@@ -2674,9 +2677,10 @@ local ANCHOR_HELP={
     stun="Stuns are seen as their debuff on enemy nameplates, so enemy nameplates must be shown. Hammer of Justice is shown only for yourself, because Fist of Justice shortens it.",
     move="Group movement cooldowns: Stampeding Roar, Wind Rush Totem, Blessing of Freedom, Tiger's Lust and Time Spiral.",
     potion="Combat potions share one cooldown of 5 minutes, whatever potion was drunk. Seen from the cast, or from the potion's buff when the game hides the cast.",
+    raid="Cooldowns that protect the whole group: Anti-Magic Zone, Rallying Cry, Darkness, Zephyr, Aura Mastery, Power Word: Barrier, Spirit Link Totem and Vampiric Embrace.",
 }
 -- Which lists are set up side by side on the page.
-local PAIRS={{"kick","cc"},{"stun","move"},{"potion","main"},{"style"}}
+local PAIRS={{"kick","cc"},{"stun","move"},{"potion","raid"},{"main"},{"style"}}
 local DrawMainCard
 function DrawAnchors(parent,apply,d)
     local cfg=ns.PartyCooldownConfig()
@@ -2684,7 +2688,7 @@ function DrawAnchors(parent,apply,d)
     local sizes,widths,counts=list({16,18,20,22,24,26,30,36,40,42,44,48,52,56,60}," px"),list({120,150,180,200,240,280,320}," px"),list({1,2,3,4,5,6,7,8,9,10})
     d.pair=d.pair or 1
     local tabs={};for i,p in ipairs(PAIRS)do
-        tabs[#tabs+1]={value=i,label=p[1]=="style"and L("Look")or L(TITLES[p[1]]).." · "..L(p[2]=="main"and"Main list"or TITLES[p[2]])}end
+        tabs[#tabs+1]={value=i,label=p[1]=="style"and L("Look")or p[1]=="main"and L("Main list")or L(TITLES[p[1]])..(p[2]and" · "..L(TITLES[p[2]])or"")}end
     W.Segmented(parent,tabs,d.pair,0,56,920,function(v)d.pair=v;kit.refresh()end,"pcd-pair")
     for i,key in ipairs(PAIRS[d.pair]or PAIRS[1])do if key=="style"then Style.Card(parent,apply,d)elseif key=="main"then DrawMainCard(parent,(i-1)*466,apply)else
         local a=cfg.anchors[key];local field=FIELD[key];local id="pcd-"..key..":"

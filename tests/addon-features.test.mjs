@@ -1002,7 +1002,7 @@ cfg.anchors.cc.perRow=all-1;ns.DrawPartyCooldowns();local sz=tonumber(cfg.anchor
 assert(math.abs(math.abs(xs[all])-(3+(all-2)*(sz+2)/2))<0.01,'last icon in the middle '..tostring(xs[all]))
 cfg.anchors.cc.perRow=1;ns.DrawPartyCooldowns()
 -- Every window has the same look settings.
-env.click('pcd-pair:4');assert(ns.UIControls['pcd-style:window']and ns.UIControls['pcd-style:offX'],'look page, main list with frame offset')
+env.click('pcd-pair:5');assert(ns.UIControls['pcd-style:window']and ns.UIControls['pcd-style:offX'],'look page, main list with frame offset')
 env.select('pcd-style:window','Crowd control');assert(not ns.UIControls['pcd-style:offX'],'offset only for the main list')
 env.select('pcd-style:align','Left');assert(cfg.styles.cc.align=='LEFT')
 cfg.anchors.cc.perRow=all-1;ns.DrawPartyCooldowns();assert(math.abs(math.abs(xs[all])-3)<0.01,'left aligned short row '..tostring(xs[all]))
@@ -1061,8 +1061,10 @@ assert(ns.PartyCooldownCast(m.Rogue.unit,1236994)and ns.PartyCooldownLeft(m.Rogu
 assert(ns.DrawPartyCooldowns()and shows(G.potion,P)and cell(G.potion,P).bar:IsShown(),'potions show as bars')
 assert(not shows(G.main,1044)and ns.PartyCooldownBuffs[P][1]==1,'movement off the main list; potions sensed by their buff')
 env.click('pcd-pair:2');assert(ns.UIControls['pcd-stun:size']and ns.UIControls['pcd-move:size']and not ns.UIControls['pcd-kick:size'])
-env.click('pcd-pair:3');assert(ns.UIControls['pcd-potion:size']and ns.UIControls['pcd:perRow']and ns.UIControls['pcd:tooltip'])
+env.click('pcd-pair:3');assert(ns.UIControls['pcd-potion:size']and ns.UIControls['pcd-raid:size'])
+assert(ns.PartyCooldownKind(62618)=='raid'and ns.PartyCooldownKind(97462)=='raid','raid defensives have a list of their own')
 env.click('pcd:potions');assert(cfg.potions==false and not G.potion.frame:IsShown());env.click('pcd:potions');env.click('pcd-pair:1')
+env.click('pcd-pair:4');assert(ns.UIControls['pcd:perRow']and ns.UIControls['pcd:tooltip']);env.click('pcd-pair:1')
 -- Lists can hide in raids.
 env.click('pcd-kick:hideInRaid');assert(cfg.anchors.kick.hideInRaid);local raid=IsInRaid;IsInRaid=function()return true end
 ns.DrawPartyCooldowns();assert(not G.kick.frame:IsShown(),'hidden in a raid');IsInRaid=raid;ns.DrawPartyCooldowns();assert(G.kick.frame:IsShown());env.click('pcd-kick:hideInRaid')
@@ -1078,7 +1080,7 @@ env.click('pcd-kick:dark');assert(cfg.anchors.kick.dark);ns.DrawPartyCooldowns()
 GetRaidTargetIndex=nil;SetRaidTargetIconTexture=nil;m.Rogue.used={}
 -- Tooltips, more rows and your own order of the icons.
 local tip={};GameTooltip={SetOwner=function()end,SetSpellByID=function(_,id)tip.id=id end,AddLine=function(_,t)tip.line=t end,Show=function()tip.shown=true end,Hide=function()end}
-env.click('pcd-pair:3');env.click('pcd:tooltip');assert(cfg.tooltip);ns.PartyCooldownTooltip(cell(G.kick,1766));assert(tip.id==1766 and tip.line:find('Rogue')and tip.shown)
+env.click('pcd-pair:4');env.click('pcd:tooltip');assert(cfg.tooltip);ns.PartyCooldownTooltip(cell(G.kick,1766));assert(tip.id==1766 and tip.line:find('Rogue')and tip.shown)
 env.click('pcd:tooltip');GameTooltip=nil
 local per,small=ns.PartyCooldownGrid(10,26,{perRow=4,size2=18});assert(per==4 and small==18);per,small=ns.PartyCooldownGrid(3,26,{perRow=4,size2=18});assert(per==3 and small==26)
 env.select('pcd:perRow','3');assert(cfg.perRow==3);env.select('pcd:perRow','One row');env.click('pcd-pair:1')
@@ -1435,7 +1437,7 @@ test('Puzatik Party Defensives runs the same tracking on its own, with /pcd sett
  const text=n=>files['PuzatikPartyDefensives/'+n].toString('utf8');const ru=text('Locale.lua');
  const keys=new Set();for(const n of ['PartyCooldowns.lua','PartyExtras.lua','PartyProfile.lua','Window.lua','Slash.lua','Minimap.lua'])for(const m of text(n).matchAll(/L\("((?:[^"\\]|\\.)*)"\)/g))keys.add(m[1]);
  for(const m of text('Slash.lua').matchAll(/^\s*"(\/pcd[^"]*)",?$/gm))keys.add(m[1]);
- for(const n of ['PartyCooldowns.lua','PartyExtras.lua'])for(const m of text(n).matchAll(/(?:main|kick|cc|stun|move|potion|rotation|request|externals|lust)="([^"]+)"|^\s*(?:kick|cc|stun|move|potion)="([^"]+)",$/gm))keys.add(m[1]||m[2]);
+ for(const n of ['PartyCooldowns.lua','PartyExtras.lua'])for(const m of text(n).matchAll(/(?:main|kick|cc|stun|move|potion|raid|rotation|request|externals|lust)="([^"]+)"|^\s*(?:kick|cc|stun|move|potion|raid)="([^"]+)",$/gm))keys.add(m[1]||m[2]);
  const missing=[...keys].filter(k=>!ru.includes('["'+k+'"]'));assert.deepEqual(missing,[],'Russian text for every interface string');
  const russian=['Core.lua','Locale.lua'].map(n=>`;(function(...)\n${text(n)}\nend)('PuzatikPartyDefensives',r)`).join('\n');
  await run(`
