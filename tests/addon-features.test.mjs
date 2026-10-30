@@ -911,6 +911,7 @@ assert(ns.PartyCooldownWithTalents({spec=70,ranks={}},31884,120)==60,'Retributio
 do local function has(m,id)for _,x in ipairs(ns.PartyCooldownList(m))do if x==id then return true end end return false end
 local dkm={class='DEATHKNIGHT',spec=250,used={},talented={}};assert(not has(dkm,49028)and not has(dkm,55233)and has(dkm,48707),'Blood DRW and VB left out for others')
 local pal={class='PALADIN',spec=66,used={},talented={}};assert(not has(pal,31884))
+assert(has(pal,86659),'Guardian of Ancient Kings for Protection paladins')
 assert(has({class='PALADIN',spec=65,used={},talented={}},31884),'Holy Avenging Wrath stays')
 local wm={class='WARRIOR',spec=73,used={},talented={},race='NightElf'};assert(has(wm,23920)and has(wm,58984)and not has(wm,871))
 wm.race='Human';assert(not has(wm,58984),'Shadowmeld only for night elves')
