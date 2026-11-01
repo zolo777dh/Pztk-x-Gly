@@ -648,7 +648,7 @@ local function Hidden(m,id)
         -- Out of combat a track that nothing started is not a timer at all.
         if not t.over then t.over=now+t.cd end
         local plain=true;for k=1,2 do local sl=t.slot[k];if not sl or not ns.Plain(sl.code,"number")then plain=false end end
-        if plain and ns.PartyCooldownHiddenLeft(t,now)<=0 then m.hiddenCd[id]=nil;return nil end
+        if plain and ns.PartyCooldownHiddenLeft(t,now)<=0 and not(ns.Plain(t.b,"number")and t.b>0.5)then m.hiddenCd[id]=nil;return nil end
     end
     if t.over and now>=t.over then m.hiddenCd[id]=nil;return nil end
     return t
@@ -1861,6 +1861,7 @@ function HiddenTrack(m,id,now)
         local unit=math.max(1,math.ceil(cd/100));local window=255*unit
         t={cd=cd,unit=unit,window=window,open=window-cd,cur=1,slot={NewSlot(now),NewSlot(now)}}
         m.hiddenCd[id]=t;t.created=true
+        if not m.me and MaxCharges(m,id)>1 then ns.PartyCharge.Add(t,m,id,now,Recharge(m,id,now))end
     end
     -- The length changed (talents read, a sent cooldown): a running timer keeps its start.
     local cd=math.floor(ns.PartyCooldownLength(m,id)+0.5)
@@ -1884,6 +1885,13 @@ local function HiddenEdge(m,id,cur,prev,now,at,veto,hasVeto)
     local code=Fine()and math.min(1,(at-sl.epoch+t.cd)/t.window)or whole
     -- Called for every hidden answer (hundreds a second in a pull): plain pcalls, no closure.
     local p0=sl.prev or 0
+    -- Two charges: a use while a recharge runs keeps it and leaves none (see ns.PartyCharge).
+    local flag
+    if t.charged then
+        local c,w,b=ns.PartyCharge.Edge(t,now,code,whole,cur,prev,veto,hasVeto)
+        if c==nil then sensorState.refused=(sensorState.refused or 0)+1;return false end
+        code,whole,flag=c,w,b
+    end
     local ok,a=pcall(eval,prev,sl.code,code);local ok2,b=pcall(eval,prev,sl.whole,whole);local ok3,c=pcall(eval,prev,p0,sl.code)
     local v,w,before
     if ok and ok2 and ok3 then ok,v=pcall(eval,cur,a,sl.code);ok2,w=pcall(eval,cur,b,sl.whole);ok3,before=pcall(eval,cur,c,p0)end
@@ -1894,7 +1902,7 @@ local function HiddenEdge(m,id,cur,prev,now,at,veto,hasVeto)
         else ok,v=pcall(eval,veto,sl.code,v);ok2,w=pcall(eval,veto,sl.whole,w);ok3,before=pcall(eval,veto,p0,before)end
     end
     if not(ok and ok2 and ok3)then sensorState.refused=(sensorState.refused or 0)+1;return false end
-    sl.code,sl.whole,sl.prev=v,w,before;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
+    sl.code,sl.whole,sl.prev=v,w,before;if flag~=nil then t.b=flag;ns.PartyCharge.Write(t)end;sensorState.hiddenEdges=(sensorState.hiddenEdges or 0)+1
     local created=t.created;t.created=nil
     return true,created
 end
@@ -2037,6 +2045,7 @@ local function SlideHidden()
         if icon.track~=t or not icon:IsVisible()then shownHidden[icon]=nil
         else
             local parts=icon.hidden
+            if parts.counted then ns.PartyCharge.Slide(parts,t)end
             for k=1,2 do local sl,p=t.slot[k],parts[k]
                 local low=(now-sl.epoch)/t.window
                 pcall(p.fill.SetMinMaxValues,p.fill,low,low+t.cd/t.window);pcall(p.fill.SetValue,p.fill,sl.code)
@@ -2067,12 +2076,17 @@ function ShowHidden(icon,t,charged)
     icon.track=t
     local parts=icon.hidden
     if not t then
-        if parts then parts.win:Hide();for k=1,2 do parts[k].fill:Hide();parts[k].veil:Hide();parts[k].pos:Hide();parts[k].gate:Hide();if parts[k].hveil then parts[k].hveil:Hide()end end;Charged(parts,false)end
+        if parts then parts.win:Hide();for k=1,2 do parts[k].fill:Hide();parts[k].veil:Hide();parts[k].pos:Hide();parts[k].gate:Hide();if parts[k].hveil then parts[k].hveil:Hide()end end;Charged(parts,false);parts.counted=nil;ns.PartyCharge.Show(parts,false)end
         shownHidden[icon]=nil;return
     end
     parts=DressHidden(icon,t)
     local tex=icon.spellID and W.SpellTexture(icon.spellID)
     charged=charged and not icon.textOnly or false
+    -- Two charges counted in combat: the recharge shows like one timer (dark fill, seconds), the
+    -- count sits in the corner and the icon greys only with none left.
+    local counted=charged and t.charged or nil
+    if counted then charged=false end
+    parts.counted=counted
     -- On a bar only the seconds show: no dark fill and no grey copy of an icon. With two charges
     -- the icon greys only when both are spent; which use comes back first is not known, so no
     -- seconds and no dark fill are drawn then.
@@ -2082,16 +2096,180 @@ function ShowHidden(icon,t,charged)
         else parts[k].grey:SetTexture(tex);parts[k].grey:Show();parts[k].fill:Show()end
         parts[k].veil:Show();parts[k].pos:Show();parts[k].gate:Show();parts[k].second=nil end
     Charged(parts,charged,tex)
+    if counted then
+        for k=1,2 do parts[k].grey:Hide()end
+        ns.PartyCharge.Parts(icon,parts,tex);if icon.count then icon.count:Hide()end;ns.PartyCharge.Slide(parts,t)
+    end
+    ns.PartyCharge.Show(parts,counted and true or false)
     shownHidden[icon]=t
 end
 ns.PartyCooldownShowHidden=ShowHidden
+-- Two charges of another player in combat, where the start of each use is hidden. Like the game
+-- does it: one recharge runs at a time; a use while it runs leaves none, and the next recharge
+-- starts when the running one ends. Kept as one recharge (in the slots above) and a flag `b`
+-- (0 or 1, hidden too): "none left, another recharge waits".
+-- To ask "does the recharge still run?" of a hidden number, the number is put into a tall
+-- clear status bar; a frame reaches from the bar's bottom to the top of its fill, so its top is
+-- at the number. IsMouseOver with the top edge moved by (cursor - height of the asked value)
+-- answers "is the top above the asked height" whatever the cursor does, as a hidden yes/no the
+-- curve helper takes. It is checked once with plain numbers before it is trusted (`geo`).
+-- Counts on the icon: three texts "0", "1", "2" whose alphas are picked the same way.
+ns.PartyCharge={tracks=setmetatable({},{__mode="k"}),pool={},H=1000,LO=-0.02,HI=1.02,last=0}
+function ns.PartyCharge.Layer()
+    local C=ns.PartyCharge
+    if not C.layer then C.layer=CreateFrame("Frame",nil,UIParent);C.layer:SetSize(1,1);C.layer:SetPoint("BOTTOM",UIParent,"BOTTOM",0,0);pcall(C.layer.SetAlpha,C.layer,0)end
+    return C.layer
+end
+function ns.PartyCharge.Probe()
+    local C=ns.PartyCharge;local layer=C.Layer()
+    local bar=CreateFrame("StatusBar",nil,layer)
+    pcall(bar.SetStatusBarTexture,bar,"Interface\\Buttons\\WHITE8X8");pcall(bar.SetStatusBarColor,bar,0,0,0,0)
+    pcall(bar.SetOrientation,bar,"VERTICAL");pcall(bar.SetMinMaxValues,bar,C.LO,C.HI);pcall(bar.SetValue,bar,0)
+    bar:SetSize(1,C.H);bar:SetPoint("BOTTOM",UIParent,"BOTTOM",0,0)
+    local fill=bar.GetStatusBarTexture and bar:GetStatusBarTexture()
+    local probe=CreateFrame("Frame",nil,layer);probe:SetPoint("BOTTOMLEFT",bar,"BOTTOMLEFT",0,0);probe:SetPoint("TOPRIGHT",fill or bar,"TOPRIGHT",0,0)
+    return{bar=bar,probe=probe,plain=0}
+end
+-- The probe's own answer: is the value in it at least `th`? Nil when it cannot be asked.
+function ns.PartyCharge.Geo(pr,th)
+    local C=ns.PartyCharge
+    if not(GetCursorPosition and pr.probe.IsMouseOver)then return nil end
+    local ok,bottom=pcall(pr.bar.GetBottom,pr.bar);local ok2,es=pcall(pr.probe.GetEffectiveScale,pr.probe)
+    if not(ok and ok2 and ns.Plain(bottom,"number")and ns.Plain(es,"number")and es>0)then return nil end
+    local _,cy=GetCursorPosition();if not ns.Plain(cy,"number")then return nil end
+    local at=bottom+C.H*(th-C.LO)/(C.HI-C.LO)
+    local ok3,v=pcall(pr.probe.IsMouseOver,pr.probe,cy/es-at,-1e5,-1e5,1e5)
+    if not ok3 or v==nil then return nil end
+    return v
+end
+function ns.PartyCharge.Past(pr,th)
+    if pr.plain~=nil then return pr.plain>=th end
+    if ns.PartyCharge.geo~=true then return nil end
+    return ns.PartyCharge.Geo(pr,th)
+end
+function ns.PartyCharge.Put(pr,v)
+    pcall(pr.bar.SetValue,pr.bar,v);pr.plain=ns.Plain(v,"number")and v or nil
+end
+function ns.PartyCharge.Write(t)
+    local C=ns.PartyCharge;C.Put(t.probe[1],t.slot[1].code);C.Put(t.probe[2],t.slot[2].code);C.Put(t.probe.b,t.b)
+end
+-- A new track of a member with two charges: probes, and the plain state seen before combat.
+function ns.PartyCharge.Add(t,m,id,now,st)
+    local C=ns.PartyCharge;if C.geo~=true then return end
+    local key=tostring(m.name)..":"..id
+    local probe=C.pool[key];if not probe then probe={C.Probe(),C.Probe(),b=C.Probe()};C.pool[key]=probe end
+    t.charged,t.m,t.id,t.probe,t.b,t.a0,t.a1,t.a2=true,m,id,probe,0,0,0,1
+    if st and st.next and st.next>now then
+        local sl=t.slot[t.cur]
+        sl.code=math.min(1,(st.next-sl.epoch)/t.window);sl.whole=math.min(255,math.floor((st.next-sl.wepoch)/t.unit+0.5))/255
+        if st.avail==0 then t.b,t.a0,t.a2=1,1,0 else t.a1,t.a2=1,0 end
+    end
+    C.Write(t);C.tracks[t]=true
+end
+-- Does either slot still run (more than a second left)? Two answers, hidden or plain.
+function ns.PartyCharge.Run(t,now)
+    local C=ns.PartyCharge
+    local r1=C.Past(t.probe[1],(now-t.slot[1].epoch+1)/t.window);local r2=C.Past(t.probe[2],(now-t.slot[2].epoch+1)/t.window)
+    if r1==nil or r2==nil then return nil end
+    return r1,r2
+end
+-- `x` while a recharge runs, else `y`.
+function ns.PartyCharge.Pick(r1,r2,x,y)
+    local eval=EVAL();if not eval then return nil end
+    local ok,a=pcall(eval,r2,x,y);if not ok then return nil end
+    local ok2,v=pcall(eval,r1,x,a);if not ok2 then return nil end
+    return v
+end
+-- A use: what the new start becomes (the old one while a recharge runs) and the flag.
+function ns.PartyCharge.Edge(t,now,code,whole,cur,prev,veto,hasVeto)
+    local C=ns.PartyCharge;local eval=EVAL()
+    local r1,r2=C.Run(t,now);if r1==nil then return nil end
+    local sl=t.slot[t.cur]
+    local c,w,flag=C.Pick(r1,r2,sl.code,code),C.Pick(r1,r2,sl.whole,whole),C.Pick(r1,r2,1,t.b)
+    if c==nil or w==nil or flag==nil then return nil end
+    local ok,a=pcall(eval,prev,t.b,flag);if not ok then return nil end
+    local ok2,b=pcall(eval,cur,a,t.b);if not ok2 then return nil end
+    if hasVeto then
+        if Plain(veto)then if veto then b=t.b end
+        else local ok3,v=pcall(eval,veto,t.b,b);if not ok3 then return nil end;b=v end
+    end
+    return c,w,b
+end
+-- Every 0.2 s: a recharge that ended with the flag set starts the next one now; the counts.
+function ns.PartyCharge.Tick(now,force)
+    local C=ns.PartyCharge
+    if not force and now-C.last<0.2 then return end
+    C.last=now
+    if C.geo==nil and not(InCombatLockdown and InCombatLockdown())then
+        -- The probe is asked about a plain number it holds before any hidden one is trusted.
+        if not C.check then C.check=C.Probe();pcall(C.check.bar.SetValue,C.check.bar,0.3);C.check.plain=nil;C.checkAt=now
+        elseif now-C.checkAt>0.3 then
+            local a,b=C.Geo(C.check,0.25),C.Geo(C.check,0.35)
+            if Plain(a)and Plain(b)then C.geo=(a==true and b==false);C.checkAt=now+3600 end
+        end
+    end
+    local eval=EVAL();if not eval or not next(C.tracks)then return end
+    -- A track may be made anew while this runs (its length changed): walk a copy.
+    local list={};for t in pairs(C.tracks)do list[#list+1]=t end
+    for _,t in ipairs(list)do
+        local m=t.m
+        if not(m and m.hiddenCd and m.hiddenCd[t.id]==t)then C.tracks[t]=nil
+        else
+            HiddenTrack(m,t.id,now);local sl=t.slot[t.cur]
+            local r1,r2=C.Run(t,now);local B=C.Past(t.probe.b,0.5)
+            if r1~=nil and B~=nil then
+                local whole=math.min(255,math.floor((now-sl.wepoch+t.cd)/t.unit+0.5))/255
+                local code=Fine()and math.min(1,(now-sl.epoch+t.cd)/t.window)or whole
+                local ok,nc=pcall(eval,B,code,sl.code);local ok2,nw=pcall(eval,B,whole,sl.whole)
+                local ok3,nb=pcall(eval,B,0,t.b);local ok4,one=pcall(eval,B,0,1);local ok5,zero=pcall(eval,B,1,0)
+                if ok and ok2 and ok3 and ok4 and ok5 then
+                    local c,w,b=C.Pick(r1,r2,sl.code,nc),C.Pick(r1,r2,sl.whole,nw),C.Pick(r1,r2,t.b,nb)
+                    local a0,a1,a2=C.Pick(r1,r2,zero,0),C.Pick(r1,r2,one,zero),C.Pick(r1,r2,0,one)
+                    if c~=nil and w~=nil and b~=nil and a0~=nil and a1~=nil and a2~=nil then
+                        sl.code,sl.whole,t.b,t.a0,t.a1,t.a2=c,w,b,a0,a1,a2;C.Write(t)
+                    end
+                end
+            end
+        end
+    end
+end
+-- Plain counts (tests, the report): nil while they are hidden.
+function ns.PartyCharge.Count(t)
+    if not t.charged then return nil end
+    for k=0,2 do local a=t["a"..k];if not ns.Plain(a,"number")then return nil end;if a>0.5 then return k end end
+    return nil
+end
+-- The counts and the "none left" grey on an icon.
+function ns.PartyCharge.Parts(icon,parts,tex)
+    if not parts.counts then
+        local f=CreateFrame("Frame",nil,icon);f:SetAllPoints(icon);parts.countFrame=f
+        parts.zero=f:CreateTexture(nil,"ARTWORK");parts.zero:SetAllPoints(icon);parts.zero:SetTexCoord(0.07,0.93,0.07,0.93)
+        pcall(parts.zero.SetDesaturated,parts.zero,true);parts.zero:SetVertexColor(0.55,0.55,0.55)
+        local top=CreateFrame("Frame",nil,icon);top:SetAllPoints(icon);parts.countTop=top
+        parts.counts={}
+        for k=0,2 do local fs=top:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall");fs:SetPoint("BOTTOMRIGHT",icon,"BOTTOMRIGHT",-1,1);fs:SetText(tostring(k));parts.counts[k]=fs end
+    end
+    pcall(parts.countFrame.SetFrameLevel,parts.countFrame,(icon:GetFrameLevel()or 0)+2)
+    pcall(parts.countTop.SetFrameLevel,parts.countTop,(icon:GetFrameLevel()or 0)+8)
+    if tex then parts.zero:SetTexture(tex)end
+    local font=icon.styleFont or(W.Font and W.Font(true))
+    if font then local size=math.max(9,math.floor((icon:GetWidth()or 26)*0.38));for k=0,2 do pcall(parts.counts[k].SetFont,parts.counts[k],font,size,"OUTLINE")end end
+end
+function ns.PartyCharge.Show(parts,on)
+    if not parts.counts then return end
+    parts.countFrame:SetShown(on);parts.countTop:SetShown(on)
+end
+function ns.PartyCharge.Slide(parts,t)
+    pcall(parts.zero.SetAlpha,parts.zero,t.a0)
+    for k=0,2 do pcall(parts.counts[k].SetAlpha,parts.counts[k],t["a"..k])end
+end
 -- /ndp pcd: what the sensors and the cast tracking see, printed to chat.
 function ns.PartyCooldownReport()
     local lines={}
     lines[#lines+1]="Party cooldowns "..tostring(ns.version)..", in combat: "..tostring(InCombatLockdown and InCombatLockdown()or false)..". Buff sensors: "..(sensorState.available==false and("not available ("..tostring(sensorState.reason)..")")or(#sensors.." watching"))
         ..", lit now "..(function()local n=0;for _,s in ipairs(sensors)do if s.lit then n=n+1 end end;return n end)()
         ..", hidden answers kept "..(sensorState.hiddenEdges or 0)..", power bars read "..spendState.plain.." hidden "..spendState.hidden..", exact times "..tostring(ns.PartyCooldownFine and ns.PartyCooldownFine()or false)..", refused "..(sensorState.refused or 0)..(EVAL()and""or", no curve helper")..", my cooldowns "..shareState
-        ..", enemy plates watched "..tostring(ns.plateCount or 0)..", plates re-pointed "..(sensorState.repoint or 0).." (in combat "..(sensorState.repointCombat or 0)..", refused "..(sensorState.repointFail or 0).."), crowd control seen out of combat "..(sensorState.ccSeen or 0)
+        ..", enemy plates watched "..tostring(ns.plateCount or 0)..", plates re-pointed "..(sensorState.repoint or 0).." (in combat "..(sensorState.repointCombat or 0)..", refused "..(sensorState.repointFail or 0).."), crowd control seen out of combat "..(sensorState.ccSeen or 0)..", hidden charges "..(ns.PartyCharge.geo==true and"counted"or ns.PartyCharge.geo==false and"probe failed"or"not checked yet")
     local k=ns.PartyCooldownKickStats and ns.PartyCooldownKickStats()
     if k then lines[#lines+1]="Interrupts seen "..k.seen..": by the meter "..k.meter..", by name "..k.named..", only one ready "..k.ready..", unknown "..k.unsure end
     for _,name in ipairs(order)do local m=members[name]
@@ -2245,6 +2423,7 @@ driver:SetScript("OnUpdate",function()
     local now=GetTime()
     if #sensors>0 and now-lastRead>=POLL then quick=0;dirty={};lastRead=now;Timed("sensor poll",PollSensors)
     elseif quick>0 then quick=quick-1;Timed("sensor quick reads",PollSensors,dirty);if quick==0 then dirty={}end end
+    ns.PartyCharge.Tick(now)
     if next(shownHidden)then SlideHidden()end
 end)
 function ns.PartyCooldownAura(unit)

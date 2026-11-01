@@ -1064,6 +1064,21 @@ env.click('pcd-pair:2');assert(ns.UIControls['pcd-stun:size']and ns.UIControls['
 env.click('pcd-pair:3');assert(ns.UIControls['pcd-potion:size']and ns.UIControls['pcd-raid:size'])
 assert(ns.PartyCooldownKind(62618)=='raid'and ns.PartyCooldownKind(97462)=='raid','raid defensives have a list of their own')
 assert(ns.PartyCooldownBuffs[191427][2]==162264 and ns.PartyCooldownShort[191427][1]==10 and ns.PartyCooldownShort[49028][2]==377668,'Metamorphosis sensed by its buff, procs filtered by a short sensor')
+-- 1.0.7. Two charges in combat: one recharge at a time, a use while it runs leaves none.
+do local cu=C_CurveUtil;C_CurveUtil={EvaluateColorValueFromBoolean=function(b,y,n)return b and y or n end}
+local C=ns.PartyCharge;local geo=C.geo;C.geo=true;local r=m.Rogue;r.charges={[1966]=2};r.hiddenCd=nil;r.chg=nil
+local lockC=InCombatLockdown;InCombatLockdown=function()return true end
+local now=GetTime();assert(ns.PartyCooldownHiddenEdge(r,1966,true,false,now));local t=r.hiddenCd[1966];assert(t.charged,'counted track')
+C.Tick(GetTime(),true);assert(C.Count(t)==1,'one left '..tostring(C.Count(t)))
+env.advance(2);assert(ns.PartyCooldownHiddenEdge(r,1966,true,false,GetTime()));C.Tick(GetTime(),true);assert(C.Count(t)==0 and t.b==1,'none left')
+assert(math.abs(ns.PartyCooldownHiddenLeft(t,GetTime())-(t.cd-2))<1,'the second use waits for the first recharge')
+env.advance(t.cd-2+0.5);C.Tick(GetTime(),true);assert(C.Count(t)==1 and t.b==0,'the next recharge starts when one ends')
+assert(math.abs(ns.PartyCooldownHiddenLeft(t,GetTime())-t.cd)<1.5,'next recharge from now '..ns.PartyCooldownHiddenLeft(t,GetTime()))
+env.advance(t.cd+1);C.Tick(GetTime(),true);assert(C.Count(t)==2,'both back')
+local icon=CreateFrame('Frame');icon.tex=icon:CreateTexture();icon:SetSize(26,26);icon.spellID=1966
+ns.PartyCooldownShowHidden(icon,t,true);assert(icon.hidden.counted and icon.hidden.counts[2],'counts on the icon');ns.PartyCooldownSlideHidden()
+ns.PartyCooldownShowHidden(icon,nil);assert(not icon.hidden.counted)
+r.hiddenCd=nil;r.charges=nil;C.geo=geo;InCombatLockdown=lockC;C_CurveUtil=cu end
 env.click('pcd:potions');assert(cfg.potions==false and not G.potion.frame:IsShown());env.click('pcd:potions');env.click('pcd-pair:1')
 env.click('pcd-pair:4');assert(ns.UIControls['pcd:perRow']and ns.UIControls['pcd:tooltip']);env.click('pcd-pair:1')
 -- Lists can hide in raids.
